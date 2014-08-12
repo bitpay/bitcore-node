@@ -124,6 +124,7 @@ bool AppInit3(boost::thread_group& threadGroup) {
       // try again
       if (!bitdb.Open(GetDataDir())) {
         // if it still fails, it probably means we can't even create the database env
+        string msg = strprintf(_("Error initializing wallet database environment %s!"), strDataDir);
         return InitError(msg);
       }
     }
@@ -131,11 +132,10 @@ bool AppInit3(boost::thread_group& threadGroup) {
     if (filesystem::exists(GetDataDir() / strWalletFile)) {
       CDBEnv::VerifyResult r = bitdb.Verify(strWalletFile, CWalletDB::Recover);
       if (r == CDBEnv::RECOVER_OK) {
-        string msg = strprintf(_("Warning: wallet.dat corrupt, data salvaged!"
-                     " Original wallet.dat saved as wallet.{timestamp}.bak in %s; if"
-                     " your balance or transactions are incorrect you should"
-                     " restore from a backup."), strDataDir);
-        InitWarning(msg);
+        // Warning: wallet.dat corrupt, data salvaged!
+        // Original wallet.dat saved as wallet.{timestamp}.bak in data dir; if
+        // your balance or transactions are incorrect you should
+        // restore from a backup.
       }
       if (r == CDBEnv::RECOVER_FAIL) {
         return InitError(_("wallet.dat corrupt, salvage failed"));
@@ -230,8 +230,9 @@ bool AppInit3(boost::thread_group& threadGroup) {
 
         // If the loaded chain has a wrong genesis, bail out immediately
         // (we're likely using a testnet datadir, or the other way around).
-        if (!mapBlockIndex.empty() && chainActive.Genesis() == NULL)
+        if (!mapBlockIndex.empty() && chainActive.Genesis() == NULL) {
           return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
+        }
 
         // Initialize the block index (no-op if non-empty database was already loaded)
         if (!InitBlockIndex()) {
@@ -299,9 +300,8 @@ bool AppInit3(boost::thread_group& threadGroup) {
       if (nLoadWalletRet == DB_CORRUPT) {
         strErrors << _("Error loading wallet.dat: Wallet corrupted") << "\n";
       } else if (nLoadWalletRet == DB_NONCRITICAL_ERROR) {
-        string msg(_("Warning: error reading wallet.dat! All keys read correctly, but transaction data"
-               " or address book entries might be missing or incorrect."));
-        InitWarning(msg);
+        // Warning: error reading wallet.dat! All keys read correctly, but transaction data
+        // or address book entries might be missing or incorrect.
       } else if (nLoadWalletRet == DB_TOO_NEW) {
         strErrors << _("Error loading wallet.dat: Wallet requires newer version of Bitcoin Core") << "\n";
       } else if (nLoadWalletRet == DB_NEED_REWRITE) {
