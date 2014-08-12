@@ -1,7 +1,73 @@
+// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2014 The Bitcoin developers
+// Distributed under the MIT/X11 software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#if defined(HAVE_CONFIG_H)
+#include "config/bitcoin-config.h"
+#endif
+
+#include "init.h"
+
+#include "addrman.h"
+#include "checkpoints.h"
+#include "key.h"
+#include "main.h"
+#include "miner.h"
+#include "net.h"
+#include "rpcserver.h"
+#include "txdb.h"
+#include "ui_interface.h"
+#include "util.h"
+#ifdef ENABLE_WALLET
+#include "db.h"
+#include "wallet.h"
+#include "walletdb.h"
+#endif
+
+#include <stdint.h>
+#include <stdio.h>
+#include <signal.h>
+
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/interprocess/sync/file_lock.hpp>
+#include <openssl/crypto.h>
+
+using namespace boost;
+using namespace std;
+
+#ifdef ENABLE_WALLET
+CWallet* pwalletMain;
+#endif
+
+#define MIN_CORE_FILEDESCRIPTORS 150
+
+// Used to pass flags to the Bind() function
+enum BindFlags {
+    BF_NONE         = 0,
+    BF_EXPLICIT     = (1U << 0),
+    BF_REPORT_ERROR = (1U << 1),
+    BF_WHITELIST    = (1U << 2),
+};
+
+static const char* FEE_ESTIMATES_FILENAME="fee_estimates.dat";
+CClientUIInterface uiInterface;
+
+#include "rpcserver.h"
+#include "init.h"
+#include "main.h"
+#include "noui.h"
+#include "ui_interface.h"
+#include "util.h"
+
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/filesystem.hpp>
+
 /** Initialize bitcoin.
  *  @pre Parameters should be parsed and config file should be read.
  */
-bool AppInit3(boost::thread_group& threadGroup) {
+bool AppInit2(boost::thread_group& threadGroup) {
   umask(077);
 
   // Clean shutdown on SIGTERM
@@ -142,7 +208,8 @@ bool AppInit3(boost::thread_group& threadGroup) {
       }
     }
   }
-#endif // ENABLE_WALLET
+#endif
+
   // ********************************************************* Step 6: network initialization
 
   RegisterNodeSignals(GetNodeSignals());
@@ -242,7 +309,7 @@ bool AppInit3(boost::thread_group& threadGroup) {
 
         // Check for changed -txindex state
         if (fTxIndex != false) {
-          strLoadError = _("You need to rebuild the database using -reindex to change -txindex");
+          strLoadError = _("You need to rebuild the database");
           break;
         }
 
@@ -415,4 +482,61 @@ bool AppInit3(boost::thread_group& threadGroup) {
 #endif
 
   return !fRequestShutdown;
+}
+
+bool AppInit(int argc, char **argv) {
+  boost::thread_group threadGroup;
+  boost::thread* detectShutdownThread = NULL;
+
+  bool fRet = false;
+  try {
+    ParseParameters(argc, argv);
+    if (!boost::filesystem::is_directory(GetDataDir(false))) {
+      // Error: Specified data directory does not exist.
+      return false;
+    }
+    try {
+      ReadConfigFile(mapArgs, mapMultiArgs);
+    } catch(std::exception &e) {
+      // Error reading configuration file
+      return false;
+    }
+
+    // Check for -testnet or -regtest parameter (Params()
+    // calls are only valid after this clause)
+    if (!SelectParamsFromCommandLine()) {
+      // Error: Invalid combination of -regtest and -testnet.
+      return false;
+    }
+
+    detectShutdownThread = new boost::thread(boost::bind(&DetectShutdownThread, &threadGroup));
+    fRet = AppInit2(threadGroup);
+  } catch (std::exception& e) {
+    PrintExceptionContinue(&e, "AppInit()");
+  } catch (...) {
+    PrintExceptionContinue(NULL, "AppInit()");
+  }
+
+  if (!fRet) {
+    if (detectShutdownThread) {
+      detectShutdownThread->interrupt();
+    }
+    threadGroup.interrupt_all();
+  }
+
+  if (detectShutdownThread) {
+    detectShutdownThread->join();
+    delete detectShutdownThread;
+    detectShutdownThread = NULL;
+  }
+
+  Shutdown();
+
+  return fRet;
+}
+
+int startBitcoin(int argc, char **argv) {
+  SetupEnvironment();
+  noui_connect();
+  return AppInit(argc, argv) ? 0 : 1;
 }
