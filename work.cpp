@@ -1,40 +1,28 @@
-
-bool AppInit3(boost::thread_group& threadGroup) {
-  if (nScriptCheckThreads) {
-    for (int i=0; i<nScriptCheckThreads-1; i++)
-      threadGroup.create_thread(&ThreadScriptCheck);
-  }
-  threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
-  StartNode(threadGroup);
-  if (fServer)
-    StartRPCThreads();
-    threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
-
-
-  nStart = GetTimeMillis();
-
-  {
-    CAddrDB adb;
-    adb.Read(addrman);
-  }
-
-  // ********************************************************* Step 11: start node
-
-  if (!CheckDiskSpace())
-    return false;
-
-  if (!strErrors.str().empty())
-    return InitError(strErrors.str());
-
-  RandAddSeedPerfmon();
-
-}
-
 /** Initialize bitcoin.
  *  @pre Parameters should be parsed and config file should be read.
  */
 bool AppInit3(boost::thread_group& threadGroup) {
   umask(077);
+
+  // Clean shutdown on SIGTERM
+  struct sigaction sa;
+  sa.sa_handler = HandleSIGTERM;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  sigaction(SIGTERM, &sa, NULL);
+  sigaction(SIGINT, &sa, NULL);
+
+  // Reopen debug.log on SIGHUP
+  struct sigaction sa_hup;
+  sa_hup.sa_handler = HandleSIGHUP;
+  sigemptyset(&sa_hup.sa_mask);
+  sa_hup.sa_flags = 0;
+  sigaction(SIGHUP, &sa_hup, NULL);
+
+#if defined (__SVR4) && defined (__sun)
+  // ignore SIGPIPE on Solaris
+  signal(SIGPIPE, SIG_IGN);
+#endif
 
   // ********************************************************* Step 2: parameter interactions
 
@@ -43,10 +31,13 @@ bool AppInit3(boost::thread_group& threadGroup) {
   nMaxConnections = 125;
   nMaxConnections = std::max(std::min(nMaxConnections, (int)(FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS)), 0);
   int nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS);
-  if (nFD < MIN_CORE_FILEDESCRIPTORS)
+  if (nFD < MIN_CORE_FILEDESCRIPTORS) {
     return InitError(_("Not enough file descriptors available."));
-  if (nFD - MIN_CORE_FILEDESCRIPTORS < nMaxConnections)
+  }
+
+  if (nFD - MIN_CORE_FILEDESCRIPTORS < nMaxConnections) {
     nMaxConnections = nFD - MIN_CORE_FILEDESCRIPTORS;
+  }
 
   // ********************************************************* Step 3: parameter-to-internal-flags
 
@@ -56,12 +47,14 @@ bool AppInit3(boost::thread_group& threadGroup) {
 
   // -par=0 means autodetect, but nScriptCheckThreads==0 means no concurrency
   nScriptCheckThreads = DEFAULT_SCRIPTCHECK_THREADS;
-  if (nScriptCheckThreads <= 0)
+  if (nScriptCheckThreads <= 0) {
     nScriptCheckThreads += boost::thread::hardware_concurrency();
-  if (nScriptCheckThreads <= 1)
+  }
+  if (nScriptCheckThreads <= 1) {
     nScriptCheckThreads = 0;
-  else if (nScriptCheckThreads > MAX_SCRIPTCHECK_THREADS)
+  } else if (nScriptCheckThreads > MAX_SCRIPTCHECK_THREADS) {
     nScriptCheckThreads = MAX_SCRIPTCHECK_THREADS;
+  }
 
   fServer = true;
   fPrintToConsole = false;
@@ -85,27 +78,32 @@ bool AppInit3(boost::thread_group& threadGroup) {
   // *********************************************************
   // Step 4: application initialization: dir lock, daemonize, pidfile, debug log
   // Sanity check
-  if (!InitSanityCheck())
+  if (!InitSanityCheck()) {
     return InitError(_("Initialization sanity check failed. Bitcoin Core is shutting down."));
+  }
 
   std::string strDataDir = GetDataDir().string();
 #ifdef ENABLE_WALLET
   // Wallet file must be a plain filename without a directory
-  if (strWalletFile != boost::filesystem::basename(strWalletFile) + boost::filesystem::extension(strWalletFile))
+  if (strWalletFile != boost::filesystem::basename(strWalletFile) + boost::filesystem::extension(strWalletFile)) {
     return InitError(strprintf(_("Wallet %s resides outside data directory %s"), strWalletFile, strDataDir));
+  }
 #endif
+
   // Make sure only a single Bitcoin process is using the data directory.
   boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
   FILE* file = fopen(pathLockFile.string().c_str(), "a"); // empty lock file; created if it doesn't exist.
   if (file) fclose(file);
   static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
-  if (!lock.try_lock())
+  if (!lock.try_lock()) {
     return InitError(strprintf(_(
       "Cannot obtain a lock on data directory %s. Bitcoin Core is probably already running."), strDataDir));
+  }
 
   if (nScriptCheckThreads) {
-    for (int i=0; i<nScriptCheckThreads-1; i++)
+    for (int i = 0; i < nScriptCheckThreads - 1; i++) {
       threadGroup.create_thread(&ThreadScriptCheck);
+    }
   }
 
   int64_t nStart;
@@ -113,8 +111,7 @@ bool AppInit3(boost::thread_group& threadGroup) {
   // ********************************************************* Step 5: verify wallet database integrity
 #ifdef ENABLE_WALLET
   if (!fDisableWallet) {
-    if (!bitdb.Open(GetDataDir()))
-    {
+    if (!bitdb.Open(GetDataDir())) {
       // try moving the database env out of the way
       boost::filesystem::path pathDatabase = GetDataDir() / "database";
       boost::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%d.bak", GetTime());
@@ -131,26 +128,20 @@ bool AppInit3(boost::thread_group& threadGroup) {
       }
     }
 
-    // salvagewallet
-    // Recover readable keypairs:
-    // if (!CWalletDB::Recover(bitdb, strWalletFile, true))
-    //   return false;
-
-    if (filesystem::exists(GetDataDir() / strWalletFile))
-    {
+    if (filesystem::exists(GetDataDir() / strWalletFile)) {
       CDBEnv::VerifyResult r = bitdb.Verify(strWalletFile, CWalletDB::Recover);
-      if (r == CDBEnv::RECOVER_OK)
-      {
+      if (r == CDBEnv::RECOVER_OK) {
         string msg = strprintf(_("Warning: wallet.dat corrupt, data salvaged!"
                      " Original wallet.dat saved as wallet.{timestamp}.bak in %s; if"
                      " your balance or transactions are incorrect you should"
                      " restore from a backup."), strDataDir);
         InitWarning(msg);
       }
-      if (r == CDBEnv::RECOVER_FAIL)
+      if (r == CDBEnv::RECOVER_FAIL) {
         return InitError(_("wallet.dat corrupt, salvage failed"));
+      }
     }
-  } // (!fDisableWallet)
+  }
 #endif // ENABLE_WALLET
   // ********************************************************* Step 6: network initialization
 
@@ -162,12 +153,10 @@ bool AppInit3(boost::thread_group& threadGroup) {
     inaddr_any.s_addr = INADDR_ANY;
     fBound |= Bind(CService(in6addr_any, GetListenPort()), BF_NONE);
     fBound |= Bind(CService(inaddr_any, GetListenPort()), !fBound ? BF_REPORT_ERROR : BF_NONE);
-    if (!fBound)
+    if (!fBound) {
       return InitError(_("Failed to listen on any port."));
+    }
   }
-
-  // BOOST_FOREACH(string strDest, mapMultiArgs["-seednode"])
-  //   AddOneShot(strDest);
 
   // ********************************************************* Step 7: load block chain
 
@@ -192,21 +181,22 @@ bool AppInit3(boost::thread_group& threadGroup) {
         break;
       }
     }
-    if (linked)
-    {
+    if (linked) {
       fReindex = true;
     }
   }
 
   // cache size calculations
   size_t nTotalCache = nDefaultDbCache << 20;
-  if (nTotalCache < (nMinDbCache << 20))
+  if (nTotalCache < (nMinDbCache << 20)) {
     nTotalCache = (nMinDbCache << 20); // total cache cannot be less than nMinDbCache
-  else if (nTotalCache > (nMaxDbCache << 20))
+  } else if (nTotalCache > (nMaxDbCache << 20)) {
     nTotalCache = (nMaxDbCache << 20); // total cache cannot be greater than nMaxDbCache
+  }
   size_t nBlockTreeDBCache = nTotalCache / 8;
-  if (nBlockTreeDBCache > (1 << 21))
+  if (nBlockTreeDBCache > (1 << 21)) {
     nBlockTreeDBCache = (1 << 21); // block tree db cache shouldn't be larger than 2 MiB
+  }
   nTotalCache -= nBlockTreeDBCache;
   size_t nCoinDBCache = nTotalCache / 2; // use half of the remaining cache for coindb cache
   nTotalCache -= nCoinDBCache;
@@ -229,8 +219,9 @@ bool AppInit3(boost::thread_group& threadGroup) {
         pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
         pcoinsTip = new CCoinsViewCache(*pcoinsdbview);
 
-        if (fReindex)
+        if (fReindex) {
           pblocktree->WriteReindexing(true);
+        }
 
         if (!LoadBlockIndex()) {
           strLoadError = _("Error loading block database");
@@ -254,7 +245,6 @@ bool AppInit3(boost::thread_group& threadGroup) {
           break;
         }
 
-        uiInterface.InitMessage(_("Verifying blocks..."));
         if (!CVerifyDB().VerifyDB(3, 288)) {
           strLoadError = _("Corrupted block database detected");
           break;
@@ -268,17 +258,11 @@ bool AppInit3(boost::thread_group& threadGroup) {
     } while(false);
 
     if (!fLoaded) {
-      // first suggest a reindex
       if (!fReset) {
-        bool fRet = uiInterface.ThreadSafeMessageBox(
-          strLoadError + ".\n\n" + _("Do you want to rebuild the block database now?"),
-          "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
-        if (fRet) {
-          fReindex = true;
-          fRequestShutdown = false;
-        } else {
-          return false;
-        }
+        // reindex or return
+        fReindex = true;
+        fRequestShutdown = false;
+        // return false;
       } else {
         return InitError(strLoadError);
       }
@@ -288,16 +272,16 @@ bool AppInit3(boost::thread_group& threadGroup) {
   // As LoadBlockIndex can take several minutes, it's possible the user
   // requested to kill the GUI during the last operation. If so, exit.
   // As the program has not fully started yet, Shutdown() is possibly overkill.
-  if (fRequestShutdown)
-  {
+  if (fRequestShutdown) {
     return false;
   }
 
   boost::filesystem::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;
   CAutoFile est_filein = CAutoFile(fopen(est_path.string().c_str(), "rb"), SER_DISK, CLIENT_VERSION);
   // Allowed to fail as this file IS missing on first startup.
-  if (est_filein)
+  if (est_filein) {
     mempool.ReadFeeEstimates(est_filein);
+  }
 
   // ********************************************************* Step 8: load wallet
 #ifdef ENABLE_WALLET
@@ -311,51 +295,44 @@ bool AppInit3(boost::thread_group& threadGroup) {
     bool fFirstRun = true;
     pwalletMain = new CWallet(strWalletFile);
     DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRun);
-    if (nLoadWalletRet != DB_LOAD_OK)
-    {
-      if (nLoadWalletRet == DB_CORRUPT)
+    if (nLoadWalletRet != DB_LOAD_OK) {
+      if (nLoadWalletRet == DB_CORRUPT) {
         strErrors << _("Error loading wallet.dat: Wallet corrupted") << "\n";
-      else if (nLoadWalletRet == DB_NONCRITICAL_ERROR)
-      {
+      } else if (nLoadWalletRet == DB_NONCRITICAL_ERROR) {
         string msg(_("Warning: error reading wallet.dat! All keys read correctly, but transaction data"
                " or address book entries might be missing or incorrect."));
         InitWarning(msg);
-      }
-      else if (nLoadWalletRet == DB_TOO_NEW)
+      } else if (nLoadWalletRet == DB_TOO_NEW) {
         strErrors << _("Error loading wallet.dat: Wallet requires newer version of Bitcoin Core") << "\n";
-      else if (nLoadWalletRet == DB_NEED_REWRITE)
-      {
+      } else if (nLoadWalletRet == DB_NEED_REWRITE) {
         strErrors << _("Wallet needed to be rewritten: restart Bitcoin Core to complete") << "\n";
         return InitError(strErrors.str());
-      }
-      else
+      } else {
         strErrors << _("Error loading wallet.dat") << "\n";
+      }
     }
 
-    if (fFirstRun)
-    {
+    if (fFirstRun) {
       int nMaxVersion = 0;
-      if (nMaxVersion == 0) // the -upgradewallet without argument case
-      {
+      if (nMaxVersion == 0) {
         nMaxVersion = CLIENT_VERSION;
         pwalletMain->SetMinVersion(FEATURE_LATEST); // permanently upgrade the wallet immediately
+      } else {
+        if (nMaxVersion < pwalletMain->GetVersion()) {
+          strErrors << _("Cannot downgrade wallet") << "\n";
+        }
       }
-      else
-      if (nMaxVersion < pwalletMain->GetVersion())
-        strErrors << _("Cannot downgrade wallet") << "\n";
       pwalletMain->SetMaxVersion(nMaxVersion);
-    }
 
-    if (fFirstRun)
-    {
       // Create new keyUser and set as default key
       RandAddSeedPerfmon();
 
       CPubKey newDefaultKey;
       if (pwalletMain->GetKeyFromPool(newDefaultKey)) {
         pwalletMain->SetDefaultKey(newDefaultKey);
-        if (!pwalletMain->SetAddressBook(pwalletMain->vchDefaultKey.GetID(), "", "receive"))
+        if (!pwalletMain->SetAddressBook(pwalletMain->vchDefaultKey.GetID(), "", "receive")) {
           strErrors << _("Cannot write default address") << "\n";
+        }
       }
 
       pwalletMain->SetBestChain(chainActive.GetLocator());
@@ -367,10 +344,11 @@ bool AppInit3(boost::thread_group& threadGroup) {
     CWalletDB walletdb(strWalletFile);
     CBlockLocator locator;
 
-    if (walletdb.ReadBestBlock(locator))
+    if (walletdb.ReadBestBlock(locator)) {
       pindexRescan = chainActive.FindFork(locator);
-    else
+    } else {
       pindexRescan = chainActive.Genesis();
+    }
 
     if (chainActive.Tip() && chainActive.Tip() != pindexRescan) {
       nStart = GetTimeMillis();
@@ -384,8 +362,9 @@ bool AppInit3(boost::thread_group& threadGroup) {
 
   // scan for better chains in the block chain database, that are not yet connected in the active best chain
   CValidationState state;
-  if (!ActivateBestChain(state))
+  if (!ActivateBestChain(state)) {
     strErrors << "Failed to connect best block";
+  }
 
   std::vector<boost::filesystem::path> vImportFiles;
   threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
@@ -401,22 +380,26 @@ bool AppInit3(boost::thread_group& threadGroup) {
 
   // ********************************************************* Step 11: start node
 
-  if (!CheckDiskSpace())
+  if (!CheckDiskSpace()) {
     return false;
+  }
 
-  if (!strErrors.str().empty())
+  if (!strErrors.str().empty()) {
     return InitError(strErrors.str());
+  }
 
   RandAddSeedPerfmon();
 
   StartNode(threadGroup);
-  if (fServer)
+  if (fServer) {
     StartRPCThreads();
+  }
 
 #ifdef ENABLE_WALLET
   // Generate coins in the background
-  if (pwalletMain)
+  if (pwalletMain) {
     GenerateBitcoins(false, pwalletMain, -1);
+  }
 #endif
 
   // ********************************************************* Step 12: finished
