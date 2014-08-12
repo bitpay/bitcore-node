@@ -1,0 +1,30 @@
+{
+  "name": "bitcoind.js",
+  "description": "Node binding for bitcoind",
+  "author": "Christopher Jeffrey",
+  "version": "0.0.0",
+  "main": "./index.js",
+  "repository": "git://github.com/chjj/bitcoind.js.git",
+  "homepage": "https://github.com/chjj/bitcoind.js",
+  "bugs": {
+    "url": "https://github.com/chjj/bitcoind.js/issues"
+  },
+  "keywords": [
+    "pty",
+    "tty",
+    "terminal"
+  ],
+  "scripts": {
+    "test": "NODE_ENV=test mocha -R spec"
+  },
+  "tags": [
+    "bitcoin",
+    "bitcoind"
+  ],
+  "dependencies": {
+    "nan": "~1.0.0"
+  },
+  "devDependencies": {
+    "mocha": "~1.16.2"
+  }
+}
