@@ -540,3 +540,125 @@ int startBitcoin(int argc, char **argv) {
   noui_connect();
   return AppInit(argc, argv) ? 0 : 1;
 }
+
+
+
+
+// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2014 The Bitcoin developers
+// Distributed under the MIT/X11 software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#if defined(HAVE_CONFIG_H)
+#include "config/bitcoin-config.h"
+#endif
+
+#include "net.h"
+
+#include "addrman.h"
+#include "chainparams.h"
+#include "core.h"
+#include "ui_interface.h"
+
+#ifdef WIN32
+#include <string.h>
+#else
+#include <fcntl.h>
+#endif
+
+#ifdef USE_UPNP
+#include <miniupnpc/miniupnpc.h>
+#include <miniupnpc/miniwget.h>
+#include <miniupnpc/upnpcommands.h>
+#include <miniupnpc/upnperrors.h>
+#endif
+
+#include <boost/filesystem.hpp>
+
+// Dump addresses to peers.dat every 15 minutes (900s)
+#define DUMP_ADDRESSES_INTERVAL 900
+
+#if !defined(HAVE_MSG_NOSIGNAL) && !defined(MSG_NOSIGNAL)
+#define MSG_NOSIGNAL 0
+#endif
+
+// Fix for ancient MinGW versions, that don't have defined these in ws2tcpip.h.
+// Todo: Can be removed when our pull-tester is upgraded to a modern MinGW version.
+#ifdef WIN32
+#ifndef PROTECTION_LEVEL_UNRESTRICTED
+#define PROTECTION_LEVEL_UNRESTRICTED 10
+#endif
+#ifndef IPV6_PROTECTION_LEVEL
+#define IPV6_PROTECTION_LEVEL 23
+#endif
+#endif
+
+using namespace std;
+using namespace boost;
+
+namespace {
+    const int MAX_OUTBOUND_CONNECTIONS = 8;
+
+    struct ListenSocket {
+        SOCKET socket;
+        bool whitelisted;
+
+        ListenSocket(SOCKET socket, bool whitelisted) : socket(socket), whitelisted(whitelisted) {}
+    };
+}
+
+
+void StartNode(boost::thread_group& threadGroup)
+{
+    if (semOutbound == NULL) {
+        // initialize semaphore
+        int nMaxOutbound = min(MAX_OUTBOUND_CONNECTIONS, nMaxConnections);
+        semOutbound = new CSemaphore(nMaxOutbound);
+    }
+
+    if (pnodeLocalHost == NULL)
+        pnodeLocalHost = new CNode(INVALID_SOCKET, CAddress(CService("127.0.0.1", 0), nLocalServices));
+
+    Discover(threadGroup);
+
+    //
+    // Start threads
+    //
+
+    if (!GetBoolArg("-dnsseed", true))
+        LogPrintf("DNS seeding disabled\n");
+    else
+        threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
+
+    // Map ports with UPnP
+    MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
+
+    // Send and receive from sockets, accept connections
+    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "net", &ThreadSocketHandler));
+
+    // Initiate outbound connections from -addnode
+    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "addcon", &ThreadOpenAddedConnections));
+
+    // Initiate outbound connections
+    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "opencon", &ThreadOpenConnections));
+
+    // Process messages
+    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "msghand", &ThreadMessageHandler));
+
+    // Dump network addresses
+    threadGroup.create_thread(boost::bind(&LoopForever<void (*)()>, "dumpaddr", &DumpAddresses, DUMP_ADDRESSES_INTERVAL * 1000));
+}
+
+bool StopNode()
+{
+    LogPrintf("StopNode()\n");
+    MapPort(false);
+    if (semOutbound)
+        for (int i=0; i<MAX_OUTBOUND_CONNECTIONS; i++)
+            semOutbound->post();
+    MilliSleep(50);
+    DumpAddresses();
+
+    return true;
+}
+
