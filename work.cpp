@@ -597,68 +597,72 @@ using namespace std;
 using namespace boost;
 
 namespace {
-    const int MAX_OUTBOUND_CONNECTIONS = 8;
+  const int MAX_OUTBOUND_CONNECTIONS = 8;
 
-    struct ListenSocket {
-        SOCKET socket;
-        bool whitelisted;
+  struct ListenSocket {
+    SOCKET socket;
+    bool whitelisted;
 
-        ListenSocket(SOCKET socket, bool whitelisted) : socket(socket), whitelisted(whitelisted) {}
-    };
+    ListenSocket(SOCKET socket, bool whitelisted) : socket(socket), whitelisted(whitelisted) {}
+  };
 }
 
 
-void StartNode(boost::thread_group& threadGroup)
-{
-    if (semOutbound == NULL) {
-        // initialize semaphore
-        int nMaxOutbound = min(MAX_OUTBOUND_CONNECTIONS, nMaxConnections);
-        semOutbound = new CSemaphore(nMaxOutbound);
+void StartNode(boost::thread_group& threadGroup) {
+  if (semOutbound == NULL) {
+    // initialize semaphore
+    int nMaxOutbound = min(MAX_OUTBOUND_CONNECTIONS, nMaxConnections);
+    semOutbound = new CSemaphore(nMaxOutbound);
+  }
+
+  if (pnodeLocalHost == NULL) {
+    pnodeLocalHost = new CNode(INVALID_SOCKET, CAddress(CService("127.0.0.1", 0), nLocalServices));
+  }
+
+  Discover(threadGroup);
+
+  //
+  // Start threads
+  //
+
+  if (!GetBoolArg("-dnsseed", true)) {
+    LogPrintf("DNS seeding disabled\n");
+  } else {
+    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
+  }
+
+  // Map ports with UPnP
+  MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
+
+  // Send and receive from sockets, accept connections
+  threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "net", &ThreadSocketHandler));
+
+  // Initiate outbound connections from -addnode
+  threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "addcon", &ThreadOpenAddedConnections));
+
+  // Initiate outbound connections
+  threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "opencon", &ThreadOpenConnections));
+
+  // Process messages
+  threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "msghand", &ThreadMessageHandler));
+
+  // Dump network addresses
+  threadGroup.create_thread(boost::bind(&LoopForever<void (*)()>, "dumpaddr",
+    &DumpAddresses, DUMP_ADDRESSES_INTERVAL * 1000));
+}
+
+bool StopNode() {
+  LogPrintf("StopNode()\n");
+  MapPort(false);
+
+  if (semOutbound) {
+    for (int i = 0; i < MAX_OUTBOUND_CONNECTIONS; i++) {
+      semOutbound->post();
     }
+  }
 
-    if (pnodeLocalHost == NULL)
-        pnodeLocalHost = new CNode(INVALID_SOCKET, CAddress(CService("127.0.0.1", 0), nLocalServices));
+  MilliSleep(50);
+  DumpAddresses();
 
-    Discover(threadGroup);
-
-    //
-    // Start threads
-    //
-
-    if (!GetBoolArg("-dnsseed", true))
-        LogPrintf("DNS seeding disabled\n");
-    else
-        threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
-
-    // Map ports with UPnP
-    MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
-
-    // Send and receive from sockets, accept connections
-    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "net", &ThreadSocketHandler));
-
-    // Initiate outbound connections from -addnode
-    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "addcon", &ThreadOpenAddedConnections));
-
-    // Initiate outbound connections
-    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "opencon", &ThreadOpenConnections));
-
-    // Process messages
-    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "msghand", &ThreadMessageHandler));
-
-    // Dump network addresses
-    threadGroup.create_thread(boost::bind(&LoopForever<void (*)()>, "dumpaddr", &DumpAddresses, DUMP_ADDRESSES_INTERVAL * 1000));
+  return true;
 }
-
-bool StopNode()
-{
-    LogPrintf("StopNode()\n");
-    MapPort(false);
-    if (semOutbound)
-        for (int i=0; i<MAX_OUTBOUND_CONNECTIONS; i++)
-            semOutbound->post();
-    MilliSleep(50);
-    DumpAddresses();
-
-    return true;
-}
-
