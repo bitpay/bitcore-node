@@ -660,14 +660,11 @@ void StartNode(boost::thread_group& threadGroup) {
   // Start threads
   //
 
-  if (!GetBoolArg("-dnsseed", true)) {
-    LogPrintf("DNS seeding disabled\n");
-  } else {
-    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
-  }
+  // Allow DNS lookups for seeds
+  threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
 
   // Map ports with UPnP
-  MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
+  MapPort(DEFAULT_UPNP);
 
   // Send and receive from sockets, accept connections
   threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "net", &ThreadSocketHandler));
