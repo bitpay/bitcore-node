@@ -607,6 +607,41 @@ namespace {
   };
 }
 
+void static Discover(boost::thread_group& threadGroup) {
+  if (!fDiscover) {
+    return;
+  }
+
+  // Get local host ip
+  struct ifaddrs* myaddrs;
+  if (getifaddrs(&myaddrs) == 0) {
+    for (struct ifaddrs* ifa = myaddrs; ifa != NULL; ifa = ifa->ifa_next) {
+      if (ifa->ifa_addr == NULL) continue;
+      if ((ifa->ifa_flags & IFF_UP) == 0) continue;
+      if (strcmp(ifa->ifa_name, "lo") == 0) continue;
+      if (strcmp(ifa->ifa_name, "lo0") == 0) continue;
+      if (ifa->ifa_addr->sa_family == AF_INET) {
+        struct sockaddr_in* s4 = (struct sockaddr_in*)(ifa->ifa_addr);
+        CNetAddr addr(s4->sin_addr);
+        if (AddLocal(addr, LOCAL_IF)) {
+          // LogPrintf("IPv4 %s: %s\n", ifa->ifa_name, addr.ToString());
+        }
+      } else if (ifa->ifa_addr->sa_family == AF_INET6) {
+        struct sockaddr_in6* s6 = (struct sockaddr_in6*)(ifa->ifa_addr);
+        CNetAddr addr(s6->sin6_addr);
+        if (AddLocal(addr, LOCAL_IF)) {
+          // LogPrintf("IPv6 %s: %s\n", ifa->ifa_name, addr.ToString());
+        }
+      }
+    }
+    freeifaddrs(myaddrs);
+  }
+
+  // Don't use external IPv4 discovery, when -onlynet="IPv6"
+  if (!IsLimited(NET_IPV4)) {
+    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "ext-ip", &ThreadGetMyExternalIP));
+  }
+}
 
 void StartNode(boost::thread_group& threadGroup) {
   if (semOutbound == NULL) {
