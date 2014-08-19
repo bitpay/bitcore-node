@@ -8,6 +8,9 @@
 
 #include "nan.h"
 
+#include <node.h>
+#include <string>
+
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -22,11 +25,21 @@ using namespace v8;
 
 NAN_METHOD(StartBitcoind);
 
-static int
-misc_func(const char *);
+void
+async_work(uv_work_t *req);
+
+void
+async_after(uv_work_t *req);
 
 extern "C" void
 init(Handle<Object>);
+
+struct async_data {
+  Persistent<Function> callback;
+  bool err;
+  std::string err_msg;
+  char *result;
+};
 
 /**
  * StartBitcoind
@@ -41,19 +54,75 @@ NAN_METHOD(StartBitcoind) {
         "Usage: bitcoind.start(callback)");
   }
 
-  Local<Object> obj = NanNew<Object>();
-  obj->Set(NanNew<String>("foo"), NanNew<Number>(100));
+  Local<Function> callback = Local<Function>::Cast(args[0]);
 
-  NanReturnValue(obj);
+  // Local<Value> err = Exception::Error(String::New("Bad input"));
+  // err->ToObject()->Set(NODE_PSYMBOL("errno"), Integer::New(0));
+  // const unsigned argc = 1;
+  // Local<Value> argv[1] = { err };
+  // callback->Call(Context::GetCurrent()->Global(), argc, argv);
+
+  // const unsigned argc = 2;
+  // Local<Value> argv[2] = {
+  //   Local<Value>::New(Null()),
+  //   Local<Value>::New(String::New("opened"))
+  // };
+  // callback->Call(Context::GetCurrent()->Global(), argc, argv);
+
+  async_data* data = new async_data();
+  data->err = false;
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_work, (uv_after_work_cb)async_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
 }
 
-/**
- * misc_func
- */
+void async_work(uv_work_t *req) {
+  async_data* data = static_cast<async_data*>(req->data);
+  data->result = (char *)strdup("opened");
+}
 
-static int
-misc_func(const char *file) {
-  return 0;
+void async_after(uv_work_t *req) {
+  NanScope();
+  async_data* data = static_cast<async_data*>(req->data);
+
+  if (data->err) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[1] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[2] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(String::New(data->result))
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  if (data->result != NULL) {
+    free(data->result);
+  }
+
+  delete data;
+  delete req;
 }
 
 /**

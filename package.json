@@ -9,11 +9,6 @@
   "bugs": {
     "url": "https://github.com/chjj/bitcoind.js/issues"
   },
-  "keywords": [
-    "pty",
-    "tty",
-    "terminal"
-  ],
   "scripts": {
     "test": "NODE_ENV=test mocha -R spec"
   },
