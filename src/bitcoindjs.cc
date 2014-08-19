@@ -56,19 +56,6 @@ NAN_METHOD(StartBitcoind) {
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
-  // Local<Value> err = Exception::Error(String::New("Bad input"));
-  // err->ToObject()->Set(NODE_PSYMBOL("errno"), Integer::New(0));
-  // const unsigned argc = 1;
-  // Local<Value> argv[1] = { err };
-  // callback->Call(Context::GetCurrent()->Global(), argc, argv);
-
-  // const unsigned argc = 2;
-  // Local<Value> argv[2] = {
-  //   Local<Value>::New(Null()),
-  //   Local<Value>::New(String::New("opened"))
-  // };
-  // callback->Call(Context::GetCurrent()->Global(), argc, argv);
-
   async_data* data = new async_data();
   data->err = false;
   data->callback = Persistent<Function>::New(callback);
