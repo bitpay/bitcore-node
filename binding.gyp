@@ -22,27 +22,21 @@
     ],
     'libraries': [
       # bitcoind:
-      # arch is using bitcoin-daemon 0.9.2.1
-      #   - should be the correct boost headers
-      # building:
-      # $ git clean -df
-      # $ git checkout v0.9.2.1
-      # $ ./autogen.sh
-      # $ ./configure --with-incompatible-bdb
-      # $ time make
-      # $ cd ~/work/node_modules/bitcoind.js
-      # $ PYTHON=/usr/bin/python2.7 make gyp
-      # ^ move this to readme
-      # NOTE: rename this to bitcoind.o so we can statically link to it
       # '-L<!(echo "$HOME")/bitcoin/src/bitcoind',
       '-L/usr/bin/bitcoind',
-      # '-L/usr/lib/bitcoind.o',
+      # NOTE: Rename this to bitcoind.o so we can statically link to it.
       # '-L<!(echo "$HOME")/bitcoin/src/bitcoind.o',
-      # statically link leveldb:
+      # '-L/usr/lib/bitcoind.o',
+      # statically link leveldb - shouldn't be necessary, but build fails without it:
       '-L/home/user/bitcoin/src/leveldb/libleveldb.a',
+      # bdb - should already be done:
+      # '-L/usr/lib/libdb-5.3.so',
+      # '-L/usr/lib/libdb_cxx-5.3.so',
+      # with aur package, we can use: /usr/lib/libdb-4.8.so
       # standard libs:
       '-L/usr/lib',
       '-L/usr/local/lib'
+
     ]
   }]
 }
