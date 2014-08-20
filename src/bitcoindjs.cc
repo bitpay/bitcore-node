@@ -78,11 +78,14 @@ using namespace v8;
 
 NAN_METHOD(StartBitcoind);
 
-void
+static void
 async_work(uv_work_t *req);
 
-void
+static void
 async_after(uv_work_t *req);
+
+static int
+start_node(void);
 
 extern "C" void
 init(Handle<Object>);
@@ -124,12 +127,15 @@ NAN_METHOD(StartBitcoind) {
   NanReturnValue(Undefined());
 }
 
-void async_work(uv_work_t *req) {
+static void
+async_work(uv_work_t *req) {
   async_data* data = static_cast<async_data*>(req->data);
+  //start_node();
   data->result = (char *)strdup("opened");
 }
 
-void async_after(uv_work_t *req) {
+static void
+async_after(uv_work_t *req) {
   NanScope();
   async_data* data = static_cast<async_data*>(req->data);
 
@@ -163,6 +169,45 @@ void async_after(uv_work_t *req) {
 
   delete data;
   delete req;
+}
+
+extern void (ThreadImport)(std::vector<boost::filesystem::path>);
+extern void (DetectShutdownThread)(boost::thread_group*);
+extern int nScriptCheckThreads;
+// extern const int DEFAULT_SCRIPTCHECK_THREADS; // static!!
+
+// Relevant:
+// ~/bitcoin/src/init.cpp
+// ~/bitcoin/src/bitcoind.cpp
+// ~/bitcoin/src/main.h
+
+static int
+start_node(void) {
+  boost::thread_group threadGroup;
+  boost::thread *detectShutdownThread = NULL;
+  detectShutdownThread = new boost::thread(
+    boost::bind(&DetectShutdownThread, &threadGroup));
+
+  // int nScriptCheckThreads = 0;
+  for (int i = 0; i < nScriptCheckThreads - 1; i++) {
+    threadGroup.create_thread(&ThreadScriptCheck);
+  }
+
+  std::vector<boost::filesystem::path> vImportFiles;
+  threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+
+  StartNode(threadGroup);
+
+#ifdef ENABLE_WALLET
+  if (pwalletMain) {
+    // Add wallet transactions that aren't already in a block to mapTransactions
+    pwalletMain->ReacceptWalletTransactions();
+    // Run a thread to flush wallet periodically
+    threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
+  }
+#endif
+
+  return 0;
 }
 
 /**
