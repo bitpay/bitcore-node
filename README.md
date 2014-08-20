@@ -32,6 +32,9 @@ $ ./configure --prefix=/usr
 ...
 
 $ time make
+real    31m33.128s
+user    16m23.930s
+sys     2m52.310s
 ```
 
 ### bitcoind.js:
