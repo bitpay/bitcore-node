@@ -2,12 +2,12 @@
   'targets': [{
     'target_name': 'bitcoindjs',
     'include_dirs' : [
-      '<!(node -e "require(\'nan\')")',
-      '<!(echo "$HOME")/bitcoin/src',
-      '<!(echo "$HOME")/bitcoin/src/leveldb/include',
       '/usr/include',
-      '/usr/include/boost',
+      '<!(node -e "require(\'nan\')")',
       # './deps',
+      '/usr/include/boost',
+      '<!(echo "$HOME")/bitcoin/src/leveldb/include',
+      '<!(echo "$HOME")/bitcoin/src',
     ],
     'sources': [
       './src/bitcoindjs.cc',
