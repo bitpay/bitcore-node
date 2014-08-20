@@ -10,7 +10,6 @@
 
 // bitcoind headers:
 #include "core.h"
-/*
 #include "addrman.h"
 #include "checkpoints.h"
 #include "crypter.h"
@@ -61,7 +60,6 @@
 #include "protocol.h"
 #include "threadsafety.h"
 #include "version.h"
-*/
 
 #include <node.h>
 #include <string>
