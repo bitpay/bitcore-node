@@ -175,6 +175,10 @@ extern void (ThreadImport)(std::vector<boost::filesystem::path>);
 extern void (DetectShutdownThread)(boost::thread_group*);
 extern int nScriptCheckThreads;
 // extern const int DEFAULT_SCRIPTCHECK_THREADS; // static!!
+// #ifdef ENABLE_WALLET
+// extern std::string strWalletFile;
+// extern CWallet *pwalletMain;
+// #endif
 
 // Relevant:
 // ~/bitcoin/src/init.cpp
