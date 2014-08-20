@@ -185,6 +185,8 @@ extern int nScriptCheckThreads;
 // ~/bitcoin/src/bitcoind.cpp
 // ~/bitcoin/src/main.h
 
+// Similar to AppInit2 - minus logs and arg parsing:
+
 static int
 start_node(void) {
   boost::thread_group threadGroup;
