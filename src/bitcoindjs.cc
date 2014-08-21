@@ -8,7 +8,10 @@
 
 #include "nan.h"
 
-// bitcoind headers:
+/**
+ * Bitcoin headers
+ */
+
 #include "core.h"
 #include "addrman.h"
 #include "checkpoints.h"
@@ -61,6 +64,23 @@
 #include "threadsafety.h"
 #include "version.h"
 
+/**
+ * Bitcoin Globals
+ * Relevant:
+ *  ~/bitcoin/src/init.cpp
+ *  ~/bitcoin/src/bitcoind.cpp
+ *  ~/bitcoin/src/main.h
+ */
+
+extern void (ThreadImport)(std::vector<boost::filesystem::path>);
+extern void (DetectShutdownThread)(boost::thread_group*);
+extern int nScriptCheckThreads;
+// extern const int DEFAULT_SCRIPTCHECK_THREADS; // static!!
+#ifdef ENABLE_WALLET
+extern std::string strWalletFile;
+extern CWallet *pwalletMain;
+#endif
+
 #include <node.h>
 #include <string>
 
@@ -89,6 +109,11 @@ start_node(void);
 
 extern "C" void
 init(Handle<Object>);
+
+/**
+ * async_data
+ * Where the uv async request data resides.
+ */
 
 struct async_data {
   Persistent<Function> callback;
@@ -127,12 +152,22 @@ NAN_METHOD(StartBitcoind) {
   NanReturnValue(Undefined());
 }
 
+/**
+ * async_work()
+ * Call start_node() and start all our boost threads.
+ */
+
 static void
 async_work(uv_work_t *req) {
   async_data* data = static_cast<async_data*>(req->data);
   //start_node();
   data->result = (char *)strdup("opened");
 }
+
+/**
+ * async_after()
+ * Execute our callback.
+ */
 
 static void
 async_after(uv_work_t *req) {
@@ -171,21 +206,11 @@ async_after(uv_work_t *req) {
   delete req;
 }
 
-extern void (ThreadImport)(std::vector<boost::filesystem::path>);
-extern void (DetectShutdownThread)(boost::thread_group*);
-extern int nScriptCheckThreads;
-// extern const int DEFAULT_SCRIPTCHECK_THREADS; // static!!
-// #ifdef ENABLE_WALLET
-// extern std::string strWalletFile;
-// extern CWallet *pwalletMain;
-// #endif
-
-// Relevant:
-// ~/bitcoin/src/init.cpp
-// ~/bitcoin/src/bitcoind.cpp
-// ~/bitcoin/src/main.h
-
-// Similar to AppInit2 - minus logs and arg parsing:
+/**
+ * start_node(void)
+ * A reimplementation of AppInit2 minus
+ * the logging and argument parsing.
+ */
 
 static int
 start_node(void) {
@@ -194,7 +219,6 @@ start_node(void) {
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
 
-  // int nScriptCheckThreads = 0;
   for (int i = 0; i < nScriptCheckThreads - 1; i++) {
     threadGroup.create_thread(&ThreadScriptCheck);
   }
@@ -206,9 +230,7 @@ start_node(void) {
 
 #ifdef ENABLE_WALLET
   if (pwalletMain) {
-    // Add wallet transactions that aren't already in a block to mapTransactions
     pwalletMain->ReacceptWalletTransactions();
-    // Run a thread to flush wallet periodically
     threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
   }
 #endif
