@@ -140,7 +140,7 @@ NAN_METHOD(StartBitcoind) {
   }
 
   // Run on a separate thead:
-  // int log_fd = parse_logs(NULL);
+  int log_fd = parse_logs(NULL);
   // handle->Set(NanNew<String>("log"), NanNew<Number>(log_fd));
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
@@ -232,7 +232,7 @@ async_after(uv_work_t *req) {
  * the logging and argument parsing.
  */
 
-const int nScriptCheckThreads = 0;
+const int _nScriptCheckThreads = 0;
 
 static int
 start_node(void) {
@@ -241,7 +241,7 @@ start_node(void) {
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
 
-  for (int i = 0; i < nScriptCheckThreads - 1; i++) {
+  for (int i = 0; i < _nScriptCheckThreads - 1; i++) {
     threadGroup.create_thread(&ThreadScriptCheck);
   }
 
@@ -284,7 +284,9 @@ const char bitcoind_char[256] = {
 
 static unsigned int
 parse_logs(char **log_str) {
-  goto disabled;
+#ifndef PARSE_LOGS_ENABLED
+  return 0;
+#endif
 
   int pfd[2];
   pipe(pfd);
@@ -379,9 +381,6 @@ parse_logs(char **log_str) {
   }
 
   return read_log;
-
-disabled:
-  return 0;
 }
 
 /**
