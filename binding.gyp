@@ -26,6 +26,9 @@
       '-L/usr/local/lib',
       # boost:
       '-lboost_system',
+      '-lboost_filesystem',
+      '-lboost_program_options',
+      '-lboost_thread',
       # leveldb:
       '-L<!(echo "$HOME")/bitcoin/src/leveldb/libleveldb.a',
       # bitcoind:
