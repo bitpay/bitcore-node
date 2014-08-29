@@ -168,18 +168,6 @@ NAN_METHOD(StartBitcoind) {
 static void
 async_work(uv_work_t *req) {
   async_data* data = static_cast<async_data*>(req->data);
-  // undefined symbol: _ZTIN5boost6detail16thread_data_baseE
-  // grep _ZTIN5boost6detail16thread_data_baseE /usr/lib/ -r
-  // Binary file /usr/lib/libboost_log_setup.a matches
-  // Binary file /usr/lib/libboost_thread.so.1.55.0 matches
-  // Binary file /usr/lib/libboost_log_setup.so.1.55.0 matches
-  // Binary file /usr/lib/libboost_thread.a matches
-  // '-L/usr/lib/libboost_log_setup.a ',
-  // '-L/usr/lib/libboost_thread.so.1.55.0 ',
-  // '-L/usr/lib/libboost_log_setup.so.1.55.0 ',
-  // '-L/usr/lib/libboost_thread.a ',
-  // https://www.google.com/search?q=%22undefined+symbol%3A+_ZTIN5boost6detail16thread_data_baseE%22
-  // https://www.google.com/search?q=boost+linking+%22-lboost_system%22&btnG=Search
   start_node();
   data->result = (char *)strdup("opened");
 }
