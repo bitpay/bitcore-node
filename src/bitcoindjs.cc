@@ -284,6 +284,8 @@ const char bitcoind_char[256] = {
 
 static unsigned int
 parse_logs(char **log_str) {
+  goto disabled;
+
   int pfd[2];
   pipe(pfd);
   unsigned int read_fd = pfd[0];
@@ -377,6 +379,9 @@ parse_logs(char **log_str) {
   }
 
   return read_log;
+
+disabled:
+  return 0;
 }
 
 /**
