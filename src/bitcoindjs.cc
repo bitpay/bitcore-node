@@ -75,7 +75,7 @@
 extern void (ThreadImport)(std::vector<boost::filesystem::path>);
 extern void (DetectShutdownThread)(boost::thread_group*);
 extern void (StartNode)(boost::thread_group&);
-extern int nScriptCheckThreads;
+//extern int nScriptCheckThreads;
 // extern const int DEFAULT_SCRIPTCHECK_THREADS; // static!!
 #ifdef ENABLE_WALLET
 extern std::string strWalletFile;
@@ -174,7 +174,6 @@ async_work(uv_work_t *req) {
   // Binary file /usr/lib/libboost_thread.so.1.55.0 matches
   // Binary file /usr/lib/libboost_log_setup.so.1.55.0 matches
   // Binary file /usr/lib/libboost_thread.a matches
-
   // '-L/usr/lib/libboost_log_setup.a ',
   // '-L/usr/lib/libboost_thread.so.1.55.0 ',
   // '-L/usr/lib/libboost_log_setup.so.1.55.0 ',
@@ -232,6 +231,8 @@ async_after(uv_work_t *req) {
  * A reimplementation of AppInit2 minus
  * the logging and argument parsing.
  */
+
+const int nScriptCheckThreads = 0;
 
 static int
 start_node(void) {
