@@ -108,6 +108,9 @@ async_after(uv_work_t *req);
 static int
 start_node(void);
 
+static unsigned int
+parse_logs(char **);
+
 extern "C" void
 init(Handle<Object>);
 
@@ -136,6 +139,10 @@ NAN_METHOD(StartBitcoind) {
         "Usage: bitcoind.start(callback)");
   }
 
+  // Run on a separate thead:
+  // int log_fd = parse_logs(NULL);
+  // handle->Set(NanNew<String>("log"), NanNew<Number>(log_fd));
+
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
   async_data* data = new async_data();
@@ -161,7 +168,8 @@ NAN_METHOD(StartBitcoind) {
 static void
 async_work(uv_work_t *req) {
   async_data* data = static_cast<async_data*>(req->data);
-  //start_node();
+  // undefined symbol: _ZTIN5boost6detail16thread_data_baseE
+  start_node();
   data->result = (char *)strdup("opened");
 }
 
@@ -237,6 +245,125 @@ start_node(void) {
 #endif
 
   return 0;
+}
+
+/**
+ * parse_logs(log_str)'
+ * Flow:
+ *   - If bitcoind logs, parse, write to pfd[0].
+ *   - If our own logs, write to stdoutd..
+ *   TODO: Have this running in a separate thread.
+ */
+
+const char bitcoind_char[256] = {
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, /* <- ' ', */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ':', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  'b', 'c', 'd', 0, 0, 0, 0, 'i', 0, 0, 0, 0, 'n', 'o', 0, 0, 0, 0, 't', 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0,
+};
+
+static unsigned int
+parse_logs(char **log_str) {
+  int pfd[2];
+  pipe(pfd);
+  unsigned int read_fd = pfd[0];
+  unsigned int write_fd = pfd[1];
+  dup2(write_fd, STDOUT_FILENO);
+
+  int log_pipe[2];
+  pipe(log_pipe);
+  unsigned int read_log = log_pipe[0];
+  unsigned int write_log = log_pipe[1];
+
+  unsigned int rtotal = 0;
+  ssize_t r = 0;
+  size_t rcount = 80 * sizeof(char);
+  char *buf = (char *)malloc(rcount);
+  char cur[9];
+  unsigned int cp = 0;
+  unsigned int reallocs = 0;
+
+  while ((r = read(read_fd, buf + rtotal, rcount))) {
+    unsigned int i;
+    char *rbuf;
+
+    // Grab the buffer at the start of the bytes that were read:
+    rbuf = (char *)(buf + r);
+
+    // If these are our logs, write them to stdout:
+    for (i = 0; i < r; i++) {
+      // A naive semi-boyer-moore string search (is it a bitcoind: char?):
+      unsigned char ch = rbuf[i];
+      if (bitcoind_char[ch]) {
+        cur[cp] = rbuf[0];
+        cp++;
+        cur[cp] = '\0';
+        if (strcmp(cur, "bitcoind:") == 0) {
+          size_t wcount = r;
+          ssize_t w = 0;
+          ssize_t wtotal = 0;
+          // undo redirection
+          close(read_fd);
+          close(write_fd);
+          w = write(STDOUT_FILENO, cur, cp);
+          wtotal += w;
+          while ((w = write(STDOUT_FILENO, rbuf + i + wtotal, wcount))) {
+            if (w == 0 || (size_t)wtotal == rcount) break;
+            wtotal += w;
+          }
+          // reopen redirection
+          {
+            int pfd[2];
+            pipe(pfd);
+            read_fd = pfd[0];
+            write_fd = pfd[1];
+            dup2(write_fd, STDOUT_FILENO);
+          }
+          break;
+        } else if (cp == sizeof cur) {
+          cp = 0;
+          cur[cp] = '\0';
+        }
+      }
+    }
+
+    // If these logs are from bitcoind, write them to the log pipe:
+    for (i = 0; i < r; i++) {
+      if ((rbuf[i] == '\r' && rbuf[i] == '\n')
+          || rbuf[i] == '\r' || rbuf[i] == '\n') {
+        size_t wcount = r;
+        ssize_t w = 0;
+        ssize_t wtotal = 0;
+        while ((w = write(write_log, rbuf + i + wtotal + 1, wcount))) {
+          if (w == 0 || (size_t)wtotal == rcount) break;
+          wtotal += w;
+        }
+      }
+    }
+
+    rtotal += r;
+    while (rtotal > rcount) {
+      reallocs++;
+      rcount = (rcount * 2) / reallocs;
+      buf = (char *)realloc(buf, rcount);
+    }
+  }
+
+  if (log_str) {
+    buf[rtotal] = '\0';
+    *log_str = buf;
+  } else {
+    free(buf);
+  }
+
+  return read_log;
 }
 
 /**
