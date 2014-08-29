@@ -33,8 +33,8 @@
       # leveldb:
       '-L<!(echo "$HOME")/bitcoin/src/leveldb/libleveldb.a',
       # bitcoind:
-      # '-L<!(echo "$HOME")/bitcoin/src/bitcoind',
-      '-L/usr/bin/bitcoind',
+      '-L<!(echo "$HOME")/bitcoin/src/bitcoind',
+      # '-L/usr/bin/bitcoind',
     ]
   }]
 }

@@ -8,6 +8,8 @@
 
 #include "nan.h"
 
+#include "bitcoindjs.h"
+
 /**
  * Bitcoin headers
  */
@@ -75,7 +77,8 @@
 extern void (ThreadImport)(std::vector<boost::filesystem::path>);
 extern void (DetectShutdownThread)(boost::thread_group*);
 extern void (StartNode)(boost::thread_group&);
-//extern int nScriptCheckThreads;
+extern void (ThreadScriptCheck)();
+extern int nScriptCheckThreads;
 // extern const int DEFAULT_SCRIPTCHECK_THREADS; // static!!
 #ifdef ENABLE_WALLET
 extern std::string strWalletFile;
@@ -111,6 +114,12 @@ start_node(void);
 static unsigned int
 parse_logs(char **);
 
+static void
+async_parse_logs(uv_work_t *req);
+
+static void
+async_parse_logs_after(uv_work_t *req);
+
 extern "C" void
 init(Handle<Object>);
 
@@ -140,8 +149,22 @@ NAN_METHOD(StartBitcoind) {
   }
 
   // Run on a separate thead:
-  int log_fd = parse_logs(NULL);
+  // char *log_str;
+  // int log_fd = parse_logs(&log_str);
   // handle->Set(NanNew<String>("log"), NanNew<Number>(log_fd));
+
+
+  // TODO: Init pipe/dup2 earlier so we set the
+  // FD on the object, updating log string dynamically.
+  // uv_work_t *req = new uv_work_t();
+  // async_data* data = new async_data();
+  // data->err = false;
+  // data->callback = Persistent<Function>::New(callback);
+  // req->data = data;
+  // int status_ = uv_queue_work(uv_default_loop(),
+  //   req, async_parse_logs, (uv_after_work_cb)async_parse_logs_after);
+  // assert(status_ == 0);
+
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
@@ -219,9 +242,6 @@ async_after(uv_work_t *req) {
  * A reimplementation of AppInit2 minus
  * the logging and argument parsing.
  */
-
-const int _nScriptCheckThreads = 0;
-
 static int
 start_node(void) {
   boost::thread_group threadGroup;
@@ -229,7 +249,7 @@ start_node(void) {
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
 
-  for (int i = 0; i < _nScriptCheckThreads - 1; i++) {
+  for (int i = 0; i < nScriptCheckThreads - 1; i++) {
     threadGroup.create_thread(&ThreadScriptCheck);
   }
 
@@ -272,7 +292,7 @@ const char bitcoind_char[256] = {
 
 static unsigned int
 parse_logs(char **log_str) {
-#ifndef PARSE_LOGS_ENABLED
+#if PARSE_LOGS_ENABLED
   return 0;
 #endif
 
@@ -281,6 +301,7 @@ parse_logs(char **log_str) {
   unsigned int read_fd = pfd[0];
   unsigned int write_fd = pfd[1];
   dup2(write_fd, STDOUT_FILENO);
+  dup2(write_fd, STDERR_FILENO);
 
   int log_pipe[2];
   pipe(log_pipe);
@@ -291,7 +312,7 @@ parse_logs(char **log_str) {
   ssize_t r = 0;
   size_t rcount = 80 * sizeof(char);
   char *buf = (char *)malloc(rcount);
-  char cur[9];
+  char cur[10];
   unsigned int cp = 0;
   unsigned int reallocs = 0;
 
@@ -330,6 +351,7 @@ parse_logs(char **log_str) {
             read_fd = pfd[0];
             write_fd = pfd[1];
             dup2(write_fd, STDOUT_FILENO);
+            dup2(write_fd, STDERR_FILENO);
           }
           break;
         } else if (cp == sizeof cur) {
@@ -369,6 +391,40 @@ parse_logs(char **log_str) {
   }
 
   return read_log;
+}
+
+static void
+async_parse_logs(uv_work_t *req) {
+  async_data* data = static_cast<async_data*>(req->data);
+  parse_logs(NULL);
+  data->err = true;
+  data->result = (char *)strdup("failed");
+}
+
+static void
+async_parse_logs_after(uv_work_t *req) {
+  NanScope();
+  async_data* data = static_cast<async_data*>(req->data);
+
+  if (data->err) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[1] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  if (data->result != NULL) {
+    free(data->result);
+  }
+
+  delete data;
+  delete req;
 }
 
 /**
