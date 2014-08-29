@@ -169,6 +169,7 @@ static void
 async_work(uv_work_t *req) {
   async_data* data = static_cast<async_data*>(req->data);
   // undefined symbol: _ZTIN5boost6detail16thread_data_baseE
+  // https://www.google.com/search?q=%22undefined+symbol%3A+_ZTIN5boost6detail16thread_data_baseE%22
   start_node();
   data->result = (char *)strdup("opened");
 }
