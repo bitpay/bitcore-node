@@ -30,7 +30,6 @@
       '-lboost_program_options',
       '-lboost_thread',
       '-lboost_chrono',
-      #'-lpthread',
       # leveldb:
       '-L<!(echo "$HOME")/bitcoin/src/leveldb/libleveldb.a',
       # bitcoind:
