@@ -340,6 +340,14 @@ parse_logs(int **out_pipe, int **log_pipe) {
     unsigned int i;
     char *rbuf;
 
+    if (r == -1) {
+      fprintf(stderr, "bitcoind: error=\"parse_logs(): bad read.\"\n");
+      sleep(1);
+      continue;
+    }
+
+    if (r <= 0) continue;
+
     // Grab the buffer at the start of the bytes that were read:
     rbuf = (char *)(buf + r);
 
@@ -361,6 +369,11 @@ parse_logs(int **out_pipe, int **log_pipe) {
           w = write(STDOUT_FILENO, cur, cp);
           wtotal += w;
           while ((w = write(STDOUT_FILENO, rbuf + i + wtotal, wcount))) {
+            if (w == -1) {
+              fprintf(stderr, "bitcoind: error=\"parse_logs(): bad write.\"\n");
+              sleep(1);
+              break;
+            }
             if (w == 0 || (size_t)wtotal == rcount) break;
             wtotal += w;
           }
@@ -384,6 +397,11 @@ parse_logs(int **out_pipe, int **log_pipe) {
         ssize_t w = 0;
         ssize_t wtotal = 0;
         while ((w = write(*log_pipe[1], rbuf + i + wtotal + 1, wcount))) {
+          if (w == -1) {
+            fprintf(stderr, "bitcoind: error=\"parse_logs(): bad write.\"\n");
+            sleep(1);
+            break;
+          }
           if (w == 0 || (size_t)wtotal == rcount) break;
           wtotal += w;
         }

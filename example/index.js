@@ -7,5 +7,5 @@ bitcoind.on('error', function(err) {
 });
 
 bitcoind.on('open', function(status) {
-  console.log('bitcoind: status=%s', status);
+  console.log('bitcoind: status="%s"', status);
 });
