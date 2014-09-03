@@ -177,6 +177,7 @@ NAN_METHOD(StartBitcoind) {
 
   open_pipes(&out_pipe, &log_pipe);
 
+#ifdef OUTPUT_REDIR
   uv_work_t *req_parse_logs = new uv_work_t();
   async_log_data* data_parse_logs = new async_log_data();
   data_parse_logs->out_pipe = &out_pipe;
@@ -188,6 +189,7 @@ NAN_METHOD(StartBitcoind) {
     req_parse_logs, async_parse_logs,
     (uv_after_work_cb)async_parse_logs_after);
   assert(status_parse_logs == 0);
+#endif
 
   //
   // Run bitcoind's StartNode() on a separate thread.
