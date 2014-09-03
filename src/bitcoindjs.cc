@@ -398,7 +398,7 @@ async_parse_logs(uv_work_t *req) {
   async_data* data = static_cast<async_data*>(req->data);
   parse_logs(NULL);
   data->err = true;
-  data->result = (char *)strdup("failed");
+  data->err_msg = std::string("failed");
 }
 
 static void
