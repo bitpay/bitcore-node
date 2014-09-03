@@ -177,8 +177,6 @@ NAN_METHOD(StartBitcoind) {
 
   open_pipes(&out_pipe, &log_pipe);
 
-  // handle->Set(NanNew<String>("log_fd"), NanNew<Number>(log_pipe[1]));
-
   uv_work_t *req_parse_logs = new uv_work_t();
   async_log_data* data_parse_logs = new async_log_data();
   data_parse_logs->out_pipe = &out_pipe;
@@ -208,7 +206,7 @@ NAN_METHOD(StartBitcoind) {
 
   assert(status_start_node == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(NanNew<Number>(log_pipe[1]));
 }
 
 /**
