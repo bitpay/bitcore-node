@@ -132,10 +132,9 @@ init(Handle<Object>);
  */
 
 struct async_node_data {
-  Persistent<Function> callback;
-  bool err;
   char *err_msg;
   char *result;
+  Persistent<Function> callback;
 };
 
 /**
@@ -144,12 +143,11 @@ struct async_node_data {
  */
 
 struct async_log_data {
-  Persistent<Function> callback;
   int **out_pipe;
   int **log_pipe;
-  bool err;
   char *err_msg;
   char *result;
+  Persistent<Function> callback;
 };
 
 /**
@@ -182,7 +180,8 @@ NAN_METHOD(StartBitcoind) {
   async_log_data* data_parse_logs = new async_log_data();
   data_parse_logs->out_pipe = &out_pipe;
   data_parse_logs->log_pipe = &log_pipe;
-  data_parse_logs->err = false;
+  data_parse_logs->err_msg = NULL;
+  data_parse_logs->result = NULL;
   data_parse_logs->callback = Persistent<Function>::New(callback);
   req_parse_logs->data = data_parse_logs;
   int status_parse_logs = uv_queue_work(uv_default_loop(),
@@ -196,7 +195,8 @@ NAN_METHOD(StartBitcoind) {
   //
 
   async_node_data* data_start_node = new async_node_data();
-  data_start_node->err = false;
+  data_start_node->err_msg = NULL;
+  data_start_node->result = NULL;
   data_start_node->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req_start_node = new uv_work_t();
@@ -233,7 +233,7 @@ async_start_node_after(uv_work_t *req) {
   NanScope();
   async_node_data* node_data = static_cast<async_node_data*>(req->data);
 
-  if (node_data->err) {
+  if (node_data->err_msg != NULL) {
     Local<Value> err = Exception::Error(String::New(node_data->err_msg));
     free(node_data->err_msg);
     const unsigned argc = 1;
@@ -256,7 +256,7 @@ async_start_node_after(uv_work_t *req) {
     }
   }
 
-  node_data->callback.Dispose();
+  // node_data->callback.Dispose();
 
   if (node_data->result != NULL) {
     free(node_data->result);
@@ -423,7 +423,6 @@ static void
 async_parse_logs(uv_work_t *req) {
   async_log_data* log_data = static_cast<async_log_data*>(req->data);
   parse_logs(log_data->out_pipe, log_data->log_pipe);
-  log_data->err = true;
   log_data->err_msg = (char *)strdup("parse_logs(): failed.");
 }
 
@@ -432,7 +431,7 @@ async_parse_logs_after(uv_work_t *req) {
   NanScope();
   async_log_data* log_data = static_cast<async_log_data*>(req->data);
 
-  if (log_data->err) {
+  if (log_data->err_msg != NULL) {
     Local<Value> err = Exception::Error(String::New(log_data->err_msg));
     free(log_data->err_msg);
     const unsigned argc = 1;
@@ -446,9 +445,7 @@ async_parse_logs_after(uv_work_t *req) {
     assert(0 && "parse_logs(): should never happen.");
   }
 
-  if (log_data->result != NULL) {
-    assert(0 && "parse_logs(): should never happen.");
-  }
+  // log_data->callback.Dispose();
 
   delete log_data;
   delete req;
