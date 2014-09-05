@@ -219,7 +219,7 @@ NAN_METHOD(StartBitcoind) {
 static void
 async_start_node_work(uv_work_t *req) {
   async_node_data* node_data = static_cast<async_node_data*>(req->data);
-  // start_node();
+  start_node();
   node_data->result = (char *)strdup("start_node(): bitcoind opened.");
 }
 
@@ -382,9 +382,8 @@ parse_logs(int **out_pipe, int **log_pipe) {
           dup2(*out_pipe[1], STDOUT_FILENO);
           dup2(*out_pipe[1], STDERR_FILENO);
           break;
-        } else if (cp == sizeof cur) {
+        } else if (cp == sizeof cur - 1) {
           cp = 0;
-          cur[cp] = '\0';
         }
       }
     }
