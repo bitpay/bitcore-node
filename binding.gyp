@@ -31,11 +31,9 @@
       '-lboost_thread',
       '-lboost_chrono',
       # leveldb:
-      '-L<!(echo "$HOME")/bitcoin/src/leveldb/libleveldb.a',
+      #'<!(echo "$HOME")/bitcoin/src/leveldb/libleveldb.a',
       # bitcoind:
-      '-L<!(echo "$HOME")/bitcoin/src/bitcoind',
-      #'-L<!(echo "$HOME")/bitcoin/src/bitcoind_root.so',
-      # '-L/usr/bin/bitcoind',
+      '<!(echo "$HOME")/bitcoin/src/libbitcoind.so',
     ]
   }]
 }

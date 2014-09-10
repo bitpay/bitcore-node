@@ -279,7 +279,8 @@ start_node(void) {
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
 
-  for (int i = 0; i < nScriptCheckThreads - 1; i++) {
+  int _nScriptCheckThreads = 0;
+  for (int i = 0; i < _nScriptCheckThreads - 1; i++) {
     threadGroup.create_thread(&ThreadScriptCheck);
   }
 
