@@ -22,6 +22,16 @@ bitcoind as a shared object. This may not be ideal yet.
 
 #### Compiling bticoind as a library
 
+##### Dependencies
+
+  - Boost
+    - Bost Header Files (`/usr/include/boost`)
+
+  - Berkeley DB
+
+  - LevelDB Header Files (included in bitcoin source repo, leveldb itself
+    unnecessary, libbitcoind.so is already linked to them)
+
 ``` bash
 # ensure clean up
 $ make clean
@@ -63,7 +73,7 @@ Without `--enable-library`, the Makefile with compile bitcoind with -fPIE
 
 ``` bash
 $ cd ~/work/node_modules/bitcoind.js
-$ PYTHON=/usr/bin/python2.7 make gyp
+$ BITCOIN_DIR=~/bitcoin PYTHON=/usr/bin/python2.7 make
 ```
 
 #### Running bitcoind.js

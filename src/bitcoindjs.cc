@@ -79,6 +79,7 @@ extern void (DetectShutdownThread)(boost::thread_group*);
 extern void (StartNode)(boost::thread_group&);
 extern void (ThreadScriptCheck)();
 extern void (StartShutdown)();
+extern bool (AppInit2)(boost::thread_group&);
 extern int nScriptCheckThreads;
 #ifdef ENABLE_WALLET
 extern std::string strWalletFile;
@@ -287,15 +288,16 @@ start_node(void) {
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
 
-  int _nScriptCheckThreads = 0;
-  for (int i = 0; i < _nScriptCheckThreads - 1; i++) {
+  for (int i = 0; i < nScriptCheckThreads - 1; i++) {
     threadGroup.create_thread(&ThreadScriptCheck);
   }
 
   std::vector<boost::filesystem::path> vImportFiles;
   threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
 
-  StartNode(threadGroup);
+  // StartNode(threadGroup);
+
+  AppInit2(threadGroup);
 
 #ifdef ENABLE_WALLET
   if (pwalletMain) {
