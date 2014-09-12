@@ -78,8 +78,8 @@ extern void (ThreadImport)(std::vector<boost::filesystem::path>);
 extern void (DetectShutdownThread)(boost::thread_group*);
 extern void (StartNode)(boost::thread_group&);
 extern void (ThreadScriptCheck)();
+extern void (StartShutdown)();
 extern int nScriptCheckThreads;
-// extern const int DEFAULT_SCRIPTCHECK_THREADS; // static!!
 #ifdef ENABLE_WALLET
 extern std::string strWalletFile;
 extern CWallet *pwalletMain;
@@ -107,6 +107,12 @@ async_start_node_work(uv_work_t *req);
 
 static void
 async_start_node_after(uv_work_t *req);
+
+static void
+async_stop_node_work(uv_work_t *req);
+
+static void
+async_stop_node_after(uv_work_t *req);
 
 static int
 start_node(void);
@@ -275,6 +281,8 @@ async_start_node_after(uv_work_t *req) {
 static int
 start_node(void) {
   boost::thread_group threadGroup;
+
+  // XXX Run this in a node thread instead to keep the event loop open:
   boost::thread *detectShutdownThread = NULL;
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
@@ -452,6 +460,97 @@ async_parse_logs_after(uv_work_t *req) {
 }
 
 /**
+ * StopBitcoind
+ * bitcoind.stop(callback)
+ */
+
+NAN_METHOD(StopBitcoind) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsFunction()) {
+    return NanThrowError(
+        "Usage: bitcoind.stop(callback)");
+  }
+
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+
+  //
+  // Run bitcoind's StartShutdown() on a separate thread.
+  //
+
+  async_node_data* data_stop_node = new async_node_data();
+  data_stop_node->err_msg = NULL;
+  data_stop_node->result = NULL;
+  data_stop_node->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req_stop_node = new uv_work_t();
+  req_stop_node->data = data_stop_node;
+
+  int status_stop_node = uv_queue_work(uv_default_loop(),
+    req_stop_node, async_stop_node_work,
+    (uv_after_work_cb)async_stop_node_after);
+
+  assert(status_stop_node == 0);
+
+  NanReturnValue(Undefined());
+}
+
+/**
+ * async_stop_node_work()
+ * Call StartShutdown() to join the boost threads, which will call Shutdown().
+ */
+
+static void
+async_stop_node_work(uv_work_t *req) {
+  async_node_data* node_data = static_cast<async_node_data*>(req->data);
+  StartShutdown();
+  node_data->result = (char *)strdup("stop_node(): bitcoind shutdown.");
+}
+
+/**
+ * async_stop_node_after()
+ * Execute our callback.
+ */
+
+static void
+async_stop_node_after(uv_work_t *req) {
+  NanScope();
+  async_node_data* node_data = static_cast<async_node_data*>(req->data);
+
+  if (node_data->err_msg != NULL) {
+    Local<Value> err = Exception::Error(String::New(node_data->err_msg));
+    free(node_data->err_msg);
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    node_data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(String::New(node_data->result))
+    };
+    TryCatch try_catch;
+    node_data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  node_data->callback.Dispose();
+
+  if (node_data->result != NULL) {
+    free(node_data->result);
+  }
+
+  delete node_data;
+  delete req;
+}
+
+/**
  * Init
  */
 
@@ -459,6 +558,7 @@ extern "C" void
 init(Handle<Object> target) {
   NanScope();
   NODE_SET_METHOD(target, "start", StartBitcoind);
+  NODE_SET_METHOD(target, "stop", StopBitcoind);
 }
 
 NODE_MODULE(bitcoindjs, init)

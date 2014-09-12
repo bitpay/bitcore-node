@@ -15,6 +15,7 @@
     'defines': [
       'HAVE_WORKING_BOOST_SLEEP',
       #'HAVE_WORKING_BOOST_SLEEP_FOR',
+      'ENABLE_WALLET',
     ],
     'cflags_cc': [
       '-fexceptions',
