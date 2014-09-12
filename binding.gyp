@@ -1,18 +1,26 @@
 {
   'targets': [{
     'target_name': 'bitcoindjs',
+    'variables': {
+      'BOOST_INCLUDE': '<!(test -n "$BOOST_INCLUDE"'\
+      ' && echo "$BOOST_INCLUDE"'\
+      ' || echo /usr/include/boost)',
+      'BITCOIN_DIR': '<!(test -n "$BITCOIN_DIR"'\
+        ' && echo "$BITCOIN_DIR"'\
+        ' || echo "${HOME}/bitcoin")',
+    },
     'include_dirs' : [
       # standard include:
       # '/usr/include',
 
       # boost:
-      # '/usr/include/boost',
+      # '<(BOOST_INCLUDE)',
 
       # leveldb:
-      '<!(test -n "$BITCOIN_DIR" && echo "$BITCOIN_DIR" || echo "${HOME}/bitcoin")/src/leveldb/include',
+      '<(BITCOIN_DIR)/src/leveldb/include',
 
       # bitcoind:
-      '<!(test -n "$BITCOIN_DIR" && echo "$BITCOIN_DIR" || echo "${HOME}/bitcoin")/src',
+      '<(BITCOIN_DIR)/src',
 
       # nan:
       '<!(node -e "require(\'nan\')")',
@@ -22,14 +30,12 @@
     ],
     'defines': [
       # boost sleep:
-      '<!(test $(grep "#define BOOST_VERSION " /usr/include/boost/version.hpp'\
-      ' | awk "{ print \$3 }") -gt 105200'\
+      '<!(test $(grep "#define BOOST_VERSION " <(BOOST_INCLUDE)/version.hpp'\
+      ' | awk "{ print \$3 }") -ge 105200'\
       ' && echo HAVE_WORKING_BOOST_SLEEP_FOR'\
       ' || echo HAVE_WORKING_BOOST_SLEEP)',
 
       # wallet:
-      # Assume libbitcoind.so is always
-      # compiled with wallet support.
       'ENABLE_WALLET',
     ],
     'cflags_cc': [
@@ -49,7 +55,7 @@
       '-lboost_chrono',
 
       # bitcoind:
-      '<!(test -n "$BITCOIN_DIR" && echo "$BITCOIN_DIR" || echo "${HOME}/bitcoin")/src/libbitcoind.so',
+      '<(BITCOIN_DIR)/src/libbitcoind.so',
     ]
   }]
 }
