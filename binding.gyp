@@ -4,7 +4,6 @@
     'include_dirs' : [
       '/usr/include',
       '<!(node -e "require(\'nan\')")',
-      # './deps',
       '/usr/include/boost',
       '<!(echo "$HOME")/bitcoin/src/leveldb/include',
       '<!(echo "$HOME")/bitcoin/src',
@@ -14,7 +13,6 @@
     ],
     'defines': [
       'HAVE_WORKING_BOOST_SLEEP',
-      #'HAVE_WORKING_BOOST_SLEEP_FOR',
       'ENABLE_WALLET',
     ],
     'cflags_cc': [
