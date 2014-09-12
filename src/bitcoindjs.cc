@@ -80,7 +80,12 @@ extern void (StartNode)(boost::thread_group&);
 extern void (ThreadScriptCheck)();
 extern void (StartShutdown)();
 extern bool (AppInit2)(boost::thread_group&);
+extern bool (AppInit)(int, char**);
+extern bool (SoftSetBoolArg)(const std::string&, bool);
+extern void (PrintExceptionContinue)(std::exception*, const char*);
+extern void (Shutdown)();
 extern int nScriptCheckThreads;
+extern std::map<std::string, std::string> mapArgs;
 #ifdef ENABLE_WALLET
 extern std::string strWalletFile;
 extern CWallet *pwalletMain;
@@ -281,30 +286,83 @@ async_start_node_after(uv_work_t *req) {
 
 static int
 start_node(void) {
-  boost::thread_group threadGroup;
+  //
+  // StartNode method:
+  //
 
   // XXX Run this in a node thread instead to keep the event loop open:
+  // boost::thread_group threadGroup;
+  // boost::thread *detectShutdownThread = NULL;
+  // detectShutdownThread = new boost::thread(
+  //   boost::bind(&DetectShutdownThread, &threadGroup));
+  // for (int i = 0; i < nScriptCheckThreads - 1; i++) {
+  //   threadGroup.create_thread(&ThreadScriptCheck);
+  // }
+  // std::vector<boost::filesystem::path> vImportFiles;
+  // threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+  // StartNode(threadGroup);
+#ifdef ENABLE_WALLET
+  // if (pwalletMain) {
+  //   pwalletMain->ReacceptWalletTransactions();
+  //   threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
+  // }
+#endif
+
+  //
+  // AppInit2 method 1:
+  //
+
+  boost::thread_group threadGroup;
   boost::thread *detectShutdownThread = NULL;
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
-
-  for (int i = 0; i < nScriptCheckThreads - 1; i++) {
-    threadGroup.create_thread(&ThreadScriptCheck);
-  }
-
-  std::vector<boost::filesystem::path> vImportFiles;
-  threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
-
-  // StartNode(threadGroup);
-
   AppInit2(threadGroup);
 
-#ifdef ENABLE_WALLET
-  if (pwalletMain) {
-    pwalletMain->ReacceptWalletTransactions();
-    threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
-  }
-#endif
+  //
+  // AppInit2 method 2:
+  //
+
+  // boost::thread_group threadGroup;
+  // boost::thread *detectShutdownThread = NULL;
+  // //mapArgs["-server"] = "1";
+  // //mapArgs.insert(std::pair<std::string, std::string>("-server", "1"));
+  // bool fRet = false;
+  // try {
+  //   SoftSetBoolArg("-server", true);
+  //   detectShutdownThread = new boost::thread(
+  //     boost::bind(&DetectShutdownThread, &threadGroup));
+  //   fRet = AppInit2(threadGroup);
+  // } catch (std::exception& e) {
+  //   PrintExceptionContinue(&e, "AppInit()");
+  // } catch (...) {
+  //   PrintExceptionContinue(NULL, "AppInit()");
+  // }
+  // if (!fRet) {
+  //   if (detectShutdownThread) {
+  //     detectShutdownThread->interrupt();
+  //   }
+  //   threadGroup.interrupt_all();
+  // }
+  // if (detectShutdownThread) {
+  //   detectShutdownThread->join();
+  //   delete detectShutdownThread;
+  //   detectShutdownThread = NULL;
+  // }
+  // Shutdown();
+
+  //
+  // AppInit method:
+  //
+
+  // static const int bitcoind_argc = 2;
+  // static const char *bitcoind_argv[bitcoind_argc + 1] = {
+  //   "-server",
+  //   "-daemon",
+  //   // "-rpcuser=bitcoinrpc",
+  //   // "-rpcpassword=3dDisz5SKhr6O7Pi7LJ2di7zpfunTzhfYEyTauViYwHmlPh4ts",
+  //   NULL
+  // };
+  // AppInit((int)bitcoind_argc, (char **)bitcoind_argv);
 
   return 0;
 }

@@ -73,7 +73,7 @@ Without `--enable-library`, the Makefile with compile bitcoind with -fPIE
 
 ``` bash
 $ cd ~/work/node_modules/bitcoind.js
-$ BITCOIN_DIR=~/bitcoin PYTHON=/usr/bin/python2.7 make
+$ BITCOIN_DIR=~/bitcoin BOOST_INCLUDE=/usr/include/boost PYTHON=/usr/bin/python2.7 make
 ```
 
 #### Running bitcoind.js
