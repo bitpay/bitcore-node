@@ -84,7 +84,9 @@ extern bool (AppInit)(int, char**);
 extern bool (SoftSetBoolArg)(const std::string&, bool);
 extern void (PrintExceptionContinue)(std::exception*, const char*);
 extern void (Shutdown)();
+extern void noui_connect();
 extern int nScriptCheckThreads;
+extern bool fDaemon;
 extern std::map<std::string, std::string> mapArgs;
 #ifdef ENABLE_WALLET
 extern std::string strWalletFile;
@@ -286,9 +288,11 @@ async_start_node_after(uv_work_t *req) {
 
 static int
 start_node(void) {
-  //
-  // StartNode method:
-  //
+  /**
+   * StartNode method (does not work yet):
+   * ~/bitcoin/src/init.cpp (AppInit2() - starts bitcoind)
+   * ~/bitcoin/src/net.cpp (StartNode() - starts the network threads)
+   */
 
   // XXX Run this in a node thread instead to keep the event loop open:
   // boost::thread_group threadGroup;
@@ -307,20 +311,25 @@ start_node(void) {
   //   threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
   // }
 #endif
+  // return 0;
 
-  //
-  // AppInit2 method 1:
-  //
+  /**
+   * The AppInit2 method 1:
+   * ~/bitcoin/src/init.cpp (AppInit2() - starts bitcoind)
+   * ~/bitcoin/src/bitcoind.cpp (AppInit() - calls AppInit2)
+   */
 
   boost::thread_group threadGroup;
   boost::thread *detectShutdownThread = NULL;
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
-  AppInit2(threadGroup);
+  return AppInit2(threadGroup) ? 0 : 1;
 
-  //
-  // AppInit2 method 2:
-  //
+  /**
+   * The AppInit2 method 2:
+   * ~/bitcoin/src/init.cpp (AppInit2() - starts bitcoind)
+   * ~/bitcoin/src/bitcoind.cpp (AppInit() - calls AppInit2)
+   */
 
   // boost::thread_group threadGroup;
   // boost::thread *detectShutdownThread = NULL;
@@ -349,22 +358,34 @@ start_node(void) {
   //   detectShutdownThread = NULL;
   // }
   // Shutdown();
+  // return fRet ? 0 : 1;
 
-  //
-  // AppInit method:
-  //
+  /**
+   * The AppInit method:
+   * ~/bitcoin/src/init.cpp (AppInit2() - starts bitcoind)
+   * ~/bitcoin/src/bitcoind.cpp (AppInit() - calls AppInit2)
+   * ~/bitcoin/src/bitcoind_main.cpp (main() - calls AppInit())
+   */
 
-  // static const int bitcoind_argc = 2;
-  // static const char *bitcoind_argv[bitcoind_argc + 1] = {
+  // static const int b_argc = 5;
+  // static const char *b_argv[b_argc + 1] = {
   //   "-server",
-  //   "-daemon",
-  //   // "-rpcuser=bitcoinrpc",
-  //   // "-rpcpassword=3dDisz5SKhr6O7Pi7LJ2di7zpfunTzhfYEyTauViYwHmlPh4ts",
+  //   "-rpcuser=bitcoinrpc",
+  //   "-rpcpassword=3dDisz5SKhr6O7Pi7LJ2di7zpfunTzhfYEyTauViYwHmlPh4ts",
+  //   "-rpcport=8332",
+  //   "-rpcallowip=127.0.0.1",
+  //   // "-addnode=0.0.0.0",
   //   NULL
   // };
-  // AppInit((int)bitcoind_argc, (char **)bitcoind_argv);
-
-  return 0;
+  // bool fRet = false;
+  // noui_connect();
+	// char conf[200] = {0};
+	// int r = snprintf(conf, sizeof conf,
+  //   "%s/.bitcoin/bitcoin.conf", getenv("HOME"));
+	// if (r > 0) unlink(conf);
+  // fRet = AppInit((int)b_argc, (char **)b_argv);
+  // if (fRet && fDaemon) return 0;
+  // return fRet ? 0 : 1;
 }
 
 /**
