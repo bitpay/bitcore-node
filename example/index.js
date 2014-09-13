@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+process.title = 'bitcoind.js';
+
 var bitcoind = require('../')();
 
 bitcoind.start(function(err) {
