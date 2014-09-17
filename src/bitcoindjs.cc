@@ -401,16 +401,16 @@ start_node_thread(void) {
 
 const char bitcoind_char[256] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, /* <- ' ', */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, /* <- ' ' */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '.',
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ':', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  'b', 'c', 'd', 0, 0, 0, 0, 'i', 0, 0, 0, 0, 'n', 'o', 0, 0, 0, 0, 't', 0, 0,
+  'b', 'c', 'd', 0, 0, 0, 0, 'i', 'j', 0, 0, 0, 'n', 'o', 0, 0, 0, 's', 't', 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
 };
 
 static void
@@ -436,7 +436,7 @@ parse_logs(int **out_pipe, int **log_pipe) {
     char *rbuf;
 
     if (r == -1) {
-      fprintf(stderr, "bitcoind: error=\"parse_logs(): bad read.\"\n");
+      fprintf(stderr, "bitcoind.js: error=\"parse_logs(): bad read.\"\n");
       sleep(1);
       continue;
     }
@@ -454,7 +454,7 @@ parse_logs(int **out_pipe, int **log_pipe) {
         cur[cp] = rbuf[0];
         cp++;
         cur[cp] = '\0';
-        if (strcmp(cur, "bitcoind:") == 0) {
+        if (strcmp(cur, "bitcoind.js:") == 0) {
           size_t wcount = r;
           ssize_t w = 0;
           ssize_t wtotal = 0;
@@ -465,7 +465,7 @@ parse_logs(int **out_pipe, int **log_pipe) {
           wtotal += w;
           while ((w = write(STDOUT_FILENO, rbuf + i + wtotal, wcount))) {
             if (w == -1) {
-              fprintf(stderr, "bitcoind: error=\"parse_logs(): bad write.\"\n");
+              fprintf(stderr, "bitcoind.js: error=\"parse_logs(): bad write.\"\n");
               sleep(1);
               break;
             }
@@ -492,7 +492,7 @@ parse_logs(int **out_pipe, int **log_pipe) {
         ssize_t wtotal = 0;
         while ((w = write(*log_pipe[1], rbuf + i + wtotal + 1, wcount))) {
           if (w == -1) {
-            fprintf(stderr, "bitcoind: error=\"parse_logs(): bad write.\"\n");
+            fprintf(stderr, "bitcoind.js: error=\"parse_logs(): bad write.\"\n");
             sleep(1);
             break;
           }
