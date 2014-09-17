@@ -416,8 +416,8 @@ const char bitcoind_char[256] = {
 static void
 open_pipes(int **out_pipe, int **log_pipe) {
   pipe(*out_pipe);
-  dup2(*out_pipe[1], STDOUT_FILENO);
-  dup2(*out_pipe[1], STDERR_FILENO);
+  dup2((*out_pipe)[1], STDOUT_FILENO);
+  dup2((*out_pipe)[1], STDERR_FILENO);
   pipe(*log_pipe);
 }
 
@@ -427,11 +427,11 @@ parse_logs(int **out_pipe, int **log_pipe) {
   ssize_t r = 0;
   size_t rcount = 80 * sizeof(char);
   char *buf = (char *)malloc(rcount);
-  char cur[10];
+  char cur[13];
   unsigned int cp = 0;
   unsigned int reallocs = 0;
 
-  while ((r = read(*out_pipe[0], buf + rtotal, rcount))) {
+  while ((r = read((*out_pipe)[0], buf, rcount))) {
     unsigned int i;
     char *rbuf;
 
@@ -444,7 +444,7 @@ parse_logs(int **out_pipe, int **log_pipe) {
     if (r <= 0) continue;
 
     // Grab the buffer at the start of the bytes that were read:
-    rbuf = (char *)(buf + r);
+    rbuf = (char *)(buf + rtotal);
 
     // If these are our logs, write them to stdout:
     for (i = 0; i < r; i++) {
@@ -459,8 +459,8 @@ parse_logs(int **out_pipe, int **log_pipe) {
           ssize_t w = 0;
           ssize_t wtotal = 0;
           // undo redirection
-          close(*out_pipe[0]);
-          close(*out_pipe[1]);
+          close((*out_pipe)[0]);
+          close((*out_pipe)[1]);
           w = write(STDOUT_FILENO, cur, cp);
           wtotal += w;
           while ((w = write(STDOUT_FILENO, rbuf + i + wtotal, wcount))) {
@@ -474,8 +474,8 @@ parse_logs(int **out_pipe, int **log_pipe) {
           }
           // reopen redirection
           pipe(*out_pipe);
-          dup2(*out_pipe[1], STDOUT_FILENO);
-          dup2(*out_pipe[1], STDERR_FILENO);
+          dup2((*out_pipe)[1], STDOUT_FILENO);
+          dup2((*out_pipe)[1], STDERR_FILENO);
           break;
         } else if (cp == sizeof cur - 1) {
           cp = 0;
@@ -490,7 +490,7 @@ parse_logs(int **out_pipe, int **log_pipe) {
         size_t wcount = r;
         ssize_t w = 0;
         ssize_t wtotal = 0;
-        while ((w = write(*log_pipe[1], rbuf + i + wtotal + 1, wcount))) {
+        while ((w = write((*log_pipe)[1], rbuf + i + wtotal + 1, wcount))) {
           if (w == -1) {
             fprintf(stderr, "bitcoind.js: error=\"parse_logs(): bad write.\"\n");
             sleep(1);
