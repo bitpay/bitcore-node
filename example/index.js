@@ -12,10 +12,3 @@ bitcoind.start(function(err) {
     console.log('bitcoind: status="%s"', status);
   });
 });
-
-process.on('SIGINT', function() {
-  return bitcoind.stop(function(err) {
-    if (err) throw err;
-    return process.exit(0);
-  });
-});

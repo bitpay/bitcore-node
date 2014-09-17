@@ -6,4 +6,4 @@
  *   A bitcoind node.js binding header file.
  */
 
-#define PARSE_LOGS_ENABLED 0
+#define OUTPUT_REDIR 0

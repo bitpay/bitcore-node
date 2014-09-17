@@ -95,8 +95,6 @@
 
 #define MIN_CORE_FILEDESCRIPTORS 150
 
-extern volatile bool fRequestShutdown;
-
 using namespace std;
 using namespace boost;
 
@@ -105,6 +103,7 @@ extern void DetectShutdownThread(boost::thread_group*);
 extern void StartNode(boost::thread_group&);
 extern void ThreadScriptCheck();
 extern void StartShutdown();
+extern bool ShutdownRequested();
 extern bool AppInit2(boost::thread_group&);
 extern bool AppInit(int, char**);
 extern bool SoftSetBoolArg(const std::string&, bool);
@@ -151,8 +150,8 @@ async_stop_node_after(uv_work_t *req);
 static int
 start_node(void);
 
-static int
-_start_node(void);
+static void
+start_node_thread(void);
 
 static void
 open_pipes(int **out_pipe, int **log_pipe);
@@ -168,6 +167,8 @@ async_parse_logs_after(uv_work_t *req);
 
 extern "C" void
 init(Handle<Object>);
+
+static bool shutdownComplete = false;
 
 /**
  * async_node_data
@@ -213,12 +214,12 @@ NAN_METHOD(StartBitcoind) {
   // Run in a separate thread.
   //
 
+#if OUTPUT_REDIR
   int *out_pipe = (int *)malloc(2 * sizeof(int));
   int *log_pipe = (int *)malloc(2 * sizeof(int));
 
   open_pipes(&out_pipe, &log_pipe);
 
-#ifdef OUTPUT_REDIR
   uv_work_t *req_parse_logs = new uv_work_t();
   async_log_data* data_parse_logs = new async_log_data();
   data_parse_logs->out_pipe = &out_pipe;
@@ -227,9 +228,11 @@ NAN_METHOD(StartBitcoind) {
   data_parse_logs->result = NULL;
   data_parse_logs->callback = Persistent<Function>::New(callback);
   req_parse_logs->data = data_parse_logs;
+
   int status_parse_logs = uv_queue_work(uv_default_loop(),
     req_parse_logs, async_parse_logs,
     (uv_after_work_cb)async_parse_logs_after);
+
   assert(status_parse_logs == 0);
 #endif
 
@@ -251,7 +254,11 @@ NAN_METHOD(StartBitcoind) {
 
   assert(status_start_node == 0);
 
+#if OUTPUT_REDIR
   NanReturnValue(NanNew<Number>(log_pipe[1]));
+#else
+  NanReturnValue(NanNew<Number>(-1));
+#endif
 }
 
 /**
@@ -310,56 +317,48 @@ async_start_node_after(uv_work_t *req) {
 }
 
 /**
+ * IsStopping()
+ * bitcoind.stopping()
+ */
+
+NAN_METHOD(IsStopping) {
+  NanScope();
+  NanReturnValue(NanNew<Boolean>(ShutdownRequested()));
+}
+
+/**
  * IsStopped()
  * bitcoind.stopped()
  */
 
-NAN_METHOD(isStopped) {
+NAN_METHOD(IsStopped) {
   NanScope();
-  NanReturnValue(NanNew<Boolean>(fRequestShutdown));
+  NanReturnValue(NanNew<Boolean>(shutdownComplete));
 }
 
 /**
  * start_node(void)
+ * start_node_thread(void)
  * A reimplementation of AppInit2 minus
  * the logging and argument parsing.
  */
 
 static int
 start_node(void) {
-  //
-  // main:
-  //
-
-  // Connect bitcoind signal handlers
   noui_connect();
 
-  //
-  // appinit1 / appinit2:
-  //
+  (boost::thread *)new boost::thread(boost::bind(&start_node_thread));
 
-  boost::thread* node_thread = NULL;
-  node_thread = new boost::thread(boost::bind(&_start_node));
-
-  //
-  // main:
-  //
-
-  // if (fRet && fDaemon) {
-  //   return 0;
-  // }
-
-  // return fRet ? 0 : 1;
+  // horrible fix for a race condition
+  sleep(2);
+  signal(SIGINT, SIG_DFL);
+  signal(SIGHUP, SIG_DFL);
 
   return 0;
 }
 
-static int
-_start_node(void) {
-  //
-  // appinit1:
-  //
-
+static void
+start_node_thread(void) {
   boost::thread_group threadGroup;
   boost::thread* detectShutdownThread = NULL;
 
@@ -370,23 +369,14 @@ _start_node(void) {
   };
   ParseParameters(argc, argv);
   ReadConfigFile(mapArgs, mapMultiArgs);
-  // Check for -testnet or -regtest parameter (TestNet() calls are only valid after this clause)
   if (!SelectParamsFromCommandLine()) {
-    return 1;
+    return;
   }
   // CreatePidFile(GetPidFile(), getpid());
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
 
-  //
-  // appinit2:
-  //
-
   int fRet = AppInit2(threadGroup);
-
-  //
-  // appinit1:
-  //
 
   if (!fRet) {
     if (detectShutdownThread)
@@ -400,8 +390,7 @@ _start_node(void) {
     detectShutdownThread = NULL;
   }
   Shutdown();
-
-  return fRet ? 0 : 1;
+  shutdownComplete = true;
 }
 
 /**
@@ -656,6 +645,7 @@ init(Handle<Object> target) {
   NanScope();
   NODE_SET_METHOD(target, "start", StartBitcoind);
   NODE_SET_METHOD(target, "stop", StopBitcoind);
+  NODE_SET_METHOD(target, "stopping", IsStopping);
   NODE_SET_METHOD(target, "stopped", IsStopped);
 }
 
