@@ -74,16 +74,16 @@
  *  ~/bitcoin/src/main.h
  */
 
-extern void (ThreadImport)(std::vector<boost::filesystem::path>);
-extern void (DetectShutdownThread)(boost::thread_group*);
-extern void (StartNode)(boost::thread_group&);
-extern void (ThreadScriptCheck)();
-extern void (StartShutdown)();
-extern bool (AppInit2)(boost::thread_group&);
-extern bool (AppInit)(int, char**);
-extern bool (SoftSetBoolArg)(const std::string&, bool);
-extern void (PrintExceptionContinue)(std::exception*, const char*);
-extern void (Shutdown)();
+extern void ThreadImport(std::vector<boost::filesystem::path>);
+extern void DetectShutdownThread(boost::thread_group*);
+extern void StartNode(boost::thread_group&);
+extern void ThreadScriptCheck();
+extern void StartShutdown();
+extern bool AppInit2(boost::thread_group&);
+extern bool AppInit(int, char**);
+extern bool SoftSetBoolArg(const std::string&, bool);
+extern void PrintExceptionContinue(std::exception*, const char*);
+extern void Shutdown();
 extern void noui_connect();
 extern int nScriptCheckThreads;
 extern bool fDaemon;
