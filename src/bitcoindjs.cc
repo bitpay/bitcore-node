@@ -472,7 +472,7 @@ parse_logs(int **out_pipe, int **log_pipe) {
           dup2(*out_pipe[1], STDOUT_FILENO);
           dup2(*out_pipe[1], STDERR_FILENO);
           break;
-        } else if (cp == sizeof cur - 1) {
+        } else if (cp == sizeof cur) {
           cp = 0;
         }
       }
