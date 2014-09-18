@@ -339,6 +339,29 @@ NAN_METHOD(IsStopped) {
 }
 
 /**
+ * GetBlock(height)
+ * bitcoind.getBlock(height)
+ */
+
+NAN_METHOD(GetBlock) {
+  NanScope();
+  int nHeight = 0;
+  CBlockIndex *pindex = chainActive[nHeight];
+  CBlock block;
+  if (ReadBlockFromDisk(block, pindex)) {
+    // const uint256 txhash = 0;
+    // uint256 hashBlock = pindex->GetBlockHash();
+    // BOOST_FOREACH(const CTransaction &tx, block.vtx) {
+    //   if (tx.GetHash() == txhash) {
+    //     return true;
+    //   }
+    // }
+    // NanReturnValue(NanNew<String>(""));
+  }
+  NanReturnValue(NanNew<Boolean>(false));
+}
+
+/**
  * start_node(void)
  * start_node_thread(void)
  * A reimplementation of AppInit2 minus
@@ -651,6 +674,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "stop", StopBitcoind);
   NODE_SET_METHOD(target, "stopping", IsStopping);
   NODE_SET_METHOD(target, "stopped", IsStopped);
+  NODE_SET_METHOD(target, "getBlock", GetBlock);
 }
 
 NODE_MODULE(bitcoindjs, init)
