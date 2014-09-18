@@ -153,6 +153,7 @@ start_node(void);
 static void
 start_node_thread(void);
 
+#if OUTPUT_REDIR
 static void
 open_pipes(int **out_pipe, int **log_pipe);
 
@@ -164,6 +165,7 @@ async_parse_logs(uv_work_t *req);
 
 static void
 async_parse_logs_after(uv_work_t *req);
+#endif
 
 extern "C" void
 init(Handle<Object>);
@@ -393,6 +395,7 @@ start_node_thread(void) {
   shutdownComplete = true;
 }
 
+#if OUTPUT_REDIR
 /**
  * parse_logs(int **out_pipe, int **log_pipe)
  *   Differentiate our logs and bitcoind's logs.
@@ -544,6 +547,7 @@ async_parse_logs_after(uv_work_t *req) {
   delete log_data;
   delete req;
 }
+#endif
 
 /**
  * StopBitcoind
