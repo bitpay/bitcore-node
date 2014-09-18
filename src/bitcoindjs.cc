@@ -170,7 +170,7 @@ async_parse_logs_after(uv_work_t *req);
 extern "C" void
 init(Handle<Object>);
 
-static bool shutdownComplete = false;
+static volatile bool shutdownComplete = false;
 
 /**
  * async_node_data
