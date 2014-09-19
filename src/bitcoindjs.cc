@@ -77,13 +77,6 @@
 #include "threadsafety.h"
 #include "version.h"
 
-#include "json/json_spirit_value.h"
-
-// using namespace json_spirit;
-
-extern json_spirit::Object
-blockToJSON(const CBlock& block, const CBlockIndex* blockindex);
-
 /**
  * Bitcoin Globals
  * Relevant:
@@ -184,9 +177,6 @@ async_get_block(uv_work_t *req);
 static void
 async_get_block_after(uv_work_t *req);
 
-Local<Object>
-block_to_obj(const CBlock& block, const CBlockIndex* blockindex);
-
 extern "C" void
 init(Handle<Object>);
 
@@ -199,8 +189,6 @@ static volatile bool shutdownComplete = false;
 struct async_block_data {
   std::string hash;
   std::string err_msg;
-  std::string result;
-  Local<Object> result_obj;
   CBlock result_block;
   CBlockIndex* result_blockindex;
   Persistent<Function> callback;
@@ -693,11 +681,9 @@ NAN_METHOD(GetBlock) {
   Local<Function> callback = Local<Function>::Cast(args[1]);
 
   std::string hashp = std::string(*hash);
-  //char *hashc = (char *)hashp.c_str();
 
   async_block_data *data = new async_block_data();
   data->err_msg = std::string("");
-  data->result = std::string("");
   data->hash = hashp;
   data->callback = Persistent<Function>::New(callback);
 
@@ -724,14 +710,6 @@ async_get_block(uv_work_t *req) {
   CBlock block;
   CBlockIndex* pblockindex = mapBlockIndex[hash];
   if (ReadBlockFromDisk(block, pblockindex)) {
-#if 0
-    json_spirit::Object result = blockToJSON(block, pblockindex);
-    json_spirit::Object rpc_result = JSONRPCReplyObj(result, json_spirit::Value::null, 0);
-    std::string out = json_spirit::write_string(json_spirit::Value(rpc_result), false) + "\n";
-    data->result = out;
-#endif
-    //Local<Object> out = block_to_obj(block, pblockindex);
-    //data->result_obj = out;
     data->result_block = block;
     data->result_blockindex = pblockindex;
   } else {
@@ -877,9 +855,6 @@ async_get_block_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      //Local<Value>::New(NanNew<String>(""))
-      //Local<Value>::New(NanNew<String>(data->result))
-      //Local<Value>::New(data->result_obj)
       Local<Value>::New(obj)
     };
     TryCatch try_catch;
@@ -893,44 +868,6 @@ async_get_block_after(uv_work_t *req) {
 
   delete data;
   delete req;
-}
-
-Local<Object>
-block_to_obj(const CBlock& block, const CBlockIndex* blockindex) {
-  Local<Object> obj = NanNew<Object>();
-  obj->Set(NanNew<String>("hash"), NanNew<String>(block.GetHash().GetHex().c_str()));
-  CMerkleTx txGen(block.vtx[0]);
-  txGen.SetMerkleBranch(&block);
-  obj->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain()));
-  obj->Set(NanNew<String>("size"), NanNew<Number>((int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
-  return obj;
-
-#if 0
-  Object result;
-  result.push_back(Pair("hash", block.GetHash().GetHex()));
-  CMerkleTx txGen(block.vtx[0]);
-  txGen.SetMerkleBranch(&block);
-  result.push_back(Pair("confirmations", (int)txGen.GetDepthInMainChain()));
-  result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
-  result.push_back(Pair("height", blockindex->nHeight));
-  result.push_back(Pair("version", block.nVersion));
-  result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
-  Array txs;
-  BOOST_FOREACH(const CTransaction&tx, block.vtx)
-      txs.push_back(tx.GetHash().GetHex());
-  result.push_back(Pair("tx", txs));
-  result.push_back(Pair("time", (boost::int64_t)block.GetBlockTime()));
-  result.push_back(Pair("nonce", (boost::uint64_t)block.nNonce));
-  result.push_back(Pair("bits", HexBits(block.nBits)));
-  result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
-  result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
-  if (blockindex->pprev)
-      result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
-  CBlockIndex *pnext = chainActive.Next(blockindex);
-  if (pnext)
-      result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
-  return result;
-#endif
 }
 
 /**
