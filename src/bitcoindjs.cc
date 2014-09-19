@@ -77,6 +77,12 @@
 #include "threadsafety.h"
 #include "version.h"
 
+#include "json/json_spirit_value.h"
+
+// using namespace json_spirit;
+
+extern json_spirit::Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex);
+
 /**
  * Bitcoin Globals
  * Relevant:
@@ -345,6 +351,19 @@ NAN_METHOD(IsStopped) {
 
 NAN_METHOD(GetBlock) {
   NanScope();
+  std::string strHash = "0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
+  uint256 hash(strHash);
+  CBlock block;
+  CBlockIndex* pblockindex = mapBlockIndex[hash];
+  ReadBlockFromDisk(block, pblockindex);
+  json_spirit::Object result = blockToJSON(block, pblockindex);
+  json_spirit::Object rpc_result = JSONRPCReplyObj(result, json_spirit::Value::null, 0);
+  std::string out = json_spirit::write_string(json_spirit::Value(rpc_result), false) + "\n";
+  // https://www.google.com/search?q=json.parse%20in%20v8%20c%2B%2B
+  // https://v8.googlecode.com/svn/trunk/src/json-parser.h
+  // NanReturnValue(NanNew<Object>(v8::ParseJsonValue(NanNew<String>(out))));
+  NanReturnValue(NanNew<String>(out));
+#if 0
   int nHeight = 0;
   CBlockIndex *pindex = chainActive[nHeight];
   CBlock block;
@@ -356,9 +375,11 @@ NAN_METHOD(GetBlock) {
     //     return true;
     //   }
     // }
-    // NanReturnValue(NanNew<String>(""));
+    blockToJSON(block);
+    NanReturnValue(NanNew<String>(block.ToString()));
   }
   NanReturnValue(NanNew<Boolean>(false));
+#endif
 }
 
 /**
