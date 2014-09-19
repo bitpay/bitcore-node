@@ -140,6 +140,10 @@ using namespace node;
 using namespace v8;
 
 NAN_METHOD(StartBitcoind);
+NAN_METHOD(IsStopping);
+NAN_METHOD(IsStopped);
+NAN_METHOD(StopBitcoind);
+NAN_METHOD(GetBlock);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -173,10 +177,27 @@ static void
 async_parse_logs_after(uv_work_t *req);
 #endif
 
+static void
+async_get_block(uv_work_t *req);
+
+static void
+async_get_block_after(uv_work_t *req);
+
 extern "C" void
 init(Handle<Object>);
 
 static volatile bool shutdownComplete = false;
+
+/**
+ * async_block_data
+ */
+
+struct async_block_data {
+  std::string hash;
+  std::string err_msg;
+  std::string result;
+  Persistent<Function> callback;
+};
 
 /**
  * async_node_data
@@ -342,44 +363,6 @@ NAN_METHOD(IsStopping) {
 NAN_METHOD(IsStopped) {
   NanScope();
   NanReturnValue(NanNew<Boolean>(shutdownComplete));
-}
-
-/**
- * GetBlock(height)
- * bitcoind.getBlock(height)
- */
-
-NAN_METHOD(GetBlock) {
-  NanScope();
-  std::string strHash = "0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
-  uint256 hash(strHash);
-  CBlock block;
-  CBlockIndex* pblockindex = mapBlockIndex[hash];
-  ReadBlockFromDisk(block, pblockindex);
-  json_spirit::Object result = blockToJSON(block, pblockindex);
-  json_spirit::Object rpc_result = JSONRPCReplyObj(result, json_spirit::Value::null, 0);
-  std::string out = json_spirit::write_string(json_spirit::Value(rpc_result), false) + "\n";
-  // https://www.google.com/search?q=json.parse%20in%20v8%20c%2B%2B
-  // https://v8.googlecode.com/svn/trunk/src/json-parser.h
-  // NanReturnValue(NanNew<Object>(v8::ParseJsonValue(NanNew<String>(out))));
-  NanReturnValue(NanNew<String>(out));
-#if 0
-  int nHeight = 0;
-  CBlockIndex *pindex = chainActive[nHeight];
-  CBlock block;
-  if (ReadBlockFromDisk(block, pindex)) {
-    // const uint256 txhash = 0;
-    // uint256 hashBlock = pindex->GetBlockHash();
-    // BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-    //   if (tx.GetHash() == txhash) {
-    //     return true;
-    //   }
-    // }
-    blockToJSON(block);
-    NanReturnValue(NanNew<String>(block.ToString()));
-  }
-  NanReturnValue(NanNew<Boolean>(false));
-#endif
 }
 
 /**
@@ -681,6 +664,98 @@ async_stop_node_after(uv_work_t *req) {
   }
 
   delete node_data;
+  delete req;
+}
+
+/**
+ * GetBlock(height)
+ * bitcoind.getBlock(height)
+ */
+
+NAN_METHOD(GetBlock) {
+  NanScope();
+
+  if (args.Length() < 2
+      || !args[0]->IsString()
+      || !args[1]->IsFunction()) {
+    return NanThrowError(
+        "Usage: bitcoindjs.getBlock(hash, callback)");
+  }
+
+  String::Utf8Value hash(args[0]->ToString());
+  Local<Function> callback = Local<Function>::Cast(args[1]);
+
+  std::string hashp = std::string(*hash);
+  //char *hashc = (char *)hashp.c_str();
+
+  async_block_data *data = new async_block_data();
+  data->err_msg = std::string("");
+  data->result = std::string("");
+  data->hash = hashp;
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_get_block,
+    (uv_after_work_cb)async_get_block_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_get_block(uv_work_t *req) {
+  async_block_data* data = static_cast<async_block_data*>(req->data);
+  std::string strHash = data->hash;
+  if (strHash[1] != 'x') {
+    strHash = "0x" + strHash;
+  }
+  uint256 hash(strHash);
+  CBlock block;
+  CBlockIndex* pblockindex = mapBlockIndex[hash];
+  if (ReadBlockFromDisk(block, pblockindex)) {
+    json_spirit::Object result = blockToJSON(block, pblockindex);
+    json_spirit::Object rpc_result = JSONRPCReplyObj(result, json_spirit::Value::null, 0);
+    std::string out = json_spirit::write_string(json_spirit::Value(rpc_result), false) + "\n";
+    data->result = out;
+  } else {
+    data->err_msg = std::string("get_block(): failed.");
+  }
+}
+
+static void
+async_get_block_after(uv_work_t *req) {
+  NanScope();
+  async_block_data* data = static_cast<async_block_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(NanNew<String>(data->result))
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
   delete req;
 }
 
