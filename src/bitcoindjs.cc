@@ -81,7 +81,8 @@
 
 // using namespace json_spirit;
 
-extern json_spirit::Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex);
+extern json_spirit::Object
+blockToJSON(const CBlock& block, const CBlockIndex* blockindex);
 
 /**
  * Bitcoin Globals
@@ -183,6 +184,9 @@ async_get_block(uv_work_t *req);
 static void
 async_get_block_after(uv_work_t *req);
 
+Local<Object>
+block_to_obj(const CBlock& block, const CBlockIndex* blockindex);
+
 extern "C" void
 init(Handle<Object>);
 
@@ -196,6 +200,9 @@ struct async_block_data {
   std::string hash;
   std::string err_msg;
   std::string result;
+  Local<Object> result_obj;
+  CBlock result_block;
+  CBlockIndex* result_blockindex;
   Persistent<Function> callback;
 };
 
@@ -269,7 +276,7 @@ NAN_METHOD(StartBitcoind) {
   // Run bitcoind's StartNode() on a separate thread.
   //
 
-  async_node_data* data_start_node = new async_node_data();
+  async_node_data *data_start_node = new async_node_data();
   data_start_node->err_msg = NULL;
   data_start_node->result = NULL;
   data_start_node->callback = Persistent<Function>::New(callback);
@@ -297,7 +304,7 @@ NAN_METHOD(StartBitcoind) {
 
 static void
 async_start_node_work(uv_work_t *req) {
-  async_node_data* node_data = static_cast<async_node_data*>(req->data);
+  async_node_data *node_data = static_cast<async_node_data*>(req->data);
   start_node();
   node_data->result = (char *)strdup("start_node(): bitcoind opened.");
 }
@@ -310,7 +317,7 @@ async_start_node_work(uv_work_t *req) {
 static void
 async_start_node_after(uv_work_t *req) {
   NanScope();
-  async_node_data* node_data = static_cast<async_node_data*>(req->data);
+  async_node_data *node_data = static_cast<async_node_data*>(req->data);
 
   if (node_data->err_msg != NULL) {
     Local<Value> err = Exception::Error(String::New(node_data->err_msg));
@@ -389,7 +396,7 @@ start_node(void) {
 static void
 start_node_thread(void) {
   boost::thread_group threadGroup;
-  boost::thread* detectShutdownThread = NULL;
+  boost::thread *detectShutdownThread = NULL;
 
   const int argc = 0;
   const char *argv[argc + 1] = {
@@ -545,7 +552,7 @@ parse_logs(int **out_pipe, int **log_pipe) {
 
 static void
 async_parse_logs(uv_work_t *req) {
-  async_log_data* log_data = static_cast<async_log_data*>(req->data);
+  async_log_data *log_data = static_cast<async_log_data*>(req->data);
   parse_logs(log_data->out_pipe, log_data->log_pipe);
   log_data->err_msg = (char *)strdup("parse_logs(): failed.");
 }
@@ -553,7 +560,7 @@ async_parse_logs(uv_work_t *req) {
 static void
 async_parse_logs_after(uv_work_t *req) {
   NanScope();
-  async_log_data* log_data = static_cast<async_log_data*>(req->data);
+  async_log_data *log_data = static_cast<async_log_data*>(req->data);
 
   if (log_data->err_msg != NULL) {
     Local<Value> err = Exception::Error(String::New(log_data->err_msg));
@@ -595,7 +602,7 @@ NAN_METHOD(StopBitcoind) {
   // Run bitcoind's StartShutdown() on a separate thread.
   //
 
-  async_node_data* data_stop_node = new async_node_data();
+  async_node_data *data_stop_node = new async_node_data();
   data_stop_node->err_msg = NULL;
   data_stop_node->result = NULL;
   data_stop_node->callback = Persistent<Function>::New(callback);
@@ -619,7 +626,7 @@ NAN_METHOD(StopBitcoind) {
 
 static void
 async_stop_node_work(uv_work_t *req) {
-  async_node_data* node_data = static_cast<async_node_data*>(req->data);
+  async_node_data *node_data = static_cast<async_node_data*>(req->data);
   StartShutdown();
   node_data->result = (char *)strdup("stop_node(): bitcoind shutdown.");
 }
@@ -668,8 +675,8 @@ async_stop_node_after(uv_work_t *req) {
 }
 
 /**
- * GetBlock(height)
- * bitcoind.getBlock(height)
+ * GetBlock(hash, callback)
+ * bitcoind.getBlock(hash, callback)
  */
 
 NAN_METHOD(GetBlock) {
@@ -717,10 +724,16 @@ async_get_block(uv_work_t *req) {
   CBlock block;
   CBlockIndex* pblockindex = mapBlockIndex[hash];
   if (ReadBlockFromDisk(block, pblockindex)) {
+#if 0
     json_spirit::Object result = blockToJSON(block, pblockindex);
     json_spirit::Object rpc_result = JSONRPCReplyObj(result, json_spirit::Value::null, 0);
     std::string out = json_spirit::write_string(json_spirit::Value(rpc_result), false) + "\n";
     data->result = out;
+#endif
+    //Local<Object> out = block_to_obj(block, pblockindex);
+    //data->result_obj = out;
+    data->result_block = block;
+    data->result_blockindex = pblockindex;
   } else {
     data->err_msg = std::string("get_block(): failed.");
   }
@@ -741,10 +754,133 @@ async_get_block_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
+    const CBlock& block = data->result_block;
+    const CBlockIndex* blockindex = data->result_blockindex;
+
+    Local<Object> obj = NanNew<Object>();
+    obj->Set(NanNew<String>("hash"), NanNew<String>(block.GetHash().GetHex().c_str()));
+    CMerkleTx txGen(block.vtx[0]);
+    txGen.SetMerkleBranch(&block);
+    obj->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain()));
+    obj->Set(NanNew<String>("size"), NanNew<Number>((int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
+    obj->Set(NanNew<String>("height"), NanNew<Number>(blockindex->nHeight));
+    obj->Set(NanNew<String>("version"), NanNew<Number>(block.nVersion));
+    obj->Set(NanNew<String>("merkleroot"), NanNew<String>(block.hashMerkleRoot.GetHex()));
+
+    Local<Array> txs = NanNew<Array>();
+    int i = 0;
+    BOOST_FOREACH(const CTransaction& tx, block.vtx) {
+      Local<Object> entry = NanNew<Object>();
+      entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
+      entry->Set(NanNew<String>("version"), NanNew<Number>(tx.nVersion));
+      entry->Set(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
+
+      Local<Array> vin = NanNew<Array>();
+      int e = 0;
+      BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+        Local<Object> in = NanNew<Object>();
+        if (tx.IsCoinBase()) {
+          in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+        } else {
+          in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+          in->Set(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
+          Local<Object> o = NanNew<Object>();
+          o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
+          o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+          in->Set(NanNew<String>("scriptSig"), o);
+        }
+        in->Set(NanNew<String>("sequence"), NanNew<Number>((boost::int64_t)txin.nSequence));
+        vin->Set(e, in);
+      }
+      entry->Set(NanNew<String>("vin"), vin);
+
+      Local<Array> vout = NanNew<Array>();
+      for (unsigned int j = 0; j < tx.vout.size(); j++) {
+        const CTxOut& txout = tx.vout[j];
+        Local<Object> out = NanNew<Object>();
+        //out->Set(NanNew<String>("value"), NanNew<Number>(ValueFromAmount(txout.nValue)));
+        out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
+        out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)j));
+
+        // ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
+        Local<Object> o = NanNew<Object>();
+        {
+          const CScript& scriptPubKey = txout.scriptPubKey;
+          Local<Object> out = o;
+          bool fIncludeHex = true;
+          // ---
+          txnouttype type;
+          vector<CTxDestination> addresses;
+          int nRequired;
+          out->Set(NanNew<String>("asm"), NanNew<String>(scriptPubKey.ToString()));
+          if (fIncludeHex) {
+            out->Set(NanNew<String>("hex"), NanNew<String>(HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+          }
+          if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+            out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+          } else {
+            out->Set(NanNew<String>("reqSigs"), NanNew<Number>(nRequired));
+            out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+            Local<Array> a = NanNew<Array>();
+            int k = 0;
+            BOOST_FOREACH(const CTxDestination& addr, addresses) {
+              a->Set(k, NanNew<String>(CBitcoinAddress(addr).ToString()));
+              k++;
+            }
+            out->Set(NanNew<String>("addresses"), a);
+          }
+        }
+        out->Set(NanNew<String>("scriptPubKey"), o);
+
+        vout->Set(j, out);
+      }
+      entry->Set(NanNew<String>("vout"), vout);
+
+      // TxToJSON(tx, hashBlock, result);
+      {
+        const uint256 hashBlock = block.GetHash();
+        if (hashBlock != 0) {
+          entry->Set(NanNew<String>("blockhash"), NanNew<String>(hashBlock.GetHex()));
+          map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+          if (mi != mapBlockIndex.end() && (*mi).second) {
+            CBlockIndex* pindex = (*mi).second;
+            if (chainActive.Contains(pindex)) {
+              entry->Set(NanNew<String>("confirmations"),
+                NanNew<Number>(1 + chainActive.Height() - pindex->nHeight));
+              entry->Set(NanNew<String>("time"), NanNew<Number>((boost::int64_t)pindex->nTime));
+              entry->Set(NanNew<String>("blocktime"), NanNew<Number>((boost::int64_t)pindex->nTime));
+            } else {
+              entry->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
+            }
+          }
+        }
+      }
+
+      txs->Set(i, entry);
+      i++;
+    }
+    obj->Set(NanNew<String>("tx"), txs);
+
+    obj->Set(NanNew<String>("time"), NanNew<Number>((boost::int64_t)block.GetBlockTime()));
+    obj->Set(NanNew<String>("nonce"), NanNew<Number>((boost::uint64_t)block.nNonce));
+    obj->Set(NanNew<String>("bits"), NanNew<Number>(block.nBits));
+    obj->Set(NanNew<String>("difficulty"), NanNew<Number>(GetDifficulty(blockindex)));
+    obj->Set(NanNew<String>("chainwork"), NanNew<String>(blockindex->nChainWork.GetHex()));
+    if (blockindex->pprev) {
+      obj->Set(NanNew<String>("previousblockhash"), NanNew<String>(blockindex->pprev->GetBlockHash().GetHex()));
+    }
+    CBlockIndex *pnext = chainActive.Next(blockindex);
+    if (pnext) {
+      obj->Set(NanNew<String>("nextblockhash"), NanNew<String>(pnext->GetBlockHash().GetHex()));
+    }
+
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->result))
+      //Local<Value>::New(NanNew<String>(""))
+      //Local<Value>::New(NanNew<String>(data->result))
+      //Local<Value>::New(data->result_obj)
+      Local<Value>::New(obj)
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -757,6 +893,44 @@ async_get_block_after(uv_work_t *req) {
 
   delete data;
   delete req;
+}
+
+Local<Object>
+block_to_obj(const CBlock& block, const CBlockIndex* blockindex) {
+  Local<Object> obj = NanNew<Object>();
+  obj->Set(NanNew<String>("hash"), NanNew<String>(block.GetHash().GetHex().c_str()));
+  CMerkleTx txGen(block.vtx[0]);
+  txGen.SetMerkleBranch(&block);
+  obj->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain()));
+  obj->Set(NanNew<String>("size"), NanNew<Number>((int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
+  return obj;
+
+#if 0
+  Object result;
+  result.push_back(Pair("hash", block.GetHash().GetHex()));
+  CMerkleTx txGen(block.vtx[0]);
+  txGen.SetMerkleBranch(&block);
+  result.push_back(Pair("confirmations", (int)txGen.GetDepthInMainChain()));
+  result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
+  result.push_back(Pair("height", blockindex->nHeight));
+  result.push_back(Pair("version", block.nVersion));
+  result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
+  Array txs;
+  BOOST_FOREACH(const CTransaction&tx, block.vtx)
+      txs.push_back(tx.GetHash().GetHex());
+  result.push_back(Pair("tx", txs));
+  result.push_back(Pair("time", (boost::int64_t)block.GetBlockTime()));
+  result.push_back(Pair("nonce", (boost::uint64_t)block.nNonce));
+  result.push_back(Pair("bits", HexBits(block.nBits)));
+  result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
+  result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
+  if (blockindex->pprev)
+      result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
+  CBlockIndex *pnext = chainActive.Next(blockindex);
+  if (pnext)
+      result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
+  return result;
+#endif
 }
 
 /**
