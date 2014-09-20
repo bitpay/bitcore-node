@@ -177,26 +177,10 @@ async_get_block(uv_work_t *req);
 static void
 async_get_block_after(uv_work_t *req);
 
-static void
-poll_blocks(void);
-
 extern "C" void
 init(Handle<Object>);
 
 static volatile bool shutdownComplete = false;
-static volatile CBlockIndex *lastindex = NULL;
-
-// bool (*AcceptBlock_original)(CBlock& block, CValidationState& state, CDiskBlockPos* dbp) = &AcceptBlock;
-// bool AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp) {
-//   printf("AcceptBlock called\n");
-//   return AcceptBlock_original(block, state, dbp);
-// }
-
-// bool __real_AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp);
-// bool __wrap_AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp) {
-//   printf("AcceptBlock called\n");
-//   return __real_AcceptBlock(block, state, dbp);
-// }
 
 /**
  * async_block_data
@@ -388,8 +372,6 @@ start_node(void) {
   noui_connect();
 
   (boost::thread *)new boost::thread(boost::bind(&start_node_thread));
-
-  // (boost::thread *)new boost::thread(boost::bind(&poll_blocks));
 
   // horrible fix for a race condition
   sleep(2);
@@ -887,34 +869,6 @@ async_get_block_after(uv_work_t *req) {
   delete data;
   delete req;
 }
-
-static void
-poll_blocks(void) {
-  if (!lastindex) {
-    lastindex = chainActive.Tip();
-  }
-  CBlockIndex *pnext = chainActive.Next((const CBlockIndex *)lastindex);
-  CBlockIndex *pcur = pnext;
-  if (pnext) {
-    // execute callback
-    printf("Found block\n");
-    while ((pcur = chainActive.Next(pcur))) {
-      // execute callback
-      printf("Found block\n");
-      pnext = pcur;
-    }
-  }
-  if (pnext) {
-    lastindex = pnext;
-  }
-  sleep(1);
-}
-
-// Use mapBlockIndex.find
-// mapBlockIndex.end
-// mapBlockIndex.next?
-// CBlockIndex* pblockindex = mapBlockIndex[block.nextblockhash];
-// mapBlockIndex.find(block.nextblockhash);
 
 /**
  * Init
