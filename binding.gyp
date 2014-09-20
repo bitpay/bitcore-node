@@ -42,6 +42,22 @@
       '-fexceptions',
       '-frtti',
     ],
+    #'direct_dependent_settings': {
+    #  'linkflags': [
+    #    '--wrap=AcceptBlock',
+    #  ],
+    #  'ldflags': [
+    #    '--wrap=AcceptBlock',
+    #  ],
+    #},
+    # 'export_dependent_settings': {
+    #   'linkflags': [
+    #     '--wrap=AcceptBlock',
+    #   ],
+    # },
+    #'ldflags': [
+    #  '--wrap=AcceptBlock',
+    #],
     'libraries': [
       # standard libs:
       # '-L/usr/lib',

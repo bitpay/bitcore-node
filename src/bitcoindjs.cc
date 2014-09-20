@@ -182,6 +182,18 @@ init(Handle<Object>);
 
 static volatile bool shutdownComplete = false;
 
+// bool (*AcceptBlock_original)(CBlock& block, CValidationState& state, CDiskBlockPos* dbp) = &AcceptBlock;
+// bool AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp) {
+//   printf("AcceptBlock called\n");
+//   return AcceptBlock_original(block, state, dbp);
+// }
+
+bool __real_AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp);
+bool __wrap_AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp) {
+  printf("AcceptBlock called\n");
+  return __real_AcceptBlock(block, state, dbp);
+}
+
 /**
  * async_block_data
  */
