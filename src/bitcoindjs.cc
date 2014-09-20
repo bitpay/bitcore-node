@@ -910,6 +910,12 @@ poll_blocks(void) {
   sleep(1);
 }
 
+// Use mapBlockIndex.find
+// mapBlockIndex.end
+// mapBlockIndex.next?
+// CBlockIndex* pblockindex = mapBlockIndex[block.nextblockhash];
+// mapBlockIndex.find(block.nextblockhash);
+
 /**
  * Init
  */
