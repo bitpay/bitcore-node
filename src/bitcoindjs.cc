@@ -802,10 +802,10 @@ async_get_block_after(uv_work_t *req) {
             out->Set(NanNew<String>("reqSigs"), NanNew<Number>(nRequired));
             out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
             Local<Array> a = NanNew<Array>();
-            int k = 0;
+            int ai = 0;
             BOOST_FOREACH(const CTxDestination& addr, addresses) {
-              a->Set(k, NanNew<String>(CBitcoinAddress(addr).ToString()));
-              k++;
+              a->Set(ai, NanNew<String>(CBitcoinAddress(addr).ToString()));
+              ai++;
             }
             out->Set(NanNew<String>("addresses"), a);
           }
@@ -986,10 +986,10 @@ NAN_METHOD(GetTx) {
           out->Set(NanNew<String>("reqSigs"), NanNew<Number>(nRequired));
           out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
           Local<Array> a = NanNew<Array>();
-          int k = 0;
+          int ai = 0;
           BOOST_FOREACH(const CTxDestination& addr, addresses) {
-            a->Set(k, NanNew<String>(CBitcoinAddress(addr).ToString()));
-            k++;
+            a->Set(ai, NanNew<String>(CBitcoinAddress(addr).ToString()));
+            ai++;
           }
           out->Set(NanNew<String>("addresses"), a);
         }
