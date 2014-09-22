@@ -756,7 +756,12 @@ async_get_block_after(uv_work_t *req) {
     int ti = 0;
     BOOST_FOREACH(const CTransaction& tx, block.vtx) {
       Local<Object> entry = NanNew<Object>();
-      // TODO: entry->Set(NanNew<String>("hex"), NanNew<String>(__HEXSTR_HERE__));
+
+      CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+      ssTx << tx;
+      string strHex = HexStr(ssTx.begin(), ssTx.end());
+      entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+
       entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
       entry->Set(NanNew<String>("version"), NanNew<Number>(tx.nVersion));
       entry->Set(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
@@ -785,17 +790,15 @@ async_get_block_after(uv_work_t *req) {
       for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
         const CTxOut& txout = tx.vout[vo];
         Local<Object> out = NanNew<Object>();
-        //out->Set(NanNew<String>("value"), NanNew<Number>(ValueFromAmount(txout.nValue)));
         out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
         out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)vo));
 
-        // ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
         Local<Object> o = NanNew<Object>();
         {
           const CScript& scriptPubKey = txout.scriptPubKey;
           Local<Object> out = o;
           bool fIncludeHex = true;
-          // ---
+
           txnouttype type;
           vector<CTxDestination> addresses;
           int nRequired;
@@ -823,7 +826,6 @@ async_get_block_after(uv_work_t *req) {
       }
       entry->Set(NanNew<String>("vout"), vout);
 
-      // TxToJSON(tx, hashBlock, result);
       {
         const uint256 hashBlock = block.GetHash();
         if (hashBlock != 0) {
@@ -1006,17 +1008,15 @@ async_get_tx_after(uv_work_t *req) {
     for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
       const CTxOut& txout = tx.vout[vo];
       Local<Object> out = NanNew<Object>();
-      //out->Set(NanNew<String>("value"), NanNew<Number>(ValueFromAmount(txout.nValue)));
       out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
       out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)vo));
 
-      // ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
       Local<Object> o = NanNew<Object>();
       {
         const CScript& scriptPubKey = txout.scriptPubKey;
         Local<Object> out = o;
         bool fIncludeHex = true;
-        // ---
+
         txnouttype type;
         vector<CTxDestination> addresses;
         int nRequired;
