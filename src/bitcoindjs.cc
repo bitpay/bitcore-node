@@ -749,6 +749,7 @@ async_get_block_after(uv_work_t *req) {
     int ti = 0;
     BOOST_FOREACH(const CTransaction& tx, block.vtx) {
       Local<Object> entry = NanNew<Object>();
+      // TODO: entry->Set(NanNew<String>("hex"), NanNew<String>(__HEXSTR_HERE__));
       entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
       entry->Set(NanNew<String>("version"), NanNew<Number>(tx.nVersion));
       entry->Set(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
