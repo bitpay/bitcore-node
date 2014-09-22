@@ -123,6 +123,8 @@ NAN_METHOD(IsStopped);
 NAN_METHOD(StopBitcoind);
 NAN_METHOD(GetBlock);
 NAN_METHOD(GetTx);
+NAN_METHOD(OnBlock);
+NAN_METHOD(OnTx);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -1079,6 +1081,72 @@ async_get_tx_after(uv_work_t *req) {
 }
 
 /**
+ * OnBlock(callback)
+ * bitcoind.onBlock(callback)
+ */
+
+NAN_METHOD(OnBlock) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.onBlock(callback)");
+  }
+
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+
+  Persistent<Function> cb;
+  cb = Persistent<Function>::New(callback);
+
+  Local<Object> block = NanNew<Object>();
+
+  const unsigned argc = 1;
+  Local<Value> argv[argc] = {
+    Local<Value>::New(block)
+  };
+  TryCatch try_catch;
+  cb->Call(Context::GetCurrent()->Global(), argc, argv);
+  if (try_catch.HasCaught()) {
+    node::FatalException(try_catch);
+  }
+
+  NanReturnValue(Undefined());
+}
+
+/**
+ * OnTx(callback)
+ * bitcoind.onTx(callback)
+ */
+
+NAN_METHOD(OnTx) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.onTx(callback)");
+  }
+
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+
+  Persistent<Function> cb;
+  cb = Persistent<Function>::New(callback);
+
+  Local<Object> tx = NanNew<Object>();
+
+  const unsigned argc = 1;
+  Local<Value> argv[argc] = {
+    Local<Value>::New(tx)
+  };
+  TryCatch try_catch;
+  cb->Call(Context::GetCurrent()->Global(), argc, argv);
+  if (try_catch.HasCaught()) {
+    node::FatalException(try_catch);
+  }
+
+  NanReturnValue(Undefined());
+}
+
+/**
  * Init
  */
 
@@ -1091,6 +1159,8 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
   NODE_SET_METHOD(target, "getTx", GetTx);
+  NODE_SET_METHOD(target, "onBlock", OnBlock);
+  NODE_SET_METHOD(target, "onTx", OnTx);
 }
 
 NODE_MODULE(bitcoindjs, init)

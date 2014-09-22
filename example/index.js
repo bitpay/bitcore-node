@@ -36,6 +36,10 @@ bitcoind.start(function(err) {
         });
       })(genesisBlock);
     }, 1000);
+    bitcoind.on('block', function(block) {
+      console.log('Found block');
+      console.log('Next: %s', block.nextblockhash);
+    });
   });
 });
 
