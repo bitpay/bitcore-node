@@ -988,6 +988,209 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry) {
 }
 #endif
 
+#if 0
+Reading from disk:
+Primary functions:
+~/bitcoin/src/serialize.h
+  class CAutoFile;
+  CAutoFile() - class
+~/bitcoin/src/main.cpp
+  OpenBlockFile() - function to read block file
+  OpenDiskFile() - lowlevel function to open file
+  FILE* OpenDiskFile(const CDiskBlockPos &pos, const char *prefix, bool fReadOnly)
+  {
+    if (pos.IsNull())
+      return NULL;
+    boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", prefix, pos.nFile);
+    boost::filesystem::create_directories(path.parent_path());
+    FILE* file = fopen(path.string().c_str(), "rb+");
+    if (!file && !fReadOnly)
+      file = fopen(path.string().c_str(), "wb+");
+    if (!file) {
+      LogPrintf("Unable to open file %s\n", path.string());
+      return NULL;
+    }
+    if (pos.nPos) {
+      if (fseek(file, pos.nPos, SEEK_SET)) {
+        LogPrintf("Unable to seek to position %u of %s\n", pos.nPos, path.string());
+        fclose(file);
+        return NULL;
+      }
+    }
+    return file;
+  }
+  FILE* OpenBlockFile(const CDiskBlockPos &pos, bool fReadOnly) {
+    return OpenDiskFile(pos, "blk", fReadOnly);
+  }
+  // main.h:
+  //   pindex->GetBlockPos()
+  //   In CBlockIndex class:
+  //   CDiskBlockPos GetBlockPos() const {
+  //     CDiskBlockPos ret;
+  //     if (nStatus & BLOCK_HAVE_DATA) {
+  //       ret.nFile = nFile;
+  //       ret.nPos  = nDataPos;
+  //     }
+  //     return ret;
+  //   }
+  // txdb.cpp:
+  // bool CBlockTreeDB::LoadBlockIndexGuts()
+  // pindexNew->nDataPos = diskindex.nDataPos;
+  // CDataStream ssValue(slValue.data(), slValue.data()+slValue.size(), SER_DISK, CLIENT_VERSION);
+  // CDiskBlockIndex diskindex;
+  // ssValue >> diskindex;
+  bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos) {
+    block.SetNull();
+    CAutoFile filein = CAutoFile(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    // OpenBlockFile(pos, true);
+    if (!filein) {
+      return error("ReadBlockFromDisk : OpenBlockFile failed");
+    }
+    // Read block
+    try {
+      filein >> block;
+    } catch (std::exception &e) {
+      return error("%s : Deserialize or I/O error - %s", __PRETTY_FUNCTION__, e.what());
+    }
+  }
+  // NEW:
+  FILE* OpenTxFile(const CDiskBlockPos &pos, bool fReadOnly) {
+    return OpenDiskFile(pos, "tx", fReadOnly);
+  }
+#endif
+
+#if 0
+bool CBlockTreeDB::LoadBlockIndexGuts() {
+  leveldb::Iterator *pcursor = NewIterator();
+
+  CDataStream ssKeySet(SER_DISK, CLIENT_VERSION);
+  ssKeySet << make_pair('b', uint256(0));
+  pcursor->Seek(ssKeySet.str());
+
+  // Load mapBlockIndex
+  while (pcursor->Valid()) {
+    boost::this_thread::interruption_point();
+    try {
+      leveldb::Slice slKey = pcursor->key();
+      CDataStream ssKey(slKey.data(), slKey.data()+slKey.size(), SER_DISK, CLIENT_VERSION);
+      char chType;
+      ssKey >> chType;
+      if (chType == 'b') {
+        leveldb::Slice slValue = pcursor->value();
+        CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+        CDiskBlockIndex diskindex;
+        ssValue >> diskindex;
+
+        // Construct block index object
+        CBlockIndex* pindexNew = InsertBlockIndex(diskindex.GetBlockHash());
+        pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
+        pindexNew->nHeight        = diskindex.nHeight;
+        pindexNew->nFile          = diskindex.nFile;
+        pindexNew->nDataPos       = diskindex.nDataPos;
+        pindexNew->nUndoPos       = diskindex.nUndoPos;
+        pindexNew->nVersion       = diskindex.nVersion;
+        pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
+        pindexNew->nTime          = diskindex.nTime;
+        pindexNew->nBits          = diskindex.nBits;
+        pindexNew->nNonce         = diskindex.nNonce;
+        pindexNew->nStatus        = diskindex.nStatus;
+        pindexNew->nTx            = diskindex.nTx;
+
+        if (!pindexNew->CheckIndex())
+          return error("LoadBlockIndex() : CheckIndex failed: %s", pindexNew->ToString());
+
+        pcursor->Next();
+      } else {
+        break; // if shutdown requested or finished loading block index
+      }
+    } catch (std::exception &e) {
+        return error("%s : Deserialize or I/O error - %s", __PRETTY_FUNCTION__, e.what());
+    }
+  }
+  delete pcursor;
+
+  return true;
+}
+#endif
+
+#if 0
+static bool
+LoadTxs() {
+  leveldb::Iterator *pcursor = NewIterator();
+
+  CDataStream ssKeySet(SER_DISK, CLIENT_VERSION);
+  ssKeySet << make_pair('t', uint256(0));
+  pcursor->Seek(ssKeySet.str());
+
+  // Load mapBlockIndex
+  while (pcursor->Valid()) {
+    boost::this_thread::interruption_point();
+    try {
+      leveldb::Slice slKey = pcursor->key();
+      CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
+      char chType;
+      ssKey >> chType;
+      if (chType == 't') {
+        leveldb::Slice slValue = pcursor->value();
+        // ~/bitcoin/src/serialize.h :
+        CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+        // use ssValue to grab tx!
+        ssValue.nType
+        ssValue.nVersion
+        ssValue.nReadPos
+        // CDataStream& read(char* pch, int nSize)
+        pcursor->Next();
+      } else {
+        break; // if shutdown requested or finished loading block index
+      }
+    } catch (std::exception &e) {
+        return error("%s : Deserialize or I/O error - %s", __PRETTY_FUNCTION__, e.what());
+    }
+  }
+  delete pcursor;
+
+  return true;
+}
+#endif
+
+#if 0
+// ~/bitcoin/src/txdb.cpp
+bool CBlockTreeDB::ReadTxIndex(const uint256 &txid, CDiskTxPos &pos) {
+  return Read(make_pair('t', txid), pos);
+}
+// ~/bitcoin/src/main.h
+struct CDiskTxPos : public CDiskBlockPos
+// ~/bitcoin/src/main.cpp
+// Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock
+bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow)
+// ~/bitcoin/src/rpcrawtransaction.cpp
+Value getrawtransaction(const Array& params, bool fHelp) {
+  uint256 hash = ParseHashV(params[0], "parameter 1");
+
+  bool fVerbose = false;
+  if (params.size() > 1)
+      fVerbose = (params[1].get_int() != 0);
+
+  CTransaction tx;
+  uint256 hashBlock = 0;
+  if (!GetTransaction(hash, tx, hashBlock, true))
+      throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+
+  CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+  ssTx << tx;
+  string strHex = HexStr(ssTx.begin(), ssTx.end());
+
+  if (!fVerbose)
+      return strHex;
+
+  Object result;
+  result.push_back(Pair("hex", strHex));
+  TxToJSON(tx, hashBlock, result);
+  return result;
+}
+#endif
+
+
 /**
  * Init
  */
