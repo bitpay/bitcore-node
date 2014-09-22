@@ -870,6 +870,124 @@ async_get_block_after(uv_work_t *req) {
   delete req;
 }
 
+#if 0
+/**
+ * GetTx(hash, callback)
+ * bitcoind.getTx(hash, callback)
+ */
+
+// ~/bitcoin/src/rpcwallet.cpp
+// void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDepth, bool fLong, Array& ret)
+
+NAN_METHOD(GetTx) {
+  NanScope();
+
+  if (args.Length() < 2
+      || !args[0]->IsString()
+      || !args[1]->IsFunction()) {
+    return NanThrowError(
+        "Usage: bitcoindjs.getTx(hash, callback)");
+  }
+
+  String::Utf8Value hash(args[0]->ToString());
+  Local<Function> callback = Local<Function>::Cast(args[1]);
+
+  Persistent<Function> cb;
+  cb = Persistent<Function>::New(callback);
+
+  const CWalletTx& wtx = pwalletMain->mapWallet[hash];
+
+  int64_t nFee;
+  string strSentAccount;
+  list<pair<CTxDestination, int64_t> > listReceived;
+  list<pair<CTxDestination, int64_t> > listSent;
+
+  wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount);
+
+  // Sent
+  if (!listSent.empty() || nFee != 0) {
+    BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64_t)& s, listSent) {
+      Object entry;
+      entry.push_back(Pair("account", strSentAccount));
+      MaybePushAddress(entry, s.first);
+      entry.push_back(Pair("category", "send"));
+      entry.push_back(Pair("amount", ValueFromAmount(-s.second)));
+      entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
+      if (fLong)
+          WalletTxToJSON(wtx, entry);
+      ret.push_back(entry);
+    }
+  }
+
+  // Received
+  if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= nMinDepth) {
+    BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64_t)& r, listReceived) {
+      string account;
+      if (pwalletMain->mapAddressBook.count(r.first)) {
+        account = pwalletMain->mapAddressBook[r.first].name;
+      }
+      Object entry;
+      entry.push_back(Pair("account", account));
+      MaybePushAddress(entry, r.first);
+      if (wtx.IsCoinBase()) {
+        if (wtx.GetDepthInMainChain() < 1) {
+          entry.push_back(Pair("category", "orphan"));
+        } else if (wtx.GetBlocksToMaturity() > 0) {
+          entry.push_back(Pair("category", "immature"));
+        } else {
+          entry.push_back(Pair("category", "generate"));
+        }
+      } else {
+        entry.push_back(Pair("category", "receive"));
+      }
+      entry.push_back(Pair("amount", ValueFromAmount(r.second)));
+      if (fLong) {
+        WalletTxToJSON(wtx, entry);
+      }
+      ret.push_back(entry);
+    }
+  }
+
+  const unsigned argc = 2;
+  Local<Value> argv[argc] = {
+    Local<Value>::New(Null()),
+    Local<Value>::New(obj)
+  };
+  TryCatch try_catch;
+  cb->Call(Context::GetCurrent()->Global(), argc, argv);
+  if (try_catch.HasCaught()) {
+    node::FatalException(try_catch);
+  }
+
+  cb.Dispose();
+
+  NanReturnValue(Undefined());
+}
+
+void WalletTxToJSON(const CWalletTx& wtx, Object& entry) {
+  int confirms = wtx.GetDepthInMainChain();
+  entry.push_back(Pair("confirmations", confirms));
+  if (wtx.IsCoinBase())
+      entry.push_back(Pair("generated", true));
+  if (confirms > 0)
+  {
+      entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
+      entry.push_back(Pair("blockindex", wtx.nIndex));
+      entry.push_back(Pair("blocktime", (boost::int64_t)(mapBlockIndex[wtx.hashBlock]->nTime)));
+  }
+  uint256 hash = wtx.GetHash();
+  entry.push_back(Pair("txid", hash.GetHex()));
+  Array conflicts;
+  BOOST_FOREACH(const uint256& conflict, wtx.GetConflicts())
+      conflicts.push_back(conflict.GetHex());
+  entry.push_back(Pair("walletconflicts", conflicts));
+  entry.push_back(Pair("time", (boost::int64_t)wtx.GetTxTime()));
+  entry.push_back(Pair("timereceived", (boost::int64_t)wtx.nTimeReceived));
+  BOOST_FOREACH(const PAIRTYPE(string,string)& item, wtx.mapValue)
+      entry.push_back(Pair(item.first, item.second));
+}
+#endif
+
 /**
  * Init
  */
@@ -882,6 +1000,9 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "stopping", IsStopping);
   NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
+#if 0
+  NODE_SET_METHOD(target, "getTx", GetTx);
+#endif
 }
 
 NODE_MODULE(bitcoindjs, init)
