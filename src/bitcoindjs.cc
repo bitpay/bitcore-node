@@ -870,7 +870,6 @@ async_get_block_after(uv_work_t *req) {
   delete req;
 }
 
-#if 0
 /**
  * GetTx(hash, callback)
  * bitcoind.getTx(hash, callback)
@@ -884,17 +883,77 @@ NAN_METHOD(GetTx) {
 
   if (args.Length() < 2
       || !args[0]->IsString()
-      || !args[1]->IsFunction()) {
+      || !args[1]->IsString()
+      || !args[2]->IsFunction()) {
     return NanThrowError(
         "Usage: bitcoindjs.getTx(hash, callback)");
   }
 
-  String::Utf8Value hash(args[0]->ToString());
-  Local<Function> callback = Local<Function>::Cast(args[1]);
+  String::Utf8Value txHash_(args[0]->ToString());
+  String::Utf8Value blockHash_(args[1]->ToString());
+  Local<Function> callback = Local<Function>::Cast(args[2]);
 
   Persistent<Function> cb;
   cb = Persistent<Function>::New(callback);
 
+  std::string txHash = std::string(*txHash_);
+  std::string blockHash = std::string(*blockHash_);
+
+  // uint256 hash = ParseHashV(params[0], "parameter 1");
+
+  // uint256 hashBlock(strHash);
+  // uint256 hashBlock = block.GetHash();
+  // uint256 hashBlock = 0;
+
+
+  if (txHash[1] != 'x') {
+    txHash = "0x" + txHash;
+  }
+
+  if (blockHash[1] != 'x') {
+    blockHash = "0x" + blockHash;
+  }
+
+  uint256 hash(txHash);
+  uint256 hashBlock(blockHash);
+  // uint256 hashBlock = 0;
+  CTransaction tx;
+  if (!GetTransaction(hash, tx, hashBlock, true)) {
+    Local<Value> err = Exception::Error(String::New("Bad Transaction."));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    cb->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+    cb.Dispose();
+    NanReturnValue(Undefined());
+  }
+
+  CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+  ssTx << tx;
+  string strHex = HexStr(ssTx.begin(), ssTx.end());
+
+  Local<Object> obj = NanNew<Object>();
+  obj->Set(NanNew<String>("hex"), NanNew<String>(strHex.c_str()));
+
+  // TxToJSON(tx, hashBlock, obj);
+
+  const unsigned argc = 2;
+  Local<Value> argv[argc] = {
+    Local<Value>::New(Null()),
+    Local<Value>::New(obj)
+  };
+  TryCatch try_catch;
+  cb->Call(Context::GetCurrent()->Global(), argc, argv);
+  if (try_catch.HasCaught()) {
+    node::FatalException(try_catch);
+  }
+  cb.Dispose();
+  NanReturnValue(Undefined());
+
+#if 0
   const CWalletTx& wtx = pwalletMain->mapWallet[hash];
 
   int64_t nFee;
@@ -947,23 +1006,69 @@ NAN_METHOD(GetTx) {
       ret.push_back(entry);
     }
   }
-
-  const unsigned argc = 2;
-  Local<Value> argv[argc] = {
-    Local<Value>::New(Null()),
-    Local<Value>::New(obj)
-  };
-  TryCatch try_catch;
-  cb->Call(Context::GetCurrent()->Global(), argc, argv);
-  if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
-  }
-
-  cb.Dispose();
-
-  NanReturnValue(Undefined());
+#endif
 }
 
+#if 0
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
+{
+    entry.push_back(Pair("txid", tx.GetHash().GetHex()));
+    entry.push_back(Pair("version", tx.nVersion));
+    entry.push_back(Pair("locktime", (boost::int64_t)tx.nLockTime));
+    Array vin;
+    BOOST_FOREACH(const CTxIn& txin, tx.vin)
+    {
+        Object in;
+        if (tx.IsCoinBase())
+            in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+        else
+        {
+            in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
+            in.push_back(Pair("vout", (boost::int64_t)txin.prevout.n));
+            Object o;
+            o.push_back(Pair("asm", txin.scriptSig.ToString()));
+            o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+            in.push_back(Pair("scriptSig", o));
+        }
+        in.push_back(Pair("sequence", (boost::int64_t)txin.nSequence));
+        vin.push_back(in);
+    }
+    entry.push_back(Pair("vin", vin));
+    Array vout;
+    for (unsigned int i = 0; i < tx.vout.size(); i++)
+    {
+        const CTxOut& txout = tx.vout[i];
+        Object out;
+        out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        out.push_back(Pair("n", (boost::int64_t)i));
+        Object o;
+        ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
+        out.push_back(Pair("scriptPubKey", o));
+        vout.push_back(out);
+    }
+    entry.push_back(Pair("vout", vout));
+
+    if (hashBlock != 0)
+    {
+        entry.push_back(Pair("blockhash", hashBlock.GetHex()));
+        map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        if (mi != mapBlockIndex.end() && (*mi).second)
+        {
+            CBlockIndex* pindex = (*mi).second;
+            if (chainActive.Contains(pindex))
+            {
+                entry.push_back(Pair("confirmations", 1 + chainActive.Height() - pindex->nHeight));
+                entry.push_back(Pair("time", (boost::int64_t)pindex->nTime));
+                entry.push_back(Pair("blocktime", (boost::int64_t)pindex->nTime));
+            }
+            else
+                entry.push_back(Pair("confirmations", 0));
+        }
+    }
+}
+#endif
+
+#if 0
 void WalletTxToJSON(const CWalletTx& wtx, Object& entry) {
   int confirms = wtx.GetDepthInMainChain();
   entry.push_back(Pair("confirmations", confirms));
@@ -1203,9 +1308,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "stopping", IsStopping);
   NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
-#if 0
   NODE_SET_METHOD(target, "getTx", GetTx);
-#endif
 }
 
 NODE_MODULE(bitcoindjs, init)
