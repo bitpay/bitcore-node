@@ -17,7 +17,7 @@ bitcoind.start(function(err) {
     setTimeout(function() {
       (function next(hash) {
         return bitcoind.getBlock(hash, function(err, block) {
-          if (err) return console.log(err.message);
+          if (err) return print(err.message);
           print(block);
           if (block.tx.length && block.tx[0].txid) {
             var txid = block.tx[0].txid;
