@@ -15,7 +15,8 @@ bitcoind.start(function(err) {
   bitcoind.on('open', function(status) {
     console.log('bitcoind: status="%s"', status);
     return setTimeout(function() {
-      return bitcoind.getTx(genesisTx, genesisBlock, function(err, tx) {
+      // return bitcoind.getTx(genesisTx, genesisBlock, function(err, tx) {
+      return bitcoind.getTx(genesisTx, function(err, tx) {
         if (err) throw err;
         return print(tx);
       });

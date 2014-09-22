@@ -896,6 +896,12 @@ NAN_METHOD(GetTx) {
   std::string txHash = std::string(*txHash_);
   std::string blockHash = std::string(*blockHash_);
 
+  bool noBlockHash = false;
+  if (blockHash.empty()) {
+    blockHash = std::string("0x0000000000000000000000000000000000000000000000000000000000000000");
+    noBlockHash = true;
+  }
+
   if (txHash[1] != 'x') {
     txHash = "0x" + txHash;
   }
@@ -910,9 +916,10 @@ NAN_METHOD(GetTx) {
   uint256 hash(txHash);
   uint256 hashBlock(blockHash);
   // uint256 hashBlock = 0;
+  // if (noBlockHash) hashBlock = 0;
   CTransaction tx;
 
-  if (!GetTransaction(hash, tx, hashBlock, true)) {
+  if (!GetTransaction(hash, tx, hashBlock, noBlockHash ? true : false)) {
     Local<Value> err = Exception::Error(String::New("Bad Transaction."));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
