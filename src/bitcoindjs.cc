@@ -908,6 +908,7 @@ NAN_METHOD(GetTx) {
   uint256 hashBlock(blockHash);
   // uint256 hashBlock = 0;
   CTransaction tx;
+
   if (!GetTransaction(hash, tx, hashBlock, true)) {
     Local<Value> err = Exception::Error(String::New("Bad Transaction."));
     const unsigned argc = 1;
@@ -919,27 +920,27 @@ NAN_METHOD(GetTx) {
     }
     cb.Dispose();
     NanReturnValue(Undefined());
+  } else {
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    ssTx << tx;
+    string strHex = HexStr(ssTx.begin(), ssTx.end());
+
+    Local<Object> obj = NanNew<Object>();
+    obj->Set(NanNew<String>("hex"), NanNew<String>(strHex.c_str()));
+
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(obj)
+    };
+    TryCatch try_catch;
+    cb->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+    cb.Dispose();
+    NanReturnValue(Undefined());
   }
-
-  CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-  ssTx << tx;
-  string strHex = HexStr(ssTx.begin(), ssTx.end());
-
-  Local<Object> obj = NanNew<Object>();
-  obj->Set(NanNew<String>("hex"), NanNew<String>(strHex.c_str()));
-
-  const unsigned argc = 2;
-  Local<Value> argv[argc] = {
-    Local<Value>::New(Null()),
-    Local<Value>::New(obj)
-  };
-  TryCatch try_catch;
-  cb->Call(Context::GetCurrent()->Global(), argc, argv);
-  if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
-  }
-  cb.Dispose();
-  NanReturnValue(Undefined());
 }
 
 /**
