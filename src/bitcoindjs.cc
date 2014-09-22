@@ -904,6 +904,9 @@ NAN_METHOD(GetTx) {
     blockHash = "0x" + blockHash;
   }
 
+  printf("tx: %s\n", txHash);
+  printf("block: %s\n", blockHash);
+
   uint256 hash(txHash);
   uint256 hashBlock(blockHash);
   // uint256 hashBlock = 0;
