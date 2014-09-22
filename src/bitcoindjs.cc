@@ -746,7 +746,7 @@ async_get_block_after(uv_work_t *req) {
     obj->Set(NanNew<String>("merkleroot"), NanNew<String>(block.hashMerkleRoot.GetHex()));
 
     Local<Array> txs = NanNew<Array>();
-    int i = 0;
+    int ti = 0;
     BOOST_FOREACH(const CTransaction& tx, block.vtx) {
       Local<Object> entry = NanNew<Object>();
       entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
@@ -835,8 +835,8 @@ async_get_block_after(uv_work_t *req) {
         }
       }
 
-      txs->Set(i, entry);
-      i++;
+      txs->Set(ti, entry);
+      ti++;
     }
     obj->Set(NanNew<String>("tx"), txs);
 
@@ -937,6 +937,7 @@ NAN_METHOD(GetTx) {
     string strHex = HexStr(ssTx.begin(), ssTx.end());
 
     Local<Object> entry = NanNew<Object>();
+    entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
     entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
     entry->Set(NanNew<String>("version"), NanNew<Number>(tx.nVersion));
     entry->Set(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
