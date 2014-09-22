@@ -754,7 +754,7 @@ async_get_block_after(uv_work_t *req) {
       entry->Set(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
 
       Local<Array> vin = NanNew<Array>();
-      int e = 0;
+      int vi = 0;
       BOOST_FOREACH(const CTxIn& txin, tx.vin) {
         Local<Object> in = NanNew<Object>();
         if (tx.IsCoinBase()) {
@@ -768,17 +768,18 @@ async_get_block_after(uv_work_t *req) {
           in->Set(NanNew<String>("scriptSig"), o);
         }
         in->Set(NanNew<String>("sequence"), NanNew<Number>((boost::int64_t)txin.nSequence));
-        vin->Set(e, in);
+        vin->Set(vi, in);
+        vi++;
       }
       entry->Set(NanNew<String>("vin"), vin);
 
       Local<Array> vout = NanNew<Array>();
-      for (unsigned int j = 0; j < tx.vout.size(); j++) {
-        const CTxOut& txout = tx.vout[j];
+      for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
+        const CTxOut& txout = tx.vout[vo];
         Local<Object> out = NanNew<Object>();
         //out->Set(NanNew<String>("value"), NanNew<Number>(ValueFromAmount(txout.nValue)));
         out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
-        out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)j));
+        out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)vo));
 
         // ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
         Local<Object> o = NanNew<Object>();
@@ -810,7 +811,7 @@ async_get_block_after(uv_work_t *req) {
         }
         out->Set(NanNew<String>("scriptPubKey"), o);
 
-        vout->Set(j, out);
+        vout->Set(vo, out);
       }
       entry->Set(NanNew<String>("vout"), vout);
 
@@ -935,13 +936,93 @@ NAN_METHOD(GetTx) {
     ssTx << tx;
     string strHex = HexStr(ssTx.begin(), ssTx.end());
 
-    Local<Object> obj = NanNew<Object>();
-    obj->Set(NanNew<String>("hex"), NanNew<String>(strHex.c_str()));
+    Local<Object> entry = NanNew<Object>();
+    entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
+    entry->Set(NanNew<String>("version"), NanNew<Number>(tx.nVersion));
+    entry->Set(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
+
+    Local<Array> vin = NanNew<Array>();
+    int vi = 0;
+    BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+      Local<Object> in = NanNew<Object>();
+      if (tx.IsCoinBase()) {
+        in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+      } else {
+        in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+        in->Set(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
+        Local<Object> o = NanNew<Object>();
+        o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
+        o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+        in->Set(NanNew<String>("scriptSig"), o);
+      }
+      in->Set(NanNew<String>("sequence"), NanNew<Number>((boost::int64_t)txin.nSequence));
+      vin->Set(vi, in);
+      vi++;
+    }
+    entry->Set(NanNew<String>("vin"), vin);
+
+    Local<Array> vout = NanNew<Array>();
+    for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
+      const CTxOut& txout = tx.vout[vo];
+      Local<Object> out = NanNew<Object>();
+      //out->Set(NanNew<String>("value"), NanNew<Number>(ValueFromAmount(txout.nValue)));
+      out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
+      out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)vo));
+
+      // ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
+      Local<Object> o = NanNew<Object>();
+      {
+        const CScript& scriptPubKey = txout.scriptPubKey;
+        Local<Object> out = o;
+        bool fIncludeHex = true;
+        // ---
+        txnouttype type;
+        vector<CTxDestination> addresses;
+        int nRequired;
+        out->Set(NanNew<String>("asm"), NanNew<String>(scriptPubKey.ToString()));
+        if (fIncludeHex) {
+          out->Set(NanNew<String>("hex"), NanNew<String>(HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+        }
+        if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+          out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+        } else {
+          out->Set(NanNew<String>("reqSigs"), NanNew<Number>(nRequired));
+          out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+          Local<Array> a = NanNew<Array>();
+          int k = 0;
+          BOOST_FOREACH(const CTxDestination& addr, addresses) {
+            a->Set(k, NanNew<String>(CBitcoinAddress(addr).ToString()));
+            k++;
+          }
+          out->Set(NanNew<String>("addresses"), a);
+        }
+      }
+      out->Set(NanNew<String>("scriptPubKey"), o);
+
+      vout->Set(vo, out);
+    }
+    entry->Set(NanNew<String>("vout"), vout);
+
+    if (hashBlock != 0) {
+      entry->Set(NanNew<String>("blockhash"), NanNew<String>(hashBlock.GetHex()));
+      map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+      if (mi != mapBlockIndex.end() && (*mi).second) {
+        CBlockIndex* pindex = (*mi).second;
+        if (chainActive.Contains(pindex)) {
+          entry->Set(NanNew<String>("confirmations"),
+            NanNew<Number>(1 + chainActive.Height() - pindex->nHeight));
+          entry->Set(NanNew<String>("time"), NanNew<Number>((boost::int64_t)pindex->nTime));
+          entry->Set(NanNew<String>("blocktime"), NanNew<Number>((boost::int64_t)pindex->nTime));
+        } else {
+          entry->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
+        }
+      }
+    }
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(obj)
+      Local<Value>::New(entry)
     };
     TryCatch try_catch;
     cb->Call(Context::GetCurrent()->Global(), argc, argv);
