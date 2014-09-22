@@ -228,7 +228,7 @@ NAN_METHOD(StartBitcoind) {
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
-        "Usage: bitcoind.start(callback)");
+      "Usage: bitcoind.start(callback)");
   }
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
@@ -581,7 +581,7 @@ NAN_METHOD(StopBitcoind) {
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
-        "Usage: bitcoind.stop(callback)");
+      "Usage: bitcoind.stop(callback)");
   }
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
@@ -674,7 +674,7 @@ NAN_METHOD(GetBlock) {
       || !args[0]->IsString()
       || !args[1]->IsFunction()) {
     return NanThrowError(
-        "Usage: bitcoindjs.getBlock(hash, callback)");
+      "Usage: bitcoindjs.getBlock(blockHash, callback)");
   }
 
   String::Utf8Value hash(args[0]->ToString());
@@ -885,7 +885,7 @@ NAN_METHOD(GetTx) {
       || !args[1]->IsString()
       || !args[2]->IsFunction()) {
     return NanThrowError(
-        "Usage: bitcoindjs.getTx(hash, callback)");
+      "Usage: bitcoindjs.getTx(txHash, [blockHash], callback)");
   }
 
   String::Utf8Value txHash_(args[0]->ToString());
