@@ -877,9 +877,6 @@ async_get_block_after(uv_work_t *req) {
  * bitcoind.getTx(hash, callback)
  */
 
-static bool
-GetTransaction_(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow);
-
 NAN_METHOD(GetTx) {
   NanScope();
 
@@ -919,7 +916,7 @@ NAN_METHOD(GetTx) {
   uint256 hashBlock(blockHash);
   CTransaction tx;
 
-  if (!GetTransaction_(hash, tx, hashBlock, noBlockHash ? true : false)) {
+  if (!GetTransaction(hash, tx, hashBlock, noBlockHash ? true : false)) {
     Local<Value> err = Exception::Error(String::New("Bad Transaction."));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -1032,65 +1029,6 @@ NAN_METHOD(GetTx) {
     cb.Dispose();
     NanReturnValue(Undefined());
   }
-}
-
-static bool
-GetTransaction_(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow) {
-  CBlockIndex *pindexSlow = NULL;
-  {
-    LOCK(cs_main);
-    {
-      if (mempool.lookup(hash, txOut)) {
-        return true;
-      }
-    }
-
-    if (0 && fTxIndex) {
-      CDiskTxPos postx;
-      if (pblocktree->ReadTxIndex(hash, postx)) {
-        CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
-        CBlockHeader header;
-        try {
-          file >> header;
-          fseek(file, postx.nTxOffset, SEEK_CUR);
-          file >> txOut;
-        } catch (std::exception &e) {
-          return error("%s : Deserialize or I/O error - %s", __PRETTY_FUNCTION__, e.what());
-        }
-        hashBlock = header.GetHash();
-        if (txOut.GetHash() != hash)
-          return error("%s : txid mismatch", __PRETTY_FUNCTION__);
-        return true;
-      }
-    }
-
-    if (fAllowSlow) { // use coin database to locate block that contains transaction, and scan it
-      int nHeight = -1;
-      {
-        CCoinsViewCache &view = *pcoinsTip;
-        CCoins coins;
-        if (view.GetCoins(hash, coins))
-          nHeight = coins.nHeight;
-      }
-      if (nHeight > 0)
-        pindexSlow = chainActive[nHeight];
-    }
-  }
-
-  if (pindexSlow) {
-    CBlock block;
-    if (ReadBlockFromDisk(block, pindexSlow)) {
-      BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-        if (tx.GetHash() == hash) {
-          txOut = tx;
-          hashBlock = pindexSlow->GetBlockHash();
-          return true;
-        }
-      }
-    }
-  }
-
-  return false;
 }
 
 /**
