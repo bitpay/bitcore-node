@@ -122,6 +122,7 @@ NAN_METHOD(IsStopping);
 NAN_METHOD(IsStopped);
 NAN_METHOD(StopBitcoind);
 NAN_METHOD(GetBlock);
+NAN_METHOD(GetTx);
 
 static void
 async_start_node_work(uv_work_t *req);
