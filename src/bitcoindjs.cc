@@ -118,6 +118,10 @@ extern std::string strWalletFile;
 extern CWallet *pwalletMain;
 #endif
 
+/**
+ * Node and Templates
+ */
+
 #include <node.h>
 #include <string>
 
@@ -177,22 +181,20 @@ async_get_block(uv_work_t *req);
 static void
 async_get_block_after(uv_work_t *req);
 
+static void
+async_get_tx(uv_work_t *req);
+
+static void
+async_get_tx_after(uv_work_t *req);
+
 extern "C" void
 init(Handle<Object>);
 
-static volatile bool shutdownComplete = false;
-
 /**
- * async_block_data
+ * Private Variables
  */
 
-struct async_block_data {
-  std::string hash;
-  std::string err_msg;
-  CBlock result_block;
-  CBlockIndex* result_blockindex;
-  Persistent<Function> callback;
-};
+static volatile bool shutdownComplete = false;
 
 /**
  * async_node_data
@@ -211,10 +213,34 @@ struct async_node_data {
  */
 
 struct async_log_data {
+  char *err_msg;
   int **out_pipe;
   int **log_pipe;
-  char *err_msg;
   char *result;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_block_data
+ */
+
+struct async_block_data {
+  std::string err_msg;
+  std::string hash;
+  CBlock result_block;
+  CBlockIndex* result_blockindex;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_tx_data
+ */
+
+struct async_tx_data {
+  std::string err_msg;
+  std::string txHash;
+  std::string blockHash;
+  CTransaction result_tx;
   Persistent<Function> callback;
 };
 
@@ -877,6 +903,9 @@ async_get_block_after(uv_work_t *req) {
  * bitcoind.getTx(hash, callback)
  */
 
+// Synchronous:
+
+#if 0
 NAN_METHOD(GetTx) {
   NanScope();
 
@@ -1029,6 +1058,201 @@ NAN_METHOD(GetTx) {
     cb.Dispose();
     NanReturnValue(Undefined());
   }
+}
+#endif
+
+NAN_METHOD(GetTx) {
+  NanScope();
+
+  if (args.Length() < 2
+      || !args[0]->IsString()
+      || !args[1]->IsString()
+      || !args[2]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getTx(txHash, [blockHash], callback)");
+  }
+
+  String::Utf8Value txHash_(args[0]->ToString());
+  String::Utf8Value blockHash_(args[1]->ToString());
+  Local<Function> callback = Local<Function>::Cast(args[2]);
+
+  Persistent<Function> cb;
+  cb = Persistent<Function>::New(callback);
+
+  std::string txHash = std::string(*txHash_);
+  std::string blockHash = std::string(*blockHash_);
+
+  if (blockHash.empty()) {
+    blockHash = std::string("0x0000000000000000000000000000000000000000000000000000000000000000");
+  }
+
+  if (txHash[1] != 'x') {
+    txHash = "0x" + txHash;
+  }
+
+  if (blockHash[1] != 'x') {
+    blockHash = "0x" + blockHash;
+  }
+
+  async_tx_data *data = new async_tx_data();
+  data->err_msg = std::string("");
+  data->txHash = txHash;
+  data->blockHash = blockHash;
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_get_tx,
+    (uv_after_work_cb)async_get_tx_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_get_tx(uv_work_t *req) {
+  async_tx_data* data = static_cast<async_tx_data*>(req->data);
+
+  uint256 hash(data->txHash);
+  uint256 hashBlock(data->blockHash);
+  CTransaction tx;
+
+  if (GetTransaction(hash, tx, hashBlock, hashBlock == 0 ? true : false)) {
+    data->result_tx = tx;
+  } else {
+    data->err_msg = std::string("get_block(): failed.");
+  }
+}
+
+static void
+async_get_tx_after(uv_work_t *req) {
+  NanScope();
+  async_tx_data* data = static_cast<async_tx_data*>(req->data);
+
+  std::string txHash = data->txHash;
+  std::string blockHash = data->blockHash;
+  CTransaction tx = data->result_tx;
+
+  uint256 hash(txHash);
+  uint256 hashBlock(blockHash);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    ssTx << tx;
+    string strHex = HexStr(ssTx.begin(), ssTx.end());
+
+    Local<Object> entry = NanNew<Object>();
+    entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+    entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
+    entry->Set(NanNew<String>("version"), NanNew<Number>(tx.nVersion));
+    entry->Set(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
+
+    Local<Array> vin = NanNew<Array>();
+    int vi = 0;
+    BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+      Local<Object> in = NanNew<Object>();
+      if (tx.IsCoinBase()) {
+        in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+      } else {
+        in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+        in->Set(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
+        Local<Object> o = NanNew<Object>();
+        o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
+        o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+        in->Set(NanNew<String>("scriptSig"), o);
+      }
+      in->Set(NanNew<String>("sequence"), NanNew<Number>((boost::int64_t)txin.nSequence));
+      vin->Set(vi, in);
+      vi++;
+    }
+    entry->Set(NanNew<String>("vin"), vin);
+
+    Local<Array> vout = NanNew<Array>();
+    for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
+      const CTxOut& txout = tx.vout[vo];
+      Local<Object> out = NanNew<Object>();
+      //out->Set(NanNew<String>("value"), NanNew<Number>(ValueFromAmount(txout.nValue)));
+      out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
+      out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)vo));
+
+      // ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
+      Local<Object> o = NanNew<Object>();
+      {
+        const CScript& scriptPubKey = txout.scriptPubKey;
+        Local<Object> out = o;
+        bool fIncludeHex = true;
+        // ---
+        txnouttype type;
+        vector<CTxDestination> addresses;
+        int nRequired;
+        out->Set(NanNew<String>("asm"), NanNew<String>(scriptPubKey.ToString()));
+        if (fIncludeHex) {
+          out->Set(NanNew<String>("hex"), NanNew<String>(HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+        }
+        if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+          out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+        } else {
+          out->Set(NanNew<String>("reqSigs"), NanNew<Number>(nRequired));
+          out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+          Local<Array> a = NanNew<Array>();
+          int ai = 0;
+          BOOST_FOREACH(const CTxDestination& addr, addresses) {
+            a->Set(ai, NanNew<String>(CBitcoinAddress(addr).ToString()));
+            ai++;
+          }
+          out->Set(NanNew<String>("addresses"), a);
+        }
+      }
+      out->Set(NanNew<String>("scriptPubKey"), o);
+
+      vout->Set(vo, out);
+    }
+    entry->Set(NanNew<String>("vout"), vout);
+
+    if (hashBlock != 0) {
+      entry->Set(NanNew<String>("blockhash"), NanNew<String>(hashBlock.GetHex()));
+      map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+      if (mi != mapBlockIndex.end() && (*mi).second) {
+        CBlockIndex* pindex = (*mi).second;
+        if (chainActive.Contains(pindex)) {
+          entry->Set(NanNew<String>("confirmations"),
+            NanNew<Number>(1 + chainActive.Height() - pindex->nHeight));
+          entry->Set(NanNew<String>("time"), NanNew<Number>((boost::int64_t)pindex->nTime));
+          entry->Set(NanNew<String>("blocktime"), NanNew<Number>((boost::int64_t)pindex->nTime));
+        } else {
+          entry->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
+        }
+      }
+    }
+
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(entry)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
 }
 
 /**
