@@ -14,34 +14,38 @@ bitcoind.start(function(err) {
   });
   bitcoind.on('open', function(status) {
     console.log('bitcoind: status="%s"', status);
-    setTimeout(function() {
-      (function next(hash) {
-        return bitcoind.getBlock(hash, function(err, block) {
-          if (err) return print(err.message);
-          print(block);
-          if (block.tx.length && block.tx[0].txid) {
-            var txid = block.tx[0].txid;
-            // XXX Dies with a segfault!
-            // bitcoind.getTx(txid, hash, function(err, tx) {
-            bitcoind.getTx(txid, function(err, tx) {
-              if (err) return print(err.message);
-              print('TX -----------------------------------------------------');
-              print(tx);
-              print('/TX ----------------------------------------------------');
-            });
-          }
-          if (process.argv[2] === '-r' && block.nextblockhash) {
-            setTimeout(next.bind(null, block.nextblockhash), 500);
-          }
-        });
-      })(genesisBlock);
-    }, 1000);
+    // getBlocks(bitcoind);
     bitcoind.on('block', function(block) {
       console.log('Found block');
       console.log('Next: %s', block.nextblockhash);
     });
   });
 });
+
+function getBlocks(bitcoind) {
+  setTimeout(function() {
+    (function next(hash) {
+      return bitcoind.getBlock(hash, function(err, block) {
+        if (err) return print(err.message);
+        print(block);
+        if (block.tx.length && block.tx[0].txid) {
+          var txid = block.tx[0].txid;
+          // XXX Dies with a segfault!
+          // bitcoind.getTx(txid, hash, function(err, tx) {
+          bitcoind.getTx(txid, function(err, tx) {
+            if (err) return print(err.message);
+            print('TX -----------------------------------------------------');
+            print(tx);
+            print('/TX ----------------------------------------------------');
+          });
+        }
+        if (process.argv[2] === '-r' && block.nextblockhash) {
+          setTimeout(next.bind(null, block.nextblockhash), 500);
+        }
+      });
+    })(genesisBlock);
+  }, 1000);
+}
 
 function inspect(obj) {
   return util.inspect(obj, null, 20, true);

@@ -144,6 +144,9 @@ start_node(void);
 static void
 start_node_thread(void);
 
+static void
+poll_blocks(void);
+
 #if OUTPUT_REDIR
 static void
 open_pipes(int **out_pipe, int **log_pipe);
@@ -176,6 +179,8 @@ init(Handle<Object>);
 /**
  * Private Variables
  */
+
+static volatile CBlockIndex *lastindex = NULL;
 
 static volatile bool shutdownComplete = false;
 
@@ -381,6 +386,8 @@ start_node(void) {
   noui_connect();
 
   (boost::thread *)new boost::thread(boost::bind(&start_node_thread));
+
+  (boost::thread *)new boost::thread(boost::bind(&poll_blocks));
 
   // horrible fix for a race condition
   sleep(2);
@@ -1085,6 +1092,9 @@ async_get_tx_after(uv_work_t *req) {
  * bitcoind.onBlock(callback)
  */
 
+Persistent<Function> onBlockCb;
+static bool blockCbSet = false;
+
 NAN_METHOD(OnBlock) {
   NanScope();
 
@@ -1095,9 +1105,12 @@ NAN_METHOD(OnBlock) {
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
+  onBlockCb = Persistent<Function>::New(callback);
+  blockCbSet = true;
+
+#if 0
   Persistent<Function> cb;
   cb = Persistent<Function>::New(callback);
-
   Local<Object> block = NanNew<Object>();
 
   const unsigned argc = 1;
@@ -1109,6 +1122,7 @@ NAN_METHOD(OnBlock) {
   if (try_catch.HasCaught()) {
     node::FatalException(try_catch);
   }
+#endif
 
   NanReturnValue(Undefined());
 }
@@ -1144,6 +1158,52 @@ NAN_METHOD(OnTx) {
   }
 
   NanReturnValue(Undefined());
+}
+
+static void
+poll_blocks(void) {
+  if (!lastindex) {
+    lastindex = chainActive.Tip();
+  }
+  CBlockIndex *pnext = chainActive.Next((const CBlockIndex *)lastindex);
+  CBlockIndex *pcur = pnext;
+  if (pnext) {
+    // execute callback
+    printf("Found block\n");
+    if (blockCbSet) {
+      Local<Object> block = NanNew<Object>();
+      const unsigned argc = 1;
+      Local<Value> argv[argc] = {
+        Local<Value>::New(block)
+      };
+      TryCatch try_catch;
+      onBlockCb->Call(Context::GetCurrent()->Global(), argc, argv);
+      if (try_catch.HasCaught()) {
+        node::FatalException(try_catch);
+      }
+    }
+    while ((pcur = chainActive.Next(pcur))) {
+      // execute callback
+      printf("Found block\n");
+      if (blockCbSet) {
+        Local<Object> block = NanNew<Object>();
+        const unsigned argc = 1;
+        Local<Value> argv[argc] = {
+          Local<Value>::New(block)
+        };
+        TryCatch try_catch;
+        onBlockCb->Call(Context::GetCurrent()->Global(), argc, argv);
+        if (try_catch.HasCaught()) {
+          node::FatalException(try_catch);
+        }
+      }
+      pnext = pcur;
+    }
+  }
+  if (pnext) {
+    lastindex = pnext;
+  }
+  sleep(1);
 }
 
 /**
