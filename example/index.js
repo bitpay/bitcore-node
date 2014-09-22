@@ -7,7 +7,6 @@ var bitcoind = require('../')();
 
 var genesisBlock = '0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f';
 var genesisTx = '0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b';
-var arbitraryTx = 'f399cb6c5bed7bb36d44f361c29dd5ecf12deba163470d8835b7ba0c4ed8aebd';
 
 bitcoind.start(function(err) {
   bitcoind.on('error', function(err) {
@@ -23,6 +22,7 @@ bitcoind.start(function(err) {
           if (block.tx.length && block.tx[0].txid) {
             var txid = block.tx[0].txid;
             // XXX Dies with a segfault!
+            // bitcoind.getTx(txid, hash, function(err, tx) {
             bitcoind.getTx(txid, function(err, tx) {
               if (err) return print(err.message);
               print('TX -----------------------------------------------------');
