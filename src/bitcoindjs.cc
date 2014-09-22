@@ -93,30 +93,10 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <openssl/crypto.h>
 
-#define MIN_CORE_FILEDESCRIPTORS 150
-
 using namespace std;
 using namespace boost;
 
-extern void ThreadImport(std::vector<boost::filesystem::path>);
 extern void DetectShutdownThread(boost::thread_group*);
-extern void StartNode(boost::thread_group&);
-extern void ThreadScriptCheck();
-extern void StartShutdown();
-extern bool ShutdownRequested();
-extern bool AppInit2(boost::thread_group&);
-extern bool AppInit(int, char**);
-extern bool SoftSetBoolArg(const std::string&, bool);
-extern void PrintExceptionContinue(std::exception*, const char*);
-extern void Shutdown();
-extern void noui_connect();
-extern int nScriptCheckThreads;
-extern bool fDaemon;
-extern std::map<std::string, std::string> mapArgs;
-#ifdef ENABLE_WALLET
-extern std::string strWalletFile;
-extern CWallet *pwalletMain;
-#endif
 
 /**
  * Node and Templates
