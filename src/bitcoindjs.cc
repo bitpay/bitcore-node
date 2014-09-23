@@ -892,7 +892,6 @@ async_poll_mempool_after(uv_work_t *req) {
       std::map<uint256, CTxMemPoolEntry>::const_iterator it = mempool.mapTx.begin();
       for (; it != mempool.mapTx.end(); it++) {
         const CTransaction& tx = it->second.GetTx();
-        // uint256 hash = it->second.GetTx().GetHash();
         Local<Object> entry = NanNew<Object>();
         ctx_to_js(tx, 0, entry);
         txs->Set(ti, entry);
@@ -904,7 +903,6 @@ async_poll_mempool_after(uv_work_t *req) {
       std::map<COutPoint, CInPoint>::const_iterator it = mempool.mapNextTx.begin();
       for (; it != mempool.mapNextTx.end(); it++) {
         const CTransaction tx = *it->second.ptx;
-        // uint256 hash = it->second.ptx->GetHash();
         Local<Object> entry = NanNew<Object>();
         ctx_to_js(tx, 0, entry);
         txs->Set(ti, entry);
