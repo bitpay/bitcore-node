@@ -813,7 +813,7 @@ async_poll_blocks_after(uv_work_t *req) {
  * Conversions
  */
 
-static void
+static inline void
 cblock_to_js(const CBlock& block, const CBlockIndex* blockindex, Local<Object> obj) {
   obj->Set(NanNew<String>("hash"), NanNew<String>(block.GetHash().GetHex().c_str()));
   CMerkleTx txGen(block.vtx[0]);
@@ -936,7 +936,7 @@ cblock_to_js(const CBlock& block, const CBlockIndex* blockindex, Local<Object> o
   }
 }
 
-static void
+static inline void
 ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
   // entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
   entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
