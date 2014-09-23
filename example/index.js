@@ -16,8 +16,7 @@ bitcoind.start(function(err) {
     console.log('bitcoind: status="%s"', status);
     // getBlocks(bitcoind);
     bitcoind.on('block', function(block) {
-      console.log('Found block');
-      console.log('Next: %s', block.nextblockhash);
+      console.log('Found block: %j', block);
     });
   });
 });

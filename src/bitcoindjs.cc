@@ -123,8 +123,7 @@ NAN_METHOD(IsStopped);
 NAN_METHOD(StopBitcoind);
 NAN_METHOD(GetBlock);
 NAN_METHOD(GetTx);
-NAN_METHOD(OnBlock);
-NAN_METHOD(OnTx);
+NAN_METHOD(PollBlocks);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -143,9 +142,6 @@ start_node(void);
 
 static void
 start_node_thread(void);
-
-static void
-poll_blocks(void);
 
 #if OUTPUT_REDIR
 static void
@@ -173,14 +169,18 @@ async_get_tx(uv_work_t *req);
 static void
 async_get_tx_after(uv_work_t *req);
 
+static void
+async_poll_blocks(uv_work_t *req);
+
+static void
+async_poll_blocks_after(uv_work_t *req);
+
 extern "C" void
 init(Handle<Object>);
 
 /**
  * Private Variables
  */
-
-static volatile CBlockIndex *lastindex = NULL;
 
 static volatile bool shutdownComplete = false;
 
@@ -238,6 +238,9 @@ struct async_tx_data {
 
 struct async_poll_blocks_data {
   std::string err_msg;
+  uint256 poll_last_hash;
+  CBlockIndex *poll_last_index;
+  CBlockIndex *poll_prev_index;
   Persistent<Array> result_array;
   Persistent<Function> callback;
 };
@@ -396,8 +399,6 @@ start_node(void) {
   noui_connect();
 
   (boost::thread *)new boost::thread(boost::bind(&start_node_thread));
-
-  (boost::thread *)new boost::thread(boost::bind(&poll_blocks));
 
   // horrible fix for a race condition
   sleep(2);
@@ -1098,44 +1099,9 @@ async_get_tx_after(uv_work_t *req) {
 }
 
 /**
- * OnBlock(callback)
- * bitcoind.onBlock(callback)
+ * PollBlocks(callback)
+ * bitcoind.pollBlocks(callback)
  */
-
-Persistent<Function> onBlockCb;
-static bool blockCbSet = false;
-
-NAN_METHOD(OnBlock) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsFunction()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.onBlock(callback)");
-  }
-
-  Local<Function> callback = Local<Function>::Cast(args[0]);
-
-  onBlockCb = Persistent<Function>::New(callback);
-  blockCbSet = true;
-
-#if 0
-  Persistent<Function> cb;
-  cb = Persistent<Function>::New(callback);
-  Local<Object> block = NanNew<Object>();
-
-  const unsigned argc = 1;
-  Local<Value> argv[argc] = {
-    Local<Value>::New(block)
-  };
-  TryCatch try_catch;
-  cb->Call(Context::GetCurrent()->Global(), argc, argv);
-  if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
-  }
-#endif
-
-  NanReturnValue(Undefined());
-}
 
 NAN_METHOD(PollBlocks) {
   NanScope();
@@ -1147,13 +1113,10 @@ NAN_METHOD(PollBlocks) {
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
-
-  String::Utf8Value hash(args[0]->ToString());
-  Local<Function> callback = Local<Function>::Cast(args[1]);
-
-  std::string hashp = std::string(*hash);
-
   async_poll_blocks_data *data = new async_poll_blocks_data();
+  data->poll_last_hash = 0;
+  data->poll_last_index = NULL;
+  data->poll_prev_index = NULL;
   data->err_msg = std::string("");
   data->callback = Persistent<Function>::New(callback);
 
@@ -1173,11 +1136,14 @@ static void
 async_poll_blocks(uv_work_t *req) {
   async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
 
-  while (chainActive.Tip()) {
-    uint256 cur = chainActive.Tip()->GetBlockHash();
-    if (cur != poll_lasthash) {
-      printf("Found block\n");
-      poll_lasthash = cur;
+  data->poll_prev_index = data->poll_last_index;
+  CBlockIndex *cur_index;
+
+  while ((cur_index = chainActive.Tip())) {
+    uint256 cur_hash = cur_index->GetBlockHash();
+    if (cur_hash != data->poll_last_hash) {
+      data->poll_last_hash = cur_hash;
+      data->poll_last_index = cur_index;
       sleep(1);
     } else {
       break;
@@ -1201,9 +1167,32 @@ async_poll_blocks_after(uv_work_t *req) {
     }
   } else {
     const unsigned argc = 2;
+    Local<Array> blocks = NanNew<Array>();
+
+    CBlockIndex *pnext = data->poll_prev_index;
+
+    if (!pnext) {
+      if (data->poll_last_index) {
+        CBlock block;
+        if (ReadBlockFromDisk(block, data->poll_last_index)) {
+          blocks->Set(0, NanNew<String>(block.GetHash().GetHex().c_str()));
+        }
+      }
+    } else {
+      int i = 0;
+      do {
+        CBlock block;
+        if (ReadBlockFromDisk(block, pnext)) {
+          blocks->Set(i, NanNew<String>(block.GetHash().GetHex().c_str()));
+          i++;
+        }
+        if (pnext == data->poll_last_index) break;
+      } while ((pnext = chainActive.Next((const CBlockIndex *)pnext)));
+    }
+
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(entry)
+      Local<Value>::New(blocks)
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -1216,38 +1205,6 @@ async_poll_blocks_after(uv_work_t *req) {
 
   delete data;
   delete req;
-}
-
-uint256 poll_lasthash = 0;
-
-static void
-poll_blocks(void) {
-  for (;;) {
-    while (chainActive.Tip()) {
-      uint256 cur = chainActive.Tip()->GetBlockHash();
-      if (cur != poll_lasthash) {
-        printf("Found block\n");
-#if 0
-        if (blockCbSet) {
-          Local<Object> block = NanNew<Object>();
-          block->Set(NanNew<String>("hash"), NanNew<String>(cur.GetHex().c_str()));
-          const unsigned argc = 1;
-          Local<Value> argv[argc] = {
-            Local<Value>::New(block)
-          };
-          TryCatch try_catch;
-          onBlockCb->Call(Context::GetCurrent()->Global(), argc, argv);
-          if (try_catch.HasCaught()) {
-            node::FatalException(try_catch);
-          }
-        }
-#endif
-        poll_lasthash = cur;
-      }
-      sleep(1);
-    }
-    sleep(1);
-  }
 }
 
 /**
@@ -1263,8 +1220,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
   NODE_SET_METHOD(target, "getTx", GetTx);
-  NODE_SET_METHOD(target, "onBlock", OnBlock);
-  NODE_SET_METHOD(target, "onTx", OnTx);
+  NODE_SET_METHOD(target, "pollBlocks", PollBlocks);
 }
 
 NODE_MODULE(bitcoindjs, init)
