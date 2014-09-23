@@ -14,10 +14,10 @@ bitcoind.start(function(err) {
   });
   bitcoind.on('open', function(status) {
     console.log('bitcoind: status="%s"', status);
-    // getBlocks(bitcoind);
-    bitcoind.on('block', function(block) {
-      console.log('Found block: %j', block);
-    });
+    getBlocks(bitcoind);
+    // bitcoind.on('block', function(block) {
+    //   console.log('Found block: %j', block);
+    // });
   });
 });
 
