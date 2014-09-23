@@ -15,9 +15,13 @@ bitcoind.start(function(err) {
   bitcoind.on('open', function(status) {
     console.log('bitcoind: status="%s"', status);
     // getBlocks(bitcoind);
-    bitcoind.on('block', function(block) {
-      console.log('Found block:');
-      console.log(block);
+    // bitcoind.on('block', function(block) {
+    //   console.log('Found block:');
+    //   console.log(block);
+    // });
+    bitcoind.on('tx', function(tx) {
+      console.log('Found tx:');
+      console.log(tx);
     });
   });
 });
