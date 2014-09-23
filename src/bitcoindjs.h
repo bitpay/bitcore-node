@@ -5,5 +5,3 @@
  * bitcoindjs.h:
  *   A bitcoind node.js binding header file.
  */
-
-#define OUTPUT_REDIR 0
