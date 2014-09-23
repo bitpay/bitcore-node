@@ -23,6 +23,10 @@ bitcoind.start(function(err) {
     //   print('Found tx:');
     //   print(tx);
     // });
+    bitcoind.on('mptx', function(mptx) {
+      print('Found mempool tx:');
+      print(mptx);
+    });
   });
 });
 

@@ -124,6 +124,7 @@ NAN_METHOD(StopBitcoind);
 NAN_METHOD(GetBlock);
 NAN_METHOD(GetTx);
 NAN_METHOD(PollBlocks);
+NAN_METHOD(PollMempool);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -162,9 +163,15 @@ static void
 async_poll_blocks_after(uv_work_t *req);
 
 static void
-ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry);
+async_poll_mempool(uv_work_t *req);
 
 static void
+async_poll_mempool_after(uv_work_t *req);
+
+static inline void
+ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry);
+
+static inline void
 cblock_to_js(const CBlock& block, const CBlockIndex* blockindex, Local<Object> obj);
 
 extern "C" void
@@ -235,6 +242,19 @@ struct async_poll_blocks_data {
   Persistent<Array> result_array;
   Persistent<Function> callback;
 };
+
+/**
+ * async_poll_mempool_data
+ */
+
+struct async_poll_mempool_data {
+  std::string err_msg;
+  int poll_saved_height;
+  int poll_top_height;
+  Persistent<Array> result_array;
+  Persistent<Function> callback;
+};
+
 
 /**
  * StartBitcoind
@@ -810,6 +830,107 @@ async_poll_blocks_after(uv_work_t *req) {
 }
 
 /**
+ * PollMempool(callback)
+ * bitcoind.pollMempool(callback)
+ */
+
+NAN_METHOD(PollMempool) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.pollMempool(callback)");
+  }
+
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+
+  async_poll_mempool_data *data = new async_poll_mempool_data();
+  data->poll_saved_height = -1;
+  data->poll_top_height = -1;
+  data->err_msg = std::string("");
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_poll_mempool,
+    (uv_after_work_cb)async_poll_mempool_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_poll_mempool(uv_work_t *req) {
+  // async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+  // Nothing really async to do here. It's all in memory. Placeholder for now.
+  useconds_t usec = 20 * 1000;
+  usleep(usec);
+}
+
+static void
+async_poll_mempool_after(uv_work_t *req) {
+  NanScope();
+  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    int ti = 0;
+    Local<Array> txs = NanNew<Array>();
+
+    {
+      std::map<uint256, CTxMemPoolEntry>::const_iterator it = mempool.mapTx.begin();
+      for (; it != mempool.mapTx.end(); it++) {
+        const CTransaction& tx = it->second.GetTx();
+        // uint256 hash = it->second.GetTx().GetHash();
+        Local<Object> entry = NanNew<Object>();
+        ctx_to_js(tx, 0, entry);
+        txs->Set(ti, entry);
+        ti++;
+      }
+    }
+
+    {
+      std::map<COutPoint, CInPoint>::const_iterator it = mempool.mapNextTx.begin();
+      for (; it != mempool.mapNextTx.end(); it++) {
+        const CTransaction tx = *it->second.ptx;
+        // uint256 hash = it->second.ptx->GetHash();
+        Local<Object> entry = NanNew<Object>();
+        ctx_to_js(tx, 0, entry);
+        txs->Set(ti, entry);
+        ti++;
+      }
+    }
+
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(txs)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+/**
  * Conversions
  */
 
@@ -1034,6 +1155,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getBlock", GetBlock);
   NODE_SET_METHOD(target, "getTx", GetTx);
   NODE_SET_METHOD(target, "pollBlocks", PollBlocks);
+  NODE_SET_METHOD(target, "pollMempool", PollMempool);
 }
 
 NODE_MODULE(bitcoindjs, init)
