@@ -238,9 +238,8 @@ struct async_tx_data {
 
 struct async_poll_blocks_data {
   std::string err_msg;
-  uint256 poll_top_hash;
-  CBlockIndex *poll_top_index;
-  CBlockIndex *poll_saved_index;
+  int poll_saved_height;
+  int poll_top_height;
   Persistent<Array> result_array;
   Persistent<Function> callback;
 };
@@ -1114,9 +1113,8 @@ NAN_METHOD(PollBlocks) {
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
   async_poll_blocks_data *data = new async_poll_blocks_data();
-  data->poll_top_hash = 0;
-  data->poll_top_index = NULL;
-  data->poll_saved_index = NULL;
+  data->poll_saved_height = -1;
+  data->poll_top_height = -1;
   data->err_msg = std::string("");
   data->callback = Persistent<Function>::New(callback);
 
@@ -1136,14 +1134,12 @@ static void
 async_poll_blocks(uv_work_t *req) {
   async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
 
-  data->poll_saved_index = data->poll_top_index;
-  CBlockIndex *cur_index;
+  data->poll_saved_height = data->poll_top_height;
 
-  while ((cur_index = chainActive.Tip())) {
-    uint256 cur_hash = cur_index->GetBlockHash();
-    if (cur_hash != data->poll_top_hash) {
-      data->poll_top_hash = cur_hash;
-      data->poll_top_index = cur_index;
+  while (chainActive.Tip()) {
+    int cur_height = chainActive.Height();
+    if (cur_height != data->poll_top_height) {
+      data->poll_top_height = cur_height;
       break;
     } else {
       // 100 milliseconds
@@ -1171,25 +1167,16 @@ async_poll_blocks_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Array> blocks = NanNew<Array>();
 
-    CBlockIndex *pnext = data->poll_saved_index;
-
-    if (!pnext) {
-      if (data->poll_top_index) {
+    for (int i = data->poll_saved_height, j = 0; i < data->poll_top_height; i++) {
+      if (i == -1) continue;
+      CBlockIndex *pindex = chainActive[i];
+      if (pindex != NULL) {
         CBlock block;
-        if (ReadBlockFromDisk(block, data->poll_top_index)) {
-          blocks->Set(0, NanNew<String>(block.GetHash().GetHex().c_str()));
+        if (ReadBlockFromDisk(block, pindex)) {
+          blocks->Set(j, NanNew<String>(block.GetHash().GetHex().c_str()));
+          j++;
         }
       }
-    } else {
-      int i = 0;
-      do {
-        CBlock block;
-        if (ReadBlockFromDisk(block, pnext)) {
-          blocks->Set(i, NanNew<String>(block.GetHash().GetHex().c_str()));
-          i++;
-        }
-        if (pnext == data->poll_top_index) break;
-      } while ((pnext = chainActive.Next((const CBlockIndex *)pnext)));
     }
 
     Local<Value> argv[argc] = {
