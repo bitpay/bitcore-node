@@ -238,9 +238,9 @@ struct async_tx_data {
 
 struct async_poll_blocks_data {
   std::string err_msg;
-  uint256 poll_last_hash;
-  CBlockIndex *poll_last_index;
-  CBlockIndex *poll_prev_index;
+  uint256 poll_top_hash;
+  CBlockIndex *poll_top_index;
+  CBlockIndex *poll_saved_index;
   Persistent<Array> result_array;
   Persistent<Function> callback;
 };
@@ -1114,9 +1114,9 @@ NAN_METHOD(PollBlocks) {
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
   async_poll_blocks_data *data = new async_poll_blocks_data();
-  data->poll_last_hash = 0;
-  data->poll_last_index = NULL;
-  data->poll_prev_index = NULL;
+  data->poll_top_hash = 0;
+  data->poll_top_index = NULL;
+  data->poll_saved_index = NULL;
   data->err_msg = std::string("");
   data->callback = Persistent<Function>::New(callback);
 
@@ -1136,17 +1136,19 @@ static void
 async_poll_blocks(uv_work_t *req) {
   async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
 
-  data->poll_prev_index = data->poll_last_index;
+  data->poll_saved_index = data->poll_top_index;
   CBlockIndex *cur_index;
 
   while ((cur_index = chainActive.Tip())) {
     uint256 cur_hash = cur_index->GetBlockHash();
-    if (cur_hash != data->poll_last_hash) {
-      data->poll_last_hash = cur_hash;
-      data->poll_last_index = cur_index;
-      sleep(1);
-    } else {
+    if (cur_hash != data->poll_top_hash) {
+      data->poll_top_hash = cur_hash;
+      data->poll_top_index = cur_index;
       break;
+    } else {
+      // 100 milliseconds
+      useconds_t usec = 100 * 1000;
+      usleep(usec);
     }
   }
 }
@@ -1169,12 +1171,12 @@ async_poll_blocks_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Array> blocks = NanNew<Array>();
 
-    CBlockIndex *pnext = data->poll_prev_index;
+    CBlockIndex *pnext = data->poll_saved_index;
 
     if (!pnext) {
-      if (data->poll_last_index) {
+      if (data->poll_top_index) {
         CBlock block;
-        if (ReadBlockFromDisk(block, data->poll_last_index)) {
+        if (ReadBlockFromDisk(block, data->poll_top_index)) {
           blocks->Set(0, NanNew<String>(block.GetHash().GetHex().c_str()));
         }
       }
@@ -1186,7 +1188,7 @@ async_poll_blocks_after(uv_work_t *req) {
           blocks->Set(i, NanNew<String>(block.GetHash().GetHex().c_str()));
           i++;
         }
-        if (pnext == data->poll_last_index) break;
+        if (pnext == data->poll_top_index) break;
       } while ((pnext = chainActive.Next((const CBlockIndex *)pnext)));
     }
 
