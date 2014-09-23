@@ -233,6 +233,16 @@ struct async_tx_data {
 };
 
 /**
+ * async_poll_blocks_data
+ */
+
+struct async_poll_blocks_data {
+  std::string err_msg;
+  Persistent<Array> result_array;
+  Persistent<Function> callback;
+};
+
+/**
  * StartBitcoind
  * bitcoind.start(callback)
  */
@@ -1127,83 +1137,117 @@ NAN_METHOD(OnBlock) {
   NanReturnValue(Undefined());
 }
 
-/**
- * OnTx(callback)
- * bitcoind.onTx(callback)
- */
-
-NAN_METHOD(OnTx) {
+NAN_METHOD(PollBlocks) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.onTx(callback)");
+      "Usage: bitcoindjs.pollBlocks(callback)");
   }
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
-  Persistent<Function> cb;
-  cb = Persistent<Function>::New(callback);
 
-  Local<Object> tx = NanNew<Object>();
+  String::Utf8Value hash(args[0]->ToString());
+  Local<Function> callback = Local<Function>::Cast(args[1]);
 
-  const unsigned argc = 1;
-  Local<Value> argv[argc] = {
-    Local<Value>::New(tx)
-  };
-  TryCatch try_catch;
-  cb->Call(Context::GetCurrent()->Global(), argc, argv);
-  if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
-  }
+  std::string hashp = std::string(*hash);
+
+  async_poll_blocks_data *data = new async_poll_blocks_data();
+  data->err_msg = std::string("");
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_poll_blocks,
+    (uv_after_work_cb)async_poll_blocks_after);
+
+  assert(status == 0);
 
   NanReturnValue(Undefined());
 }
 
 static void
-poll_blocks(void) {
-  if (!lastindex) {
-    lastindex = chainActive.Tip();
-  }
-  CBlockIndex *pnext = chainActive.Next((const CBlockIndex *)lastindex);
-  CBlockIndex *pcur = pnext;
-  if (pnext) {
-    // execute callback
-    printf("Found block\n");
-    if (blockCbSet) {
-      Local<Object> block = NanNew<Object>();
-      const unsigned argc = 1;
-      Local<Value> argv[argc] = {
-        Local<Value>::New(block)
-      };
-      TryCatch try_catch;
-      onBlockCb->Call(Context::GetCurrent()->Global(), argc, argv);
-      if (try_catch.HasCaught()) {
-        node::FatalException(try_catch);
-      }
-    }
-    while ((pcur = chainActive.Next(pcur))) {
-      // execute callback
+async_poll_blocks(uv_work_t *req) {
+  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+
+  while (chainActive.Tip()) {
+    uint256 cur = chainActive.Tip()->GetBlockHash();
+    if (cur != poll_lasthash) {
       printf("Found block\n");
-      if (blockCbSet) {
-        Local<Object> block = NanNew<Object>();
-        const unsigned argc = 1;
-        Local<Value> argv[argc] = {
-          Local<Value>::New(block)
-        };
-        TryCatch try_catch;
-        onBlockCb->Call(Context::GetCurrent()->Global(), argc, argv);
-        if (try_catch.HasCaught()) {
-          node::FatalException(try_catch);
-        }
-      }
-      pnext = pcur;
+      poll_lasthash = cur;
+      sleep(1);
+    } else {
+      break;
     }
   }
-  if (pnext) {
-    lastindex = pnext;
+}
+
+static void
+async_poll_blocks_after(uv_work_t *req) {
+  NanScope();
+  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(entry)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
   }
-  sleep(1);
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+uint256 poll_lasthash = 0;
+
+static void
+poll_blocks(void) {
+  for (;;) {
+    while (chainActive.Tip()) {
+      uint256 cur = chainActive.Tip()->GetBlockHash();
+      if (cur != poll_lasthash) {
+        printf("Found block\n");
+#if 0
+        if (blockCbSet) {
+          Local<Object> block = NanNew<Object>();
+          block->Set(NanNew<String>("hash"), NanNew<String>(cur.GetHex().c_str()));
+          const unsigned argc = 1;
+          Local<Value> argv[argc] = {
+            Local<Value>::New(block)
+          };
+          TryCatch try_catch;
+          onBlockCb->Call(Context::GetCurrent()->Global(), argc, argv);
+          if (try_catch.HasCaught()) {
+            node::FatalException(try_catch);
+          }
+        }
+#endif
+        poll_lasthash = cur;
+      }
+      sleep(1);
+    }
+    sleep(1);
+  }
 }
 
 /**
