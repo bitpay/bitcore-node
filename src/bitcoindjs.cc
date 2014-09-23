@@ -983,7 +983,9 @@ async_poll_blocks_after(uv_work_t *req) {
       if (pindex != NULL) {
         CBlock block;
         if (ReadBlockFromDisk(block, pindex)) {
-          blocks->Set(j, NanNew<String>(block.GetHash().GetHex().c_str()));
+          Local<Object> obj = NanNew<Object>();
+          cblock_to_js(block, pindex, obj);
+          blocks->Set(j, obj);
           j++;
         }
       }
