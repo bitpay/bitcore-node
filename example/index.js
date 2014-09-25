@@ -25,9 +25,10 @@ bitcoind.start(function(err) {
     // });
     bitcoind.once('tx', function(tx) {
       console.log('Broadcasting tx...');
-      tx.broadcast(function(err, hash) {
+      tx.broadcast(function(err, hash, tx) {
         if (err) throw err;
         console.log('tx hash: %s', hash);
+        print(tx);
       });
     });
     bitcoind.on('mptx', function(mptx) {
