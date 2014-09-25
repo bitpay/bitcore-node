@@ -271,6 +271,7 @@ struct async_broadcast_tx_data {
   std::string tx_hex;
   std::string tx_hash;
   bool override_fees;
+  bool own_only;
   Persistent<Function> callback;
 };
 
@@ -947,34 +948,32 @@ async_poll_mempool_after(uv_work_t *req) {
 }
 
 /**
- * BroadcastTx(tx, override_fees, callback)
- * bitcoind.broadcastTx(tx, override_fees, callback)
+ * BroadcastTx(tx, override_fees, own_only, callback)
+ * bitcoind.broadcastTx(tx, override_fees, own_only, callback)
  */
 
 NAN_METHOD(BroadcastTx) {
   NanScope();
 
-  if (args.Length() < 3
+  if (args.Length() < 4
       || !args[0]->IsObject()
       || !args[1]->IsBoolean()
-      || !args[2]->IsFunction()) {
+      || !args[2]->IsBoolean()
+      || !args[3]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.broadcastTx(tx, override_fees, callback)");
+      "Usage: bitcoindjs.broadcastTx(tx, override_fees, own_only, callback)");
   }
 
   Local<Object> js_tx = Local<Object>::Cast(args[0]);
-  Local<Function> callback = Local<Function>::Cast(args[2]);
+  Local<Function> callback = Local<Function>::Cast(args[3]);
 
   String::Utf8Value tx_hex_(js_tx->Get(NanNew<String>("hex"))->ToString());
   std::string tx_hex = std::string(*tx_hex_);
-  if (tx_hex[1] != 'x') {
-    tx_hex = "0x" + tx_hex;
-  }
-  std::string strHex(tx_hex);
 
   async_broadcast_tx_data *data = new async_broadcast_tx_data();
-  data->tx_hex = strHex;
+  data->tx_hex = tx_hex;
   data->override_fees = args[1]->ToBoolean()->IsTrue();
+  data->own_only = args[2]->ToBoolean()->IsTrue();
   data->err_msg = std::string("");
   data->callback = Persistent<Function>::New(callback);
 
@@ -994,14 +993,20 @@ static void
 async_broadcast_tx(uv_work_t *req) {
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
-  const std::vector<unsigned char> tx_hex(data->tx_hex.begin(), data->tx_hex.end());
-  CDataStream ssData(tx_hex, SER_NETWORK, PROTOCOL_VERSION);
+  // const std::vector<unsigned char> tx_hex(data->tx_hex.begin(), data->tx_hex.end());
+  // CDataStream ssData(tx_hex, SER_NETWORK, PROTOCOL_VERSION);
+  CDataStream ssData(ParseHex(data->tx_hex), SER_NETWORK, PROTOCOL_VERSION);
   CTransaction tx;
 
   bool fOverrideFees = false;
+  bool fOwnOnly = false;
 
   if (data->override_fees) {
     fOverrideFees = true;
+  }
+
+  if (data->own_only) {
+    fOwnOnly = true;
   }
 
   try {
@@ -1016,7 +1021,7 @@ async_broadcast_tx(uv_work_t *req) {
   bool fHave = false;
   CCoinsViewCache &view = *pcoinsTip;
   CCoins existingCoins;
-  {
+  if (ownOnly) {
     fHave = view.GetCoins(hashTx, existingCoins);
     if (!fHave) {
       CValidationState state;

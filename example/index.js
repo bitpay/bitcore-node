@@ -23,6 +23,13 @@ bitcoind.start(function(err) {
     //   print('Found tx:');
     //   print(tx);
     // });
+    bitcoind.once('tx', function(tx) {
+      console.log('Broadcasting tx...');
+      bitcoind._broadcastTx(tx, function(err, hash) {
+        if (err) throw err;
+        console.log('tx hash: %s', hash);
+      });
+    });
     bitcoind.on('mptx', function(mptx) {
       print('Found mempool tx:');
       print(mptx);
