@@ -263,12 +263,13 @@ struct async_poll_mempool_data {
 };
 
 /**
- * async_broadcast_tx
+ * async_broadcast_tx_data
  */
 
-struct async_broadcast_tx {
+struct async_broadcast_tx_data {
   std::string err_msg;
-  boost::string tx_hex;
+  std::string tx_hex;
+  std::string tx_hash;
   bool override_fees;
   Persistent<Function> callback;
 };
@@ -955,7 +956,7 @@ NAN_METHOD(BroadcastTx) {
 
   if (args.Length() < 3
       || !args[0]->IsObject()
-      || !args[1]->IsBool()
+      || !args[1]->IsBoolean()
       || !args[2]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.broadcastTx(tx, override_fees, callback)");
@@ -969,9 +970,9 @@ NAN_METHOD(BroadcastTx) {
   if (tx_hex[1] != 'x') {
     tx_hex = "0x" + tx_hex;
   }
-  boost::string strHex(tx_hex);
+  std::string strHex(tx_hex);
 
-  async_broadcast_tx *data = new async_broadcast_tx();
+  async_broadcast_tx_data *data = new async_broadcast_tx_data();
   data->tx_hex = strHex;
   data->override_fees = args[1]->ToBoolean()->IsTrue();
   data->err_msg = std::string("");
@@ -991,19 +992,18 @@ NAN_METHOD(BroadcastTx) {
 
 static void
 async_broadcast_tx(uv_work_t *req) {
-  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+  async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
-  // parse hex string from parameter
-  // vector<unsigned char> txData(ParseHexV(params[0], "parameter"));
-  CDataStream ssData(data->tx_hex, SER_NETWORK, PROTOCOL_VERSION);
+  const std::vector<unsigned char> tx_hex(data->tx_hex.begin(), data->tx_hex.end());
+  CDataStream ssData(tx_hex, SER_NETWORK, PROTOCOL_VERSION);
   CTransaction tx;
 
   bool fOverrideFees = false;
+
   if (data->override_fees) {
     fOverrideFees = true;
   }
 
-  // deserialize binary data stream
   try {
     ssData >> tx;
   } catch (std::exception &e) {
@@ -1019,7 +1019,6 @@ async_broadcast_tx(uv_work_t *req) {
   {
     fHave = view.GetCoins(hashTx, existingCoins);
     if (!fHave) {
-      // push to local node
       CValidationState state;
       if (!AcceptToMemoryPool(mempool, state, tx, false, NULL, !fOverrideFees)) {
         data->err_msg = std::string("TX rejected");
@@ -1033,8 +1032,6 @@ async_broadcast_tx(uv_work_t *req) {
       data->err_msg = std::string("transaction already in block chain");
       return;
     }
-    // Not in block, but already in the memory pool; will drop
-    // through to re-relay it.
   } else {
     SyncWithWallets(hashTx, tx, NULL);
   }
@@ -1047,7 +1044,7 @@ async_broadcast_tx(uv_work_t *req) {
 static void
 async_broadcast_tx_after(uv_work_t *req) {
   NanScope();
-  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+  async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
   if (!data->err_msg.empty()) {
     Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
@@ -1062,7 +1059,7 @@ async_broadcast_tx_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(data->tx_hash)
+      Local<Value>::New(NanNew<String>(data->tx_hash))
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -1305,7 +1302,7 @@ js_to_ctx(Local<Object> entry, const CTransaction& tx, uint256 hashBlock) {
   }
   // std::string tx_hex = data->tx_hex;
   // uint256 hash(tx_hex);
-  boost::string strHex(tx_hex);
+  std::string strHex(tx_hex);
   // CTransaction tx;
   hex_to_ctx(strHex, tx);
 }
