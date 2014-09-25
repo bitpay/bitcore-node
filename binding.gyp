@@ -56,6 +56,10 @@
 
       # bitcoind:
       '<(BITCOIN_DIR)/src/libbitcoind.so',
+
+      # '<(BITCOIN_DIR)/src/libbitcoin_server.a',
+      # '<(BITCOIN_DIR)/src/libbitcoin_common.a',
+      # '<(BITCOIN_DIR)/src/libbitcoin_wallet.a',
     ]
   }]
 }
