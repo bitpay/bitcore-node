@@ -535,8 +535,8 @@ async_stop_node_after(uv_work_t *req) {
 }
 
 /**
- * GetBlock(hash, callback)
- * bitcoind.getBlock(hash, callback)
+ * GetBlock
+ * bitcoind.getBlock(blockHash, callback)
  */
 
 NAN_METHOD(GetBlock) {
@@ -629,8 +629,8 @@ async_get_block_after(uv_work_t *req) {
 }
 
 /**
- * GetTx(hash, callback)
- * bitcoind.getTx(hash, callback)
+ * GetTx
+ * bitcoind.getTx(txHash, [blockHash], callback)
  */
 
 NAN_METHOD(GetTx) {
@@ -748,7 +748,7 @@ async_get_tx_after(uv_work_t *req) {
 }
 
 /**
- * PollBlocks(callback)
+ * PollBlocks
  * bitcoind.pollBlocks(callback)
  */
 
@@ -849,7 +849,7 @@ async_poll_blocks_after(uv_work_t *req) {
 }
 
 /**
- * PollMempool(callback)
+ * PollMempool
  * bitcoind.pollMempool(callback)
  */
 
@@ -948,7 +948,7 @@ async_poll_mempool_after(uv_work_t *req) {
 }
 
 /**
- * BroadcastTx(tx, override_fees, own_only, callback)
+ * BroadcastTx
  * bitcoind.broadcastTx(tx, override_fees, own_only, callback)
  */
 
