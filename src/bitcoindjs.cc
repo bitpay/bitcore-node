@@ -125,6 +125,7 @@ NAN_METHOD(GetBlock);
 NAN_METHOD(GetTx);
 NAN_METHOD(PollBlocks);
 NAN_METHOD(PollMempool);
+NAN_METHOD(BroadcastTx);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -167,6 +168,12 @@ async_poll_mempool(uv_work_t *req);
 
 static void
 async_poll_mempool_after(uv_work_t *req);
+
+static void
+async_broadcast_tx(uv_work_t *req);
+
+static void
+async_broadcast_tx_after(uv_work_t *req);
 
 static inline void
 ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry);
@@ -255,6 +262,16 @@ struct async_poll_mempool_data {
   Persistent<Function> callback;
 };
 
+/**
+ * async_broadcast_tx
+ */
+
+struct async_broadcast_tx {
+  std::string err_msg;
+  boost::string tx_hex;
+  bool override_fees;
+  Persistent<Function> callback;
+};
 
 /**
  * StartBitcoind
@@ -929,6 +946,138 @@ async_poll_mempool_after(uv_work_t *req) {
 }
 
 /**
+ * BroadcastTx(tx, override_fees, callback)
+ * bitcoind.broadcastTx(tx, override_fees, callback)
+ */
+
+NAN_METHOD(BroadcastTx) {
+  NanScope();
+
+  if (args.Length() < 3
+      || !args[0]->IsObject()
+      || !args[1]->IsBool()
+      || !args[2]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.broadcastTx(tx, override_fees, callback)");
+  }
+
+  Local<Object> js_tx = Local<Object>::Cast(args[0]);
+  Local<Function> callback = Local<Function>::Cast(args[2]);
+
+  String::Utf8Value tx_hex_(js_tx->Get(NanNew<String>("hex"))->ToString());
+  std::string tx_hex = std::string(*tx_hex_);
+  if (tx_hex[1] != 'x') {
+    tx_hex = "0x" + tx_hex;
+  }
+  boost::string strHex(tx_hex);
+
+  async_broadcast_tx *data = new async_broadcast_tx();
+  data->tx_hex = strHex;
+  data->override_fees = args[1]->ToBoolean()->IsTrue();
+  data->err_msg = std::string("");
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_broadcast_tx,
+    (uv_after_work_cb)async_broadcast_tx_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_broadcast_tx(uv_work_t *req) {
+  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+
+  // parse hex string from parameter
+  // vector<unsigned char> txData(ParseHexV(params[0], "parameter"));
+  CDataStream ssData(data->tx_hex, SER_NETWORK, PROTOCOL_VERSION);
+  CTransaction tx;
+
+  bool fOverrideFees = false;
+  if (data->override_fees) {
+    fOverrideFees = true;
+  }
+
+  // deserialize binary data stream
+  try {
+    ssData >> tx;
+  } catch (std::exception &e) {
+    data->err_msg = std::string("TX decode failed");
+    return;
+  }
+
+  uint256 hashTx = tx.GetHash();
+
+  bool fHave = false;
+  CCoinsViewCache &view = *pcoinsTip;
+  CCoins existingCoins;
+  {
+    fHave = view.GetCoins(hashTx, existingCoins);
+    if (!fHave) {
+      // push to local node
+      CValidationState state;
+      if (!AcceptToMemoryPool(mempool, state, tx, false, NULL, !fOverrideFees)) {
+        data->err_msg = std::string("TX rejected");
+        return;
+      }
+    }
+  }
+
+  if (fHave) {
+    if (existingCoins.nHeight < 1000000000) {
+      data->err_msg = std::string("transaction already in block chain");
+      return;
+    }
+    // Not in block, but already in the memory pool; will drop
+    // through to re-relay it.
+  } else {
+    SyncWithWallets(hashTx, tx, NULL);
+  }
+
+  RelayTransaction(tx, hashTx);
+
+  data->tx_hash = hashTx.GetHex();
+}
+
+static void
+async_broadcast_tx_after(uv_work_t *req) {
+  NanScope();
+  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(data->tx_hash)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+/**
  * Conversions
  */
 
@@ -1139,6 +1288,155 @@ ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
   }
 }
 
+#if 0
+static inline void
+hex_to_ctx(string strHex, const CTransaction& tx) {
+  CDataStream stream(ParseHex(strHex), SER_NETWORK, PROTOCOL_VERSION);
+  // CTransaction tx;
+  stream >> tx;
+}
+
+static inline void
+js_to_ctx(Local<Object> entry, const CTransaction& tx, uint256 hashBlock) {
+  String::Utf8Value tx_hex_(entry->Get(NanNew<String>("hex"))->ToString());
+  std::string tx_hex = std::string(*txHex_);
+  if (tx_hex[1] != 'x') {
+    tx_hex = "0x" + tx_hex;
+  }
+  // std::string tx_hex = data->tx_hex;
+  // uint256 hash(tx_hex);
+  boost::string strHex(tx_hex);
+  // CTransaction tx;
+  hex_to_ctx(strHex, tx);
+}
+
+static inline void
+js_to_ctx(Local<Object> entry, const CTransaction& tx, uint256 hashBlock) {
+  // entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+  entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
+  entry->Set(NanNew<String>("version"), NanNew<Number>(tx.nVersion));
+  entry->Set(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
+
+  Local<Array> vin = NanNew<Array>();
+  int vi = 0;
+  BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+    Local<Object> in = NanNew<Object>();
+    if (tx.IsCoinBase()) {
+      in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+    } else {
+      in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+      in->Set(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
+      Local<Object> o = NanNew<Object>();
+      o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
+      o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+      in->Set(NanNew<String>("scriptSig"), o);
+    }
+    in->Set(NanNew<String>("sequence"), NanNew<Number>((boost::int64_t)txin.nSequence));
+    vin->Set(vi, in);
+    vi++;
+  }
+  entry->Set(NanNew<String>("vin"), vin);
+
+  Local<Array> vout = NanNew<Array>();
+  for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
+    const CTxOut& txout = tx.vout[vo];
+    Local<Object> out = NanNew<Object>();
+    out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
+    out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)vo));
+
+    Local<Object> o = NanNew<Object>();
+    {
+      const CScript& scriptPubKey = txout.scriptPubKey;
+      Local<Object> out = o;
+      bool fIncludeHex = true;
+
+      txnouttype type;
+      vector<CTxDestination> addresses;
+      int nRequired;
+      out->Set(NanNew<String>("asm"), NanNew<String>(scriptPubKey.ToString()));
+      if (fIncludeHex) {
+        out->Set(NanNew<String>("hex"), NanNew<String>(HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+      }
+      if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+        out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+      } else {
+        out->Set(NanNew<String>("reqSigs"), NanNew<Number>(nRequired));
+        out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+        Local<Array> a = NanNew<Array>();
+        int ai = 0;
+        BOOST_FOREACH(const CTxDestination& addr, addresses) {
+          a->Set(ai, NanNew<String>(CBitcoinAddress(addr).ToString()));
+          ai++;
+        }
+        out->Set(NanNew<String>("addresses"), a);
+      }
+    }
+    out->Set(NanNew<String>("scriptPubKey"), o);
+
+    vout->Set(vo, out);
+  }
+  entry->Set(NanNew<String>("vout"), vout);
+
+  if (hashBlock != 0) {
+    entry->Set(NanNew<String>("blockhash"), NanNew<String>(hashBlock.GetHex()));
+    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+    if (mi != mapBlockIndex.end() && (*mi).second) {
+      CBlockIndex* pindex = (*mi).second;
+      if (chainActive.Contains(pindex)) {
+        entry->Set(NanNew<String>("confirmations"),
+          NanNew<Number>(1 + chainActive.Height() - pindex->nHeight));
+        entry->Set(NanNew<String>("time"), NanNew<Number>((boost::int64_t)pindex->nTime));
+        entry->Set(NanNew<String>("blocktime"), NanNew<Number>((boost::int64_t)pindex->nTime));
+      } else {
+        entry->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
+      }
+    }
+  }
+
+
+
+  CTransaction rawTx;
+
+  BOOST_FOREACH(const Value& input, inputs) {
+    const Object& o = input.get_obj();
+
+    uint256 txid = ParseHashO(o, "txid");
+
+    const Value& vout_v = find_value(o, "vout");
+    if (vout_v.type() != int_type)
+      throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+    int nOutput = vout_v.get_int();
+    if (nOutput < 0)
+      throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
+
+    CTxIn in(COutPoint(txid, nOutput));
+    rawTx.vin.push_back(in);
+  }
+
+  set<CBitcoinAddress> setAddress;
+  BOOST_FOREACH(const Pair& s, sendTo) {
+    CBitcoinAddress address(s.name_);
+    if (!address.IsValid())
+      throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Bitcoin address: ")+s.name_);
+
+    if (setAddress.count(address))
+      throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+s.name_);
+    setAddress.insert(address);
+
+    CScript scriptPubKey;
+    scriptPubKey.SetDestination(address.Get());
+    int64_t nAmount = AmountFromValue(s.value_);
+
+    CTxOut out(nAmount, scriptPubKey);
+    rawTx.vout.push_back(out);
+  }
+
+  CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+  ss << rawTx;
+  return HexStr(ss.begin(), ss.end());
+}
+#endif
+
 /**
  * Init
  */
@@ -1154,6 +1452,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getTx", GetTx);
   NODE_SET_METHOD(target, "pollBlocks", PollBlocks);
   NODE_SET_METHOD(target, "pollMempool", PollMempool);
+  NODE_SET_METHOD(target, "broadcastTx", BroadcastTx);
 }
 
 NODE_MODULE(bitcoindjs, init)
