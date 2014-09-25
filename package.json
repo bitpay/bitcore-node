@@ -21,6 +21,7 @@
     "bn.js": "^0.10.0"
   },
   "devDependencies": {
-    "mocha": "~1.16.2"
+    "mocha": "~1.16.2",
+    "optimist": "0.6.0"
   }
 }

@@ -7,6 +7,7 @@
 process.title = 'bitcoind.js';
 
 var util = require('util');
+var argv = require('optimist').argv;
 
 /**
  * bitcoind
@@ -24,31 +25,38 @@ bitcoind.on('error', function(err) {
 bitcoind.on('open', function(status) {
   print('status="%s"', status);
 
-  // getBlocks(bitcoind);
+  if (argv.blocks) {
+    getBlocks(bitcoind);
+  }
 
-  // bitcoind.on('block', function(block) {
-  //   print('Found block:');
-  //   print(block);
-  // });
+  if (argv['on-block']) {
+    bitcoind.on('block', function(block) {
+      print('Found Block:');
+      print(block);
+    });
+  }
 
-  // bitcoind.on('tx', function(tx) {
-  //   print('Found tx:');
-  //   print(tx);
-  // });
-
-  bitcoind.once('tx', function(tx) {
-    print('Broadcasting tx...');
-    return tx.broadcast(function(err, hash, tx) {
-      if (err) throw err;
-      print('tx hash: %s', hash);
+  if (argv['on-tx']) {
+    bitcoind.on('tx', function(tx) {
+      print('Found TX:');
       print(tx);
     });
-  });
+    bitcoind.on('mptx', function(mptx) {
+      print('Found mempool TX:');
+      print(mptx);
+    });
+  }
 
-  bitcoind.on('mptx', function(mptx) {
-    print('Found mempool tx:');
-    print(mptx);
-  });
+  if (argv.broadcast) {
+    bitcoind.once('tx', function(tx) {
+      print('Broadcasting TX...');
+      return tx.broadcast(function(err, hash, tx) {
+        if (err) throw err;
+        print('TX Hash: %s', hash);
+        print(tx);
+      });
+    });
+  }
 });
 
 /**
@@ -60,10 +68,12 @@ function getBlocks(bitcoind) {
     return (function next(hash) {
       return bitcoind.getBlock(hash, function(err, block) {
         if (err) return print(err.message);
+
         print(block);
-        if (block.tx.length && block.tx[0].txid) {
+
+        if (argv['get-tx'] && block.tx.length && block.tx[0].txid) {
           var txid = block.tx[0].txid;
-          // XXX Dies with a segfault!
+          // XXX Dies with a segfault
           // bitcoind.getTx(txid, hash, function(err, tx) {
           bitcoind.getTx(txid, function(err, tx) {
             if (err) return print(err.message);
@@ -72,8 +82,9 @@ function getBlocks(bitcoind) {
             print('/TX ----------------------------------------------------');
           });
         }
-        if (process.argv[2] === '-r' && block.nextblockhash) {
-          return setTimeout(next.bind(null, block.nextblockhash), 500);
+
+        if (argv.all && block.nextblockhash) {
+          setTimeout(next.bind(null, block.nextblockhash), 500);
         }
       });
     })(genesisBlock);
