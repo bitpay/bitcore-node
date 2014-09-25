@@ -83,7 +83,7 @@ function getBlocks(bitcoind) {
           });
         }
 
-        if (argv.all && block.nextblockhash) {
+        if (block.nextblockhash) {
           setTimeout(next.bind(null, block.nextblockhash), 500);
         }
       });
