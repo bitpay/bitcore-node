@@ -1059,10 +1059,17 @@ async_broadcast_tx_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
-    const unsigned argc = 2;
+    CDataStream ssData(ParseHex(data->tx_hex), SER_NETWORK, PROTOCOL_VERSION);
+    CTransaction tx;
+    ssData >> tx;
+    Local<Object> entry = NanNew<Object>();
+    ctx_to_js(tx, 0, entry);
+
+    const unsigned argc = 3;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->tx_hash))
+      Local<Value>::New(NanNew<String>(data->tx_hash)),
+      Local<Value>::New(entry)
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
