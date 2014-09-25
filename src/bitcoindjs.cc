@@ -1213,7 +1213,11 @@ cblock_to_js(const CBlock& block, const CBlockIndex* blockindex, Local<Object> o
 
 static inline void
 ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
-  // entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+  CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+  ssTx << tx;
+  string strHex = HexStr(ssTx.begin(), ssTx.end());
+  entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+
   entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
   entry->Set(NanNew<String>("version"), NanNew<Number>(tx.nVersion));
   entry->Set(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
