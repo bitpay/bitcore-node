@@ -993,8 +993,6 @@ static void
 async_broadcast_tx(uv_work_t *req) {
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
-  // const std::vector<unsigned char> tx_hex(data->tx_hex.begin(), data->tx_hex.end());
-  // CDataStream ssData(tx_hex, SER_NETWORK, PROTOCOL_VERSION);
   CDataStream ssData(ParseHex(data->tx_hex), SER_NETWORK, PROTOCOL_VERSION);
   CTransaction tx;
 
@@ -1021,7 +1019,7 @@ async_broadcast_tx(uv_work_t *req) {
   bool fHave = false;
   CCoinsViewCache &view = *pcoinsTip;
   CCoins existingCoins;
-  if (ownOnly) {
+  if (fOwnOnly) {
     fHave = view.GetCoins(hashTx, existingCoins);
     if (!fHave) {
       CValidationState state;
