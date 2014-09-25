@@ -25,7 +25,7 @@ bitcoind.start(function(err) {
     // });
     bitcoind.once('tx', function(tx) {
       console.log('Broadcasting tx...');
-      bitcoind._broadcastTx(tx, function(err, hash) {
+      tx.broadcast(function(err, hash) {
         if (err) throw err;
         console.log('tx hash: %s', hash);
       });
