@@ -128,6 +128,7 @@ NAN_METHOD(PollMempool);
 NAN_METHOD(BroadcastTx);
 NAN_METHOD(VerifyBlock);
 NAN_METHOD(VerifyTransaction);
+NAN_METHOD(WalletNewAddress);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -1144,6 +1145,46 @@ NAN_METHOD(VerifyTransaction) {
 }
 
 /**
+ * Wallet
+ */
+
+NAN_METHOD(WalletNewAddress) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletNewAddress(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  if (!pwalletMain->IsLocked()) {
+    pwalletMain->TopUpKeyPool();
+  }
+
+  // Generate a new key that is added to wallet
+  CPubKey newKey;
+
+  if (!pwalletMain->GetKeyFromPool(newKey)) {
+    // return NanThrowError("Keypool ran out, please call keypoolrefill first");
+    EnsureWalletIsUnlocked();
+    pwalletMain->TopUpKeyPool(100);
+    if (pwalletMain->GetKeyPoolSize() < 100) {
+      return NanThrowError("Error refreshing keypool.");
+    }
+  }
+
+  CKeyID keyID = newKey.GetID();
+
+  pwalletMain->SetAddressBook(keyID, strAccount, "receive");
+
+  NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString()));
+}
+
+/**
  * Conversions
  */
 
@@ -1376,6 +1417,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "broadcastTx", BroadcastTx);
   NODE_SET_METHOD(target, "verifyBlock", VerifyBlock);
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
+  NODE_SET_METHOD(target, "walletNewAddress", WalletNewAddress);
 }
 
 NODE_MODULE(bitcoindjs, init)
