@@ -97,6 +97,13 @@ using namespace std;
 using namespace boost;
 
 extern void DetectShutdownThread(boost::thread_group*);
+extern int nScriptCheckThreads;
+extern bool fDaemon;
+extern std::map<std::string, std::string> mapArgs;
+#ifdef ENABLE_WALLET
+extern std::string strWalletFile;
+extern CWallet *pwalletMain;
+#endif
 
 /**
  * Node and Templates
@@ -342,6 +349,10 @@ static void
 async_start_node_work(uv_work_t *req) {
   async_node_data *node_data = static_cast<async_node_data*>(req->data);
   start_node();
+  while (!pwalletMain) {
+    useconds_t usec = 100 * 1000;
+    usleep(usec);
+  }
   node_data->result = (char *)strdup("start_node(): bitcoind opened.");
 }
 
@@ -1167,6 +1178,39 @@ NAN_METHOD(VerifyTransaction) {
  * Wallet
  */
 
+int64_t
+GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinDepth) {
+  int64_t nBalance = 0;
+
+  // Tally wallet transactions
+  for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
+      it != pwalletMain->mapWallet.end(); ++it) {
+    const CWalletTx& wtx = (*it).second;
+    if (!IsFinalTx(wtx) || wtx.GetBlocksToMaturity() > 0 || wtx.GetDepthInMainChain() < 0) {
+      continue;
+    }
+
+    int64_t nReceived, nSent, nFee;
+    wtx.GetAccountAmounts(strAccount, nReceived, nSent, nFee);
+
+    if (nReceived != 0 && wtx.GetDepthInMainChain() >= nMinDepth) {
+      nBalance += nReceived;
+    }
+    nBalance -= nSent + nFee;
+  }
+
+  // Tally internal accounting entries
+  nBalance += walletdb.GetAccountCreditDebit(strAccount);
+
+  return nBalance;
+}
+
+int64_t
+GetAccountBalance(const string& strAccount, int nMinDepth) {
+  CWalletDB walletdb(pwalletMain->strWalletFile);
+  return GetAccountBalance(walletdb, strAccount, nMinDepth);
+}
+
 NAN_METHOD(WalletNewAddress) {
   NanScope();
 
@@ -1189,7 +1233,10 @@ NAN_METHOD(WalletNewAddress) {
 
   if (!pwalletMain->GetKeyFromPool(newKey)) {
     // return NanThrowError("Keypool ran out, please call keypoolrefill first");
-    EnsureWalletIsUnlocked();
+    // EnsureWalletIsUnlocked();
+    if (pwalletMain->IsLocked()) {
+      return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+    }
     pwalletMain->TopUpKeyPool(100);
     if (pwalletMain->GetKeyPoolSize() < 100) {
       return NanThrowError("Error refreshing keypool.");
@@ -1264,7 +1311,6 @@ NAN_METHOD(SendToAddress) {
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
 
-  string strAccount = from;
   CBitcoinAddress address(addr);
 
   if (!address.IsValid()) {
@@ -1272,27 +1318,29 @@ NAN_METHOD(SendToAddress) {
   }
 
   // Amount
-  int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue()
+  int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue();
 
   // Wallet comments
   CWalletTx wtx;
-  wtx.strFromAccount = strAccount;
-  if (options->Get(NanNew<String>("comment"))) {
+  if (options->Get(NanNew<String>("comment"))->IsString()) {
     String::Utf8Value comment_(options->Get(NanNew<String>("comment"))->ToString());
     std::string comment = std::string(*comment_);
     wtx.mapValue["comment"] = comment;
   }
-  if (options->Get(NanNew<String>("to"))) {
+  if (options->Get(NanNew<String>("to"))->IsString()) {
     String::Utf8Value to_(options->Get(NanNew<String>("to"))->ToString());
     std::string to = std::string(*to_);
     wtx.mapValue["to"] = to;
   }
 
-  EnsureWalletIsUnlocked();
+  // EnsureWalletIsUnlocked();
+  if (pwalletMain->IsLocked()) {
+    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+  }
 
   string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
   if (strError != "") {
-    return NanThrowError(strError);
+    return NanThrowError(strError.c_str());
   }
 
   std::string tx_hash = wtx.GetHash().GetHex();
@@ -1386,26 +1434,29 @@ NAN_METHOD(SendFrom) {
     return NanThrowError("Invalid Bitcoin address");
   }
 
-  int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue()
+  int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue();
   int nMinDepth = 1;
-  if (options->Get(NanNew<String>("minDepth"))) {
+  if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
     nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
   }
 
   CWalletTx wtx;
   wtx.strFromAccount = strAccount;
-  if (options->Get(NanNew<String>("comment"))) {
+  if (options->Get(NanNew<String>("comment"))->IsString()) {
     String::Utf8Value comment_(options->Get(NanNew<String>("comment"))->ToString());
     std::string comment = std::string(*comment_);
     wtx.mapValue["comment"] = comment;
   }
-  if (options->Get(NanNew<String>("to"))) {
+  if (options->Get(NanNew<String>("to"))->IsString()) {
     String::Utf8Value to_(options->Get(NanNew<String>("to"))->ToString());
     std::string to = std::string(*to_);
     wtx.mapValue["to"] = to;
   }
 
-  EnsureWalletIsUnlocked();
+  // EnsureWalletIsUnlocked();
+  if (pwalletMain->IsLocked()) {
+    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+  }
 
   // Check funds
   int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
@@ -1416,7 +1467,7 @@ NAN_METHOD(SendFrom) {
   // Send
   string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
   if (strError != "") {
-    return NanThrowError(strError);
+    return NanThrowError(strError.c_str());
   }
 
   std::string tx_hash = wtx.GetHash().GetHex();
@@ -1448,12 +1499,119 @@ NAN_METHOD(ListAccounts) {
       "Usage: bitcoindjs.listAccounts(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
-  NanReturnValue(Undefined());
+  int nMinDepth = 1;
+  if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
+    nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
+  }
+
+  map<string, int64_t> mapAccountBalances;
+  BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
+    if (IsMine(*pwalletMain, entry.first)) { // This address belongs to me
+      mapAccountBalances[entry.second.name] = 0;
+    }
+  }
+
+  for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
+      it != pwalletMain->mapWallet.end(); ++it) {
+    const CWalletTx& wtx = (*it).second;
+    int64_t nFee;
+    string strSentAccount;
+    list<pair<CTxDestination, int64_t> > listReceived;
+    list<pair<CTxDestination, int64_t> > listSent;
+    int nDepth = wtx.GetDepthInMainChain();
+    if (wtx.GetBlocksToMaturity() > 0 || nDepth < 0) {
+      continue;
+    }
+    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount);
+    mapAccountBalances[strSentAccount] -= nFee;
+    BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64_t)& s, listSent) {
+      mapAccountBalances[strSentAccount] -= s.second;
+    }
+    if (nDepth >= nMinDepth) {
+      BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64_t)& r, listReceived) {
+        if (pwalletMain->mapAddressBook.count(r.first)) {
+          mapAccountBalances[pwalletMain->mapAddressBook[r.first].name] += r.second;
+        } else {
+          mapAccountBalances[""] += r.second;
+        }
+      }
+    }
+  }
+
+  list<CAccountingEntry> acentries;
+  CWalletDB(pwalletMain->strWalletFile).ListAccountCreditDebit("*", acentries);
+  BOOST_FOREACH(const CAccountingEntry& entry, acentries) {
+    mapAccountBalances[entry.strAccount] += entry.nCreditDebit;
+  }
+
+  Local<Object> obj = NanNew<Object>();
+  BOOST_FOREACH(const PAIRTYPE(string, int64_t)& accountBalance, mapAccountBalances) {
+    // Canonical method:
+#if 0
+    obj->Set(NanNew<String>(accountBalance.first.c_str()), NanNew<Number>(accountBalance.second));
+#endif
+
+    // Newer method - include addresses:
+#if 0
+    Local<Object> entry = NanNew<Object>();
+    entry->Set(NanNew<String>("balance"), NanNew<Number>(accountBalance.second));
+    Local<Array> addr = NanNew<Array>();
+    int i = 0;
+    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
+      const CBitcoinAddress& address = item.first;
+      const string& strName = item.second.name;
+      if (strName == accountBalance.first) {
+        addr->Set(i, NanNew<String>(address.ToString()));
+        i++;
+      }
+    }
+    entry->Set(NanNew<String>("addresses"), addr);
+    obj->Set(NanNew<String>(accountBalance.first), entry);
+#endif
+
+    // Newest method: Include pub and priv key.
+    Local<Object> entry = NanNew<Object>();
+    entry->Set(NanNew<String>("balance"), NanNew<Number>(accountBalance.second));
+    Local<Array> addr = NanNew<Array>();
+    int i = 0;
+    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
+      const CBitcoinAddress& address = item.first;
+      const string& strName = item.second.name;
+      if (strName == accountBalance.first) {
+        Local<Object> a = NanNew<Object>();
+        a->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
+
+        // if (!address.SetString(address.ToString())) {
+        //   return NanThrowError("Invalid Bitcoin address");
+        // }
+        CKeyID keyID;
+        if (!address.GetKeyID(keyID)) {
+          return NanThrowError("Address does not refer to a key");
+        }
+        CKey vchSecret;
+        if (!pwalletMain->GetKey(keyID, vchSecret)) {
+          return NanThrowError("Private key for address is not known");
+        }
+        std::string priv = CBitcoinSecret(vchSecret).ToString();
+        a->Set(NanNew<String>("privkeycompressed"), NanNew<Boolean>(vchSecret.IsCompressed()));
+        a->Set(NanNew<String>("privkey"), NanNew<String>(priv));
+
+        CPubKey vchPubKey;
+        pwalletMain->GetPubKey(keyID, vchPubKey);
+        a->Set(NanNew<String>("pubkeycompressed"), NanNew<Boolean>(vchPubKey.IsCompressed()));
+        a->Set(NanNew<String>("pubkey"), NanNew<String>(HexStr(vchPubKey)));
+
+        addr->Set(i, a);
+        i++;
+      }
+    }
+    entry->Set(NanNew<String>("addresses"), addr);
+    obj->Set(NanNew<String>(accountBalance.first), entry);
+  }
+
+  NanReturnValue(obj);
 }
 
 NAN_METHOD(GetTransaction) {

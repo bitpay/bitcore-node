@@ -25,6 +25,10 @@ bitcoind.on('error', function(err) {
 bitcoind.on('open', function(status) {
   print('status="%s"', status);
 
+  setTimeout(function() {
+    print(bitcoind.wallet.listAccounts());
+  }, 2000);
+
   if (argv.blocks) {
     getBlocks(bitcoind);
   }
