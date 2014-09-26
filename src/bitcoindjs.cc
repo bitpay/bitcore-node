@@ -126,6 +126,7 @@ NAN_METHOD(GetTx);
 NAN_METHOD(PollBlocks);
 NAN_METHOD(PollMempool);
 NAN_METHOD(BroadcastTx);
+NAN_METHOD(VerifyBlock);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -636,7 +637,7 @@ async_get_block_after(uv_work_t *req) {
 NAN_METHOD(GetTx) {
   NanScope();
 
-  if (args.Length() < 2
+  if (args.Length() < 3
       || !args[0]->IsString()
       || !args[1]->IsString()
       || !args[2]->IsFunction()) {
@@ -1085,6 +1086,32 @@ async_broadcast_tx_after(uv_work_t *req) {
 }
 
 /**
+ * VerifyBlock
+ */
+
+NAN_METHOD(VerifyBlock) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.verifyBlock(blockHex)");
+  }
+
+  String::Utf8Value blockHex_(args[0]->ToString());
+  std::string blockHex = std::string(*blockHex_);
+
+  CBlock block;
+  CDataStream ssData(ParseHex(blockHex), SER_NETWORK, PROTOCOL_VERSION);
+  CTransaction tx;
+  ssData >> block;
+
+  CValidationState state;
+  bool valid = CheckBlock(block, state);
+
+  NanReturnValue(NanNew<Boolean>(valid));
+}
+
+/**
  * Conversions
  */
 
@@ -1315,6 +1342,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "pollBlocks", PollBlocks);
   NODE_SET_METHOD(target, "pollMempool", PollMempool);
   NODE_SET_METHOD(target, "broadcastTx", BroadcastTx);
+  NODE_SET_METHOD(target, "verifyBlock", VerifyBlock);
 }
 
 NODE_MODULE(bitcoindjs, init)
