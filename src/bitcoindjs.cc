@@ -128,7 +128,26 @@ NAN_METHOD(PollMempool);
 NAN_METHOD(BroadcastTx);
 NAN_METHOD(VerifyBlock);
 NAN_METHOD(VerifyTransaction);
+
 NAN_METHOD(WalletNewAddress);
+NAN_METHOD(GetAccountAddress);
+NAN_METHOD(SetAccount);
+NAN_METHOD(GetAccount);
+NAN_METHOD(SendToAddress);
+NAN_METHOD(SignMessage);
+NAN_METHOD(VerifyMessage);
+NAN_METHOD(GetBalance);
+NAN_METHOD(GetUnconfirmedBalance);
+NAN_METHOD(SendFrom);
+NAN_METHOD(ListTransactions);
+NAN_METHOD(ListAccounts);
+NAN_METHOD(GetTransaction);
+NAN_METHOD(BackupWallet);
+NAN_METHOD(WalletPassphrase);
+NAN_METHOD(WalletPassphraseChange);
+NAN_METHOD(WalletLock);
+NAN_METHOD(EncryptWallet);
+NAN_METHOD(SetTxFee);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -1184,6 +1203,352 @@ NAN_METHOD(WalletNewAddress) {
   NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString()));
 }
 
+NAN_METHOD(GetAccountAddress) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getAccountAddress(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(SetAccount) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.setAccount(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(GetAccount) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getAccount(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(SendToAddress) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.sendToAddress(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+
+
+  CBitcoinAddress address(params[0].get_str());
+  if (!address.IsValid())
+    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+
+  // Amount
+  int64_t nAmount = AmountFromValue(params[1]);
+
+  // Wallet comments
+  CWalletTx wtx;
+  if (params.size() > 2 && params[2].type() != null_type && !params[2].get_str().empty())
+    wtx.mapValue["comment"] = params[2].get_str();
+  if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
+    wtx.mapValue["to"]      = params[3].get_str();
+
+  EnsureWalletIsUnlocked();
+
+  string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
+  if (strError != "")
+      throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+  return wtx.GetHash().GetHex();
+
+
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(SignMessage) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.signMessage(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(VerifyMessage) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.verifyMessage(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(GetBalance) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getBalance(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(GetUnconfirmedBalance) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getUnconfirmedBalance(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(SendFrom) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.sendFrom(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+
+  string strAccount = AccountFromValue(params[0]);
+  CBitcoinAddress address(params[1].get_str());
+  if (!address.IsValid())
+      throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+  int64_t nAmount = AmountFromValue(params[2]);
+  int nMinDepth = 1;
+  if (params.size() > 3)
+      nMinDepth = params[3].get_int();
+
+  CWalletTx wtx;
+  wtx.strFromAccount = strAccount;
+  if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
+      wtx.mapValue["comment"] = params[4].get_str();
+  if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
+      wtx.mapValue["to"]      = params[5].get_str();
+
+  EnsureWalletIsUnlocked();
+
+  // Check funds
+  int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
+  if (nAmount > nBalance)
+      throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+
+  // Send
+  string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
+  if (strError != "")
+      throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+  return wtx.GetHash().GetHex();
+
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(ListTransactions) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.listTransactions(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(ListAccounts) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.listAccounts(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(GetTransaction) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getTransaction(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(BackupWallet) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.backupWallet(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(WalletPassphrase) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletPassphrase(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(WalletPassphraseChange) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletPassphraseChange(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(WalletLock) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletLock(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(EncryptWallet) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.encryptWallet(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
+NAN_METHOD(SetTxFee) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.setTxFee(options)");
+  }
+
+  // Parse the account first so we don't generate a key if there's an error
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
+  std::string strAccount = std::string(*name_);
+
+  NanReturnValue(Undefined());
+}
+
 /**
  * Conversions
  */
@@ -1417,7 +1782,26 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "broadcastTx", BroadcastTx);
   NODE_SET_METHOD(target, "verifyBlock", VerifyBlock);
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
+
   NODE_SET_METHOD(target, "walletNewAddress", WalletNewAddress);
+  NODE_SET_METHOD(target, "getAccountAddress", GetAccountAddress);
+  NODE_SET_METHOD(target, "setAccount", SetAccount);
+  NODE_SET_METHOD(target, "getAccount", GetAccount);
+  NODE_SET_METHOD(target, "sendToAddress", SendToAddress);
+  NODE_SET_METHOD(target, "signMessage", SignMessage);
+  NODE_SET_METHOD(target, "verifyMessage", VerifyMessage);
+  NODE_SET_METHOD(target, "getBalance", GetBalance);
+  NODE_SET_METHOD(target, "getUnconfirmedBalance", GetUnconfirmedBalance);
+  NODE_SET_METHOD(target, "sendFrom", SendFrom);
+  NODE_SET_METHOD(target, "listTransactions", ListTransactions);
+  NODE_SET_METHOD(target, "listAccounts", ListAccounts);
+  NODE_SET_METHOD(target, "getTransaction", GetTransaction);
+  NODE_SET_METHOD(target, "backupWallet", BackupWallet);
+  NODE_SET_METHOD(target, "walletPassphrase", WalletPassphrase);
+  NODE_SET_METHOD(target, "walletPassphraseChange", WalletPassphraseChange);
+  NODE_SET_METHOD(target, "walletLock", WalletLock);
+  NODE_SET_METHOD(target, "encryptWallet", EncryptWallet);
+  NODE_SET_METHOD(target, "setTxFee", SetTxFee);
 }
 
 NODE_MODULE(bitcoindjs, init)
