@@ -1259,38 +1259,45 @@ NAN_METHOD(SendToAddress) {
       "Usage: bitcoindjs.sendToAddress(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
+  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+  std::string addr = std::string(*addr_);
 
+  string strAccount = from;
+  CBitcoinAddress address(addr);
 
-  CBitcoinAddress address(params[0].get_str());
-  if (!address.IsValid())
-    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+  if (!address.IsValid()) {
+    return NanThrowError("Invalid Bitcoin address");
+  }
 
   // Amount
-  int64_t nAmount = AmountFromValue(params[1]);
+  int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue()
 
   // Wallet comments
   CWalletTx wtx;
-  if (params.size() > 2 && params[2].type() != null_type && !params[2].get_str().empty())
-    wtx.mapValue["comment"] = params[2].get_str();
-  if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
-    wtx.mapValue["to"]      = params[3].get_str();
+  wtx.strFromAccount = strAccount;
+  if (options->Get(NanNew<String>("comment"))) {
+    String::Utf8Value comment_(options->Get(NanNew<String>("comment"))->ToString());
+    std::string comment = std::string(*comment_);
+    wtx.mapValue["comment"] = comment;
+  }
+  if (options->Get(NanNew<String>("to"))) {
+    String::Utf8Value to_(options->Get(NanNew<String>("to"))->ToString());
+    std::string to = std::string(*to_);
+    wtx.mapValue["to"] = to;
+  }
 
   EnsureWalletIsUnlocked();
 
   string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
-  if (strError != "")
-      throw JSONRPCError(RPC_WALLET_ERROR, strError);
+  if (strError != "") {
+    return NanThrowError(strError);
+  }
 
-  return wtx.GetHash().GetHex();
+  std::string tx_hash = wtx.GetHash().GetHex();
 
-
-
-  NanReturnValue(Undefined());
+  NanReturnValue(NanNew<String>(tx_hash));
 }
 
 NAN_METHOD(SignMessage) {
@@ -1365,44 +1372,56 @@ NAN_METHOD(SendFrom) {
       "Usage: bitcoindjs.sendFrom(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
+  String::Utf8Value from_(options->Get(NanNew<String>("from"))->ToString());
+  std::string from = std::string(*from_);
+  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+  std::string addr = std::string(*addr_);
 
-  string strAccount = AccountFromValue(params[0]);
-  CBitcoinAddress address(params[1].get_str());
-  if (!address.IsValid())
-      throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
-  int64_t nAmount = AmountFromValue(params[2]);
+  string strAccount = from;
+  CBitcoinAddress address(addr);
+
+  if (!address.IsValid()) {
+    return NanThrowError("Invalid Bitcoin address");
+  }
+
+  int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue()
   int nMinDepth = 1;
-  if (params.size() > 3)
-      nMinDepth = params[3].get_int();
+  if (options->Get(NanNew<String>("minDepth"))) {
+    nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
+  }
 
   CWalletTx wtx;
   wtx.strFromAccount = strAccount;
-  if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
-      wtx.mapValue["comment"] = params[4].get_str();
-  if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
-      wtx.mapValue["to"]      = params[5].get_str();
+  if (options->Get(NanNew<String>("comment"))) {
+    String::Utf8Value comment_(options->Get(NanNew<String>("comment"))->ToString());
+    std::string comment = std::string(*comment_);
+    wtx.mapValue["comment"] = comment;
+  }
+  if (options->Get(NanNew<String>("to"))) {
+    String::Utf8Value to_(options->Get(NanNew<String>("to"))->ToString());
+    std::string to = std::string(*to_);
+    wtx.mapValue["to"] = to;
+  }
 
   EnsureWalletIsUnlocked();
 
   // Check funds
   int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
-  if (nAmount > nBalance)
-      throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+  if (nAmount > nBalance) {
+    return NanThrowError("Account has insufficient funds");
+  }
 
   // Send
   string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
-  if (strError != "")
-      throw JSONRPCError(RPC_WALLET_ERROR, strError);
+  if (strError != "") {
+    return NanThrowError(strError);
+  }
 
-  return wtx.GetHash().GetHex();
+  std::string tx_hash = wtx.GetHash().GetHex();
 
-
-  NanReturnValue(Undefined());
+  NanReturnValue(NanNew<String>(tx_hash));
 }
 
 NAN_METHOD(ListTransactions) {
