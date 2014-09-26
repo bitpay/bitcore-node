@@ -692,10 +692,17 @@ async_get_tx(uv_work_t *req) {
   uint256 hashBlock(data->blockHash);
   CTransaction tx;
 
-  if (GetTransaction(hash, tx, hashBlock, hashBlock == 0 ? true : false)) {
+  if (GetTransaction(hash, tx, hashBlock, hashBlock == uint256(0) ? true : false)) {
     data->result_tx = tx;
   } else {
-    data->err_msg = std::string("get_tx(): failed.");
+    if (hashBlock != 0) {
+      hashBlock = uint256(0);
+      if (GetTransaction(hash, tx, hashBlock, true)) {
+        data->result_tx = tx;
+      } else {
+        data->err_msg = std::string("get_tx(): failed.");
+      }
+    }
   }
 }
 

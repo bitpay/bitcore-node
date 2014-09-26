@@ -69,13 +69,13 @@ function getBlocks(bitcoind) {
       return bitcoind.getBlock(hash, function(err, block) {
         if (err) return print(err.message);
 
-        print(block);
+        // print(block);
 
         if (argv['get-tx'] && block.tx.length && block.tx[0].txid) {
           var txid = block.tx[0].txid;
           // XXX Dies with a segfault
           // bitcoind.getTx(txid, hash, function(err, tx) {
-          bitcoind.getTx(txid, function(err, tx) {
+          bitcoind.getTx(txid, hash, function(err, tx) {
             if (err) return print(err.message);
             print('TX -----------------------------------------------------');
             print(tx);
