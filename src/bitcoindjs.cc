@@ -1548,30 +1548,6 @@ NAN_METHOD(ListAccounts) {
 
   Local<Object> obj = NanNew<Object>();
   BOOST_FOREACH(const PAIRTYPE(string, int64_t)& accountBalance, mapAccountBalances) {
-    // Canonical method:
-#if 0
-    obj->Set(NanNew<String>(accountBalance.first.c_str()), NanNew<Number>(accountBalance.second));
-#endif
-
-    // Newer method - include addresses:
-#if 0
-    Local<Object> entry = NanNew<Object>();
-    entry->Set(NanNew<String>("balance"), NanNew<Number>(accountBalance.second));
-    Local<Array> addr = NanNew<Array>();
-    int i = 0;
-    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
-      const CBitcoinAddress& address = item.first;
-      const string& strName = item.second.name;
-      if (strName == accountBalance.first) {
-        addr->Set(i, NanNew<String>(address.ToString()));
-        i++;
-      }
-    }
-    entry->Set(NanNew<String>("addresses"), addr);
-    obj->Set(NanNew<String>(accountBalance.first), entry);
-#endif
-
-    // Newest method: Include pub and priv key.
     Local<Object> entry = NanNew<Object>();
     entry->Set(NanNew<String>("balance"), NanNew<Number>(accountBalance.second));
     Local<Array> addr = NanNew<Array>();
@@ -1583,9 +1559,6 @@ NAN_METHOD(ListAccounts) {
         Local<Object> a = NanNew<Object>();
         a->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
 
-        // if (!address.SetString(address.ToString())) {
-        //   return NanThrowError("Invalid Bitcoin address");
-        // }
         CKeyID keyID;
         if (!address.GetKeyID(keyID)) {
           return NanThrowError("Address does not refer to a key");
