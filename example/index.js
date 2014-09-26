@@ -75,7 +75,7 @@ function getBlocks(bitcoind) {
           var txid = block.tx[0].txid;
           // XXX Dies with a segfault
           // bitcoind.getTx(txid, hash, function(err, tx) {
-          bitcoind.getTx(txid, hash, function(err, tx) {
+          bitcoind.getTx(txid, function(err, tx) {
             if (err) return print(err.message);
             print('TX -----------------------------------------------------');
             print(tx);
