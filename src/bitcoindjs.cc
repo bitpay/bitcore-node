@@ -1093,16 +1093,18 @@ async_broadcast_tx_after(uv_work_t *req) {
 NAN_METHOD(VerifyBlock) {
   NanScope();
 
-  if (args.Length() < 1 || !args[0]->IsString()) {
+  if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.verifyBlock(blockHex)");
+      "Usage: bitcoindjs.verifyBlock(block)");
   }
 
-  String::Utf8Value blockHex_(args[0]->ToString());
-  std::string blockHex = std::string(*blockHex_);
+  Local<Object> js_block = Local<Object>::Cast(args[0]);
+
+  String::Utf8Value block_hex_(js_block->Get(NanNew<String>("hex"))->ToString());
+  std::string block_hex = std::string(*block_hex_);
 
   CBlock block;
-  CDataStream ssData(ParseHex(blockHex), SER_NETWORK, PROTOCOL_VERSION);
+  CDataStream ssData(ParseHex(block_hex), SER_NETWORK, PROTOCOL_VERSION);
   ssData >> block;
 
   CValidationState state;
@@ -1118,16 +1120,18 @@ NAN_METHOD(VerifyBlock) {
 NAN_METHOD(VerifyTransaction) {
   NanScope();
 
-  if (args.Length() < 1 || !args[0]->IsString()) {
+  if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.verifyTransaction(txHex)");
+      "Usage: bitcoindjs.verifyTransaction(tx)");
   }
 
-  String::Utf8Value txHex_(args[0]->ToString());
-  std::string txHex = std::string(*txHex_);
+  Local<Object> js_tx = Local<Object>::Cast(args[0]);
+
+  String::Utf8Value tx_hex_(js_tx->Get(NanNew<String>("hex"))->ToString());
+  std::string tx_hex = std::string(*tx_hex_);
 
   CTransaction tx;
-  CDataStream ssData(ParseHex(txHex), SER_NETWORK, PROTOCOL_VERSION);
+  CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
   ssData >> tx;
 
   CValidationState state;
