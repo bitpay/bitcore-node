@@ -137,6 +137,7 @@ NAN_METHOD(PollMempool);
 NAN_METHOD(BroadcastTx);
 NAN_METHOD(VerifyBlock);
 NAN_METHOD(VerifyTransaction);
+NAN_METHOD(FillTransaction);
 
 NAN_METHOD(WalletNewAddress);
 NAN_METHOD(WalletGetAccountAddress);
@@ -231,6 +232,12 @@ jsblock_to_cblock(Local<Object> jsblock, CBlock& cblock);
 static inline void
 jstx_to_ctx(Local<Object> jstx, CTransaction& ctx);
 #endif
+
+static inline void
+hexblock_to_cblock(std::string block_hex, CBlock& cblock);
+
+static inline void
+hextx_to_ctx(std::string tx_hex, CTransaction& ctx);
 
 extern "C" void
 init(Handle<Object>);
@@ -1207,6 +1214,45 @@ NAN_METHOD(VerifyTransaction) {
   NanReturnValue(NanNew<Boolean>(valid && standard));
 }
 
+NAN_METHOD(FillTransaction) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.fillTransaction(tx)");
+  }
+
+  Local<Object> js_tx = Local<Object>::Cast(args[0]);
+
+  String::Utf8Value tx_hex_(js_tx->Get(NanNew<String>("hex"))->ToString());
+  std::string tx_hex = std::string(*tx_hex_);
+
+  // jstx_to_ctx(jstx, ctx);
+  CTransaction tx;
+  CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
+  ssData >> tx;
+
+  // Fill vin
+  if (tx.vin.empty()) {
+    BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins) {
+      tx.vin.push_back(CTxIn(coin.first->GetHash(),coin.second));
+    }
+  }
+
+  // Sign
+  int nIn = 0;
+  BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins) {
+    if (!SignSignature(*pwalletMain, *coin.first, tx, nIn++)) {
+      return NanThrowError("Signing transaction failed");
+    }
+  }
+
+  Local<Object> entry = NanNew<Object>();
+  ctx_to_jstx(tx, 0, entry);
+
+  NanReturnValue(tx);
+}
+
 /**
  * Wallet
  */
@@ -2122,6 +2168,26 @@ jstx_to_ctx(Local<Object> jstx, CTransaction& ctx) {
 }
 #endif
 
+static inline void
+hexblock_to_cblock(std::string block_hex, CBlock& cblock) {
+  CDataStream ssData(ParseHex(block_hex), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> cblock;
+  } catch (std::exception &e) {
+    NanThrowError("Block decode failed");
+  }
+}
+
+static inline void
+hextx_to_ctx(std::string tx_hex, CTransaction& ctx) {
+  CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> ctx;
+  } catch (std::exception &e) {
+    NanThrowError("TX decode failed");
+  }
+}
+
 /**
  * Init
  */
@@ -2143,6 +2209,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "broadcastTx", BroadcastTx);
   NODE_SET_METHOD(target, "verifyBlock", VerifyBlock);
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
+  NODE_SET_METHOD(target, "fillTransaction", FillTransaction);
 
   NODE_SET_METHOD(target, "walletNewAddress", WalletNewAddress);
   NODE_SET_METHOD(target, "walletGetAccountAddress", WalletGetAccountAddress);
