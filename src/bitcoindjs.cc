@@ -1255,10 +1255,10 @@ NAN_METHOD(FillTransaction) {
   ssData >> tx;
 
   // Destination output
-  int d_output = 0;
+  unsigned int d_output = 0;
   if (options->Get(NanNew<String>("output"))->IsNumber()) {
     d_output = options->Get(NanNew<String>("output"))->IntegerValue();
-    if (d_output < 0 || d_output >= tx.vout.size()) {
+    if (d_output >= tx.vout.size()) {
       return NanThrowError("Destination output does not exist");
     }
   }
