@@ -1238,12 +1238,13 @@ bool SelectCoins(CWallet& wallet, int64_t nTargetValue,
 NAN_METHOD(FillTransaction) {
   NanScope();
 
-  if (args.Length() < 1 || !args[0]->IsObject()) {
+  if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.fillTransaction(tx)");
+      "Usage: bitcoindjs.fillTransaction(tx, options)");
   }
 
   Local<Object> js_tx = Local<Object>::Cast(args[0]);
+  Local<Object> options = Local<Object>::Cast(args[1]);
 
   String::Utf8Value tx_hex_(js_tx->Get(NanNew<String>("hex"))->ToString());
   std::string tx_hex = std::string(*tx_hex_);
@@ -1253,16 +1254,12 @@ NAN_METHOD(FillTransaction) {
   CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
   ssData >> tx;
 
-  // Parse options
+  // Destination output
   int d_output = 0;
-  if (args.Length() > 1 && args[1]->IsObject()) {
-    Local<Object> options = Local<Object>::Cast(args[1]);
-    // Destination output
-    if (options->Get(NanNew<String>("output"))->IsNumber()) {
-      d_output = options->Get(NanNew<String>("output"))->IntegerValue();
-      if (d_output < 0 || d_output >= tx.vout.size()) {
-        return NanThrowError("Destination output does not exist");
-      }
+  if (options->Get(NanNew<String>("output"))->IsNumber()) {
+    d_output = options->Get(NanNew<String>("output"))->IntegerValue();
+    if (d_output < 0 || d_output >= tx.vout.size()) {
+      return NanThrowError("Destination output does not exist");
     }
   }
 
