@@ -1253,22 +1253,33 @@ NAN_METHOD(FillTransaction) {
   CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
   ssData >> tx;
 
-  // Get setCoins
-  int64_t nValueTotal = 0;
-  CScript scriptPubKeyMain;
-  bool scriptPubKeySet = false;
-  for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
-    const CTxOut& txout = tx.vout[vo];
-    int64_t nValue = txout.nValue;
-    const CScript& scriptPubKey = txout.scriptPubKey;
-    if (!scriptPubKeySet) {
-      scriptPubKeyMain = scriptPubKey;
-      scriptPubKeySet = true;
+  // Parse options
+  int d_output = 0;
+  if (args.Length() > 1 && args[1]->IsObject()) {
+    Local<Object> options = Local<Object>::Cast(args[1]);
+    // Destination output
+    if (options->Get(NanNew<String>("output"))->IsNumber()) {
+      d_output = options->Get(NanNew<String>("output"))->IntegerValue();
+      if (d_output < 0 || d_output >= tx.vout.size()) {
+        return NanThrowError("Destination output does not exist");
+      }
     }
-    nValueTotal += nValue;
   }
 
-  int64_t nValue = nValueTotal;
+  // Get total value of outputs
+  // Get the scriptPubKey of the first output (presumably our destination)
+  int64_t nValue = 0;
+  CScript scriptPubKeyMain;
+  for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
+    const CTxOut& txout = tx.vout[vo];
+    int64_t value = txout.nValue;
+    const CScript& scriptPubKey = txout.scriptPubKey;
+    if (vo == d_output) {
+      scriptPubKeyMain = scriptPubKey;
+    }
+    nValue += value;
+  }
+
   if (nValue <= 0)
     return NanThrowError("Invalid amount");
   if (nValue + nTransactionFee > pwalletMain->GetBalance())
@@ -1294,19 +1305,20 @@ NAN_METHOD(FillTransaction) {
   set<pair<const CWalletTx*,unsigned int> > setCoins;
   int64_t nValueIn = 0;
 
-  //if (!pwalletMain->SelectCoins(nTotalValue, setCoins, nValueIn, coinControl)) {
+  // XXX CWallet::SelectCoins() needs to be made public!
+  // if (!pwalletMain->SelectCoins(nTotalValue, setCoins, nValueIn, coinControl)) {
   if (!SelectCoins(*pwalletMain, nTotalValue, setCoins, nValueIn, coinControl)) {
     return NanThrowError("Insufficient funds");
   }
 
-  // Fill vin
+  // Fill inputs if they aren't already filled
   if (tx.vin.empty()) {
     BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins) {
       tx.vin.push_back(CTxIn(coin.first->GetHash(), coin.second));
     }
   }
 
-  // Sign
+  // Sign everything
   int nIn = 0;
   BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins) {
     if (!SignSignature(*pwalletMain, *coin.first, tx, nIn++)) {
@@ -1314,6 +1326,7 @@ NAN_METHOD(FillTransaction) {
     }
   }
 
+  // Turn our CTransaction into a javascript Transaction
   Local<Object> entry = NanNew<Object>();
   ctx_to_jstx(tx, 0, entry);
 
