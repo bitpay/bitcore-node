@@ -137,24 +137,24 @@ NAN_METHOD(VerifyBlock);
 NAN_METHOD(VerifyTransaction);
 
 NAN_METHOD(WalletNewAddress);
-NAN_METHOD(GetAccountAddress);
-NAN_METHOD(SetAccount);
-NAN_METHOD(GetAccount);
+NAN_METHOD(WalletGetAccountAddress);
+NAN_METHOD(WalletSetAccount);
+NAN_METHOD(WalletGetAccount);
 NAN_METHOD(WalletSendTo);
-NAN_METHOD(SignMessage);
-NAN_METHOD(VerifyMessage);
-NAN_METHOD(GetBalance);
-NAN_METHOD(GetUnconfirmedBalance);
-NAN_METHOD(SendFrom);
-NAN_METHOD(ListTransactions);
-NAN_METHOD(ListAccounts);
-NAN_METHOD(GetTransaction);
-NAN_METHOD(BackupWallet);
+NAN_METHOD(WalletSignMessage);
+NAN_METHOD(WalletVerifyMessage);
+NAN_METHOD(WalletGetBalance);
+NAN_METHOD(WalletGetUnconfirmedBalance);
+NAN_METHOD(WalletSendFrom);
+NAN_METHOD(WalletListTransactions);
+NAN_METHOD(WalletListAccounts);
+NAN_METHOD(WalletGetTransaction);
+NAN_METHOD(WalletBackup);
 NAN_METHOD(WalletPassphrase);
 NAN_METHOD(WalletPassphraseChange);
 NAN_METHOD(WalletLock);
-NAN_METHOD(EncryptWallet);
-NAN_METHOD(SetTxFee);
+NAN_METHOD(WalletEncrypt);
+NAN_METHOD(WalletSetTxFee);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -1268,12 +1268,12 @@ NAN_METHOD(WalletNewAddress) {
   NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString()));
 }
 
-NAN_METHOD(GetAccountAddress) {
+NAN_METHOD(WalletGetAccountAddress) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getAccountAddress(options)");
+      "Usage: bitcoindjs.walletGetAccountAddress(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1284,12 +1284,12 @@ NAN_METHOD(GetAccountAddress) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(SetAccount) {
+NAN_METHOD(WalletSetAccount) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.setAccount(options)");
+      "Usage: bitcoindjs.walletSetAccount(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1300,12 +1300,12 @@ NAN_METHOD(SetAccount) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(GetAccount) {
+NAN_METHOD(WalletGetAccount) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getAccount(options)");
+      "Usage: bitcoindjs.walletGetAccount(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1427,12 +1427,12 @@ async_wallet_sendto_after(uv_work_t *req) {
   delete req;
 }
 
-NAN_METHOD(SignMessage) {
+NAN_METHOD(WalletSignMessage) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.signMessage(options)");
+      "Usage: bitcoindjs.walletSignMessage(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1443,12 +1443,12 @@ NAN_METHOD(SignMessage) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(VerifyMessage) {
+NAN_METHOD(WalletVerifyMessage) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.verifyMessage(options)");
+      "Usage: bitcoindjs.walletVerifyMessage(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1459,12 +1459,12 @@ NAN_METHOD(VerifyMessage) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(GetBalance) {
+NAN_METHOD(WalletGetBalance) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getBalance(options)");
+      "Usage: bitcoindjs.walletGetBalance(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1475,12 +1475,12 @@ NAN_METHOD(GetBalance) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(GetUnconfirmedBalance) {
+NAN_METHOD(WalletGetUnconfirmedBalance) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getUnconfirmedBalance(options)");
+      "Usage: bitcoindjs.walletGetUnconfirmedBalance(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1491,12 +1491,12 @@ NAN_METHOD(GetUnconfirmedBalance) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(SendFrom) {
+NAN_METHOD(WalletSendFrom) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.sendFrom(options)");
+      "Usage: bitcoindjs.walletSendFrom(options)");
   }
 
   Local<Object> options = Local<Object>::Cast(args[0]);
@@ -1618,12 +1618,12 @@ async_wallet_sendfrom_after(uv_work_t *req) {
   delete req;
 }
 
-NAN_METHOD(ListTransactions) {
+NAN_METHOD(WalletListTransactions) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.listTransactions(options)");
+      "Usage: bitcoindjs.walletListTransactions(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1634,12 +1634,12 @@ NAN_METHOD(ListTransactions) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(ListAccounts) {
+NAN_METHOD(WalletListAccounts) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.listAccounts(options)");
+      "Usage: bitcoindjs.walletListAccounts(options)");
   }
 
   Local<Object> options = Local<Object>::Cast(args[0]);
@@ -1730,12 +1730,12 @@ NAN_METHOD(ListAccounts) {
   NanReturnValue(obj);
 }
 
-NAN_METHOD(GetTransaction) {
+NAN_METHOD(WalletGetTransaction) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getTransaction(options)");
+      "Usage: bitcoindjs.walletGetTransaction(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1746,12 +1746,12 @@ NAN_METHOD(GetTransaction) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(BackupWallet) {
+NAN_METHOD(WalletBackup) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.backupWallet(options)");
+      "Usage: bitcoindjs.walletBackup(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1810,12 +1810,12 @@ NAN_METHOD(WalletLock) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(EncryptWallet) {
+NAN_METHOD(WalletEncrypt) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.encryptWallet(options)");
+      "Usage: bitcoindjs.walletEncrypt(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -1826,12 +1826,12 @@ NAN_METHOD(EncryptWallet) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(SetTxFee) {
+NAN_METHOD(WalletSetTxFee) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.setTxFee(options)");
+      "Usage: bitcoindjs.walletSetTxFee(options)");
   }
 
   // Parse the account first so we don't generate a key if there's an error
@@ -2077,24 +2077,24 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
 
   NODE_SET_METHOD(target, "walletNewAddress", WalletNewAddress);
-  NODE_SET_METHOD(target, "getAccountAddress", GetAccountAddress);
-  NODE_SET_METHOD(target, "setAccount", SetAccount);
-  NODE_SET_METHOD(target, "getAccount", GetAccount);
+  NODE_SET_METHOD(target, "walletGetAccountAddress", WalletGetAccountAddress);
+  NODE_SET_METHOD(target, "walletSetAccount", WalletSetAccount);
+  NODE_SET_METHOD(target, "walletGetAccount", WalletGetAccount);
   NODE_SET_METHOD(target, "walletSendTo", WalletSendTo);
-  NODE_SET_METHOD(target, "signMessage", SignMessage);
-  NODE_SET_METHOD(target, "verifyMessage", VerifyMessage);
-  NODE_SET_METHOD(target, "getBalance", GetBalance);
-  NODE_SET_METHOD(target, "getUnconfirmedBalance", GetUnconfirmedBalance);
-  NODE_SET_METHOD(target, "sendFrom", SendFrom);
-  NODE_SET_METHOD(target, "listTransactions", ListTransactions);
-  NODE_SET_METHOD(target, "listAccounts", ListAccounts);
-  NODE_SET_METHOD(target, "getTransaction", GetTransaction);
-  NODE_SET_METHOD(target, "backupWallet", BackupWallet);
+  NODE_SET_METHOD(target, "walletSignMessage", WalletSignMessage);
+  NODE_SET_METHOD(target, "walletVerifyMessage", WalletVerifyMessage);
+  NODE_SET_METHOD(target, "walletGetBalance", WalletGetBalance);
+  NODE_SET_METHOD(target, "walletGetUnconfirmedBalance", WalletGetUnconfirmedBalance);
+  NODE_SET_METHOD(target, "walletSendFrom", WalletSendFrom);
+  NODE_SET_METHOD(target, "walletListTransactions", WalletListTransactions);
+  NODE_SET_METHOD(target, "walletListAccounts", WalletListAccounts);
+  NODE_SET_METHOD(target, "walletGetTransaction", WalletGetTransaction);
+  NODE_SET_METHOD(target, "walletBackup", WalletBackup);
   NODE_SET_METHOD(target, "walletPassphrase", WalletPassphrase);
   NODE_SET_METHOD(target, "walletPassphraseChange", WalletPassphraseChange);
   NODE_SET_METHOD(target, "walletLock", WalletLock);
-  NODE_SET_METHOD(target, "encryptWallet", EncryptWallet);
-  NODE_SET_METHOD(target, "setTxFee", SetTxFee);
+  NODE_SET_METHOD(target, "walletEncrypt", WalletEncrypt);
+  NODE_SET_METHOD(target, "walletSetTxFee", WalletSetTxFee);
 }
 
 NODE_MODULE(bitcoindjs, init)
