@@ -2079,7 +2079,11 @@ jsblock_to_cblock(Local<Object> jsblock, CBlock& cblock) {
   Local<Value> argv[argc] = {
     Local<Value>::New(jsblock)
   };
-  Local<Function> toHex = Local<Function>::Cast(bitcoindjs_obj->Get(NanNew<String>("blockToHex")));
+  //Local<Object> object = Local<Object>::Cast(Context::GetCurrent()->Global()->Get(NanNew<String>("bitcoindjs")));
+  //Local<Object> object = Context::GetCurrent()->Global()->Get(NanNew<String>("bitcoindjs"));
+  //Local<Function> toHex = Local<Function>::Cast(object->Get(NanNew<String>("txToHex")));
+  //Local<Function> toHex = Local<Function>::Cast(bitcoindjs_obj->Get(NanNew<String>("blockToHex")));
+  Local<Function> toHex = bitcoindjs_obj->Get(NanNew<String>("blockToHex")).As<Function>();
   Local<String> block_hex__ = toHex->Call(Context::GetCurrent()->Global(), argc, argv);
 
   String::Utf8Value block_hex_(block_hex__->ToString());
@@ -2099,7 +2103,11 @@ jstx_to_ctx(Local<Object> jstx, CTransaction& ctx) {
   Local<Value> argv[argc] = {
     Local<Value>::New(jstx)
   };
-  Local<Function> toHex = Local<Function>::Cast(bitcoindjs_obj->Get(NanNew<String>("txToHex")));
+  //Local<Object> object = Local<Object>::Cast(Context::GetCurrent()->Global()->Get(NanNew<String>("bitcoindjs")));
+  //Local<Object> object = Context::GetCurrent()->Global()->Get(NanNew<String>("bitcoindjs"));
+  //Local<Function> toHex = Local<Function>::Cast(object->Get(NanNew<String>("txToHex")));
+  //Local<Function> toHex = Local<Function>::Cast(bitcoindjs_obj->Get(NanNew<String>("txToHex")));
+  Local<Function> toHex = bitcoindjs_obj->Get(NanNew<String>("txToHex")).As<Function>();
   Local<String> tx_hex__ = toHex->Call(Context::GetCurrent()->Global(), argc, argv);
 
   String::Utf8Value tx_hex_(tx_hex__->ToString());
