@@ -1287,17 +1287,6 @@ NAN_METHOD(FillTransaction) {
 
   CCoinControl* coinControl = new CCoinControl();
 
-  // ~/bitcoin/src/coincontrol.h
-  // coinControl->Select(COutPoint& output);
-
-  // example:
-  // note: should get filled with unspent outputs in SelectCoins via AvailableCoins
-  // set<COutPoint> vInOutPoints;
-  // BOOST_FOREACH(const CTxIn& txin, tx.vin) {
-  //   vInOutPoints.insert(txin.prevout);
-  // }
-  // coinControl->Select(vInOutPoints);
-
   vector< pair<CScript, int64_t> > vecSend;
   vecSend.push_back(make_pair(scriptPubKey, nValue));
 
