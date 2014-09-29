@@ -104,6 +104,7 @@ extern std::map<std::string, std::string> mapArgs;
 extern std::string strWalletFile;
 extern CWallet *pwalletMain;
 #endif
+extern int64_t nTransactionFee;
 
 /**
  * Node and Templates
@@ -1213,9 +1214,6 @@ NAN_METHOD(VerifyTransaction) {
 
   NanReturnValue(NanNew<Boolean>(valid && standard));
 }
-
-// extern int64_t nTransactionFee;
-int64_t nTransactionFee = 0;
 
 bool SelectCoins(CWallet& wallet, int64_t nTargetValue,
                 set<pair<const CWalletTx*,unsigned int> >& setCoinsRet,
