@@ -1271,15 +1271,12 @@ NAN_METHOD(FillTransaction) {
   }
 
   int64_t nValue = nValueTotal;
-  // Check amount
   if (nValue <= 0)
     return NanThrowError("Invalid amount");
   if (nValue + nTransactionFee > pwalletMain->GetBalance())
     return NanThrowError("Insufficient funds");
 
   CScript scriptPubKey = scriptPubKeyMain;
-  //CScript scriptPubKey;
-  //scriptPubKey.SetDestination(address);
 
   CWalletTx wtxNew;
 
@@ -1290,7 +1287,18 @@ NAN_METHOD(FillTransaction) {
     return NanThrowError("Error: Wallet locked, unable to create transaction!");
   }
 
-  const CCoinControl coinControl;
+  CCoinControl* coinControl = new CCoinControl();
+
+  // ~/bitcoin/src/coincontrol.h
+  // coinControl->Select(COutPoint& output);
+
+  // example:
+  // note: should get filled with unspent outputs in SelectCoins via AvailableCoins
+  // set<COutPoint> vInOutPoints;
+  // BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+  //   vInOutPoints.insert(txin.prevout);
+  // }
+  // coinControl->Select(vInOutPoints);
 
   vector< pair<CScript, int64_t> > vecSend;
   vecSend.push_back(make_pair(scriptPubKey, nValue));
@@ -1299,8 +1307,8 @@ NAN_METHOD(FillTransaction) {
   set<pair<const CWalletTx*,unsigned int> > setCoins;
   int64_t nValueIn = 0;
 
-  //if (!pwalletMain->SelectCoins(nTotalValue, setCoins, nValueIn, &coinControl)) {
-  if (!SelectCoins(*pwalletMain, nTotalValue, setCoins, nValueIn, &coinControl)) {
+  //if (!pwalletMain->SelectCoins(nTotalValue, setCoins, nValueIn, coinControl)) {
+  if (!SelectCoins(*pwalletMain, nTotalValue, setCoins, nValueIn, coinControl)) {
     return NanThrowError("Insufficient funds");
   }
 
