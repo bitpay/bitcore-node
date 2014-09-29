@@ -1214,6 +1214,29 @@ NAN_METHOD(VerifyTransaction) {
   NanReturnValue(NanNew<Boolean>(valid && standard));
 }
 
+// extern int64_t nTransactionFee;
+int64_t nTransactionFee = 0;
+
+bool SelectCoins(CWallet& wallet, int64_t nTargetValue,
+                set<pair<const CWalletTx*,unsigned int> >& setCoinsRet,
+                int64_t& nValueRet, const CCoinControl* coinControl) {
+  vector<COutput> vCoins;
+  wallet.AvailableCoins(vCoins, true, coinControl);
+
+  // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
+  if (coinControl && coinControl->HasSelected()) {
+    BOOST_FOREACH(const COutput& out, vCoins) {
+      nValueRet += out.tx->vout[out.i].nValue;
+      setCoinsRet.insert(make_pair(out.tx, out.i));
+    }
+    return (nValueRet >= nTargetValue);
+  }
+
+  return (wallet.SelectCoinsMinConf(nTargetValue, 1, 6, vCoins, setCoinsRet, nValueRet) ||
+    wallet.SelectCoinsMinConf(nTargetValue, 1, 1, vCoins, setCoinsRet, nValueRet) ||
+    (bSpendZeroConfChange && wallet.SelectCoinsMinConf(nTargetValue, 0, 1, vCoins, setCoinsRet, nValueRet)));
+}
+
 NAN_METHOD(FillTransaction) {
   NanScope();
 
@@ -1232,10 +1255,59 @@ NAN_METHOD(FillTransaction) {
   CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
   ssData >> tx;
 
+  // Get setCoins
+  int64_t nValueTotal = 0;
+  CScript scriptPubKeyMain;
+  bool scriptPubKeySet = false;
+  for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
+    const CTxOut& txout = tx.vout[vo];
+    int64_t nValue = txout.nValue;
+    const CScript& scriptPubKey = txout.scriptPubKey;
+    if (!scriptPubKeySet) {
+      scriptPubKeyMain = scriptPubKey;
+      scriptPubKeySet = true;
+    }
+    nValueTotal += nValue;
+  }
+
+  int64_t nValue = nValueTotal;
+  // Check amount
+  if (nValue <= 0)
+    return NanThrowError("Invalid amount");
+  if (nValue + nTransactionFee > pwalletMain->GetBalance())
+    return NanThrowError("Insufficient funds");
+
+  CScript scriptPubKey = scriptPubKeyMain;
+  //CScript scriptPubKey;
+  //scriptPubKey.SetDestination(address);
+
+  CWalletTx wtxNew;
+
+  CReserveKey reservekey(pwalletMain);
+  int64_t nFeeRet = nTransactionFee;
+
+  if (pwalletMain->IsLocked()) {
+    return NanThrowError("Error: Wallet locked, unable to create transaction!");
+  }
+
+  const CCoinControl coinControl;
+
+  vector< pair<CScript, int64_t> > vecSend;
+  vecSend.push_back(make_pair(scriptPubKey, nValue));
+
+  int64_t nTotalValue = nValue + nFeeRet;
+  set<pair<const CWalletTx*,unsigned int> > setCoins;
+  int64_t nValueIn = 0;
+
+  //if (!pwalletMain->SelectCoins(nTotalValue, setCoins, nValueIn, &coinControl)) {
+  if (!SelectCoins(*pwalletMain, nTotalValue, setCoins, nValueIn, &coinControl)) {
+    return NanThrowError("Insufficient funds");
+  }
+
   // Fill vin
   if (tx.vin.empty()) {
     BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins) {
-      tx.vin.push_back(CTxIn(coin.first->GetHash(),coin.second));
+      tx.vin.push_back(CTxIn(coin.first->GetHash(), coin.second));
     }
   }
 
@@ -1250,7 +1322,7 @@ NAN_METHOD(FillTransaction) {
   Local<Object> entry = NanNew<Object>();
   ctx_to_jstx(tx, 0, entry);
 
-  NanReturnValue(tx);
+  NanReturnValue(entry);
 }
 
 /**
@@ -1917,6 +1989,18 @@ cblock_to_jsblock(const CBlock& block, const CBlockIndex* blockindex, Local<Obje
   obj->Set(NanNew<String>("height"), NanNew<Number>(blockindex->nHeight));
   obj->Set(NanNew<String>("version"), NanNew<Number>(block.nVersion));
   obj->Set(NanNew<String>("merkleroot"), NanNew<String>(block.hashMerkleRoot.GetHex()));
+
+  // Build merkle tree
+  if (block.vMerkleTree.empty()) {
+    block.BuildMerkleTree();
+  }
+  Local<Array> merkle = NanNew<Array>();
+  int mi = 0;
+  BOOST_FOREACH(uint256& hash, block.vMerkleTree) {
+    merkle->Set(mi, NanNew<String>(hash.ToString()));
+    mi++;
+  }
+  obj->Set(NanNew<String>("merkletree"), merkle);
 
   Local<Array> txs = NanNew<Array>();
   int ti = 0;
