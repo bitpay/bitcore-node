@@ -237,21 +237,8 @@ static volatile bool shutdownComplete = false;
  */
 
 struct async_node_data {
-  char *err_msg;
-  char *result;
-  Persistent<Function> callback;
-};
-
-/**
- * async_log_data
- * Where the uv async request data resides.
- */
-
-struct async_log_data {
-  char *err_msg;
-  int **out_pipe;
-  int **log_pipe;
-  char *result;
+  std::string err_msg;
+  std::string result;
   Persistent<Function> callback;
 };
 
@@ -362,19 +349,19 @@ NAN_METHOD(StartBitcoind) {
   // Run bitcoind's StartNode() on a separate thread.
   //
 
-  async_node_data *data_start_node = new async_node_data();
-  data_start_node->err_msg = NULL;
-  data_start_node->result = NULL;
-  data_start_node->callback = Persistent<Function>::New(callback);
+  async_node_data *data = new async_node_data();
+  data->err_msg = std::string("");
+  data->result = std::string("");
+  data->callback = Persistent<Function>::New(callback);
 
-  uv_work_t *req_start_node = new uv_work_t();
-  req_start_node->data = data_start_node;
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
 
-  int status_start_node = uv_queue_work(uv_default_loop(),
-    req_start_node, async_start_node_work,
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_start_node_work,
     (uv_after_work_cb)async_start_node_after);
 
-  assert(status_start_node == 0);
+  assert(status == 0);
 
   NanReturnValue(NanNew<Number>(-1));
 }
@@ -386,9 +373,9 @@ NAN_METHOD(StartBitcoind) {
 
 static void
 async_start_node_work(uv_work_t *req) {
-  async_node_data *node_data = static_cast<async_node_data*>(req->data);
+  async_node_data *data = static_cast<async_node_data*>(req->data);
   start_node();
-  node_data->result = (char *)strdup("start_node(): bitcoind opened.");
+  data->result = std::string("start_node(): bitcoind opened.");
 }
 
 /**
@@ -399,15 +386,14 @@ async_start_node_work(uv_work_t *req) {
 static void
 async_start_node_after(uv_work_t *req) {
   NanScope();
-  async_node_data *node_data = static_cast<async_node_data*>(req->data);
+  async_node_data *data = static_cast<async_node_data*>(req->data);
 
-  if (node_data->err_msg != NULL) {
-    Local<Value> err = Exception::Error(String::New(node_data->err_msg));
-    free(node_data->err_msg);
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    node_data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -415,22 +401,18 @@ async_start_node_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(String::New(node_data->result))
+      Local<Value>::New(String::New(data->result.c_str()))
     };
     TryCatch try_catch;
-    node_data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  // node_data->callback.Dispose();
+  // data->callback.Dispose();
 
-  if (node_data->result != NULL) {
-    free(node_data->result);
-  }
-
-  delete node_data;
+  delete data;
   delete req;
 }
 
@@ -536,19 +518,19 @@ NAN_METHOD(StopBitcoind) {
   // Run bitcoind's StartShutdown() on a separate thread.
   //
 
-  async_node_data *data_stop_node = new async_node_data();
-  data_stop_node->err_msg = NULL;
-  data_stop_node->result = NULL;
-  data_stop_node->callback = Persistent<Function>::New(callback);
+  async_node_data *data = new async_node_data();
+  data->err_msg = std::string("");
+  data->result = std::string("");
+  data->callback = Persistent<Function>::New(callback);
 
-  uv_work_t *req_stop_node = new uv_work_t();
-  req_stop_node->data = data_stop_node;
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
 
-  int status_stop_node = uv_queue_work(uv_default_loop(),
-    req_stop_node, async_stop_node_work,
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_stop_node_work,
     (uv_after_work_cb)async_stop_node_after);
 
-  assert(status_stop_node == 0);
+  assert(status == 0);
 
   NanReturnValue(Undefined());
 }
@@ -560,9 +542,9 @@ NAN_METHOD(StopBitcoind) {
 
 static void
 async_stop_node_work(uv_work_t *req) {
-  async_node_data *node_data = static_cast<async_node_data*>(req->data);
+  async_node_data *data = static_cast<async_node_data*>(req->data);
   StartShutdown();
-  node_data->result = (char *)strdup("stop_node(): bitcoind shutdown.");
+  data->result = std::string("stop_node(): bitcoind shutdown.");
 }
 
 /**
@@ -573,15 +555,14 @@ async_stop_node_work(uv_work_t *req) {
 static void
 async_stop_node_after(uv_work_t *req) {
   NanScope();
-  async_node_data* node_data = static_cast<async_node_data*>(req->data);
+  async_node_data* data = static_cast<async_node_data*>(req->data);
 
-  if (node_data->err_msg != NULL) {
-    Local<Value> err = Exception::Error(String::New(node_data->err_msg));
-    free(node_data->err_msg);
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    node_data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -589,22 +570,18 @@ async_stop_node_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(String::New(node_data->result))
+      Local<Value>::New(String::New(data->result.c_str()))
     };
     TryCatch try_catch;
-    node_data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  node_data->callback.Dispose();
+  data->callback.Dispose();
 
-  if (node_data->result != NULL) {
-    free(node_data->result);
-  }
-
-  delete node_data;
+  delete data;
   delete req;
 }
 
@@ -797,7 +774,7 @@ async_get_tx_after(uv_work_t *req) {
   } else {
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << tx;
-    string strHex = HexStr(ssTx.begin(), ssTx.end());
+    std::string strHex = HexStr(ssTx.begin(), ssTx.end());
 
     Local<Object> entry = NanNew<Object>();
     entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
@@ -1209,7 +1186,7 @@ NAN_METHOD(VerifyTransaction) {
   CValidationState state;
   bool valid = CheckTransaction(tx, state);
 
-  string reason;
+  std::string reason;
   bool standard = IsStandardTx(tx, reason);
 
   NanReturnValue(NanNew<Boolean>(valid && standard));
@@ -1220,7 +1197,7 @@ NAN_METHOD(VerifyTransaction) {
  */
 
 int64_t
-GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinDepth) {
+GetAccountBalance(CWalletDB& walletdb, const std::string& strAccount, int nMinDepth) {
   int64_t nBalance = 0;
 
   // Tally wallet transactions
@@ -1247,7 +1224,7 @@ GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinDepth) 
 }
 
 int64_t
-GetAccountBalance(const string& strAccount, int nMinDepth) {
+GetAccountBalance(const std::string& strAccount, int nMinDepth) {
   CWalletDB walletdb(pwalletMain->strWalletFile);
   return GetAccountBalance(walletdb, strAccount, nMinDepth);
 }
@@ -1683,7 +1660,7 @@ NAN_METHOD(ListAccounts) {
       it != pwalletMain->mapWallet.end(); ++it) {
     const CWalletTx& wtx = (*it).second;
     int64_t nFee;
-    string strSentAccount;
+    std::string strSentAccount;
     list<pair<CTxDestination, int64_t> > listReceived;
     list<pair<CTxDestination, int64_t> > listSent;
     int nDepth = wtx.GetDepthInMainChain();
@@ -1720,7 +1697,7 @@ NAN_METHOD(ListAccounts) {
     int i = 0;
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
-      const string& strName = item.second.name;
+      const std::string& strName = item.second.name;
       if (strName == accountBalance.first) {
         Local<Object> a = NanNew<Object>();
         a->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
@@ -1887,7 +1864,7 @@ cblock_to_js(const CBlock& block, const CBlockIndex* blockindex, Local<Object> o
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << tx;
-    string strHex = HexStr(ssTx.begin(), ssTx.end());
+    std::string strHex = HexStr(ssTx.begin(), ssTx.end());
     entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
     entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
@@ -1996,7 +1973,7 @@ static inline void
 ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
   CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
   ssTx << tx;
-  string strHex = HexStr(ssTx.begin(), ssTx.end());
+  std::string strHex = HexStr(ssTx.begin(), ssTx.end());
   entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
   entry->Set(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
