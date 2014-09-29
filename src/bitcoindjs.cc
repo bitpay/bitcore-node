@@ -349,10 +349,6 @@ static void
 async_start_node_work(uv_work_t *req) {
   async_node_data *node_data = static_cast<async_node_data*>(req->data);
   start_node();
-  while (!pwalletMain) {
-    useconds_t usec = 100 * 1000;
-    usleep(usec);
-  }
   node_data->result = (char *)strdup("start_node(): bitcoind opened.");
 }
 
@@ -432,8 +428,14 @@ start_node(void) {
 
   (boost::thread *)new boost::thread(boost::bind(&start_node_thread));
 
-  // horrible fix for a race condition
-  sleep(2);
+  // wait for wallet to be instantiated
+  // this also avoids a race condition with signals not being set up
+  while (!pwalletMain) {
+    useconds_t usec = 100 * 1000;
+    usleep(usec);
+  }
+
+  // drop the bitcoind signal handlers - we want our own
   signal(SIGINT, SIG_DFL);
   signal(SIGHUP, SIG_DFL);
 
