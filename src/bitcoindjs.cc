@@ -224,11 +224,13 @@ ctx_to_jstx(const CTransaction& tx, uint256 hashBlock, Local<Object> entry);
 static inline void
 cblock_to_jsblock(const CBlock& block, const CBlockIndex* blockindex, Local<Object> obj);
 
+#if 0
 static inline void
 jsblock_to_cblock(Local<Object> jsblock, CBlock& cblock);
 
 static inline void
 jstx_to_ctx(Local<Object> jstx, CTransaction& ctx);
+#endif
 
 extern "C" void
 init(Handle<Object>);
@@ -2070,13 +2072,15 @@ ctx_to_jstx(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
   }
 }
 
+#if 0
 static inline void
 jsblock_to_cblock(Local<Object> jsblock, CBlock& cblock) {
   const unsigned argc = 1;
   Local<Value> argv[argc] = {
     Local<Value>::New(jsblock)
   };
-  Local<String> block_hex__ = bitcoindjs_obj->Get("blockToHex")->Call(Context::GetCurrent()->Global(), argc, argv);
+  Local<Function> toHex = Local<Function>::Cast(bitcoindjs_obj->Get(NanNew<String>("blockToHex")));
+  Local<String> block_hex__ = toHex->Call(Context::GetCurrent()->Global(), argc, argv);
 
   String::Utf8Value block_hex_(block_hex__->ToString());
   std::string block_hex = std::string(*block_hex_);
@@ -2085,7 +2089,7 @@ jsblock_to_cblock(Local<Object> jsblock, CBlock& cblock) {
   try {
     ssData >> cblock;
   } catch (std::exception &e) {
-    return NanThrowError("Block decode failed");
+    NanThrowError("Block decode failed");
   }
 }
 
@@ -2095,7 +2099,8 @@ jstx_to_ctx(Local<Object> jstx, CTransaction& ctx) {
   Local<Value> argv[argc] = {
     Local<Value>::New(jstx)
   };
-  Local<String> tx_hex__ = bitcoindjs_obj->Get("txToHex")->Call(Context::GetCurrent()->Global(), argc, argv);
+  Local<Function> toHex = Local<Function>::Cast(bitcoindjs_obj->Get(NanNew<String>("txToHex")));
+  Local<String> tx_hex__ = toHex->Call(Context::GetCurrent()->Global(), argc, argv);
 
   String::Utf8Value tx_hex_(tx_hex__->ToString());
   std::string tx_hex = std::string(*tx_hex_);
@@ -2104,9 +2109,10 @@ jstx_to_ctx(Local<Object> jstx, CTransaction& ctx) {
   try {
     ssData >> ctx;
   } catch (std::exception &e) {
-    return NanThrowError("TX decode failed");
+    NanThrowError("TX decode failed");
   }
 }
+#endif
 
 /**
  * Init
