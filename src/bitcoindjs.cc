@@ -140,7 +140,7 @@ NAN_METHOD(WalletNewAddress);
 NAN_METHOD(GetAccountAddress);
 NAN_METHOD(SetAccount);
 NAN_METHOD(GetAccount);
-NAN_METHOD(SendToAddress);
+NAN_METHOD(WalletSendTo);
 NAN_METHOD(SignMessage);
 NAN_METHOD(VerifyMessage);
 NAN_METHOD(GetBalance);
@@ -203,6 +203,12 @@ async_broadcast_tx(uv_work_t *req);
 
 static void
 async_broadcast_tx_after(uv_work_t *req);
+
+static void
+async_wallet_sendto(uv_work_t *req);
+
+static void
+async_wallet_sendto_after(uv_work_t *req);
 
 static inline void
 ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry);
@@ -301,6 +307,19 @@ struct async_broadcast_tx_data {
   std::string tx_hash;
   bool override_fees;
   bool own_only;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_wallet_sendto_data
+ */
+
+struct async_wallet_sendto_data {
+  std::string err_msg;
+  std::string tx_hash;
+  std::string address;
+  int64_t nAmount;
+  CWalletTx wtx;
   Persistent<Function> callback;
 };
 
@@ -1300,27 +1319,25 @@ NAN_METHOD(GetAccount) {
   NanReturnValue(Undefined());
 }
 
-NAN_METHOD(SendToAddress) {
+NAN_METHOD(WalletSendTo) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.sendToAddress(options)");
+      "Usage: bitcoindjs.walletSendTo(options)");
   }
 
   Local<Object> options = Local<Object>::Cast(args[0]);
 
+  async_wallet_sendto_data *data = new async_wallet_sendto_data();
+
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
-
-  CBitcoinAddress address(addr);
-
-  if (!address.IsValid()) {
-    return NanThrowError("Invalid Bitcoin address");
-  }
+  data->address = addr;
 
   // Amount
   int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue();
+  data->nAmount = nAmount;
 
   // Wallet comments
   CWalletTx wtx;
@@ -1334,20 +1351,83 @@ NAN_METHOD(SendToAddress) {
     std::string to = std::string(*to_);
     wtx.mapValue["to"] = to;
   }
+  data->wtx = wtx;
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_wallet_sendto,
+    (uv_after_work_cb)async_wallet_sendto_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_wallet_sendto(uv_work_t *req) {
+  async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
+
+  CBitcoinAddress address(data->address);
+
+  if (!address.IsValid()) {
+    data->err_msg = std::string("Invalid Bitcoin address");
+    return;
+  }
+
+  // Amount
+  int64_t nAmount = data->nAmount;
+
+  // Wallet Transaction
+  CWalletTx wtx = data->wtx;
 
   // EnsureWalletIsUnlocked();
   if (pwalletMain->IsLocked()) {
-    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+    data->err_msg = std::string("Please enter the wallet passphrase with walletpassphrase first.");
+    return;
   }
 
-  string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
+  std::string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
   if (strError != "") {
-    return NanThrowError(strError.c_str());
+    data->err_msg = strError;
+    return;
   }
 
-  std::string tx_hash = wtx.GetHash().GetHex();
+  data->tx_hash = wtx.GetHash().GetHex();
+}
 
-  NanReturnValue(NanNew<String>(tx_hash));
+static void
+async_wallet_sendto_after(uv_work_t *req) {
+  NanScope();
+  async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(NanNew<String>(data->tx_hash))
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
 }
 
 NAN_METHOD(SignMessage) {
@@ -1939,7 +2019,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getAccountAddress", GetAccountAddress);
   NODE_SET_METHOD(target, "setAccount", SetAccount);
   NODE_SET_METHOD(target, "getAccount", GetAccount);
-  NODE_SET_METHOD(target, "sendToAddress", SendToAddress);
+  NODE_SET_METHOD(target, "walletSendTo", WalletSendTo);
   NODE_SET_METHOD(target, "signMessage", SignMessage);
   NODE_SET_METHOD(target, "verifyMessage", VerifyMessage);
   NODE_SET_METHOD(target, "getBalance", GetBalance);
