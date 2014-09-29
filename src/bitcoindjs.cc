@@ -124,6 +124,8 @@ extern CWallet *pwalletMain;
 using namespace node;
 using namespace v8;
 
+Handle<Object> bitcoindjs_obj;
+
 NAN_METHOD(StartBitcoind);
 NAN_METHOD(IsStopping);
 NAN_METHOD(IsStopped);
@@ -217,10 +219,16 @@ static void
 async_wallet_sendfrom_after(uv_work_t *req);
 
 static inline void
-ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry);
+ctx_to_jstx(const CTransaction& tx, uint256 hashBlock, Local<Object> entry);
 
 static inline void
-cblock_to_js(const CBlock& block, const CBlockIndex* blockindex, Local<Object> obj);
+cblock_to_jsblock(const CBlock& block, const CBlockIndex* blockindex, Local<Object> obj);
+
+static inline void
+jsblock_to_cblock(Local<Object> jsblock, CBlock& cblock);
+
+static inline void
+jstx_to_ctx(Local<Object> jstx, CTransaction& ctx);
 
 extern "C" void
 init(Handle<Object>);
@@ -659,7 +667,7 @@ async_get_block_after(uv_work_t *req) {
     const CBlockIndex* blockindex = data->result_blockindex;
 
     Local<Object> obj = NanNew<Object>();
-    cblock_to_js(block, blockindex, obj);
+    cblock_to_jsblock(block, blockindex, obj);
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
@@ -778,7 +786,7 @@ async_get_tx_after(uv_work_t *req) {
 
     Local<Object> entry = NanNew<Object>();
     entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
-    ctx_to_js(tx, hashBlock, entry);
+    ctx_to_jstx(tx, hashBlock, entry);
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
@@ -875,7 +883,7 @@ async_poll_blocks_after(uv_work_t *req) {
         CBlock block;
         if (ReadBlockFromDisk(block, pindex)) {
           Local<Object> obj = NanNew<Object>();
-          cblock_to_js(block, pindex, obj);
+          cblock_to_jsblock(block, pindex, obj);
           blocks->Set(j, obj);
           j++;
         }
@@ -963,7 +971,7 @@ async_poll_mempool_after(uv_work_t *req) {
       for (; it != mempool.mapTx.end(); it++) {
         const CTransaction& tx = it->second.GetTx();
         Local<Object> entry = NanNew<Object>();
-        ctx_to_js(tx, 0, entry);
+        ctx_to_jstx(tx, 0, entry);
         txs->Set(ti, entry);
         ti++;
       }
@@ -974,7 +982,7 @@ async_poll_mempool_after(uv_work_t *req) {
       for (; it != mempool.mapNextTx.end(); it++) {
         const CTransaction tx = *it->second.ptx;
         Local<Object> entry = NanNew<Object>();
-        ctx_to_js(tx, 0, entry);
+        ctx_to_jstx(tx, 0, entry);
         txs->Set(ti, entry);
         ti++;
       }
@@ -1058,6 +1066,8 @@ async_broadcast_tx(uv_work_t *req) {
     fOwnOnly = true;
   }
 
+  // jstx_to_ctx(jstx, ctx);
+
   try {
     ssData >> tx;
   } catch (std::exception &e) {
@@ -1110,11 +1120,12 @@ async_broadcast_tx_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
+    // jstx_to_ctx(jstx, ctx);
     CDataStream ssData(ParseHex(data->tx_hex), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction tx;
     ssData >> tx;
     Local<Object> entry = NanNew<Object>();
-    ctx_to_js(tx, 0, entry);
+    ctx_to_jstx(tx, 0, entry);
 
     const unsigned argc = 3;
     Local<Value> argv[argc] = {
@@ -1152,6 +1163,7 @@ NAN_METHOD(VerifyBlock) {
   String::Utf8Value block_hex_(js_block->Get(NanNew<String>("hex"))->ToString());
   std::string block_hex = std::string(*block_hex_);
 
+  // jsblock_to_cblock(jsblock, cblock);
   CBlock block;
   CDataStream ssData(ParseHex(block_hex), SER_NETWORK, PROTOCOL_VERSION);
   ssData >> block;
@@ -1179,6 +1191,7 @@ NAN_METHOD(VerifyTransaction) {
   String::Utf8Value tx_hex_(js_tx->Get(NanNew<String>("hex"))->ToString());
   std::string tx_hex = std::string(*tx_hex_);
 
+  // jstx_to_ctx(jstx, ctx);
   CTransaction tx;
   CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
   ssData >> tx;
@@ -1847,7 +1860,7 @@ NAN_METHOD(WalletSetTxFee) {
  */
 
 static inline void
-cblock_to_js(const CBlock& block, const CBlockIndex* blockindex, Local<Object> obj) {
+cblock_to_jsblock(const CBlock& block, const CBlockIndex* blockindex, Local<Object> obj) {
   obj->Set(NanNew<String>("hash"), NanNew<String>(block.GetHash().GetHex().c_str()));
   CMerkleTx txGen(block.vtx[0]);
   txGen.SetMerkleBranch(&block);
@@ -1970,7 +1983,7 @@ cblock_to_js(const CBlock& block, const CBlockIndex* blockindex, Local<Object> o
 }
 
 static inline void
-ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
+ctx_to_jstx(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
   CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
   ssTx << tx;
   std::string strHex = HexStr(ssTx.begin(), ssTx.end());
@@ -2057,6 +2070,44 @@ ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
   }
 }
 
+static inline void
+jsblock_to_cblock(Local<Object> jsblock, CBlock& cblock) {
+  const unsigned argc = 1;
+  Local<Value> argv[argc] = {
+    Local<Value>::New(jsblock)
+  };
+  Local<String> block_hex__ = bitcoindjs_obj->Get("blockToHex")->Call(Context::GetCurrent()->Global(), argc, argv);
+
+  String::Utf8Value block_hex_(block_hex__->ToString());
+  std::string block_hex = std::string(*block_hex_);
+
+  CDataStream ssData(ParseHex(block_hex), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> cblock;
+  } catch (std::exception &e) {
+    return NanThrowError("Block decode failed");
+  }
+}
+
+static inline void
+jstx_to_ctx(Local<Object> jstx, CTransaction& ctx) {
+  const unsigned argc = 1;
+  Local<Value> argv[argc] = {
+    Local<Value>::New(jstx)
+  };
+  Local<String> tx_hex__ = bitcoindjs_obj->Get("txToHex")->Call(Context::GetCurrent()->Global(), argc, argv);
+
+  String::Utf8Value tx_hex_(tx_hex__->ToString());
+  std::string tx_hex = std::string(*tx_hex_);
+
+  CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> ctx;
+  } catch (std::exception &e) {
+    return NanThrowError("TX decode failed");
+  }
+}
+
 /**
  * Init
  */
@@ -2064,6 +2115,9 @@ ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
 extern "C" void
 init(Handle<Object> target) {
   NanScope();
+
+  bitcoindjs_obj = target;
+
   NODE_SET_METHOD(target, "start", StartBitcoind);
   NODE_SET_METHOD(target, "stop", StopBitcoind);
   NODE_SET_METHOD(target, "stopping", IsStopping);
