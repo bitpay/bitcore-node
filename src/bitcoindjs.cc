@@ -210,6 +210,12 @@ async_wallet_sendto(uv_work_t *req);
 static void
 async_wallet_sendto_after(uv_work_t *req);
 
+static void
+async_wallet_sendfrom(uv_work_t *req);
+
+static void
+async_wallet_sendfrom_after(uv_work_t *req);
+
 static inline void
 ctx_to_js(const CTransaction& tx, uint256 hashBlock, Local<Object> entry);
 
@@ -319,6 +325,20 @@ struct async_wallet_sendto_data {
   std::string tx_hash;
   std::string address;
   int64_t nAmount;
+  CWalletTx wtx;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_wallet_sendfrom_data
+ */
+
+struct async_wallet_sendfrom_data {
+  std::string err_msg;
+  std::string tx_hash;
+  std::string address;
+  int64_t nAmount;
+  int nMinDepth;
   CWalletTx wtx;
   Persistent<Function> callback;
 };
@@ -1504,23 +1524,24 @@ NAN_METHOD(SendFrom) {
 
   Local<Object> options = Local<Object>::Cast(args[0]);
 
-  String::Utf8Value from_(options->Get(NanNew<String>("from"))->ToString());
-  std::string from = std::string(*from_);
+  async_wallet_sendfrom_data *data = new async_wallet_sendfrom_data();
+
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
+  data->address = addr;
 
-  string strAccount = from;
-  CBitcoinAddress address(addr);
-
-  if (!address.IsValid()) {
-    return NanThrowError("Invalid Bitcoin address");
-  }
+  String::Utf8Value from_(options->Get(NanNew<String>("from"))->ToString());
+  std::string from = std::string(*from_);
+  std::string strAccount = from;
 
   int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue();
+  data->nAmount = nAmount;
+
   int nMinDepth = 1;
   if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
     nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
   }
+  data->nMinDepth = nMinDepth;
 
   CWalletTx wtx;
   wtx.strFromAccount = strAccount;
@@ -1534,27 +1555,90 @@ NAN_METHOD(SendFrom) {
     std::string to = std::string(*to_);
     wtx.mapValue["to"] = to;
   }
+  data->wtx = wtx;
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_wallet_sendfrom,
+    (uv_after_work_cb)async_wallet_sendfrom_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_wallet_sendfrom(uv_work_t *req) {
+  async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
+
+  CBitcoinAddress address(data->address);
+
+  if (!address.IsValid()) {
+    data->err_msg = std::string("Invalid Bitcoin address");
+    return;
+  }
+
+  int64_t nAmount = data->nAmount;
+  int nMinDepth = data->nMinDepth;
+  CWalletTx wtx = data->wtx;
+  std::string strAccount = data->wtx.strFromAccount;
 
   // EnsureWalletIsUnlocked();
   if (pwalletMain->IsLocked()) {
-    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+    data->err_msg = std::string("Please enter the wallet passphrase with walletpassphrase first.");
+    return;
   }
 
   // Check funds
   int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
   if (nAmount > nBalance) {
-    return NanThrowError("Account has insufficient funds");
+    data->err_msg = std::string("Account has insufficient funds");
+    return;
   }
 
   // Send
-  string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
+  std::string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
   if (strError != "") {
-    return NanThrowError(strError.c_str());
+    data->err_msg = strError;
+    return;
   }
 
-  std::string tx_hash = wtx.GetHash().GetHex();
+  data->tx_hash = wtx.GetHash().GetHex();
+}
 
-  NanReturnValue(NanNew<String>(tx_hash));
+static void
+async_wallet_sendfrom_after(uv_work_t *req) {
+  NanScope();
+  async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(NanNew<String>(data->tx_hash))
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
 }
 
 NAN_METHOD(ListTransactions) {
