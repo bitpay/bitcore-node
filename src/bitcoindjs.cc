@@ -2201,6 +2201,170 @@ hextx_to_ctx(std::string tx_hex, CTransaction& ctx) {
   }
 }
 
+#if 0
+static inline void
+jsblock_to_cblock(const Local<Object> obj, CBlock& block, CBlockIndex* blockindex) {
+  obj->Get(NanNew<String>("confirmations"))->IntegerValue();
+  obj->Get(NanNew<String>("size"))->IntegerValue();
+  obj->Get(NanNew<String>("height"))->IntegerValue();
+  obj->Get(NanNew<String>("version"))->IntegerValue();
+  obj->Get(NanNew<String>("merkleroot"))->IntegerValue();
+
+  Local<Array> txs = obj->Get("tx");
+  for (int ti = 0; ti < txs.Length(); ti++) {
+    Local<Object> entry = txs->Get(ti);
+    CTransaction tx;
+
+    entry->Get(NanNew<String>("hex"));
+    entry->Get(NanNew<String>("txid"));
+    entry->Get(NanNew<String>("version"));
+    entry->Get(NanNew<String>("locktime"));
+
+    Local<Array> vin = entry->Get("vin");
+    for (int vi = 0; vi < vin.Length(); vi++) {
+      CTxIn txin;
+      Local<Object> in = vin->Get(vi);
+      if (in->Get(NanNew<String>("coinbase"))->IsString()) {
+        in->Get(NanNew<String>("coinbase"));
+      } else {
+        in->Get(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+        in->Get(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
+        Local<Object> o = in->Get(NanNew<String>("scriptSig"), o);
+        o->Get(NanNew<String>("asm"));
+        o->Get(NanNew<String>("hex"));
+      }
+      in->Get(NanNew<String>("sequence"));
+    }
+
+    Local<Array> vout = entry->Get("vout");
+    for (unsigned int vo = 0; vo < vout.Length(); vo++) {
+      const CTxOut txout;
+      Local<Object> out = vout->Get(vo);
+
+      out->Get(NanNew<String>("value"));
+      out->Get(NanNew<String>("n"));
+
+      Local<Object> o = out->Get(NanNew<String>("scriptPubKey"));
+      {
+        CScript scriptPubKey;
+        Local<Object> out = o;
+        bool fIncludeHex = true;
+
+        txnouttype type;
+        vector<CTxDestination> addresses;
+        int nRequired;
+        out->Get(NanNew<String>("asm"));
+        if (fIncludeHex) {
+          out->Set(NanNew<String>("hex"));
+        }
+        if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+          out->Set(NanNew<String>("type"));
+        } else {
+          out->Set(NanNew<String>("reqSigs"));
+          out->Set(NanNew<String>("type"));
+          Local<Array> a = out->Get("addresses");
+          for (int ai = 0; ai < a.Length(); ai++) {
+            CTxDestination addr;
+            a->Get(ai);
+          }
+        }
+      }
+    }
+
+    if (entry->Get(NanNew<String>("blockhash"))->IsString()) {
+      const uint256 hashBlock;
+      entry->Get(NanNew<String>("blockhash"));
+      if (entry->Get(NanNew<String>("time"))->IsNumber()) {
+        entry->Get(NanNew<String>("confirmations"));
+        entry->Get(NanNew<String>("time"));
+        entry->Get(NanNew<String>("blocktime"));
+      } else {
+        entry->Get(NanNew<String>("confirmations"));
+      }
+    }
+  }
+
+  obj->Get(NanNew<String>("time"));
+  obj->Get(NanNew<String>("nonce"));
+  obj->Get(NanNew<String>("bits"));
+  obj->Get(NanNew<String>("difficulty"));
+  obj->Get(NanNew<String>("chainwork"));
+  if (obj->Get(NanNew<String>("previousblockhash"))->IsString()) {
+    obj->Get(NanNew<String>("previousblockhash"));
+  }
+  if (obj->Get(NanNew<String>("nextblockhash"))->IsString()) {
+    CBlockIndex pnext;
+    obj->Get(NanNew<String>("nextblockhash"));
+  }
+}
+
+static inline void
+jstx_to_ctx(const Local<Object> entry, CTransaction& tx, uint256 hashBlock) {
+  entry->Get(NanNew<String>("hex"), NanNew<String>(strHex));
+  entry->Get(NanNew<String>("txid"), NanNew<String>(tx.GetHash().GetHex()));
+  entry->Get(NanNew<String>("version"), NanNew<Number>(tx.nVersion));
+  entry->Get(NanNew<String>("locktime"), NanNew<Number>(tx.nLockTime));
+
+  Local<Array> vin = entry->Get("vin");
+  for (int vi = 0; vi < vin.Length(); vi++) {
+    const CTxIn txin;
+    Local<Object> in = vin->Get(vi);
+    if (in->Get(NanNew<String>("coinbase")->IsString()) {
+      in->Get(NanNew<String>("coinbase"));
+    } else {
+      in->Get(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+      in->Get(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
+      Local<Object> o = in->Get(NanNew<String>("scriptSig"));
+      o->Get(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
+      o->Get(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+    }
+    in->Get(NanNew<String>("sequence"), NanNew<Number>((boost::int64_t)txin.nSequence));
+  }
+
+  Local<Array> vout = entry->Get("vout");
+  for (unsigned int vo = 0; vo < vout.Length(); vo++) {
+    CTxOut txout;
+    Local<Object> out = vout->Get(vo);
+    out->Get(NanNew<String>("value"));
+    out->Get(NanNew<String>("n"));
+
+    Local<Object> o = out->Get(NanNew<String>("scriptPubKey"));
+    {
+      CScript scriptPubKey;
+      Local<Object> out = o;
+
+      out->Get(NanNew<String>("asm"));
+      if (out->Get(NanNew<String>("hex"))->IsString()) {
+        out->Get(NanNew<String>("hex"));
+      }
+      if (out->Get(NanNew<String>("type"))->IsString()) {
+        out->Get(NanNew<String>("type"));
+      } else {
+        out->Get(NanNew<String>("reqSigs"));
+        out->Get(NanNew<String>("type"));
+        Local<Array> a = out->Get("addresses");
+        for (int ai = 0; ai < a.Length(); ai++) {
+          CTxDestination addr;
+          a->get(ai);
+        }
+      }
+    }
+  }
+
+  if (entry->Get(NanNew<String>("blockhash"))->IsString()) {
+    entry->Get(NanNew<String>("blockhash"));
+    CBlockIndex pindex;
+    if (entry->Get("time")->IsNumber()) {
+      entry->Get(NanNew<String>("confirmations"));
+      entry->Get(NanNew<String>("time"));
+      entry->Get(NanNew<String>("blocktime"));
+    } else {
+      entry->Get(NanNew<String>("confirmations"));
+    }
+  }
+}
+#endif
+
 /**
  * Init
  */
