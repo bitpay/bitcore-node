@@ -51,7 +51,7 @@
 #include "init.h"
 #include "netbase.h"
 #include "rpcserver.h"
-// #include "rpcwallet.h"
+#include "rpcwallet.h"
 #include "txmempool.h"
 #include "bloom.h"
 #include "coins.h"
@@ -1216,26 +1216,6 @@ NAN_METHOD(VerifyTransaction) {
   NanReturnValue(NanNew<Boolean>(valid && standard));
 }
 
-bool SelectCoins(CWallet& wallet, int64_t nTargetValue,
-                set<pair<const CWalletTx*,unsigned int> >& setCoinsRet,
-                int64_t& nValueRet, const CCoinControl* coinControl) {
-  vector<COutput> vCoins;
-  wallet.AvailableCoins(vCoins, true, coinControl);
-
-  // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
-  if (coinControl && coinControl->HasSelected()) {
-    BOOST_FOREACH(const COutput& out, vCoins) {
-      nValueRet += out.tx->vout[out.i].nValue;
-      setCoinsRet.insert(make_pair(out.tx, out.i));
-    }
-    return (nValueRet >= nTargetValue);
-  }
-
-  return (wallet.SelectCoinsMinConf(nTargetValue, 1, 6, vCoins, setCoinsRet, nValueRet) ||
-    wallet.SelectCoinsMinConf(nTargetValue, 1, 1, vCoins, setCoinsRet, nValueRet) ||
-    (bSpendZeroConfChange && wallet.SelectCoinsMinConf(nTargetValue, 0, 1, vCoins, setCoinsRet, nValueRet)));
-}
-
 NAN_METHOD(FillTransaction) {
   NanScope();
 
@@ -1297,9 +1277,7 @@ NAN_METHOD(FillTransaction) {
   set<pair<const CWalletTx*,unsigned int> > setCoins;
   int64_t nValueIn = 0;
 
-  // XXX CWallet::SelectCoins() needs to be made public!
-  // if (!pwalletMain->SelectCoins(nTotalValue, setCoins, nValueIn, coinControl)) {
-  if (!SelectCoins(*pwalletMain, nTotalValue, setCoins, nValueIn, coinControl)) {
+  if (!pwalletMain->SelectCoins(nTotalValue, setCoins, nValueIn, coinControl)) {
     return NanThrowError("Insufficient funds");
   }
 
@@ -1327,39 +1305,6 @@ NAN_METHOD(FillTransaction) {
 /**
  * Wallet
  */
-
-int64_t
-GetAccountBalance(CWalletDB& walletdb, const std::string& strAccount, int nMinDepth) {
-  int64_t nBalance = 0;
-
-  // Tally wallet transactions
-  for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
-      it != pwalletMain->mapWallet.end(); ++it) {
-    const CWalletTx& wtx = (*it).second;
-    if (!IsFinalTx(wtx) || wtx.GetBlocksToMaturity() > 0 || wtx.GetDepthInMainChain() < 0) {
-      continue;
-    }
-
-    int64_t nReceived, nSent, nFee;
-    wtx.GetAccountAmounts(strAccount, nReceived, nSent, nFee);
-
-    if (nReceived != 0 && wtx.GetDepthInMainChain() >= nMinDepth) {
-      nBalance += nReceived;
-    }
-    nBalance -= nSent + nFee;
-  }
-
-  // Tally internal accounting entries
-  nBalance += walletdb.GetAccountCreditDebit(strAccount);
-
-  return nBalance;
-}
-
-int64_t
-GetAccountBalance(const std::string& strAccount, int nMinDepth) {
-  CWalletDB walletdb(pwalletMain->strWalletFile);
-  return GetAccountBalance(walletdb, strAccount, nMinDepth);
-}
 
 NAN_METHOD(WalletNewAddress) {
   NanScope();
