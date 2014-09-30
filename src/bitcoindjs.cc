@@ -478,6 +478,7 @@ start_node(void) {
   // drop the bitcoind signal handlers - we want our own
   signal(SIGINT, SIG_DFL);
   signal(SIGHUP, SIG_DFL);
+  signal(SIGQUIT, SIG_DFL);
 
   return 0;
 }
