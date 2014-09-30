@@ -894,6 +894,7 @@ async_poll_blocks_after(uv_work_t *req) {
       CBlockIndex *pindex = chainActive[i];
       if (pindex != NULL) {
         CBlock block;
+        // XXX Move this to async_poll_blocks!
         if (ReadBlockFromDisk(block, pindex)) {
           Local<Object> obj = NanNew<Object>();
           cblock_to_jsblock(block, pindex, obj);
