@@ -1285,9 +1285,6 @@ NAN_METHOD(FillTransaction) {
 
   CScript scriptPubKey = scriptPubKeyMain;
 
-  CWalletTx wtxNew;
-
-  CReserveKey reservekey(pwalletMain);
   int64_t nFeeRet = nTransactionFee;
 
   if (pwalletMain->IsLocked()) {
@@ -1295,9 +1292,6 @@ NAN_METHOD(FillTransaction) {
   }
 
   CCoinControl* coinControl = new CCoinControl();
-
-  vector< pair<CScript, int64_t> > vecSend;
-  vecSend.push_back(make_pair(scriptPubKey, nValue));
 
   int64_t nTotalValue = nValue + nFeeRet;
   set<pair<const CWalletTx*,unsigned int> > setCoins;
@@ -1310,10 +1304,9 @@ NAN_METHOD(FillTransaction) {
   }
 
   // Fill inputs if they aren't already filled
-  if (tx.vin.empty()) {
-    BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins) {
-      tx.vin.push_back(CTxIn(coin.first->GetHash(), coin.second));
-    }
+  tx.vin.clear();
+  BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins) {
+    tx.vin.push_back(CTxIn(coin.first->GetHash(), coin.second));
   }
 
   // Sign everything
