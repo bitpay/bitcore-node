@@ -88,6 +88,7 @@
 
 #include <stdint.h>
 #include <signal.h>
+#include <stdio.h>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
@@ -1226,7 +1227,7 @@ NAN_METHOD(FillTransaction) {
   }
 
   Local<Object> js_tx = Local<Object>::Cast(args[0]);
-  Local<Object> options = Local<Object>::Cast(args[1]);
+  // Local<Object> options = Local<Object>::Cast(args[1]);
 
   String::Utf8Value tx_hex_(js_tx->Get(NanNew<String>("hex"))->ToString());
   std::string tx_hex = std::string(*tx_hex_);
@@ -2363,6 +2364,41 @@ jstx_to_ctx(const Local<Object> entry, CTransaction& tx, uint256 hashBlock) {
       entry->Get(NanNew<String>("confirmations"));
     }
   }
+}
+#endif
+
+/**
+ * Hooks
+ */
+
+#if 0
+static int last_height = -1;
+
+extern "C" void __attribute__ ((constructor))
+trace_begin(void) {
+  return;
+}
+
+extern "C" void __attribute__ ((destructor))
+trace_end(void) {
+  return;
+}
+
+extern "C" void
+__cyg_profile_func_enter(void *func,  void *caller) {
+  return;
+}
+
+extern "C" void
+__cyg_profile_func_exit(void *func, void *caller) {
+  int cur_height = chainActive.Height();
+  if (cur_height != last_height) {
+    printf("new block\n");
+    last_height = cur_height;
+  }
+  // if (func == &AcceptBlock || caller == &AcceptBlock || func == AcceptBlock || caller == AcceptBlock) {
+  //   printf("accept block\n");
+  // }
 }
 #endif
 
