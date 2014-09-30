@@ -41,7 +41,6 @@
     'cflags_cc': [
       '-fexceptions',
       '-frtti',
-      # '-finstrument-functions',
     ],
     'libraries': [
       # standard libs:

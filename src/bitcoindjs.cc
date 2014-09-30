@@ -2368,41 +2368,6 @@ jstx_to_ctx(const Local<Object> entry, CTransaction& tx, uint256 hashBlock) {
 #endif
 
 /**
- * Hooks
- */
-
-#if 0
-static int last_height = -1;
-
-extern "C" void __attribute__ ((constructor))
-trace_begin(void) {
-  return;
-}
-
-extern "C" void __attribute__ ((destructor))
-trace_end(void) {
-  return;
-}
-
-extern "C" void
-__cyg_profile_func_enter(void *func,  void *caller) {
-  return;
-}
-
-extern "C" void
-__cyg_profile_func_exit(void *func, void *caller) {
-  int cur_height = chainActive.Height();
-  if (cur_height != last_height) {
-    printf("new block\n");
-    last_height = cur_height;
-  }
-  // if (func == &AcceptBlock || caller == &AcceptBlock || func == AcceptBlock || caller == AcceptBlock) {
-  //   printf("accept block\n");
-  // }
-}
-#endif
-
-/**
  * Init
  */
 
