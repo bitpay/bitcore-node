@@ -1235,26 +1235,13 @@ NAN_METHOD(FillTransaction) {
   CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
   ssData >> tx;
 
-  // Destination output
-  unsigned int d_output = 0;
-  if (options->Get(NanNew<String>("output"))->IsNumber()) {
-    d_output = options->Get(NanNew<String>("output"))->IntegerValue();
-    if (d_output >= tx.vout.size()) {
-      return NanThrowError("Destination output does not exist");
-    }
-  }
-
   // Get total value of outputs
   // Get the scriptPubKey of the first output (presumably our destination)
   int64_t nValue = 0;
-  CScript scriptPubKeyMain;
   for (unsigned int vo = 0; vo < tx.vout.size(); vo++) {
     const CTxOut& txout = tx.vout[vo];
     int64_t value = txout.nValue;
     const CScript& scriptPubKey = txout.scriptPubKey;
-    if (vo == d_output) {
-      scriptPubKeyMain = scriptPubKey;
-    }
     nValue += value;
   }
 
@@ -1262,8 +1249,6 @@ NAN_METHOD(FillTransaction) {
     return NanThrowError("Invalid amount");
   if (nValue + nTransactionFee > pwalletMain->GetBalance())
     return NanThrowError("Insufficient funds");
-
-  CScript scriptPubKey = scriptPubKeyMain;
 
   int64_t nFeeRet = nTransactionFee;
 
