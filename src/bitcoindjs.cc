@@ -51,6 +51,7 @@
 #include "init.h"
 #include "netbase.h"
 #include "rpcserver.h"
+// #include "rpcwallet.h"
 #include "txmempool.h"
 #include "bloom.h"
 #include "coins.h"
