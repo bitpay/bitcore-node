@@ -151,6 +151,7 @@ NAN_METHOD(WalletSendTo);
 NAN_METHOD(WalletSignMessage);
 NAN_METHOD(WalletVerifyMessage);
 NAN_METHOD(WalletGetBalance);
+NAN_METHOD(WalletCreateMultiSigAddress);
 NAN_METHOD(WalletGetUnconfirmedBalance);
 NAN_METHOD(WalletSendFrom);
 NAN_METHOD(WalletListTransactions);
@@ -1615,6 +1616,79 @@ NAN_METHOD(WalletVerifyMessage) {
   NanReturnValue(NanNew<Boolean>(pubkey.GetID() == keyID));
 }
 
+NAN_METHOD(WalletCreateMultiSigAddress) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletCreateMultiSigAddress(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  int nRequired = options->Get(NanNew<String>("nRequired"))->IntegerValue();
+  Local<Array> keys = options->Get(NanNew<String>("keys"));
+
+  // Gather public keys
+  if (nRequired < 1) {
+    return NanThrowError("a multisignature address must require at least one key to redeem");
+  }
+  if ((int)keys.size() < nRequired) {
+    return NanThrowError(
+      strprintf("not enough keys supplied "
+                "(got %"PRIszu" keys, but need at least %d to redeem)", keys.Length(), nRequired));
+  }
+
+  std::vector<CPubKey> pubkeys;
+  pubkeys.resize(keys.Length());
+
+  for (unsigned int i = 0; i < keys.Length(); i++) {
+    String::Utf8Value key_(keys->Get(i)->ToString());
+    const std::string& ks = std::string(*key_);
+
+#ifdef ENABLE_WALLET
+    // Case 1: Bitcoin address and we have full public key:
+    CBitcoinAddress address(ks);
+    if (pwalletMain && address.IsValid()) {
+      CKeyID keyID;
+      if (!address.GetKeyID(keyID)) {
+        return NanThrowError(strprintf("%s does not refer to a key", ks));
+      }
+      CPubKey vchPubKey;
+      if (!pwalletMain->GetPubKey(keyID, vchPubKey)) {
+        return NanThrowError(strprintf("no full public key for address %s", ks));
+      }
+      if (!vchPubKey.IsFullyValid()) {
+        return NanThrowError("Invalid public key: " + ks);
+      }
+      pubkeys[i] = vchPubKey;
+    } else
+    // Case 2: hex public key
+#endif
+    if (IsHex(ks)) {
+      CPubKey vchPubKey(ParseHex(ks));
+      if (!vchPubKey.IsFullyValid()) {
+        return NanThrowError("Invalid public key: " + ks);
+      }
+      pubkeys[i] = vchPubKey;
+    } else {
+      return NanThrowError("Invalid public key: " + ks);
+    }
+  }
+  CScript inner;
+  inner.SetMultisig(nRequired, pubkeys);
+
+  // Construct using pay-to-script-hash:
+  CScriptID innerID = inner.GetID();
+  CBitcoinAddress address(innerID);
+
+  Local<Object> result = NanNew<Object>();
+  result->Set(NanNew<String>("address"), address.ToString());
+  result->Set(NanNew<String>("redeemScript"), HexStr(inner.begin(), inner.end()));
+
+  NanReturnValue(result);
+}
+
 NAN_METHOD(WalletGetBalance) {
   NanScope();
 
@@ -2503,6 +2577,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletSignMessage", WalletSignMessage);
   NODE_SET_METHOD(target, "walletVerifyMessage", WalletVerifyMessage);
   NODE_SET_METHOD(target, "walletGetBalance", WalletGetBalance);
+  NODE_SET_METHOD(target, "walletCreateMultiSigAddress", WalletCreateMultiSigAddress);
   NODE_SET_METHOD(target, "walletGetUnconfirmedBalance", WalletGetUnconfirmedBalance);
   NODE_SET_METHOD(target, "walletSendFrom", WalletSendFrom);
   NODE_SET_METHOD(target, "walletListTransactions", WalletListTransactions);
