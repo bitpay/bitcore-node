@@ -2500,56 +2500,6 @@ ctx_to_jstx(const CTransaction& tx, uint256 hashBlock, Local<Object> entry) {
   }
 }
 
-#if 0
-static inline void
-jsblock_to_cblock(Local<Object> jsblock, CBlock& cblock) {
-  const unsigned argc = 1;
-  Local<Value> argv[argc] = {
-    Local<Value>::New(jsblock)
-  };
-  //Local<Object> object = Local<Object>::Cast(Context::GetCurrent()->Global()->Get(NanNew<String>("bitcoindjs")));
-  //Local<Object> object = Context::GetCurrent()->Global()->Get(NanNew<String>("bitcoindjs"));
-  //Local<Function> toHex = Local<Function>::Cast(object->Get(NanNew<String>("txToHex")));
-  //Local<Function> toHex = Local<Function>::Cast(bitcoindjs_obj->Get(NanNew<String>("blockToHex")));
-  Local<Function> toHex = bitcoindjs_obj->Get(NanNew<String>("blockToHex")).As<Function>();
-  Local<String> block_hex__ = toHex->Call(Context::GetCurrent()->Global(), argc, argv);
-
-  String::Utf8Value block_hex_(block_hex__->ToString());
-  std::string block_hex = std::string(*block_hex_);
-
-  CDataStream ssData(ParseHex(block_hex), SER_NETWORK, PROTOCOL_VERSION);
-  try {
-    ssData >> cblock;
-  } catch (std::exception &e) {
-    NanThrowError("Block decode failed");
-  }
-}
-
-static inline void
-jstx_to_ctx(Local<Object> jstx, CTransaction& ctx) {
-  const unsigned argc = 1;
-  Local<Value> argv[argc] = {
-    Local<Value>::New(jstx)
-  };
-  //Local<Object> object = Local<Object>::Cast(Context::GetCurrent()->Global()->Get(NanNew<String>("bitcoindjs")));
-  //Local<Object> object = Context::GetCurrent()->Global()->Get(NanNew<String>("bitcoindjs"));
-  //Local<Function> toHex = Local<Function>::Cast(object->Get(NanNew<String>("txToHex")));
-  //Local<Function> toHex = Local<Function>::Cast(bitcoindjs_obj->Get(NanNew<String>("txToHex")));
-  Local<Function> toHex = bitcoindjs_obj->Get(NanNew<String>("txToHex")).As<Function>();
-  Local<String> tx_hex__ = toHex->Call(Context::GetCurrent()->Global(), argc, argv);
-
-  String::Utf8Value tx_hex_(tx_hex__->ToString());
-  std::string tx_hex = std::string(*tx_hex_);
-
-  CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
-  try {
-    ssData >> ctx;
-  } catch (std::exception &e) {
-    NanThrowError("TX decode failed");
-  }
-}
-#endif
-
 static inline void
 hexblock_to_cblock(std::string block_hex, CBlock& cblock) {
   CDataStream ssData(ParseHex(block_hex), SER_NETWORK, PROTOCOL_VERSION);
