@@ -290,10 +290,17 @@ struct async_tx_data {
  * async_poll_blocks_data
  */
 
+typedef struct _poll_blocks_list {
+  CBlock block;
+  CBlockIndex *block_index;
+  struct _poll_blocks_list *next;
+} poll_blocks_list;
+
 struct async_poll_blocks_data {
   std::string err_msg;
   int poll_saved_height;
   int poll_top_height;
+  poll_blocks_list *head;
   Persistent<Array> result_array;
   Persistent<Function> callback;
 };
@@ -863,12 +870,38 @@ async_poll_blocks(uv_work_t *req) {
     if (cur_height != data->poll_top_height) {
       data->poll_top_height = cur_height;
       break;
-    } else {
-      // 100 milliseconds
-      useconds_t usec = 100 * 1000;
-      usleep(usec);
+    }
+    // 100 milliseconds
+    useconds_t usec = 100 * 1000;
+    usleep(usec);
+  }
+
+  poll_blocks_list *head = NULL;
+  poll_blocks_list *cur = NULL;
+
+  for (int i = data->poll_saved_height; i < data->poll_top_height; i++) {
+    if (i == -1) continue;
+    CBlockIndex *pindex = chainActive[i];
+    if (pindex != NULL) {
+      CBlock block;
+      if (ReadBlockFromDisk(block, pindex)) {
+        // poll_blocks_list *next = (poll_blocks_list *)malloc(1 * sizeof(poll_blocks_list));
+        poll_blocks_list *next = new poll_blocks_list();
+        next->next = NULL;
+        if (cur == NULL) {
+          head = next;
+          cur = next;
+        } else {
+          cur->next = next;
+          cur = next;
+        }
+        cur->block = block;
+        cur->block_index = pindex;
+      }
     }
   }
+
+  data->head = head;
 }
 
 static void
@@ -889,19 +922,22 @@ async_poll_blocks_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Array> blocks = NanNew<Array>();
 
-    for (int i = data->poll_saved_height, j = 0; i < data->poll_top_height; i++) {
-      if (i == -1) continue;
-      CBlockIndex *pindex = chainActive[i];
-      if (pindex != NULL) {
-        CBlock block;
-        // XXX Move this to async_poll_blocks!
-        if (ReadBlockFromDisk(block, pindex)) {
-          Local<Object> obj = NanNew<Object>();
-          cblock_to_jsblock(block, pindex, obj);
-          blocks->Set(j, obj);
-          j++;
-        }
-      }
+    //poll_blocks_list *cur = data->head;
+    poll_blocks_list *cur = static_cast<poll_blocks_list*>(data->head);
+    poll_blocks_list *next;
+    int i = 0;
+
+    while (cur != NULL) {
+      CBlock block = cur->block;
+      CBlockIndex *pindex = cur->block_index;
+      Local<Object> obj = NanNew<Object>();
+      cblock_to_jsblock(block, pindex, obj);
+      blocks->Set(i, obj);
+      i++;
+      next = cur->next;
+      //free(cur);
+      delete cur;
+      cur = next;
     }
 
     Local<Value> argv[argc] = {
