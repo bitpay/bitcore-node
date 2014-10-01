@@ -1359,23 +1359,10 @@ NAN_METHOD(WalletNewAddress) {
 
   pwalletMain->SetAddressBook(keyID, strAccount, "receive");
 
-  NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString()).c_str());
+  NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString().c_str()));
 }
 
-NAN_METHOD(WalletGetAccountAddress) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.walletGetAccountAddress(options)");
-  }
-
-  Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
-
-  bool bForceNew = options->Get(NanNew<String>("new"))->ToBoolean();
-
+CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false) {
   CWalletDB walletdb(pwalletMain->strWalletFile);
 
   CAccount account;
@@ -1402,13 +1389,34 @@ NAN_METHOD(WalletGetAccountAddress) {
   // Generate a new key
   if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed) {
     if (!pwalletMain->GetKeyFromPool(account.vchPubKey)) {
-      return NanThrowError("Error: Keypool ran out, please call keypoolrefill first");
+      NanThrowError("Keypool ran out, please call keypoolrefill first");
+      //CTxDestination dest = CNoDestination();
+      CBitcoinAddress addr;
+      //addr.Set(dest);
+      return addr;
     }
     pwalletMain->SetAddressBook(account.vchPubKey.GetID(), strAccount, "receive");
     walletdb.WriteAccount(strAccount, account);
   }
 
-  return NanReturnValue(NanNew<String>(CBitcoinAddress(account.vchPubKey.GetID())).c_str());
+  return CBitcoinAddress(account.vchPubKey.GetID());
+}
+
+NAN_METHOD(WalletGetAccountAddress) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletGetAccountAddress(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value account_(options->Get(NanNew<String>("account"))->ToString());
+  std::string strAccount = std::string(*account_);
+
+  std::string ret = GetAccountAddress(strAccount).ToString();
+
+  NanReturnValue(NanNew<String>(ret.c_str()));
 }
 
 NAN_METHOD(WalletSetAccount) {
@@ -1694,24 +1702,26 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
   Local<Object> options = Local<Object>::Cast(args[0]);
 
   int nRequired = options->Get(NanNew<String>("nRequired"))->IntegerValue();
-  Local<Array> keys = options->Get(NanNew<String>("keys"));
+  Local<Array> keys = Local<Array>::Cast(options->Get(NanNew<String>("keys")));
 
   // Gather public keys
   if (nRequired < 1) {
     return NanThrowError(
       "a multisignature address must require at least one key to redeem");
   }
-  if ((int)keys.Length() < nRequired) {
-    return NanThrowError(
-      strprintf("not enough keys supplied "
-                "(got %"PRIszu" keys, but need at least %d to redeem)",
-                keys.Length(), nRequired));
+  if ((int)keys->Length() < nRequired) {
+    char s[150] = {0};
+    snprintf(s, sizeof(s),
+      "not enough keys supplied (got %"PRIszu" keys, but need at least %d to redeem)",
+      keys->Length(), nRequired);
+    NanThrowError(s);
+    NanReturnValue(Undefined());
   }
 
   std::vector<CPubKey> pubkeys;
-  pubkeys.resize(keys.Length());
+  pubkeys.resize(keys->Length());
 
-  for (unsigned int i = 0; i < keys.Length(); i++) {
+  for (unsigned int i = 0; i < keys->Length(); i++) {
     String::Utf8Value key_(keys->Get(i)->ToString());
     const std::string& ks = std::string(*key_);
 
@@ -1721,14 +1731,14 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
     if (pwalletMain && address.IsValid()) {
       CKeyID keyID;
       if (!address.GetKeyID(keyID)) {
-        return NanThrowError(strprintf("%s does not refer to a key", ks));
+        return NanThrowError((ks + std::string(" does not refer to a key")).c_str());
       }
       CPubKey vchPubKey;
       if (!pwalletMain->GetPubKey(keyID, vchPubKey)) {
-        return NanThrowError(strprintf("no full public key for address %s", ks));
+        return NanThrowError((std::string("no full public key for address ") + ks).c_str());
       }
       if (!vchPubKey.IsFullyValid()) {
-        return NanThrowError("Invalid public key: " + ks);
+        return NanThrowError((std::string("Invalid public key: ") + ks).c_str());
       }
       pubkeys[i] = vchPubKey;
     } else
@@ -1737,11 +1747,11 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
     if (IsHex(ks)) {
       CPubKey vchPubKey(ParseHex(ks));
       if (!vchPubKey.IsFullyValid()) {
-        return NanThrowError("Invalid public key: " + ks);
+        return NanThrowError((std::string("Invalid public key: ") + ks).c_str());
       }
       pubkeys[i] = vchPubKey;
     } else {
-      return NanThrowError("Invalid public key: " + ks);
+      return NanThrowError((std::string("Invalid public key: ") + ks).c_str());
     }
   }
   CScript inner;
@@ -1752,8 +1762,8 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
   CBitcoinAddress address(innerID);
 
   Local<Object> result = NanNew<Object>();
-  result->Set(NanNew<String>("address"), address.ToString());
-  result->Set(NanNew<String>("redeemScript"), HexStr(inner.begin(), inner.end()));
+  result->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
+  result->Set(NanNew<String>("redeemScript"), NanNew<String>(HexStr(inner.begin(), inner.end())));
 
   NanReturnValue(result);
 }
@@ -1956,7 +1966,7 @@ NAN_METHOD(WalletListTransactions) {
       "Usage: bitcoindjs.walletListTransactions(options)");
   }
 
-  Local<Object> options = Local<Object>::Cast(args[0]);
+  // Local<Object> options = Local<Object>::Cast(args[0]);
 
   NanReturnValue(Undefined());
 }
@@ -2065,7 +2075,7 @@ NAN_METHOD(WalletGetTransaction) {
       "Usage: bitcoindjs.walletGetTransaction(options)");
   }
 
-  Local<Object> options = Local<Object>::Cast(args[0]);
+  // Local<Object> options = Local<Object>::Cast(args[0]);
 
   NanReturnValue(Undefined());
 }
@@ -2175,7 +2185,7 @@ NAN_METHOD(WalletLock) {
       "Usage: bitcoindjs.walletLock(options)");
   }
 
-  Local<Object> options = Local<Object>::Cast(args[0]);
+  // Local<Object> options = Local<Object>::Cast(args[0]);
 
   if (!pwalletMain->IsCrypted()) {
     return NanThrowError("Error: running with an unencrypted wallet, but walletlock was called.");
@@ -2572,8 +2582,8 @@ jsblock_to_cblock(const Local<Object> obj, CBlock& block, CBlockIndex* blockinde
   block->hashMerkleRoot = obj->Get(NanNew<String>("merkleroot"))->ToString();
   block->vMerkleTree = obj->Get(NanNew<String>("merkletree"))->ToString();
 
-  Local<Array> txs = obj->Get("tx");
-  for (int ti = 0; ti < txs.Length(); ti++) {
+  Local<Array> txs = Local<Array>::Cast(obj->Get("tx"));
+  for (int ti = 0; ti < txs->Length(); ti++) {
     Local<Object> entry = txs->Get(ti);
     CTransaction tx;
 
@@ -2587,8 +2597,8 @@ jsblock_to_cblock(const Local<Object> obj, CBlock& block, CBlockIndex* blockinde
     tx.nVersion = entry->Get(NanNew<String>("version"))->IntegerValue();
     tx.nLockTime = entry->Get(NanNew<String>("locktime"))->IntegerValue();
 
-    Local<Array> vin = entry->Get("vin");
-    for (int vi = 0; vi < vin.Length(); vi++) {
+    Local<Array> vin = Local<Array>::Cast(entry->Get("vin"));
+    for (int vi = 0; vi < vin->Length(); vi++) {
       CTxIn txin;
       Local<Object> in = vin->Get(vi);
       if (in->Get(NanNew<String>("coinbase"))->IsString()) {
@@ -2603,8 +2613,8 @@ jsblock_to_cblock(const Local<Object> obj, CBlock& block, CBlockIndex* blockinde
       (boost::int64_t)txin.nSequence = in->Get(NanNew<String>("sequence"))->IntegerValue();
     }
 
-    Local<Array> vout = entry->Get("vout");
-    for (unsigned int vo = 0; vo < vout.Length(); vo++) {
+    Local<Array> vout = Local<Array>::Cast(entry->Get("vout"));
+    for (unsigned int vo = 0; vo < vout->Length(); vo++) {
       const CTxOut txout;
       Local<Object> out = vout->Get(vo);
 
@@ -2629,8 +2639,8 @@ jsblock_to_cblock(const Local<Object> obj, CBlock& block, CBlockIndex* blockinde
         } else {
           nRequired = out->Set(NanNew<String>("reqSigs"))->IntegerValue();
           GetTxnOutputType(type) = out->Set(NanNew<String>("type"))->ToString();
-          Local<Array> a = out->Get("addresses");
-          for (int ai = 0; ai < a.Length(); ai++) {
+          Local<Array> a = Local<Array>::Cast(out->Get("addresses"));
+          for (int ai = 0; ai < a->Length(); ai++) {
             CTxDestination addr;
             CBitcoinAddress(addr).ToString() = a->Get(ai)->ToString();
           }
@@ -2676,8 +2686,8 @@ jstx_to_ctx(const Local<Object> entry, CTransaction& tx, uint256 hashBlock) {
   tx.nVersion = entry->Get(NanNew<String>("version"))->IntegerValue();
   tx.nLockTime = entry->Get(NanNew<String>("locktime"))->IntegerValue();
 
-  Local<Array> vin = entry->Get("vin");
-  for (int vi = 0; vi < vin.Length(); vi++) {
+  Local<Array> vin = Local<Array>::Cast(entry->Get("vin"));
+  for (int vi = 0; vi < vin->Length(); vi++) {
     const CTxIn txin;
     Local<Object> in = vin->Get(vi);
     if (in->Get(NanNew<String>("coinbase")->IsString()) {
@@ -2692,8 +2702,8 @@ jstx_to_ctx(const Local<Object> entry, CTransaction& tx, uint256 hashBlock) {
     (boost::int64_t)txin.nSequence = in->Get(NanNew<String>("sequence"))->IntegerValue();
   }
 
-  Local<Array> vout = entry->Get("vout");
-  for (unsigned int vo = 0; vo < vout.Length(); vo++) {
+  Local<Array> vout = Local<Array>::Cast(entry->Get("vout"));
+  for (unsigned int vo = 0; vo < vout->Length(); vo++) {
     CTxOut txout;
     Local<Object> out = vout->Get(vo);
     txout.nValue = out->Get(NanNew<String>("value"))->IntegerValue();
@@ -2714,8 +2724,8 @@ jstx_to_ctx(const Local<Object> entry, CTransaction& tx, uint256 hashBlock) {
       } else {
         nRequired = out->Get(NanNew<String>("reqSigs"))->IntegerValue();
         GetTxnOutputType(type) = out->Get(NanNew<String>("type"))->ToString();
-        Local<Array> a = out->Get("addresses");
-        for (int ai = 0; ai < a.Length(); ai++) {
+        Local<Array> a = Local<Array>::Cast(out->Get("addresses"));
+        for (int ai = 0; ai < a->Length(); ai++) {
           CTxDestination addr;
           CBitcoinAddress(addr).ToString() = a->get(ai)->ToString();
         }
