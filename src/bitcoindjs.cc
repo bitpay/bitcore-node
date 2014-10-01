@@ -299,6 +299,8 @@ typedef struct _poll_blocks_list {
 struct async_poll_blocks_data {
   std::string err_msg;
   poll_blocks_list *head;
+  int poll_saved_height;
+  int poll_top_height;
   Persistent<Array> result_array;
   Persistent<Function> callback;
 };
@@ -829,6 +831,8 @@ async_get_tx_after(uv_work_t *req) {
  * bitcoind.pollBlocks(callback)
  */
 
+#if 0
+
 static int block_poll_top_height = -1;
 
 NAN_METHOD(PollBlocks) {
@@ -934,6 +938,110 @@ async_poll_blocks_after(uv_work_t *req) {
       //free(cur);
       delete cur;
       cur = next;
+    }
+
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(blocks)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+#endif
+
+/**
+ * PollBlocks
+ * bitcoind.pollBlocks(callback)
+ */
+
+NAN_METHOD(PollBlocks) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.pollBlocks(callback)");
+  }
+
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+
+  async_poll_blocks_data *data = new async_poll_blocks_data();
+  data->poll_saved_height = -1;
+  data->poll_top_height = -1;
+  data->err_msg = std::string("");
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_poll_blocks,
+    (uv_after_work_cb)async_poll_blocks_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_poll_blocks(uv_work_t *req) {
+  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+
+  data->poll_saved_height = data->poll_top_height;
+
+  while (chainActive.Tip()) {
+    int cur_height = chainActive.Height();
+    if (cur_height != data->poll_top_height) {
+      data->poll_top_height = cur_height;
+      break;
+    } else {
+      // 100 milliseconds
+      useconds_t usec = 100 * 1000;
+      usleep(usec);
+    }
+  }
+}
+
+static void
+async_poll_blocks_after(uv_work_t *req) {
+  NanScope();
+  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Array> blocks = NanNew<Array>();
+
+    for (int i = data->poll_saved_height, j = 0; i < data->poll_top_height; i++) {
+      if (i == -1) continue;
+      CBlockIndex *pindex = chainActive[i];
+      if (pindex != NULL) {
+        CBlock block;
+        // XXX Move this to async_poll_blocks!
+        if (ReadBlockFromDisk(block, pindex)) {
+          Local<Object> obj = NanNew<Object>();
+          cblock_to_jsblock(block, pindex, obj);
+          blocks->Set(j, obj);
+          j++;
+        }
+      }
     }
 
     Local<Value> argv[argc] = {
