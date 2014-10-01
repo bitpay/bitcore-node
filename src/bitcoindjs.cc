@@ -1751,18 +1751,7 @@ NAN_METHOD(WalletGetBalance) {
 
 NAN_METHOD(WalletGetUnconfirmedBalance) {
   NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.walletGetUnconfirmedBalance(options)");
-  }
-
-  // Parse the account first so we don't generate a key if there's an error
-  Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
-
-  NanReturnValue(Undefined());
+  NanReturnValue(NanNew<Number>(pwalletMain->GetUnconfirmedBalance()));
 }
 
 NAN_METHOD(WalletSendFrom) {
