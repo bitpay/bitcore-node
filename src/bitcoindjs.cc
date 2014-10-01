@@ -1359,7 +1359,7 @@ NAN_METHOD(WalletNewAddress) {
 
   pwalletMain->SetAddressBook(keyID, strAccount, "receive");
 
-  NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString()));
+  NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString()).c_str());
 }
 
 NAN_METHOD(WalletGetAccountAddress) {
@@ -1370,12 +1370,45 @@ NAN_METHOD(WalletGetAccountAddress) {
       "Usage: bitcoindjs.walletGetAccountAddress(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
   String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
   std::string strAccount = std::string(*name_);
 
-  NanReturnValue(Undefined());
+  bool bForceNew = options->Get(NanNew<String>("new"))->ToBoolean();
+
+  CWalletDB walletdb(pwalletMain->strWalletFile);
+
+  CAccount account;
+  walletdb.ReadAccount(strAccount, account);
+
+  bool bKeyUsed = false;
+
+  // Check if the current key has been used
+  if (account.vchPubKey.IsValid()) {
+    CScript scriptPubKey;
+    scriptPubKey.SetDestination(account.vchPubKey.GetID());
+    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
+         it != pwalletMain->mapWallet.end() && account.vchPubKey.IsValid();
+         ++it) {
+      const CWalletTx& wtx = (*it).second;
+      BOOST_FOREACH(const CTxOut& txout, wtx.vout) {
+        if (txout.scriptPubKey == scriptPubKey) {
+          bKeyUsed = true;
+        }
+      }
+    }
+  }
+
+  // Generate a new key
+  if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed) {
+    if (!pwalletMain->GetKeyFromPool(account.vchPubKey)) {
+      return NanThrowError("Error: Keypool ran out, please call keypoolrefill first");
+    }
+    pwalletMain->SetAddressBook(account.vchPubKey.GetID(), strAccount, "receive");
+    walletdb.WriteAccount(strAccount, account);
+  }
+
+  return NanReturnValue(NanNew<String>(CBitcoinAddress(account.vchPubKey.GetID())).c_str());
 }
 
 NAN_METHOD(WalletSetAccount) {
@@ -1388,8 +1421,29 @@ NAN_METHOD(WalletSetAccount) {
 
   // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
+  String::Utf8Value address_(options->Get(NanNew<String>("address"))->ToString());
+  std::string strAddress = std::string(*address_);
+
+  CBitcoinAddress address(strAddress);
+  if (!address.IsValid()) {
+    return NanThrowError("Invalid Bitcoin address");
+  }
+
+  std::string strAccount;
+  if (options->Get(NanNew<String>("account"))->IsString()) {
+    String::Utf8Value account_(options->Get(NanNew<String>("account"))->ToString());
+    strAccount = std::string(*account_);
+  }
+
+  // Detect when changing the account of an address that is the 'unused current key' of another account:
+  if (pwalletMain->mapAddressBook.count(address.Get())) {
+    string strOldAccount = pwalletMain->mapAddressBook[address.Get()].name;
+    if (address == GetAccountAddress(strOldAccount)) {
+      GetAccountAddress(strOldAccount, true);
+    }
+  }
+
+  pwalletMain->SetAddressBook(address.Get(), strAccount, "receive");
 
   NanReturnValue(Undefined());
 }
@@ -1402,12 +1456,23 @@ NAN_METHOD(WalletGetAccount) {
       "Usage: bitcoindjs.walletGetAccount(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
-  NanReturnValue(Undefined());
+  String::Utf8Value address_(options->Get(NanNew<String>("address"))->ToString());
+  std::string strAddress = std::string(*address_);
+
+  CBitcoinAddress address(strAddress);
+  if (!address.IsValid()) {
+    return NanThrowError("Invalid Bitcoin address");
+  }
+
+  std::string strAccount;
+  map<CTxDestination, CAddressBookData>::iterator mi = pwalletMain->mapAddressBook.find(address.Get());
+  if (mi != pwalletMain->mapAddressBook.end() && !(*mi).second.name.empty()) {
+    strAccount = (*mi).second.name;
+  }
+
+  NanReturnValue(NanNew<String>(strAccount.c_str()));
 }
 
 NAN_METHOD(WalletSendTo) {
@@ -1582,8 +1647,10 @@ NAN_METHOD(WalletVerifyMessage) {
 
   String::Utf8Value strAddress_(options->Get(NanNew<String>("address"))->ToString());
   std::string strAddress = std::string(*strAddress_);
+
   String::Utf8Value strSign_(options->Get(NanNew<String>("signature"))->ToString());
   std::string strSign = std::string(*strSign_);
+
   String::Utf8Value strMessage_(options->Get(NanNew<String>("message"))->ToString());
   std::string strMessage = std::string(*strMessage_);
 
@@ -1889,10 +1956,7 @@ NAN_METHOD(WalletListTransactions) {
       "Usage: bitcoindjs.walletListTransactions(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
   NanReturnValue(Undefined());
 }
@@ -2001,10 +2065,7 @@ NAN_METHOD(WalletGetTransaction) {
       "Usage: bitcoindjs.walletGetTransaction(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
   NanReturnValue(Undefined());
 }
@@ -2017,10 +2078,14 @@ NAN_METHOD(WalletBackup) {
       "Usage: bitcoindjs.walletBackup(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
+
+  String::Utf8Value path_(options->Get(NanNew<String>("path"))->ToString());
+  std::string strDest = std::string(*path_);
+
+  if (!BackupWallet(*pwalletMain, strDest)) {
+    return NanThrowError("Error: Wallet backup failed!");
+  }
 
   NanReturnValue(Undefined());
 }
@@ -2033,10 +2098,30 @@ NAN_METHOD(WalletPassphrase) {
       "Usage: bitcoindjs.walletPassphrase(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
+
+  String::Utf8Value passphrase_(options->Get(NanNew<String>("passphrase"))->ToString());
+  std::string strPassphrase = std::string(*passphrase_);
+
+  if (!pwalletMain->IsCrypted()) {
+    return NanThrowError("Error: running with an unencrypted wallet, but walletpassphrase was called.");
+  }
+
+  SecureString strWalletPass;
+  strWalletPass.reserve(100);
+  strWalletPass = strPassphrase.c_str();
+
+  if (strWalletPass.length() > 0) {
+    if (!pwalletMain->Unlock(strWalletPass)) {
+      return NanThrowError("Error: The wallet passphrase entered was incorrect.");
+    }
+  } else {
+    return NanThrowError(
+      "walletpassphrase <passphrase> <timeout>\n"
+      "Stores the wallet decryption key in memory for <timeout> seconds.");
+  }
+
+  pwalletMain->TopUpKeyPool();
 
   NanReturnValue(Undefined());
 }
@@ -2049,10 +2134,35 @@ NAN_METHOD(WalletPassphraseChange) {
       "Usage: bitcoindjs.walletPassphraseChange(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
+
+  String::Utf8Value oldPass_(options->Get(NanNew<String>("oldPass"))->ToString());
+  std::string oldPass = std::string(*oldPass_);
+
+  String::Utf8Value newPass_(options->Get(NanNew<String>("newPass"))->ToString());
+  std::string newPass = std::string(*newPass_);
+
+  if (!pwalletMain->IsCrypted()) {
+    return NanThrowError("Error: running with an unencrypted wallet, but walletpassphrasechange was called.");
+  }
+
+  SecureString strOldWalletPass;
+  strOldWalletPass.reserve(100);
+  strOldWalletPass = oldPass.c_str();
+
+  SecureString strNewWalletPass;
+  strNewWalletPass.reserve(100);
+  strNewWalletPass = newPass.c_str();
+
+  if (strOldWalletPass.length() < 1 || strNewWalletPass.length() < 1) {
+    return NanThrowError(
+      "walletpassphrasechange <oldpassphrase> <newpassphrase>\n"
+      "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
+  }
+
+  if (!pwalletMain->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass)) {
+    return NanThrowError("Error: The wallet passphrase entered was incorrect.");
+  }
 
   NanReturnValue(Undefined());
 }
@@ -2065,10 +2175,13 @@ NAN_METHOD(WalletLock) {
       "Usage: bitcoindjs.walletLock(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
+
+  if (!pwalletMain->IsCrypted()) {
+    return NanThrowError("Error: running with an unencrypted wallet, but walletlock was called.");
+  }
+
+  pwalletMain->Lock();
 
   NanReturnValue(Undefined());
 }
@@ -2081,10 +2194,48 @@ NAN_METHOD(WalletEncrypt) {
       "Usage: bitcoindjs.walletEncrypt(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
+
+  String::Utf8Value passphrase_(options->Get(NanNew<String>("passphrase"))->ToString());
+  std::string strPass = std::string(*passphrase_);
+
+  if (pwalletMain->IsCrypted()) {
+    return NanThrowError("Error: running with an encrypted wallet, but encryptwallet was called.");
+  }
+
+  SecureString strWalletPass;
+  strWalletPass.reserve(100);
+  strWalletPass = strPass.c_str();
+
+  if (strWalletPass.length() < 1) {
+    return NanThrowError(
+      "encryptwallet <passphrase>\n"
+      "Encrypts the wallet with <passphrase>.");
+  }
+
+  if (!pwalletMain->EncryptWallet(strWalletPass)) {
+    return NanThrowError("Error: Failed to encrypt the wallet.");
+  }
+
+  // BDB seems to have a bad habit of writing old data into
+  // slack space in .dat files; that is bad if the old data is
+  // unencrypted private keys. So:
+  StartShutdown();
+
+  printf(
+    "bitcoind.js:"
+    " wallet encrypted; Bitcoin server stopping,"
+    " restart to run with encrypted wallet."
+    " The keypool has been flushed, you need"
+    " to make a new backup.\n"
+  );
+
+  // NanReturnValue(NanNew<String>(
+  //   "wallet encrypted; Bitcoin server stopping,"
+  //   " restart to run with encrypted wallet."
+  //   " The keypool has been flushed, you need"
+  //   " to make a new backup."
+  // ));
 
   NanReturnValue(Undefined());
 }
@@ -2097,12 +2248,19 @@ NAN_METHOD(WalletSetTxFee) {
       "Usage: bitcoindjs.walletSetTxFee(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
-  NanReturnValue(Undefined());
+  int64_t fee = options->Get(NanNew<String>("fee"))->IntegerValue();
+
+  // Amount
+  int64_t nAmount = 0;
+  if (fee != 0.0) {
+    nAmount = fee;
+  }
+
+  nTransactionFee = nAmount;
+
+  NanReturnValue(True());
 }
 
 /**
