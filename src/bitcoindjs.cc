@@ -163,6 +163,7 @@ NAN_METHOD(WalletPassphraseChange);
 NAN_METHOD(WalletLock);
 NAN_METHOD(WalletEncrypt);
 NAN_METHOD(WalletSetTxFee);
+NAN_METHOD(WalletImportKey);
 
 static void
 async_start_node_work(uv_work_t *req);
@@ -223,6 +224,12 @@ async_wallet_sendfrom(uv_work_t *req);
 
 static void
 async_wallet_sendfrom_after(uv_work_t *req);
+
+static void
+async_import_key(uv_work_t *req);
+
+static void
+async_import_key_after(uv_work_t *req);
 
 static inline void
 ctx_to_jstx(const CTransaction& tx, uint256 hashBlock, Local<Object> entry);
@@ -353,6 +360,16 @@ struct async_wallet_sendfrom_data {
   int64_t nAmount;
   int nMinDepth;
   CWalletTx wtx;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_import_key_data
+ */
+
+struct async_import_key_data {
+  std::string err_msg;
+  bool fRescan;
   Persistent<Function> callback;
 };
 
@@ -2273,6 +2290,145 @@ NAN_METHOD(WalletSetTxFee) {
   NanReturnValue(True());
 }
 
+NAN_METHOD(WalletImportKey) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletImportKey(options, callback)");
+  }
+
+  async_import_key_data *data = new async_import_key_data();
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  Local<Function> callback;
+
+  if (args.Length() > 1 && args[1]->IsFunction()) {
+    callback = Local<Function>::Cast(args[1]);
+    data->callback = Persistent<Function>::New(callback);
+  }
+
+  std::string strSecret = "";
+  std::string strLabel = "";
+
+  String::Utf8Value key_(options->Get(NanNew<String>("key"))->ToString());
+  strSecret = std::string(*key_);
+
+  if (options->Get(NanNew<String>("label"))->IsString()) {
+    String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
+    strLabel = std::string(*label_);
+  }
+
+  // EnsureWalletIsUnlocked();
+  if (pwalletMain->IsLocked()) {
+    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+  }
+
+  // Whether to perform rescan after import
+  // data->fRescan = true;
+  data->fRescan = args.Length() > 1 && args[1]->IsFunction() ? true : false;
+
+  // if (options->Get(NanNew<String>("rescan"))->IsBoolean()
+  //     && options->Get(NanNew<String>("rescan"))->IsFalse()) {
+  //   data->fRescan = false;
+  // }
+
+  CBitcoinSecret vchSecret;
+  bool fGood = vchSecret.SetString(strSecret);
+
+  if (!fGood) {
+    return NanThrowError("Invalid private key encoding");
+  }
+
+  CKey key = vchSecret.GetKey();
+  if (!key.IsValid()) {
+    return NanThrowError("Private key outside allowed range");
+  }
+
+  CPubKey pubkey = key.GetPubKey();
+  CKeyID vchAddress = pubkey.GetID();
+  {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    pwalletMain->MarkDirty();
+    pwalletMain->SetAddressBook(vchAddress, strLabel, "receive");
+
+    // Don't throw error in case a key is already there
+    if (pwalletMain->HaveKey(vchAddress)) {
+      NanReturnValue(Undefined());
+    }
+
+    pwalletMain->mapKeyMetadata[vchAddress].nCreateTime = 1;
+
+    if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
+      return NanThrowError("Error adding key to wallet");
+    }
+
+    // whenever a key is imported, we need to scan the whole chain
+    pwalletMain->nTimeFirstKey = 1; // 0 would be considered 'no value'
+
+    // Do this on the threadpool instead.
+    // if (fRescan) {
+    //   pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
+    // }
+  }
+
+  if (data->fRescan) {
+    uv_work_t *req = new uv_work_t();
+    req->data = data;
+
+    int status = uv_queue_work(uv_default_loop(),
+      req, async_import_key,
+      (uv_after_work_cb)async_import_key_after);
+
+    assert(status == 0);
+  }
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_import_key(uv_work_t *req) {
+  async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
+  if (data->fRescan) {
+    // This may take a long time, do it on the libuv thread pool:
+    pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
+  }
+}
+
+static void
+async_import_key_after(uv_work_t *req) {
+  NanScope();
+  async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(Null())
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
 /**
  * Conversions
  */
@@ -2740,6 +2896,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletLock", WalletLock);
   NODE_SET_METHOD(target, "walletEncrypt", WalletEncrypt);
   NODE_SET_METHOD(target, "walletSetTxFee", WalletSetTxFee);
+  NODE_SET_METHOD(target, "walletImportKey", WalletImportKey);
 }
 
 NODE_MODULE(bitcoindjs, init)
