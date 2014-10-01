@@ -107,6 +107,7 @@ extern std::string strWalletFile;
 extern CWallet *pwalletMain;
 #endif
 extern int64_t nTransactionFee;
+extern const std::string strMessageMagic;
 
 /**
  * Node and Templates
@@ -1527,12 +1528,45 @@ NAN_METHOD(WalletSignMessage) {
       "Usage: bitcoindjs.walletSignMessage(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
-  NanReturnValue(Undefined());
+  String::Utf8Value strAddress_(options->Get(NanNew<String>("address"))->ToString());
+  std::string strAddress = std::string(*strAddress_);
+  String::Utf8Value strMessage_(options->Get(NanNew<String>("message"))->ToString());
+  std::string strMessage = std::string(*strMessage_);
+
+  // EnsureWalletIsUnlocked();
+  if (pwalletMain->IsLocked()) {
+    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+  }
+
+  CBitcoinAddress addr(strAddress);
+  if (!addr.IsValid()) {
+    return NanThrowError("Invalid address");
+  }
+
+  CKeyID keyID;
+  if (!addr.GetKeyID(keyID)) {
+    return NanThrowError("Address does not refer to key");
+  }
+
+  CKey key;
+  if (!pwalletMain->GetKey(keyID, key)) {
+    return NanThrowError("Private key not available");
+  }
+
+  CHashWriter ss(SER_GETHASH, 0);
+  ss << strMessageMagic;
+  ss << strMessage;
+
+  vector<unsigned char> vchSig;
+  if (!key.SignCompact(ss.GetHash(), vchSig)) {
+    return NanThrowError("Sign failed");
+  }
+
+  std::string result = EncodeBase64(&vchSig[0], vchSig.size());
+
+  NanReturnValue(NanNew<String>(result.c_str()));
 }
 
 NAN_METHOD(WalletVerifyMessage) {
