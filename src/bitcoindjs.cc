@@ -298,8 +298,6 @@ typedef struct _poll_blocks_list {
 
 struct async_poll_blocks_data {
   std::string err_msg;
-  int poll_saved_height;
-  int poll_top_height;
   poll_blocks_list *head;
   Persistent<Array> result_array;
   Persistent<Function> callback;
@@ -831,6 +829,8 @@ async_get_tx_after(uv_work_t *req) {
  * bitcoind.pollBlocks(callback)
  */
 
+static int block_poll_top_height = -1;
+
 NAN_METHOD(PollBlocks) {
   NanScope();
 
@@ -842,8 +842,6 @@ NAN_METHOD(PollBlocks) {
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
   async_poll_blocks_data *data = new async_poll_blocks_data();
-  data->poll_saved_height = -1;
-  data->poll_top_height = -1;
   data->err_msg = std::string("");
   data->callback = Persistent<Function>::New(callback);
 
@@ -863,12 +861,12 @@ static void
 async_poll_blocks(uv_work_t *req) {
   async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
 
-  data->poll_saved_height = data->poll_top_height;
+  int poll_saved_height = block_poll_top_height;
 
   while (chainActive.Tip()) {
     int cur_height = chainActive.Height();
-    if (cur_height != data->poll_top_height) {
-      data->poll_top_height = cur_height;
+    if (cur_height != block_poll_top_height) {
+      block_poll_top_height = cur_height;
       break;
     }
     // 100 milliseconds
@@ -879,13 +877,12 @@ async_poll_blocks(uv_work_t *req) {
   poll_blocks_list *head = NULL;
   poll_blocks_list *cur = NULL;
 
-  for (int i = data->poll_saved_height; i < data->poll_top_height; i++) {
+  for (int i = poll_saved_height; i < block_poll_top_height; i++) {
     if (i == -1) continue;
     CBlockIndex *pindex = chainActive[i];
     if (pindex != NULL) {
       CBlock block;
       if (ReadBlockFromDisk(block, pindex)) {
-        // poll_blocks_list *next = (poll_blocks_list *)malloc(1 * sizeof(poll_blocks_list));
         poll_blocks_list *next = new poll_blocks_list();
         next->next = NULL;
         if (cur == NULL) {
@@ -922,7 +919,6 @@ async_poll_blocks_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Array> blocks = NanNew<Array>();
 
-    //poll_blocks_list *cur = data->head;
     poll_blocks_list *cur = static_cast<poll_blocks_list*>(data->head);
     poll_blocks_list *next;
     int i = 0;
