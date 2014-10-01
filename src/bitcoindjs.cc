@@ -831,8 +831,6 @@ async_get_tx_after(uv_work_t *req) {
  * bitcoind.pollBlocks(callback)
  */
 
-#if 0
-
 static int block_poll_top_height = -1;
 
 NAN_METHOD(PollBlocks) {
@@ -957,12 +955,13 @@ async_poll_blocks_after(uv_work_t *req) {
   delete req;
 }
 
-#endif
 
 /**
  * PollBlocks
  * bitcoind.pollBlocks(callback)
  */
+
+#if 0
 
 NAN_METHOD(PollBlocks) {
   NanScope();
@@ -1060,6 +1059,8 @@ async_poll_blocks_after(uv_work_t *req) {
   delete data;
   delete req;
 }
+
+#endif
 
 /**
  * PollMempool
