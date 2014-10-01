@@ -1577,12 +1577,42 @@ NAN_METHOD(WalletVerifyMessage) {
       "Usage: bitcoindjs.walletVerifyMessage(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
-  NanReturnValue(Undefined());
+  String::Utf8Value strAddress_(options->Get(NanNew<String>("address"))->ToString());
+  std::string strAddress = std::string(*strAddress_);
+  String::Utf8Value strSign_(options->Get(NanNew<String>("signature"))->ToString());
+  std::string strSign = std::string(*strSign_);
+  String::Utf8Value strMessage_(options->Get(NanNew<String>("message"))->ToString());
+  std::string strMessage = std::string(*strMessage_);
+
+  CBitcoinAddress addr(strAddress);
+  if (!addr.IsValid()) {
+    return NanThrowError( "Invalid address");
+  }
+
+  CKeyID keyID;
+  if (!addr.GetKeyID(keyID)) {
+    return NanThrowError( "Address does not refer to key");
+  }
+
+  bool fInvalid = false;
+  vector<unsigned char> vchSig = DecodeBase64(strSign.c_str(), &fInvalid);
+
+  if (fInvalid) {
+    return NanThrowError( "Malformed base64 encoding");
+  }
+
+  CHashWriter ss(SER_GETHASH, 0);
+  ss << strMessageMagic;
+  ss << strMessage;
+
+  CPubKey pubkey;
+  if (!pubkey.RecoverCompact(ss.GetHash(), vchSig)) {
+    NanReturnValue(NanNew<Boolean>(false));
+  }
+
+  NanReturnValue(NanNew<Boolean>(pubkey.GetID() == keyID));
 }
 
 NAN_METHOD(WalletGetBalance) {
