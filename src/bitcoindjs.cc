@@ -1631,12 +1631,14 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
 
   // Gather public keys
   if (nRequired < 1) {
-    return NanThrowError("a multisignature address must require at least one key to redeem");
+    return NanThrowError(
+      "a multisignature address must require at least one key to redeem");
   }
-  if ((int)keys.size() < nRequired) {
+  if ((int)keys.Length() < nRequired) {
     return NanThrowError(
       strprintf("not enough keys supplied "
-                "(got %"PRIszu" keys, but need at least %d to redeem)", keys.Length(), nRequired));
+                "(got %"PRIszu" keys, but need at least %d to redeem)",
+                keys.Length(), nRequired));
   }
 
   std::vector<CPubKey> pubkeys;
@@ -1697,12 +1699,54 @@ NAN_METHOD(WalletGetBalance) {
       "Usage: bitcoindjs.walletGetBalance(options)");
   }
 
-  // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value name_(options->Get(NanNew<String>("name"))->ToString());
-  std::string strAccount = std::string(*name_);
 
-  NanReturnValue(Undefined());
+  std::string strAccount = "";
+  int nMinDepth = 1;
+
+  if (options->Get(NanNew<String>("account"))->IsString()) {
+    String::Utf8Value strAccount_(options->Get(NanNew<String>("account"))->ToString());
+    strAccount = std::string(*strAccount_);
+  }
+
+  if (options->Get(NanNew<String>("nMinDepth"))->IsNumber()) {
+    nMinDepth = options->Get(NanNew<String>("nMinDepth"))->IntegerValue();
+  }
+
+  if (strAccount == "*") {
+    // Calculate total balance a different way from GetBalance()
+    // (GetBalance() sums up all unspent TxOuts)
+    // getbalance and getbalance '*' 0 should return the same number
+    int64_t nBalance = 0;
+    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
+        it != pwalletMain->mapWallet.end(); ++it) {
+      const CWalletTx& wtx = (*it).second;
+
+      if (!wtx.IsTrusted() || wtx.GetBlocksToMaturity() > 0) {
+        continue;
+      }
+
+      int64_t allFee;
+      string strSentAccount;
+      list<pair<CTxDestination, int64_t> > listReceived;
+      list<pair<CTxDestination, int64_t> > listSent;
+      wtx.GetAmounts(listReceived, listSent, allFee, strSentAccount);
+      if (wtx.GetDepthInMainChain() >= nMinDepth) {
+        BOOST_FOREACH(const PAIRTYPE(CTxDestination,int64_t)& r, listReceived) {
+          nBalance += r.second;
+        }
+      }
+      BOOST_FOREACH(const PAIRTYPE(CTxDestination,int64_t)& r, listSent) {
+        nBalance -= r.second;
+      }
+      nBalance -= allFee;
+    }
+    NanReturnValue(NanNew<Number>(nBalance));
+  }
+
+  int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
+
+  NanReturnValue(NanNew<Number>(nBalance));
 }
 
 NAN_METHOD(WalletGetUnconfirmedBalance) {
