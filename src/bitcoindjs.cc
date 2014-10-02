@@ -243,12 +243,6 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock);
 static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx);
 
-static inline void
-hexblock_to_cblock(std::string block_hex, CBlock& cblock);
-
-static inline void
-hextx_to_ctx(std::string tx_hex, CTransaction& ctx);
-
 extern "C" void
 init(Handle<Object>);
 
@@ -2651,26 +2645,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
         jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
       }
     }
-  }
-}
-
-static inline void
-hexblock_to_cblock(std::string block_hex, CBlock& cblock) {
-  CDataStream ssData(ParseHex(block_hex), SER_NETWORK, PROTOCOL_VERSION);
-  try {
-    ssData >> cblock;
-  } catch (std::exception &e) {
-    NanThrowError("Block decode failed");
-  }
-}
-
-static inline void
-hextx_to_ctx(std::string tx_hex, CTransaction& ctx) {
-  CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
-  try {
-    ssData >> ctx;
-  } catch (std::exception &e) {
-    NanThrowError("TX decode failed");
   }
 }
 
