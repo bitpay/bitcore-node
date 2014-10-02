@@ -2251,18 +2251,11 @@ NAN_METHOD(WalletEncrypt) {
 
   printf(
     "bitcoind.js:"
-    " wallet encrypted; Bitcoin server stopping,"
+    " wallet encrypted; bitcoind.js stopping,"
     " restart to run with encrypted wallet."
     " The keypool has been flushed, you need"
     " to make a new backup.\n"
   );
-
-  // NanReturnValue(NanNew<String>(
-  //   "wallet encrypted; Bitcoin server stopping,"
-  //   " restart to run with encrypted wallet."
-  //   " The keypool has been flushed, you need"
-  //   " to make a new backup."
-  // ));
 
   NanReturnValue(Undefined());
 }
