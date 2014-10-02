@@ -2677,7 +2677,22 @@ jsblock_to_cblock(const Local<Object> obj, CBlock& block) {
   std::string mhash_ = *mhash__;
   if (mhash_[1] != 'x') mhash_ = "0x" + mhash_;
   uint256 mhash(mhash_);
+
   block->hashMerkleRoot = mhash;
+  block->nTime = (unsigned int)obj->Get(NanNew<String>("time"))->IntegerValue();
+  block->nNonce = (unsigned int)obj->Get(NanNew<String>("nonce"))->IntegerValue();
+  block->nBits = (unsigned int)obj->Get(NanNew<String>("bits"))->IntegerValue();
+
+  if (obj->Get(NanNew<String>("previousblockhash"))->IsString()) {
+    String::AsciiValue hash__(obj->Get(NanNew<String>("previousblockhash"))->ToString());
+    std::string hash_ = *hash__;
+    if (hash_[1] != 'x') hash_ = "0x" + hash_;
+    uint256 hash(hash_);
+    block->hashPrevBlock = hash;
+  } else {
+    uint256 hash(std::string("0000000000000000000000000000000000000000000000000000000000000000"));
+    block->hashPrevBlock = hash;
+  }
 
   Local<Array> txs = Local<Array>::Cast(obj->Get("tx"));
   for (int ti = 0; ti < txs->Length(); ti++) {
@@ -2736,22 +2751,8 @@ jsblock_to_cblock(const Local<Object> obj, CBlock& block) {
 
       tx.vout.push_back(txout);
     }
+
     block->vtx.push_back(tx);
-  }
-
-  block->nTime = (unsigned int)obj->Get(NanNew<String>("time"))->IntegerValue();
-  block->nNonce = (unsigned int)obj->Get(NanNew<String>("nonce"))->IntegerValue();
-  block->nBits = (unsigned int)obj->Get(NanNew<String>("bits"))->IntegerValue();
-
-  if (obj->Get(NanNew<String>("previousblockhash"))->IsString()) {
-    String::AsciiValue hash__(obj->Get(NanNew<String>("previousblockhash"))->ToString());
-    std::string hash_ = *hash__;
-    if (hash_[1] != 'x') hash_ = "0x" + hash_;
-    uint256 hash(hash_);
-    block->hashPrevBlock = hash;
-  } else {
-    uint256 hash(std::string("0000000000000000000000000000000000000000000000000000000000000000"));
-    block->hashPrevBlock = hash;
   }
 }
 
