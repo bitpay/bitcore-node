@@ -284,7 +284,7 @@ struct async_tx_data {
   std::string err_msg;
   std::string txHash;
   std::string blockHash;
-  CTransaction result_tx;
+  CTransaction ctx;
   Persistent<Function> callback;
 };
 
@@ -321,7 +321,8 @@ struct async_poll_mempool_data {
 
 struct async_broadcast_tx_data {
   std::string err_msg;
-  std::string tx_hex;
+  Persistent<Object> jstx;
+  CTransaction ctx;
   std::string tx_hash;
   bool override_fees;
   bool own_only;
@@ -780,7 +781,7 @@ async_get_tx(uv_work_t *req) {
   CTransaction ctx;
 
   if (GetTransaction(hash, ctx, block_hash, true)) {
-    data->result_tx = ctx;
+    data->ctx = ctx;
   } else {
     data->err_msg = std::string("get_tx(): failed.");
   }
@@ -793,7 +794,7 @@ async_get_tx_after(uv_work_t *req) {
 
   std::string txHash = data->txHash;
   std::string blockHash = data->blockHash;
-  CTransaction ctx = data->result_tx;
+  CTransaction ctx = data->ctx;
 
   uint256 hash(txHash);
   uint256 block_hash(blockHash);
@@ -808,12 +809,7 @@ async_get_tx_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-    ssTx << ctx;
-    std::string strHex = HexStr(ssTx.begin(), ssTx.end());
-
     Local<Object> jstx = NanNew<Object>();
-    jstx->Set(NanNew<String>("hex"), NanNew<String>(strHex));
     ctx_to_jstx(ctx, block_hash, jstx);
 
     const unsigned argc = 2;
@@ -1082,15 +1078,17 @@ NAN_METHOD(BroadcastTx) {
   Local<Object> jstx = Local<Object>::Cast(args[0]);
   Local<Function> callback = Local<Function>::Cast(args[3]);
 
-  String::Utf8Value tx_hex_(jstx->Get(NanNew<String>("hex"))->ToString());
-  std::string tx_hex = std::string(*tx_hex_);
-
   async_broadcast_tx_data *data = new async_broadcast_tx_data();
-  data->tx_hex = tx_hex;
   data->override_fees = args[1]->ToBoolean()->IsTrue();
   data->own_only = args[2]->ToBoolean()->IsTrue();
   data->err_msg = std::string("");
   data->callback = Persistent<Function>::New(callback);
+
+  data->jstx = Persistent<Object>::New(jstx);
+
+  CTransaction ctx;
+  jstx_to_ctx(jstx, ctx);
+  data->ctx = ctx;
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -1108,9 +1106,6 @@ static void
 async_broadcast_tx(uv_work_t *req) {
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
-  CDataStream ssData(ParseHex(data->tx_hex), SER_NETWORK, PROTOCOL_VERSION);
-  CTransaction ctx;
-
   bool fOverrideFees = false;
   bool fOwnOnly = false;
 
@@ -1122,14 +1117,7 @@ async_broadcast_tx(uv_work_t *req) {
     fOwnOnly = true;
   }
 
-  // jstx_to_ctx(jstx, ctx);
-
-  try {
-    ssData >> ctx;
-  } catch (std::exception &e) {
-    data->err_msg = std::string("TX decode failed");
-    return;
-  }
+  CTransaction ctx = data->ctx;
 
   uint256 hashTx = ctx.GetHash();
 
@@ -1176,18 +1164,11 @@ async_broadcast_tx_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
-    // jstx_to_ctx(jstx, ctx);
-    CDataStream ssData(ParseHex(data->tx_hex), SER_NETWORK, PROTOCOL_VERSION);
-    CTransaction ctx;
-    ssData >> ctx;
-    Local<Object> jstx = NanNew<Object>();
-    ctx_to_jstx(ctx, 0, jstx);
-
     const unsigned argc = 3;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
       Local<Value>::New(NanNew<String>(data->tx_hash)),
-      Local<Value>::New(jstx)
+      Local<Value>::New(data->jstx)
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -1219,10 +1200,8 @@ NAN_METHOD(VerifyBlock) {
   String::Utf8Value block_hex_(jsblock->Get(NanNew<String>("hex"))->ToString());
   std::string block_hex = std::string(*block_hex_);
 
-  // jsblock_to_cblock(jsblock, cblock);
   CBlock cblock;
-  CDataStream ssData(ParseHex(block_hex), SER_NETWORK, PROTOCOL_VERSION);
-  ssData >> cblock;
+  jsblock_to_cblock(jsblock, cblock);
 
   CValidationState state;
   bool valid = CheckBlock(cblock, state);
@@ -1247,10 +1226,8 @@ NAN_METHOD(VerifyTransaction) {
   String::Utf8Value tx_hex_(jstx->Get(NanNew<String>("hex"))->ToString());
   std::string tx_hex = std::string(*tx_hex_);
 
-  // jstx_to_ctx(jstx, ctx);
   CTransaction ctx;
-  CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
-  ssData >> ctx;
+  jstx_to_ctx(jstx, ctx);
 
   CValidationState state;
   bool valid = CheckTransaction(ctx, state);
@@ -1275,10 +1252,8 @@ NAN_METHOD(FillTransaction) {
   String::Utf8Value tx_hex_(jstx->Get(NanNew<String>("hex"))->ToString());
   std::string tx_hex = std::string(*tx_hex_);
 
-  // jstx_to_ctx(jstx, ctx);
   CTransaction ctx;
-  CDataStream ssData(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
-  ssData >> ctx;
+  jstx_to_ctx(jstx, ctx);
 
   // Get total value of outputs
   // Get the scriptPubKey of the first output (presumably our destination)
@@ -2449,98 +2424,8 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
   int ti = 0;
   BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
     Local<Object> jstx = NanNew<Object>();
-
-    // const uint256 block_hash = cblock.GetHash();
-    // ctx_to_jstx(ctx, block_hash, jstx);
-
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-    ssTx << ctx;
-    std::string strHex = HexStr(ssTx.begin(), ssTx.end());
-    jstx->Set(NanNew<String>("hex"), NanNew<String>(strHex));
-
-    jstx->Set(NanNew<String>("txid"), NanNew<String>(ctx.GetHash().GetHex()));
-    jstx->Set(NanNew<String>("version"), NanNew<Number>(ctx.nVersion));
-    jstx->Set(NanNew<String>("locktime"), NanNew<Number>(ctx.nLockTime));
-
-    Local<Array> vin = NanNew<Array>();
-    int vi = 0;
-    BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
-      Local<Object> in = NanNew<Object>();
-      if (ctx.IsCoinBase()) {
-        in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-      } else {
-        in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
-        in->Set(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
-        Local<Object> o = NanNew<Object>();
-        o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
-        o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        in->Set(NanNew<String>("scriptSig"), o);
-      }
-      in->Set(NanNew<String>("sequence"), NanNew<Number>((boost::int64_t)txin.nSequence));
-      vin->Set(vi, in);
-      vi++;
-    }
-    jstx->Set(NanNew<String>("vin"), vin);
-
-    Local<Array> vout = NanNew<Array>();
-    for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
-      const CTxOut& txout = ctx.vout[vo];
-      Local<Object> out = NanNew<Object>();
-      out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
-      out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)vo));
-
-      Local<Object> o = NanNew<Object>();
-      {
-        const CScript& scriptPubKey = txout.scriptPubKey;
-        Local<Object> out = o;
-        bool fIncludeHex = true;
-
-        txnouttype type;
-        vector<CTxDestination> addresses;
-        int nRequired;
-        out->Set(NanNew<String>("asm"), NanNew<String>(scriptPubKey.ToString()));
-        if (fIncludeHex) {
-          out->Set(NanNew<String>("hex"), NanNew<String>(HexStr(scriptPubKey.begin(), scriptPubKey.end())));
-        }
-        if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
-          out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
-        } else {
-          out->Set(NanNew<String>("reqSigs"), NanNew<Number>(nRequired));
-          out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
-          Local<Array> a = NanNew<Array>();
-          int ai = 0;
-          BOOST_FOREACH(const CTxDestination& addr, addresses) {
-            a->Set(ai, NanNew<String>(CBitcoinAddress(addr).ToString()));
-            ai++;
-          }
-          out->Set(NanNew<String>("addresses"), a);
-        }
-      }
-      out->Set(NanNew<String>("scriptPubKey"), o);
-
-      vout->Set(vo, out);
-    }
-    jstx->Set(NanNew<String>("vout"), vout);
-
-    {
-      const uint256 block_hash = cblock.GetHash();
-      if (block_hash != 0) {
-        jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
-        map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(block_hash);
-        if (mi != mapBlockIndex.end() && (*mi).second) {
-          CBlockIndex* cblock_index = (*mi).second;
-          if (chainActive.Contains(cblock_index)) {
-            jstx->Set(NanNew<String>("confirmations"),
-              NanNew<Number>(1 + chainActive.Height() - cblock_index->nHeight));
-            jstx->Set(NanNew<String>("time"), NanNew<Number>((boost::int64_t)cblock_index->nTime));
-            jstx->Set(NanNew<String>("blocktime"), NanNew<Number>((boost::int64_t)cblock_index->nTime));
-          } else {
-            jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
-          }
-        }
-      }
-    }
-
+    const uint256 block_hash = cblock.GetHash();
+    ctx_to_jstx(ctx, block_hash, jstx);
     txs->Set(ti, jstx);
     ti++;
   }
@@ -2678,62 +2563,7 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
   for (unsigned int ti = 0; ti < txs->Length(); ti++) {
     Local<Object> jstx = Local<Object>::Cast(txs->Get(ti));
     CTransaction ctx;
-
-    // jstx_to_ctx(jstx, ctx);
-
-    ctx.nVersion = jstx->Get(NanNew<String>("version"))->IntegerValue();
-    ctx.nLockTime = jstx->Get(NanNew<String>("locktime"))->IntegerValue();
-
-    Local<Array> vin = Local<Array>::Cast(jstx->Get(NanNew<String>("vin")));
-    for (unsigned int vi = 0; vi < vin->Length(); vi++) {
-      CTxIn txin;
-      Local<Object> in = Local<Object>::Cast(vin->Get(vi));
-
-      std::string shash_;
-      if (in->Get(NanNew<String>("coinbase"))->IsString()) {
-        String::AsciiValue shash__(in->Get(NanNew<String>("coinbase"))->ToString());
-        shash_ = *shash__;
-      } else {
-        String::AsciiValue shash__(in->Get(NanNew<String>("scriptSig"))->ToString());
-        shash_ = *shash__;
-      }
-      if (shash_[1] != 'x') shash_ = "0x" + shash_;
-      uint256 shash(shash_);
-      CScript scriptSig(shash);
-
-      txin.scriptSig = scriptSig;
-
-      String::AsciiValue phash__(in->Get(NanNew<String>("txid"))->ToString());
-      std::string phash_ = *phash__;
-      if (phash_[1] != 'x') phash_ = "0x" + phash_;
-      uint256 phash(phash_);
-
-      txin.prevout.hash = phash;
-      txin.prevout.n = (boost::int64_t)in->Get(NanNew<String>("vout"))->IntegerValue();
-      txin.nSequence = (boost::int64_t)in->Get(NanNew<String>("sequence"))->IntegerValue();
-
-      ctx.vin.push_back(txin);
-    }
-
-    Local<Array> vout = Local<Array>::Cast(jstx->Get(NanNew<String>("vout")));
-    for (unsigned int vo = 0; vo < vout->Length(); vo++) {
-      CTxOut txout;
-      Local<Object> out = Local<Object>::Cast(vout->Get(vo));
-
-      txout.nValue = (int64_t)out->Get(NanNew<String>("value"))->IntegerValue();
-
-      Local<Object> spk = Local<Object>::Cast(out->Get(NanNew<String>("scriptPubKey")));
-      String::AsciiValue phash__(spk->Get(NanNew<String>("hex")));
-      std::string phash_ = *phash__;
-      if (phash_[1] != 'x') phash_ = "0x" + phash_;
-      uint256 phash(phash_);
-      CScript scriptPubKey(phash);
-
-      txout.scriptPubKey = scriptPubKey;
-
-      ctx.vout.push_back(txout);
-    }
-
+    jstx_to_ctx(jstx, ctx);
     cblock.vtx.push_back(ctx);
   }
 }
