@@ -505,10 +505,7 @@ start_node_thread(void) {
   boost::thread *detectShutdownThread = NULL;
 
   const int argc = 0;
-  const char *argv[argc + 1] = {
-    //"-server",
-    NULL
-  };
+  const char *argv[argc + 1] = { NULL };
   ParseParameters(argc, argv);
   ReadConfigFile(mapArgs, mapMultiArgs);
   if (!SelectParamsFromCommandLine()) {
