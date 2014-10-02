@@ -877,17 +877,21 @@ async_poll_blocks(uv_work_t *req) {
 
   int poll_saved_height = block_poll_top_height;
 
+  // Poll, wait until we actually have a blockchain download.
+  // Once we've noticed the height changed, assume we gained a few blocks.
   while (chainActive.Tip()) {
     int cur_height = chainActive.Height();
     if (cur_height != block_poll_top_height) {
       block_poll_top_height = cur_height;
       break;
     }
-    // 100 milliseconds
+    // Try again in 100ms
     useconds_t usec = 100 * 1000;
     usleep(usec);
   }
 
+  // NOTE: Since we can't do v8 stuff on the uv thread pool, we need to create
+  // a linked list for all the blocks and free them up later.
   poll_blocks_list *head = NULL;
   poll_blocks_list *cur = NULL;
 
