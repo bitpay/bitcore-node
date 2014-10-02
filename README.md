@@ -32,10 +32,13 @@ bitcoind as a shared object. This may not be ideal yet.
   - LevelDB Header Files (included in bitcoin source repo, leveldb itself
     unnecessary, libbitcoind.so is already linked to them)
 
+
 ``` bash
 # ensure clean up
 $ make clean
-$ find ~/bitcoin -type f -name '*.o' -or -name '*.so' -print0 | xargs -0 rm -f
+$ find ~/bitcoin -type f -name '*.o' \
+  -or -name '*.so' -or -name '*.lo' \
+  -or -name '*.la' -print0 | xargs -0 rm -fv
 
 # create configure file
 $ ./autogen.sh
@@ -43,22 +46,23 @@ $ ./autogen.sh
 # configure as a library with -fPIC on all object files
 # use --with-incompatible-bdb if necessary
 # use --prefix=/usr if necessary
-$ ./configure --enable-library --with-incompatible-bdb
+$ ./configure --enable-daemonlib
 
 # build libbitcoind.so
-$ time make library
+$ time make
 real    31m33.128s
 user    16m23.930s
 sys     2m52.310s
 ```
 
-`--enable-library` will compile all object files with `-fPIC` (Position
+`--enable-daemonlib` will compile all object files with `-fPIC` (Position
 Independent Code - needed to create a shared object).
 
-`make library` will then compile `./src/libbitcoind.so` (with `-shared -fPIC`),
-linking to all the freshly compiled PIC object files.
+`make` will then compile `./src/libbitcoind.so` (with `-shared -fPIC`), linking
+to all the freshly compiled PIC object files. This will completely ignore
+compiling tests and the QT object files.
 
-Without `--enable-library`, the Makefile with compile bitcoind with -fPIE
+Without `--enable-daemonlib`, the Makefile with compile bitcoind with -fPIE
 (Position Independent for Executable), this allows compiling of bitcoind.
 
 #### Todo
