@@ -2456,6 +2456,7 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
     jstx->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
     jstx->Set(NanNew<String>("txid"), NanNew<String>(ctx.GetHash().GetHex()));
+    jstx->Set(NanNew<String>("hash"), NanNew<String>(ctx.GetHash().GetHex()));
     jstx->Set(NanNew<String>("version"), NanNew<Number>(ctx.nVersion));
     jstx->Set(NanNew<String>("locktime"), NanNew<Number>(ctx.nLockTime));
 
