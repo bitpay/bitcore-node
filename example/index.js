@@ -37,6 +37,7 @@ bitcoind.on('open', function(status) {
     bitcoind.on('block', function(block) {
       print('Found Block:');
       print(block);
+      print(block._getHashJS() === block.getHash());
     });
   }
 
@@ -44,10 +45,12 @@ bitcoind.on('open', function(status) {
     bitcoind.on('tx', function(tx) {
       print('Found TX:');
       print(tx);
+      print(tx._getHashJS() === tx.getHash());
     });
     bitcoind.on('mptx', function(mptx) {
       print('Found mempool TX:');
       print(mptx);
+      print(mptx._getHashJS() === mptx.getHash());
     });
   }
 
