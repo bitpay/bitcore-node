@@ -1004,7 +1004,7 @@ async_poll_mempool(uv_work_t *req) {
 static void
 async_poll_mempool_after(uv_work_t *req) {
   NanScope();
-  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
+  async_poll_mempool_data* data = static_cast<async_poll_mempool_data*>(req->data);
 
   if (!data->err_msg.empty()) {
     Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
