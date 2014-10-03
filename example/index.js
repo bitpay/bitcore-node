@@ -33,22 +33,37 @@ bitcoind.on('open', function(status) {
     getBlocks(bitcoind);
   }
 
-  function hashCompare(obj) {
+  function compareObj(obj) {
+    // Hash
     if (obj.txid) {
       print('tx.txid: %s', obj.txid);
+      print('tx.getHash("hex"): %s', obj.getHash('hex'));
+      print('tx.txid === tx.getHash("hex"): %s', obj.txid === obj.getHash('hex'));
     } else {
       print('block.hash: %s', obj.hash);
+      print('block.getHash("hex"): %s', obj.getHash('hex'));
+      print('block.hash === block.getHash("hex"): %s', obj.hash === obj.getHash('hex'));
     }
+
+    // Hex
     if (obj.txid) {
-      print('tx.hex: %s', obj.hex || obj.toHex());
+      print('tx.hex: %s', obj.hex);
+      print('tx.toHex(): %s', obj.toHex());
+      print('tx.hex === tx.toHex(): %s', obj.hex === obj.toHex());
     } else {
-      print('block.hex: %s', obj.hex || obj.toHex());
+      print('block.hex: %s', obj.hex);
+      print('block.toHex(): %s', obj.toHex());
+      print('block.hex === block.toHex(): %s', obj.hex === obj.toHex());
     }
+
+    return;
+
     var jshash = obj._getHashJS('hex');
     var hash = obj.getHash('hex');
     print('jshash === hash: %s', jshash == hash);
     print('jshash: %s', jshash);
     print('hash: %s', hash);
+
     var jshex = obj._toHexJS();
     var hex = obj.toHex();
     print('jshex === hex: %s', jshex == hex);
@@ -60,7 +75,7 @@ bitcoind.on('open', function(status) {
     bitcoind.on('block', function(block) {
       print('Found Block:');
       print(block);
-      hashCompare(block);
+      compareObj(block);
     });
   }
 
@@ -68,12 +83,12 @@ bitcoind.on('open', function(status) {
     bitcoind.on('tx', function(tx) {
       print('Found TX:');
       print(tx);
-      hashCompare(tx);
+      compareObj(tx);
     });
     bitcoind.on('mptx', function(mptx) {
       print('Found mempool TX:');
       print(mptx);
-      hashCompare(mptx);
+      compareObj(mptx);
     });
   }
 

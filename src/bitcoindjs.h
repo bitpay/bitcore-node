@@ -5,3 +5,5 @@
  * bitcoindjs.h:
  *   A bitcoind node.js binding header file.
  */
+
+#define DEBUG_TX 0

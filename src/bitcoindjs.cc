@@ -2459,8 +2459,8 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
   jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
   CMerkleTx txGen(cblock.vtx[0]);
   txGen.SetMerkleBranch(&cblock);
-  jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain()));
-  jsblock->Set(NanNew<String>("size"), NanNew<Number>((int)::GetSerializeSize(cblock, SER_NETWORK, PROTOCOL_VERSION)));
+  jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
+  jsblock->Set(NanNew<String>("size"), NanNew<Number>((int)::GetSerializeSize(cblock, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
   jsblock->Set(NanNew<String>("height"), NanNew<Number>(cblock_index->nHeight));
   jsblock->Set(NanNew<String>("version"), NanNew<Number>(cblock.nVersion));
   jsblock->Set(NanNew<String>("merkleroot"), NanNew<String>(cblock.hashMerkleRoot.GetHex()));
@@ -2488,9 +2488,9 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
   }
   jsblock->Set(NanNew<String>("tx"), txs);
 
-  jsblock->Set(NanNew<String>("time"), NanNew<Number>((boost::int64_t)cblock.GetBlockTime()));
-  jsblock->Set(NanNew<String>("nonce"), NanNew<Number>((boost::uint64_t)cblock.nNonce));
-  jsblock->Set(NanNew<String>("bits"), NanNew<Number>(cblock.nBits));
+  jsblock->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)cblock.GetBlockTime())->ToUint32());
+  jsblock->Set(NanNew<String>("nonce"), NanNew<Number>((unsigned int)cblock.nNonce)->ToUint32());
+  jsblock->Set(NanNew<String>("bits"), NanNew<Number>((unsigned int)cblock.nBits)->ToUint32());
   jsblock->Set(NanNew<String>("difficulty"), NanNew<Number>(GetDifficulty(cblock_index)));
   jsblock->Set(NanNew<String>("chainwork"), NanNew<String>(cblock_index->nChainWork.GetHex()));
 
@@ -2515,33 +2515,37 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
 
 static inline void
 ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
-  jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>(ctx.nMinTxFee));
-  jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>(ctx.nMinRelayTxFee));
-  jstx->Set(NanNew<String>("current_version"), NanNew<Number>(ctx.CURRENT_VERSION));
+  jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
+  jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
+  jstx->Set(NanNew<String>("current_version"), NanNew<Number>((int)ctx.CURRENT_VERSION)->ToInt32());
 
   jstx->Set(NanNew<String>("txid"), NanNew<String>(ctx.GetHash().GetHex()));
-  jstx->Set(NanNew<String>("version"), NanNew<Number>(ctx.nVersion));
-  jstx->Set(NanNew<String>("locktime"), NanNew<Number>(ctx.nLockTime));
+  jstx->Set(NanNew<String>("version"), NanNew<Number>((int)ctx.nVersion)->ToInt32());
+  jstx->Set(NanNew<String>("locktime"), NanNew<Number>((unsigned int)ctx.nLockTime)->ToUint32());
 
   Local<Array> vin = NanNew<Array>();
   int vi = 0;
   BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
     Local<Object> in = NanNew<Object>();
 
-    if (ctx.IsCoinBase()) {
-      in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-    }
+    //if (ctx.IsCoinBase()) {
+    //  in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+    //  in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+    //  in->Set(NanNew<String>("vout"), NanNew<Number>((unsigned int)0)->ToUint32());
+    //  Local<Object> o = NanNew<Object>();
+    //  o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
+    //  o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+    //  in->Set(NanNew<String>("scriptSig"), o);
+    //} else {
+      in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+      in->Set(NanNew<String>("vout"), NanNew<Number>((unsigned int)txin.prevout.n)->ToUint32());
+      Local<Object> o = NanNew<Object>();
+      o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
+      o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+      in->Set(NanNew<String>("scriptSig"), o);
+    //}
 
-    // else
-    in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
-    in->Set(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
-    Local<Object> o = NanNew<Object>();
-    o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
-    o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-    in->Set(NanNew<String>("scriptSig"), o);
-    // /else
-
-    in->Set(NanNew<String>("sequence"), NanNew<Number>((boost::int64_t)txin.nSequence));
+    in->Set(NanNew<String>("sequence"), NanNew<Number>((unsigned int)txin.nSequence)->ToUint32());
 
     vin->Set(vi, in);
     vi++;
@@ -2553,8 +2557,8 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     const CTxOut& txout = ctx.vout[vo];
     Local<Object> out = NanNew<Object>();
 
-    out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
-    out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)vo));
+    out->Set(NanNew<String>("value"), NanNew<Number>((int64_t)txout.nValue)->ToInteger());
+    out->Set(NanNew<String>("n"), NanNew<Number>((unsigned int)vo)->ToUint32());
 
     Local<Object> o = NanNew<Object>();
     {
@@ -2569,7 +2573,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
         out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
       } else {
-        out->Set(NanNew<String>("reqSigs"), NanNew<Number>(nRequired));
+        out->Set(NanNew<String>("reqSigs"), NanNew<Number>((int)nRequired)->ToInt32());
         out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
         Local<Array> a = NanNew<Array>();
         int ai = 0;
@@ -2594,8 +2598,8 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       if (chainActive.Contains(cblock_index)) {
         jstx->Set(NanNew<String>("confirmations"),
           NanNew<Number>(1 + chainActive.Height() - cblock_index->nHeight));
-        jstx->Set(NanNew<String>("time"), NanNew<Number>((boost::int64_t)cblock_index->nTime));
-        jstx->Set(NanNew<String>("blocktime"), NanNew<Number>((boost::int64_t)cblock_index->nTime));
+        jstx->Set(NanNew<String>("time"), NanNew<Number>((int64_t)cblock_index->nTime)->ToInteger());
+        jstx->Set(NanNew<String>("blocktime"), NanNew<Number>((int64_t)cblock_index->nTime)->ToInteger());
       } else {
         jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
       }
@@ -2606,11 +2610,34 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   ssTx << ctx;
   std::string strHex = HexStr(ssTx.begin(), ssTx.end());
   jstx->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+
+#if DEBUG_TX
+  printf("TO JS -----------------------------------------------------------------\n");
+  printf("nMinTxFee: %ld\n", ctx.nMinTxFee);
+  printf("nMinRelayTxFee: %ld\n", ctx.nMinRelayTxFee);
+  printf("CURRENT_VERSION: %d\n", ctx.CURRENT_VERSION);
+  printf("nVersion: %d\n", ctx.nVersion);
+  BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+    printf("txin.prevout.hash: %s\n", txin.prevout.hash.GetHex().c_str());
+    printf("txin.prevout.n: %u\n", txin.prevout.n);
+    std::string strHex = HexStr(txin.scriptSig.begin(), txin.scriptSig.end(), true);
+    printf("txin.scriptSig: %s\n", strHex.c_str());
+    printf("txin.nSequence: %u\n", txin.nSequence);
+  }
+  for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+    CTxOut txout = ctx.vout[vo];
+    printf("txout.nValue: %ld\n", txout.nValue);
+    std::string strHex = HexStr(txout.scriptPubKey.begin(), txout.scriptPubKey.end(), true);
+    printf("txin.scriptPubKey: %s\n", strHex.c_str());
+  }
+  printf("nLockTime: %u\n", ctx.nLockTime);
+  printf("/ TO JS -----------------------------------------------------------------\n");
+#endif
 }
 
 static inline void
 jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
-  cblock.nVersion = (int)jsblock->Get(NanNew<String>("version"))->IntegerValue();
+  cblock.nVersion = (int)jsblock->Get(NanNew<String>("version"))->Int32Value();
 
   String::AsciiValue mhash__(jsblock->Get(NanNew<String>("merkleroot"))->ToString());
   std::string mhash_ = *mhash__;
@@ -2618,9 +2645,9 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
   uint256 mhash(mhash_);
 
   cblock.hashMerkleRoot = mhash;
-  cblock.nTime = (unsigned int)jsblock->Get(NanNew<String>("time"))->IntegerValue();
-  cblock.nNonce = (unsigned int)jsblock->Get(NanNew<String>("nonce"))->IntegerValue();
-  cblock.nBits = (unsigned int)jsblock->Get(NanNew<String>("bits"))->IntegerValue();
+  cblock.nTime = (unsigned int)jsblock->Get(NanNew<String>("time"))->Uint32Value();
+  cblock.nNonce = (unsigned int)jsblock->Get(NanNew<String>("nonce"))->Uint32Value();
+  cblock.nBits = (unsigned int)jsblock->Get(NanNew<String>("bits"))->Uint32Value();
 
   if (jsblock->Get(NanNew<String>("previousblockhash"))->IsString()) {
     String::AsciiValue hash__(jsblock->Get(NanNew<String>("previousblockhash"))->ToString());
@@ -2641,44 +2668,49 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
     jstx_to_ctx(jstx, ctx);
     cblock.vtx.push_back(ctx);
   }
+
+  if (cblock.vMerkleTree.empty()) {
+    cblock.BuildMerkleTree();
+  }
 }
 
 static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
-  ctx.nMinTxFee = jstx->Get(NanNew<String>("mintxfee"))->IntegerValue();
-  ctx.nMinRelayTxFee = jstx->Get(NanNew<String>("minrelaytxfee"))->IntegerValue();
-  // ctx.CURRENT_VERSION = jstx->Get(NanNew<String>("current_version"))->IntegerValue();
+  ctx.nMinTxFee = (int64_t)jstx->Get(NanNew<String>("mintxfee"))->IntegerValue();
+  ctx.nMinRelayTxFee = (int64_t)jstx->Get(NanNew<String>("minrelaytxfee"))->IntegerValue();
+  // ctx.CURRENT_VERSION = (unsigned int)jstx->Get(NanNew<String>("current_version"))->Int32Value();
 
-  ctx.nVersion = jstx->Get(NanNew<String>("version"))->IntegerValue();
+  ctx.nVersion = (int)jstx->Get(NanNew<String>("version"))->Int32Value();
 
   Local<Array> vin = Local<Array>::Cast(jstx->Get(NanNew<String>("vin")));
   for (unsigned int vi = 0; vi < vin->Length(); vi++) {
     CTxIn txin;
+
     Local<Object> in = Local<Object>::Cast(vin->Get(vi));
 
-    String::AsciiValue phash__(in->Get(NanNew<String>("txid"))->ToString());
-    std::string phash_ = *phash__;
-    if (phash_[1] != 'x') phash_ = "0x" + phash_;
-    uint256 phash(phash_);
+    //if (ctx.IsCoinBase()) {
+    //  txin.prevout.hash = uint256(0);
+    //  txin.prevout.n = (unsigned int)0;
+    //} else {
+      String::AsciiValue phash__(in->Get(NanNew<String>("txid"))->ToString());
+      std::string phash_ = *phash__;
+      if (phash_[1] != 'x') phash_ = "0x" + phash_;
+      uint256 phash(phash_);
 
-    txin.prevout.hash = phash;
-    txin.prevout.n = (boost::int64_t)in->Get(NanNew<String>("vout"))->IntegerValue();
+      txin.prevout.hash = phash;
+      txin.prevout.n = (unsigned int)in->Get(NanNew<String>("vout"))->Uint32Value();
+    //}
 
     std::string shash_;
-    //if (in->Get(NanNew<String>("coinbase"))->IsString()) {
-    //  String::AsciiValue shash__(in->Get(NanNew<String>("coinbase"))->ToString());
-    //  shash_ = *shash__;
-    //} else {
     Local<Object> script_obj = Local<Object>::Cast(in->Get(NanNew<String>("scriptSig")));
     String::AsciiValue shash__(script_obj->Get(NanNew<String>("hex"))->ToString());
     shash_ = *shash__;
-    //}
     if (shash_[1] != 'x') shash_ = "0x" + shash_;
     uint256 shash(shash_);
     CScript scriptSig(shash);
 
     txin.scriptSig = scriptSig;
-    txin.nSequence = (boost::int64_t)in->Get(NanNew<String>("sequence"))->IntegerValue();
+    txin.nSequence = (unsigned int)in->Get(NanNew<String>("sequence"))->Uint32Value();
 
     ctx.vin.push_back(txin);
   }
@@ -2688,7 +2720,8 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
     CTxOut txout;
     Local<Object> out = Local<Object>::Cast(vout->Get(vo));
 
-    txout.nValue = (int64_t)out->Get(NanNew<String>("value"))->IntegerValue();
+    int64_t nValue = (int64_t)out->Get(NanNew<String>("value"))->IntegerValue();
+    txout.nValue = nValue;
 
     Local<Object> script_obj = Local<Object>::Cast(out->Get(NanNew<String>("scriptPubKey")));
     String::AsciiValue phash__(script_obj->Get(NanNew<String>("hex")));
@@ -2702,7 +2735,31 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
     ctx.vout.push_back(txout);
   }
 
-  ctx.nLockTime = jstx->Get(NanNew<String>("locktime"))->IntegerValue();
+  ctx.nLockTime = (unsigned int)jstx->Get(NanNew<String>("locktime"))->Uint32Value();
+
+#if DEBUG_TX
+  printf("TO CTX -----------------------------------------------------------------\n");
+  printf("nMinTxFee: %ld\n", ctx.nMinTxFee);
+  printf("nMinRelayTxFee: %ld\n", ctx.nMinRelayTxFee);
+  printf("CURRENT_VERSION: %d\n", ctx.CURRENT_VERSION);
+  printf("nVersion: %d\n", ctx.nVersion);
+  for (unsigned int vi = 0; vi < vin->Length(); vi++) {
+    CTxIn txin = ctx.vin[vi];
+    printf("txin.prevout.hash: %s\n", txin.prevout.hash.GetHex().c_str());
+    printf("txin.prevout.n: %u\n", txin.prevout.n);
+    std::string strHex = HexStr(txin.scriptSig.begin(), txin.scriptSig.end(), true);
+    printf("txin.scriptSig: %s\n", strHex.c_str());
+    printf("txin.nSequence: %u\n", txin.nSequence);
+  }
+  for (unsigned int vo = 0; vo < vout->Length(); vo++) {
+    CTxOut txout = ctx.vout[vo];
+    printf("txout.nValue: %ld\n", txout.nValue);
+    std::string strHex = HexStr(txout.scriptPubKey.begin(), txout.scriptPubKey.end(), true);
+    printf("txin.scriptPubKey: %s\n", strHex.c_str());
+  }
+  printf("nLockTime: %u\n", ctx.nLockTime);
+  printf("/ TO CTX -----------------------------------------------------------------\n");
+#endif
 }
 
 /**
