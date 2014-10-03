@@ -142,8 +142,8 @@ NAN_METHOD(BroadcastTx);
 NAN_METHOD(VerifyBlock);
 NAN_METHOD(VerifyTransaction);
 NAN_METHOD(FillTransaction);
-NAN_METHOD(GetBlockHash);
-NAN_METHOD(GetTxHash);
+NAN_METHOD(GetBlockHex);
+NAN_METHOD(GetTxHex);
 
 NAN_METHOD(WalletNewAddress);
 NAN_METHOD(WalletGetAccountAddress);
@@ -1307,15 +1307,15 @@ NAN_METHOD(FillTransaction) {
 }
 
 /**
- * GetBlockHash
+ * GetBlockHex
  */
 
-NAN_METHOD(GetBlockHash) {
+NAN_METHOD(GetBlockHex) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getBlockHash(block)");
+      "Usage: bitcoindjs.getBlockHex(block)");
   }
 
   Local<Object> jsblock = Local<Object>::Cast(args[0]);
@@ -1323,21 +1323,28 @@ NAN_METHOD(GetBlockHash) {
   CBlock cblock;
   jsblock_to_cblock(jsblock, cblock);
 
-  Local<String> hash = NanNew<String>(cblock.GetHash().GetHex().c_str());
+  Local<Object> data = NanNew<Object>();
 
-  NanReturnValue(hash);
+  data->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
+
+  CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+  ssBlock << cblock;
+  std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
+  data->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+
+  NanReturnValue(data);
 }
 
 /**
- * GetTxHash
+ * GetTxHex
  */
 
-NAN_METHOD(GetTxHash) {
+NAN_METHOD(GetTxHex) {
   NanScope();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getTxHash(tx)");
+      "Usage: bitcoindjs.getTxHex(tx)");
   }
 
   Local<Object> jstx = Local<Object>::Cast(args[0]);
@@ -1345,9 +1352,16 @@ NAN_METHOD(GetTxHash) {
   CTransaction ctx;
   jstx_to_ctx(jstx, ctx);
 
-  Local<String> hash = NanNew<String>(ctx.GetHash().GetHex());
+  Local<Object> data = NanNew<Object>();
 
-  NanReturnValue(hash);
+  data->Set(NanNew<String>("hash"), NanNew<String>(ctx.GetHash().GetHex()));
+
+  CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+  ssTx << ctx;
+  std::string strHex = HexStr(ssTx.begin(), ssTx.end());
+  data->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+
+  NanReturnValue(data);
 }
 
 /**
@@ -2479,21 +2493,31 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
   jsblock->Set(NanNew<String>("bits"), NanNew<Number>(cblock.nBits));
   jsblock->Set(NanNew<String>("difficulty"), NanNew<Number>(GetDifficulty(cblock_index)));
   jsblock->Set(NanNew<String>("chainwork"), NanNew<String>(cblock_index->nChainWork.GetHex()));
+
   if (cblock_index->pprev) {
     jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>(cblock_index->pprev->GetBlockHash().GetHex()));
+  } else {
+    // genesis
+    jsblock->Set(NanNew<String>("previousblockhash"),
+      NanNew<String>("0000000000000000000000000000000000000000000000000000000000000000"));
   }
+
   CBlockIndex *pnext = chainActive.Next(cblock_index);
   if (pnext) {
     jsblock->Set(NanNew<String>("nextblockhash"), NanNew<String>(pnext->GetBlockHash().GetHex()));
   }
+
+  CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+  ssBlock << cblock;
+  std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
+  jsblock->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 }
 
 static inline void
 ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
-  CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-  ssTx << ctx;
-  std::string strHex = HexStr(ssTx.begin(), ssTx.end());
-  jstx->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+  jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>(ctx.nMinTxFee));
+  jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>(ctx.nMinRelayTxFee));
+  jstx->Set(NanNew<String>("current_version"), NanNew<Number>(ctx.CURRENT_VERSION));
 
   jstx->Set(NanNew<String>("txid"), NanNew<String>(ctx.GetHash().GetHex()));
   jstx->Set(NanNew<String>("version"), NanNew<Number>(ctx.nVersion));
@@ -2503,17 +2527,22 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   int vi = 0;
   BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
     Local<Object> in = NanNew<Object>();
+
     if (ctx.IsCoinBase()) {
       in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-    } else {
-      in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
-      in->Set(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
-      Local<Object> o = NanNew<Object>();
-      o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
-      o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-      in->Set(NanNew<String>("scriptSig"), o);
     }
+
+    // else
+    in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+    in->Set(NanNew<String>("vout"), NanNew<Number>((boost::int64_t)txin.prevout.n));
+    Local<Object> o = NanNew<Object>();
+    o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
+    o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+    in->Set(NanNew<String>("scriptSig"), o);
+    // /else
+
     in->Set(NanNew<String>("sequence"), NanNew<Number>((boost::int64_t)txin.nSequence));
+
     vin->Set(vi, in);
     vi++;
   }
@@ -2523,6 +2552,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
     const CTxOut& txout = ctx.vout[vo];
     Local<Object> out = NanNew<Object>();
+
     out->Set(NanNew<String>("value"), NanNew<Number>(txout.nValue));
     out->Set(NanNew<String>("n"), NanNew<Number>((boost::int64_t)vo));
 
@@ -2530,15 +2560,12 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     {
       const CScript& scriptPubKey = txout.scriptPubKey;
       Local<Object> out = o;
-      bool fIncludeHex = true;
 
       txnouttype type;
       vector<CTxDestination> addresses;
       int nRequired;
       out->Set(NanNew<String>("asm"), NanNew<String>(scriptPubKey.ToString()));
-      if (fIncludeHex) {
-        out->Set(NanNew<String>("hex"), NanNew<String>(HexStr(scriptPubKey.begin(), scriptPubKey.end())));
-      }
+      out->Set(NanNew<String>("hex"), NanNew<String>(HexStr(scriptPubKey.begin(), scriptPubKey.end())));
       if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
         out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
       } else {
@@ -2574,6 +2601,11 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       }
     }
   }
+
+  CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+  ssTx << ctx;
+  std::string strHex = HexStr(ssTx.begin(), ssTx.end());
+  jstx->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 }
 
 static inline void
@@ -2613,36 +2645,39 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
 
 static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
+  ctx.nMinTxFee = jstx->Get(NanNew<String>("mintxfee"))->IntegerValue();
+  ctx.nMinRelayTxFee = jstx->Get(NanNew<String>("minrelaytxfee"))->IntegerValue();
+  // ctx.CURRENT_VERSION = jstx->Get(NanNew<String>("current_version"))->IntegerValue();
+
   ctx.nVersion = jstx->Get(NanNew<String>("version"))->IntegerValue();
-  ctx.nLockTime = jstx->Get(NanNew<String>("locktime"))->IntegerValue();
 
   Local<Array> vin = Local<Array>::Cast(jstx->Get(NanNew<String>("vin")));
   for (unsigned int vi = 0; vi < vin->Length(); vi++) {
     CTxIn txin;
     Local<Object> in = Local<Object>::Cast(vin->Get(vi));
 
+    String::AsciiValue phash__(in->Get(NanNew<String>("txid"))->ToString());
+    std::string phash_ = *phash__;
+    if (phash_[1] != 'x') phash_ = "0x" + phash_;
+    uint256 phash(phash_);
+
+    txin.prevout.hash = phash;
+    txin.prevout.n = (boost::int64_t)in->Get(NanNew<String>("vout"))->IntegerValue();
+
     std::string shash_;
-    if (in->Get(NanNew<String>("coinbase"))->IsString()) {
-      String::AsciiValue shash__(in->Get(NanNew<String>("coinbase"))->ToString());
-      shash_ = *shash__;
-    } else {
-      String::AsciiValue shash__(in->Get(NanNew<String>("scriptSig"))->ToString());
-      shash_ = *shash__;
-    }
+    //if (in->Get(NanNew<String>("coinbase"))->IsString()) {
+    //  String::AsciiValue shash__(in->Get(NanNew<String>("coinbase"))->ToString());
+    //  shash_ = *shash__;
+    //} else {
+    Local<Object> script_obj = Local<Object>::Cast(in->Get(NanNew<String>("scriptSig")));
+    String::AsciiValue shash__(script_obj->Get(NanNew<String>("hex"))->ToString());
+    shash_ = *shash__;
+    //}
     if (shash_[1] != 'x') shash_ = "0x" + shash_;
     uint256 shash(shash_);
     CScript scriptSig(shash);
 
     txin.scriptSig = scriptSig;
-
-    String::AsciiValue phash__(in->Get(NanNew<String>("txid"))->ToString());
-    std::string phash_ = *phash__;
-    if (phash_[1] != 'x') phash_ = "0x" + phash_;
-
-    uint256 phash(phash_);
-
-    txin.prevout.hash = phash;
-    txin.prevout.n = (boost::int64_t)in->Get(NanNew<String>("vout"))->IntegerValue();
     txin.nSequence = (boost::int64_t)in->Get(NanNew<String>("sequence"))->IntegerValue();
 
     ctx.vin.push_back(txin);
@@ -2655,8 +2690,8 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
 
     txout.nValue = (int64_t)out->Get(NanNew<String>("value"))->IntegerValue();
 
-    Local<Object> spk = Local<Object>::Cast(out->Get(NanNew<String>("scriptPubKey")));
-    String::AsciiValue phash__(spk->Get(NanNew<String>("hex")));
+    Local<Object> script_obj = Local<Object>::Cast(out->Get(NanNew<String>("scriptPubKey")));
+    String::AsciiValue phash__(script_obj->Get(NanNew<String>("hex")));
     std::string phash_ = *phash__;
     if (phash_[1] != 'x') phash_ = "0x" + phash_;
     uint256 phash(phash_);
@@ -2666,6 +2701,8 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
 
     ctx.vout.push_back(txout);
   }
+
+  ctx.nLockTime = jstx->Get(NanNew<String>("locktime"))->IntegerValue();
 }
 
 /**
@@ -2690,8 +2727,8 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "verifyBlock", VerifyBlock);
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
   NODE_SET_METHOD(target, "fillTransaction", FillTransaction);
-  NODE_SET_METHOD(target, "getBlockHash", GetBlockHash);
-  NODE_SET_METHOD(target, "getTxHash", GetTxHash);
+  NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
+  NODE_SET_METHOD(target, "getTxHex", GetTxHex);
 
   NODE_SET_METHOD(target, "walletNewAddress", WalletNewAddress);
   NODE_SET_METHOD(target, "walletGetAccountAddress", WalletGetAccountAddress);

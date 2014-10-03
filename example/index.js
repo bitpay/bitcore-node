@@ -33,11 +33,34 @@ bitcoind.on('open', function(status) {
     getBlocks(bitcoind);
   }
 
+  function hashCompare(obj) {
+    if (obj.txid) {
+      print('tx.txid: %s', obj.txid);
+    } else {
+      print('block.hash: %s', obj.hash);
+    }
+    if (obj.txid) {
+      print('tx.hex: %s', obj.hex || obj.toHex());
+    } else {
+      print('block.hex: %s', obj.hex || obj.toHex());
+    }
+    var jshash = obj._getHashJS('hex');
+    var hash = obj.getHash('hex');
+    print('jshash === hash: %s', jshash == hash);
+    print('jshash: %s', jshash);
+    print('hash: %s', hash);
+    var jshex = obj._toHexJS();
+    var hex = obj.toHex();
+    print('jshex === hex: %s', jshex == hex);
+    print('jshex: %s', jshex);
+    print('hex: %s', hex);
+  }
+
   if (argv['on-block']) {
     bitcoind.on('block', function(block) {
       print('Found Block:');
       print(block);
-      print(block._getHashJS() === block.getHash());
+      hashCompare(block);
     });
   }
 
@@ -45,12 +68,12 @@ bitcoind.on('open', function(status) {
     bitcoind.on('tx', function(tx) {
       print('Found TX:');
       print(tx);
-      print(tx._getHashJS() === tx.getHash());
+      hashCompare(tx);
     });
     bitcoind.on('mptx', function(mptx) {
       print('Found mempool TX:');
       print(mptx);
-      print(mptx._getHashJS() === mptx.getHash());
+      hashCompare(mptx);
     });
   }
 
