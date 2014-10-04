@@ -55,20 +55,6 @@ bitcoind.on('open', function(status) {
       print('block.toHex(): %s', obj.toHex());
       print('block.hex === block.toHex(): %s', obj.hex === obj.toHex());
     }
-
-    return;
-
-    var jshash = obj._getHashJS('hex');
-    var hash = obj.getHash('hex');
-    print('jshash === hash: %s', jshash == hash);
-    print('jshash: %s', jshash);
-    print('hash: %s', hash);
-
-    var jshex = obj._toHexJS();
-    var hex = obj.toHex();
-    print('jshex === hex: %s', jshex == hex);
-    print('jshex: %s', jshex);
-    print('hex: %s', hex);
   }
 
   if (argv['on-block']) {

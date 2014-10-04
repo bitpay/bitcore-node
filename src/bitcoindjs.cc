@@ -1354,7 +1354,7 @@ NAN_METHOD(GetTxHex) {
 
   Local<Object> data = NanNew<Object>();
 
-  data->Set(NanNew<String>("hash"), NanNew<String>(ctx.GetHash().GetHex()));
+  data->Set(NanNew<String>("hash"), NanNew<String>(ctx.GetHash().GetHex().c_str()));
 
   CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
   ssTx << ctx;
@@ -2537,12 +2537,15 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     //  o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
     //  in->Set(NanNew<String>("scriptSig"), o);
     //} else {
-      in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
-      in->Set(NanNew<String>("vout"), NanNew<Number>((unsigned int)txin.prevout.n)->ToUint32());
-      Local<Object> o = NanNew<Object>();
-      o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
-      o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-      in->Set(NanNew<String>("scriptSig"), o);
+    if (ctx.IsCoinBase()) {
+      in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+    }
+    in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
+    in->Set(NanNew<String>("vout"), NanNew<Number>((unsigned int)txin.prevout.n)->ToUint32());
+    Local<Object> o = NanNew<Object>();
+    o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
+    o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+    in->Set(NanNew<String>("scriptSig"), o);
     //}
 
     in->Set(NanNew<String>("sequence"), NanNew<Number>((unsigned int)txin.nSequence)->ToUint32());
@@ -2657,8 +2660,7 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
     cblock.hashPrevBlock = hash;
   } else {
     // genesis block
-    uint256 hash(std::string("0x0000000000000000000000000000000000000000000000000000000000000000"));
-    cblock.hashPrevBlock = hash;
+    cblock.hashPrevBlock = uint256(0);
   }
 
   Local<Array> txs = Local<Array>::Cast(jsblock->Get(NanNew<String>("tx")));
@@ -2676,6 +2678,18 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
 
 static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
+  String::AsciiValue hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
+  std::string hex_string = *hex_string_;
+
+  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> ctx;
+  } catch (std::exception &e) {
+    NanThrowError("Bad TX decode");
+  }
+
+  return;
+
   ctx.nMinTxFee = (int64_t)jstx->Get(NanNew<String>("mintxfee"))->IntegerValue();
   ctx.nMinRelayTxFee = (int64_t)jstx->Get(NanNew<String>("minrelaytxfee"))->IntegerValue();
   // ctx.CURRENT_VERSION = (unsigned int)jstx->Get(NanNew<String>("current_version"))->Int32Value();
