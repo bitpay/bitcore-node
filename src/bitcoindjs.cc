@@ -662,9 +662,6 @@ static void
 async_get_block(uv_work_t *req) {
   async_block_data* data = static_cast<async_block_data*>(req->data);
   std::string strHash = data->hash;
-  if (strHash[1] != 'x') {
-    strHash = "0x" + strHash;
-  }
   uint256 hash(strHash);
   CBlock cblock;
   CBlockIndex* pblockindex = mapBlockIndex[hash];
@@ -743,14 +740,6 @@ NAN_METHOD(GetTx) {
 
   if (blockHash.empty()) {
     blockHash = std::string("0x0000000000000000000000000000000000000000000000000000000000000000");
-  }
-
-  if (txHash[1] != 'x') {
-    txHash = "0x" + txHash;
-  }
-
-  if (blockHash[1] != 'x') {
-    blockHash = "0x" + blockHash;
   }
 
   async_tx_data *data = new async_tx_data();
@@ -2644,7 +2633,6 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
 
   String::AsciiValue mhash__(jsblock->Get(NanNew<String>("merkleroot"))->ToString());
   std::string mhash_ = *mhash__;
-  if (mhash_[1] != 'x') mhash_ = "0x" + mhash_;
   uint256 mhash(mhash_);
 
   cblock.hashMerkleRoot = mhash;
@@ -2655,7 +2643,6 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
   if (jsblock->Get(NanNew<String>("previousblockhash"))->IsString()) {
     String::AsciiValue hash__(jsblock->Get(NanNew<String>("previousblockhash"))->ToString());
     std::string hash_ = *hash__;
-    if (hash_[1] != 'x') hash_ = "0x" + hash_;
     uint256 hash(hash_);
     cblock.hashPrevBlock = hash;
   } else {
@@ -2708,7 +2695,6 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
     //} else {
       String::AsciiValue phash__(in->Get(NanNew<String>("txid"))->ToString());
       std::string phash_ = *phash__;
-      if (phash_[1] != 'x') phash_ = "0x" + phash_;
       uint256 phash(phash_);
 
       txin.prevout.hash = phash;
@@ -2719,7 +2705,6 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
     Local<Object> script_obj = Local<Object>::Cast(in->Get(NanNew<String>("scriptSig")));
     String::AsciiValue shash__(script_obj->Get(NanNew<String>("hex"))->ToString());
     shash_ = *shash__;
-    if (shash_[1] != 'x') shash_ = "0x" + shash_;
     uint256 shash(shash_);
     CScript scriptSig(shash);
 
@@ -2740,7 +2725,6 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
     Local<Object> script_obj = Local<Object>::Cast(out->Get(NanNew<String>("scriptPubKey")));
     String::AsciiValue phash__(script_obj->Get(NanNew<String>("hex")));
     std::string phash_ = *phash__;
-    if (phash_[1] != 'x') phash_ = "0x" + phash_;
     uint256 phash(phash_);
     CScript scriptPubKey(phash);
 
