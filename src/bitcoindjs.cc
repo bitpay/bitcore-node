@@ -144,6 +144,8 @@ NAN_METHOD(VerifyTransaction);
 NAN_METHOD(FillTransaction);
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
+NAN_METHOD(BlockFromHex);
+NAN_METHOD(TxFromHex);
 
 NAN_METHOD(WalletNewAddress);
 NAN_METHOD(WalletGetAccountAddress);
@@ -1351,6 +1353,64 @@ NAN_METHOD(GetTxHex) {
   data->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
   NanReturnValue(data);
+}
+
+/**
+ * BlockFromHex
+ */
+
+NAN_METHOD(BlockFromHex) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.blockFromHex(hex)");
+  }
+
+  String::AsciiValue hex_string_(args[0]->ToString());
+  std::string hex_string = *hex_string_;
+
+  CBlock cblock;
+  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> cblock;
+  } catch (std::exception &e) {
+    NanThrowError("Bad Block decode");
+  }
+
+  Local<Object> jsblock = NanNew<Object>();
+  cblock_to_jsblock(cblock, 0, jsblock);
+
+  NanReturnValue(jsblock);
+}
+
+/**
+ * TxFromHex
+ */
+
+NAN_METHOD(TxFromHex) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.txFromHex(hex)");
+  }
+
+  String::AsciiValue hex_string_(args[0]->ToString());
+  std::string hex_string = *hex_string_;
+
+  CTransaction ctx;
+  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> ctx;
+  } catch (std::exception &e) {
+    NanThrowError("Bad Block decode");
+  }
+
+  Local<Object> jstx = NanNew<Object>();
+  ctx_to_jstx(ctx, 0, jstx);
+
+  NanReturnValue(jstx);
 }
 
 /**
@@ -2677,6 +2737,8 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
 
   return;
 
+  // XXX This is returning bad hex values for some reason:
+
   ctx.nMinTxFee = (int64_t)jstx->Get(NanNew<String>("mintxfee"))->IntegerValue();
   ctx.nMinRelayTxFee = (int64_t)jstx->Get(NanNew<String>("minrelaytxfee"))->IntegerValue();
   // ctx.CURRENT_VERSION = (unsigned int)jstx->Get(NanNew<String>("current_version"))->Int32Value();
@@ -2784,6 +2846,8 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "fillTransaction", FillTransaction);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
+  NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
+  NODE_SET_METHOD(target, "txFromHex", TxFromHex);
 
   NODE_SET_METHOD(target, "walletNewAddress", WalletNewAddress);
   NODE_SET_METHOD(target, "walletGetAccountAddress", WalletGetAccountAddress);
