@@ -128,8 +128,6 @@ extern const std::string strMessageMagic;
 using namespace node;
 using namespace v8;
 
-Handle<Object> bitcoindjs_obj;
-
 NAN_METHOD(StartBitcoind);
 NAN_METHOD(IsStopping);
 NAN_METHOD(IsStopped);
@@ -170,13 +168,13 @@ NAN_METHOD(WalletSetTxFee);
 NAN_METHOD(WalletImportKey);
 
 static void
-async_start_node_work(uv_work_t *req);
+async_start_node(uv_work_t *req);
 
 static void
 async_start_node_after(uv_work_t *req);
 
 static void
-async_stop_node_work(uv_work_t *req);
+async_stop_node(uv_work_t *req);
 
 static void
 async_stop_node_after(uv_work_t *req);
@@ -398,7 +396,7 @@ NAN_METHOD(StartBitcoind) {
   req->data = data;
 
   int status = uv_queue_work(uv_default_loop(),
-    req, async_start_node_work,
+    req, async_start_node,
     (uv_after_work_cb)async_start_node_after);
 
   assert(status == 0);
@@ -407,12 +405,12 @@ NAN_METHOD(StartBitcoind) {
 }
 
 /**
- * async_start_node_work()
+ * async_start_node()
  * Call start_node() and start all our boost threads.
  */
 
 static void
-async_start_node_work(uv_work_t *req) {
+async_start_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
   start_node();
   data->result = std::string("start_node(): bitcoind opened.");
@@ -565,7 +563,7 @@ NAN_METHOD(StopBitcoind) {
   req->data = data;
 
   int status = uv_queue_work(uv_default_loop(),
-    req, async_stop_node_work,
+    req, async_stop_node,
     (uv_after_work_cb)async_stop_node_after);
 
   assert(status == 0);
@@ -574,12 +572,12 @@ NAN_METHOD(StopBitcoind) {
 }
 
 /**
- * async_stop_node_work()
+ * async_stop_node()
  * Call StartShutdown() to join the boost threads, which will call Shutdown().
  */
 
 static void
-async_stop_node_work(uv_work_t *req) {
+async_stop_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
   StartShutdown();
   data->result = std::string("stop_node(): bitcoind shutdown.");
@@ -2509,7 +2507,8 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
   CMerkleTx txGen(cblock.vtx[0]);
   txGen.SetMerkleBranch(&cblock);
   jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
-  jsblock->Set(NanNew<String>("size"), NanNew<Number>((int)::GetSerializeSize(cblock, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
+  jsblock->Set(NanNew<String>("size"),
+    NanNew<Number>((int)::GetSerializeSize(cblock, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
   jsblock->Set(NanNew<String>("height"), NanNew<Number>(cblock_index->nHeight));
   jsblock->Set(NanNew<String>("version"), NanNew<Number>(cblock.nVersion));
   jsblock->Set(NanNew<String>("merkleroot"), NanNew<String>(cblock.hashMerkleRoot.GetHex()));
@@ -2829,8 +2828,6 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
 extern "C" void
 init(Handle<Object> target) {
   NanScope();
-
-  bitcoindjs_obj = target;
 
   NODE_SET_METHOD(target, "start", StartBitcoind);
   NODE_SET_METHOD(target, "stop", StopBitcoind);
