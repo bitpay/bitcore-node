@@ -121,6 +121,7 @@ bitcoind.js: status="start_node(): bitcoind opened."
           privkey: 'L47MC7gtB5UdWYsmxT6czzGophFm6Zj99PYVQWDNkJG6Mf12GGyi',
           pubkeycompressed: true,
           pubkey: '02bf636e7a3ad48ea2cf0c8dbdf992792e617a4f92f2e161f20f3c038883647f0d' } ] } }
+^C
 bitcoind.js: stop_node(): bitcoind shutdown.
 bitcoind.js: shutting down...
 bitcoind.js: shut down.
