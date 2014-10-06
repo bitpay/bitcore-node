@@ -2525,6 +2525,12 @@ NAN_METHOD(WalletEncrypt) {
   NanReturnValue(Undefined());
 }
 
+/**
+ * WalletSetTxFee()
+ * bitcoindjs.walletSetTxFee(options)
+ * Set default global wallet transaction fee internally.
+ */
+
 NAN_METHOD(WalletSetTxFee) {
   NanScope();
 
@@ -2926,7 +2932,7 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
   }
 }
 
-// NOTE: For whatever reason when convertin a jstx to a CTransaction via
+// NOTE: For whatever reason when converting a jstx to a CTransaction via
 // setting CTransaction properties, the binary output of a jstx is not the same
 // as what went in. It is unknow why this occurs. For now we are are using a
 // workaround by carrying the original hex value on the object which is changed
