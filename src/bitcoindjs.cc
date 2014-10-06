@@ -471,30 +471,6 @@ async_start_node_after(uv_work_t *req) {
 }
 
 /**
- * IsStopping()
- * bitcoind.stopping()
- * Check whether bitcoind is in the process of shutting down. This is polled
- * from javascript.
- */
-
-NAN_METHOD(IsStopping) {
-  NanScope();
-  NanReturnValue(NanNew<Boolean>(ShutdownRequested()));
-}
-
-/**
- * IsStopped()
- * bitcoind.stopped()
- * Check whether bitcoind has shutdown completely. This will be polled by
- * javascript to check whether the libuv event loop is safe to stop.
- */
-
-NAN_METHOD(IsStopped) {
-  NanScope();
-  NanReturnValue(NanNew<Boolean>(shutdownComplete));
-}
-
-/**
  * start_node(void)
  * Start AppInit2() on a separate thread, wait for
  * pwalletMain instantiation (and signal() calls).
@@ -649,6 +625,30 @@ async_stop_node_after(uv_work_t *req) {
 
   delete data;
   delete req;
+}
+
+/**
+ * IsStopping()
+ * bitcoind.stopping()
+ * Check whether bitcoind is in the process of shutting down. This is polled
+ * from javascript.
+ */
+
+NAN_METHOD(IsStopping) {
+  NanScope();
+  NanReturnValue(NanNew<Boolean>(ShutdownRequested()));
+}
+
+/**
+ * IsStopped()
+ * bitcoind.stopped()
+ * Check whether bitcoind has shutdown completely. This will be polled by
+ * javascript to check whether the libuv event loop is safe to stop.
+ */
+
+NAN_METHOD(IsStopped) {
+  NanScope();
+  NanReturnValue(NanNew<Boolean>(shutdownComplete));
 }
 
 /**
