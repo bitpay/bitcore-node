@@ -103,7 +103,7 @@ libuv I'm guessing. This is being investigated.
 bitcoind.js has direct access to the global wallet:
 
 ``` js
-var bitcoind = require('bitcoind.js)();
+var bitcoind = require('bitcoind.js')();
 bitcoind.on('open', function() {
   console.log(bitcoind.wallet.listAccounts());
 });
