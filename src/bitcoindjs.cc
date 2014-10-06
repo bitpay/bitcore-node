@@ -1,5 +1,5 @@
 /**
- * bitcoind.js
+ * bitcoind.js - a binding for node.js which links to libbitcoind.so.
  * Copyright (c) 2014, BitPay (MIT License)
  *
  * bitcoindjs.cc:
@@ -97,6 +97,9 @@
 
 using namespace std;
 using namespace boost;
+
+// These global functions and variables are required to be defined/exposed
+// here.
 
 extern void DetectShutdownThread(boost::thread_group*);
 extern int nScriptCheckThreads;
@@ -245,15 +248,21 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock);
 static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx);
 
+// extern "C" because C++ is a mess with name mangling.
 extern "C" void
 init(Handle<Object>);
 
 /**
- * Private Variables
+ * Private Variables used only by bitcoindjs functions.
  */
 
 static volatile bool shutdownComplete = false;
 static int block_poll_top_height = -1;
+
+/**
+ * Private Structs
+ * Used for async functions and necessary linked lists at points.
+ */
 
 /**
  * async_node_data
@@ -294,18 +303,24 @@ struct async_tx_data {
  * async_poll_blocks_data
  */
 
-typedef struct _poll_blocks_list {
-  CBlock cblock;
-  CBlockIndex *cblock_index;
-  struct _poll_blocks_list *next;
-} poll_blocks_list;
-
 struct async_poll_blocks_data {
   std::string err_msg;
   poll_blocks_list *head;
   Persistent<Array> result_array;
   Persistent<Function> callback;
 };
+
+/**
+ * poll_blocks_list
+ * A singly linked list containing any polled CBlocks and CBlockIndexes.
+ * Contained by async_poll_blocks_data struct.
+ */
+
+typedef struct _poll_blocks_list {
+  CBlock cblock;
+  CBlockIndex *cblock_index;
+  struct _poll_blocks_list *next;
+} poll_blocks_list;
 
 /**
  * async_poll_mempool_data
@@ -369,8 +384,9 @@ struct async_import_key_data {
 };
 
 /**
- * StartBitcoind
+ * StartBitcoind()
  * bitcoind.start(callback)
+ * Start the bitcoind node with AppInit2() on a separate thread.
  */
 
 NAN_METHOD(StartBitcoind) {
@@ -457,6 +473,8 @@ async_start_node_after(uv_work_t *req) {
 /**
  * IsStopping()
  * bitcoind.stopping()
+ * Check whether bitcoind is in the process of shutting down. This is polled
+ * from javascript.
  */
 
 NAN_METHOD(IsStopping) {
@@ -467,6 +485,8 @@ NAN_METHOD(IsStopping) {
 /**
  * IsStopped()
  * bitcoind.stopped()
+ * Check whether bitcoind has shutdown completely. This will be polled by
+ * javascript to check whether the libuv event loop is safe to stop.
  */
 
 NAN_METHOD(IsStopped) {
@@ -476,9 +496,11 @@ NAN_METHOD(IsStopped) {
 
 /**
  * start_node(void)
- * start_node_thread(void)
- * A reimplementation of AppInit2 minus
- * the logging and argument parsing.
+ * Start AppInit2() on a separate thread, wait for
+ * pwalletMain instantiation (and signal() calls).
+ * Unfortunately, we need to wait for the initialization
+ * to unhook the signal handlers so we can use them
+ * from node.js in javascript.
  */
 
 static int
@@ -487,14 +509,14 @@ start_node(void) {
 
   (boost::thread *)new boost::thread(boost::bind(&start_node_thread));
 
-  // wait for wallet to be instantiated
-  // this also avoids a race condition with signals not being set up
+  // Wait for wallet to be instantiated. This also avoids
+  // a race condition with signals not being set up.
   while (!pwalletMain) {
     useconds_t usec = 100 * 1000;
     usleep(usec);
   }
 
-  // drop the bitcoind signal handlers - we want our own
+  // Drop the bitcoind signal handlers: we want our own.
   signal(SIGINT, SIG_DFL);
   signal(SIGHUP, SIG_DFL);
   signal(SIGQUIT, SIG_DFL);
@@ -507,6 +529,7 @@ start_node_thread(void) {
   boost::thread_group threadGroup;
   boost::thread *detectShutdownThread = NULL;
 
+  // Workaround for AppInit2() arg parsing. Not ideal, but it works.
   const int argc = 0;
   const char *argv[argc + 1] = { NULL };
   ParseParameters(argc, argv);
@@ -514,7 +537,11 @@ start_node_thread(void) {
   if (!SelectParamsFromCommandLine()) {
     return;
   }
+
+  // This is probably a good idea if people try to start bitcoind while running
+  // a program which links to libbitcoind.so, but disable it for now.
   // CreatePidFile(GetPidFile(), getpid());
+
   detectShutdownThread = new boost::thread(
     boost::bind(&DetectShutdownThread, &threadGroup));
 
@@ -532,11 +559,13 @@ start_node_thread(void) {
     detectShutdownThread = NULL;
   }
   Shutdown();
+
+  // bitcoind is shutdown, notify the main thread.
   shutdownComplete = true;
 }
 
 /**
- * StopBitcoind
+ * StopBitcoind()
  * bitcoind.stop(callback)
  */
 
@@ -573,7 +602,8 @@ NAN_METHOD(StopBitcoind) {
 
 /**
  * async_stop_node()
- * Call StartShutdown() to join the boost threads, which will call Shutdown().
+ * Call StartShutdown() to join the boost threads, which will call Shutdown()
+ * and set shutdownComplete to true to notify the main node.js thread.
  */
 
 static void
@@ -622,8 +652,9 @@ async_stop_node_after(uv_work_t *req) {
 }
 
 /**
- * GetBlock
+ * GetBlock()
  * bitcoind.getBlock(blockHash, callback)
+ * Read any block from disk asynchronously.
  */
 
 NAN_METHOD(GetBlock) {
@@ -713,8 +744,9 @@ async_get_block_after(uv_work_t *req) {
 }
 
 /**
- * GetTx
+ * GetTx()
  * bitcoind.getTx(txHash, [blockHash], callback)
+ * Read any transaction from disk asynchronously.
  */
 
 NAN_METHOD(GetTx) {
@@ -819,8 +851,15 @@ async_get_tx_after(uv_work_t *req) {
 }
 
 /**
- * PollBlocks
+ * PollBlocks()
  * bitcoind.pollBlocks(callback)
+ * Poll for new blocks on the chain. This is necessary since we have no way of
+ * hooking in to AcceptBlock(). Instead, we constant check for new blocks using
+ * a SetTimeout() within node.js.
+ * Creating a linked list of all blocks within the work function is necessary
+ * due to doing v8 things within the libuv thread pool will cause a segfault.
+ * Since this reads full blocks, obviously it will poll for transactions which
+ * have already been included in blocks as well.
  */
 
 NAN_METHOD(PollBlocks) {
@@ -949,8 +988,12 @@ async_poll_blocks_after(uv_work_t *req) {
 }
 
 /**
- * PollMempool
+ * PollMempool()
  * bitcoind.pollMempool(callback)
+ * This will poll for any transactions in the mempool. i.e. Transactions which
+ * have not been included in blocks yet. This is not technically necessary to
+ * be done asynchronously since there are no real blocking calls done here, but
+ * we will leave the async function here as a placeholder in case we're wrong.
  */
 
 NAN_METHOD(PollMempool) {
@@ -1047,8 +1090,10 @@ async_poll_mempool_after(uv_work_t *req) {
 }
 
 /**
- * BroadcastTx
+ * BroadcastTx()
  * bitcoind.broadcastTx(tx, override_fees, own_only, callback)
+ * Broadcast a raw transaction. This can be used to relay transaction received
+ * or to broadcast one's own transaction.
  */
 
 NAN_METHOD(BroadcastTx) {
@@ -1172,7 +1217,10 @@ async_broadcast_tx_after(uv_work_t *req) {
 }
 
 /**
- * VerifyBlock
+ * VerifyBlock()
+ * bitcoindjs.verifyBlock(block)
+ * This will verify the authenticity of a block (merkleRoot, etc)
+ * using the internal bitcoind functions.
  */
 
 NAN_METHOD(VerifyBlock) {
@@ -1198,7 +1246,10 @@ NAN_METHOD(VerifyBlock) {
 }
 
 /**
- * VerifyTransaction
+ * VerifyTransaction()
+ * bitcoindjs.verifyTransaction(tx)
+ * This will verify a transaction, ensuring it is signed properly using the
+ * internal bitcoind functions.
  */
 
 NAN_METHOD(VerifyTransaction) {
@@ -1225,6 +1276,13 @@ NAN_METHOD(VerifyTransaction) {
 
   NanReturnValue(NanNew<Boolean>(valid && standard));
 }
+
+/**
+ * FillTransaction()
+ * bitcoindjs.fillTransaction(tx, options);
+ * This will fill a javascript transaction object with the proper available
+ * unpsent outputs as inputs and sign them using internal bitcoind functions.
+ */
 
 NAN_METHOD(FillTransaction) {
   NanScope();
@@ -1296,7 +1354,10 @@ NAN_METHOD(FillTransaction) {
 }
 
 /**
- * GetBlockHex
+ * GetBlockHex()
+ * bitcoindjs.getBlockHex(callback)
+ * This will return the hex value as well as hash of a javascript block object
+ * (after being converted to a CBlock).
  */
 
 NAN_METHOD(GetBlockHex) {
@@ -1325,7 +1386,10 @@ NAN_METHOD(GetBlockHex) {
 }
 
 /**
- * GetTxHex
+ * GetTxHex()
+ * bitcoindjs.getTxHex(tx)
+ * This will return the hex value and hash for any tx, converting a js tx
+ * object to a CTransaction.
  */
 
 NAN_METHOD(GetTxHex) {
@@ -1354,7 +1418,9 @@ NAN_METHOD(GetTxHex) {
 }
 
 /**
- * BlockFromHex
+ * BlockFromHex()
+ * bitcoindjs.blockFromHex(hex)
+ * Create a javascript block from a hex string.
  */
 
 NAN_METHOD(BlockFromHex) {
@@ -1383,7 +1449,9 @@ NAN_METHOD(BlockFromHex) {
 }
 
 /**
- * TxFromHex
+ * TxFromHex()
+ * bitcoindjs.txFromHex(hex)
+ * Create a javascript tx from a hex string.
  */
 
 NAN_METHOD(TxFromHex) {
@@ -1412,7 +1480,9 @@ NAN_METHOD(TxFromHex) {
 }
 
 /**
- * Wallet
+ * WalletNewAddress()
+ * bitcoindjs.walletNewAddress(options)
+ * Create a new address in the global pwalletMain.
  */
 
 NAN_METHOD(WalletNewAddress) {
@@ -1454,6 +1524,8 @@ NAN_METHOD(WalletNewAddress) {
   NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString().c_str()));
 }
 
+// NOTE: This function was ripped out of the bitcoin core source. It needed to
+// be modified to fit v8's error handling.
 CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false) {
   CWalletDB walletdb(pwalletMain->strWalletFile);
 
@@ -1494,6 +1566,12 @@ CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false) 
   return CBitcoinAddress(account.vchPubKey.GetID());
 }
 
+/**
+ * WalletGetAccountAddress()
+ * bitcoindjs.walletGetAccountAddress(options)
+ * Return the address tied to a specific account name.
+ */
+
 NAN_METHOD(WalletGetAccountAddress) {
   NanScope();
 
@@ -1510,6 +1588,13 @@ NAN_METHOD(WalletGetAccountAddress) {
 
   NanReturnValue(NanNew<String>(ret.c_str()));
 }
+
+/**
+ * WalletSetAccount()
+ * bitcoindjs.walletSetAccount(options)
+ * Return a new address if the account does not exist, or tie an account to an
+ * address.
+ */
 
 NAN_METHOD(WalletSetAccount) {
   NanScope();
@@ -1548,6 +1633,12 @@ NAN_METHOD(WalletSetAccount) {
   NanReturnValue(Undefined());
 }
 
+/**
+ * WalletGetAccount()
+ * bitcoindjs.walletGetAccount(options)
+ * Get an account name based on address.
+ */
+
 NAN_METHOD(WalletGetAccount) {
   NanScope();
 
@@ -1574,6 +1665,13 @@ NAN_METHOD(WalletGetAccount) {
 
   NanReturnValue(NanNew<String>(strAccount.c_str()));
 }
+
+/**
+ * WalletSendTo()
+ * bitcoindjs.walletSendTo(options)
+ * Send bitcoin to an address, automatically creating the transaction based on
+ * availing unspent outputs.
+ */
 
 NAN_METHOD(WalletSendTo) {
   NanScope();
@@ -1686,6 +1784,12 @@ async_wallet_sendto_after(uv_work_t *req) {
   delete req;
 }
 
+/**
+ * WalletSignMessage()
+ * bitcoindjs.walletSignMessage(options)
+ * Sign any piece of text using a private key tied to an address.
+ */
+
 NAN_METHOD(WalletSignMessage) {
   NanScope();
 
@@ -1735,6 +1839,12 @@ NAN_METHOD(WalletSignMessage) {
   NanReturnValue(NanNew<String>(result.c_str()));
 }
 
+/**
+ * WalletVerifyMessage()
+ * bitcoindjs.walletVerifyMessage(options)
+ * Verify a signed message using any address' public key.
+ */
+
 NAN_METHOD(WalletVerifyMessage) {
   NanScope();
 
@@ -1782,6 +1892,12 @@ NAN_METHOD(WalletVerifyMessage) {
 
   NanReturnValue(NanNew<Boolean>(pubkey.GetID() == keyID));
 }
+
+/**
+ * WalletCreateMultiSigAddress()
+ * bitcoindjs.walletCreateMultiSigAddress(options)
+ * Create a multisig address for the global wallet.
+ */
 
 NAN_METHOD(WalletCreateMultiSigAddress) {
   NanScope();
@@ -1860,6 +1976,14 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
   NanReturnValue(result);
 }
 
+/**
+ * WalletGetBalance()
+ * bitcoindjs.walletGetBalance(options)
+ * Get total balance of global wallet in satoshies in a javascript Number (up
+ * to 64 bits, only 32 if bitwise ops or floating point are used unfortunately.
+ * Obviously floating point is not necessary for satoshies).
+ */
+
 NAN_METHOD(WalletGetBalance) {
   NanScope();
 
@@ -1918,10 +2042,25 @@ NAN_METHOD(WalletGetBalance) {
   NanReturnValue(NanNew<Number>(nBalance));
 }
 
+/**
+ * WalletGetUnconfirmedBalance()
+ * bitcoindjs.walletGetUnconfirmedBalance(options)
+ * Returns the unconfirmed balance in satoshies (including the transactions
+ * that have not yet been included in any block).
+ */
+
 NAN_METHOD(WalletGetUnconfirmedBalance) {
   NanScope();
   NanReturnValue(NanNew<Number>(pwalletMain->GetUnconfirmedBalance()));
 }
+
+/**
+ * WalletSendFrom()
+ * bitcoindjs.walletSendFrom(options)
+ * Send bitcoin to a particular address from a particular owned account name.
+ * This once again automatically creates and signs a transaction based on any
+ * unspent outputs available.
+ */
 
 NAN_METHOD(WalletSendFrom) {
   NanScope();
@@ -2050,6 +2189,12 @@ async_wallet_sendfrom_after(uv_work_t *req) {
   delete req;
 }
 
+/**
+ * WalletListTransactions()
+ * bitcoindjs.walletListTransactions(options)
+ * List all transactions pertaining to any owned addreses. NOT YET IMPLEMENTED>
+ */
+
 NAN_METHOD(WalletListTransactions) {
   NanScope();
 
@@ -2062,6 +2207,14 @@ NAN_METHOD(WalletListTransactions) {
 
   NanReturnValue(Undefined());
 }
+
+/**
+ * WalletListAccounts()
+ * bitcoindjs.walletListAccounts(options)
+ * This will list all accounts, addresses, balanced, private keys, public keys,
+ * and whether these keys are in compressed format. TODO: Only output private
+ * keys if wallet is decrypted.
+ */
 
 NAN_METHOD(WalletListAccounts) {
   NanScope();
@@ -2159,6 +2312,12 @@ NAN_METHOD(WalletListAccounts) {
   NanReturnValue(obj);
 }
 
+/**
+ * WalletGetTransaction()
+ * bitcoindjs.walletGetTransaction(options)
+ * Get any transaction pertaining to any owned addresses. NOT YET IMPLEMENTED.
+ */
+
 NAN_METHOD(WalletGetTransaction) {
   NanScope();
 
@@ -2171,6 +2330,12 @@ NAN_METHOD(WalletGetTransaction) {
 
   NanReturnValue(Undefined());
 }
+
+/**
+ * WalletBackup()
+ * bitcoindjs.walletBackup(options)
+ * Backup the bdb wallet.dat to a particular location on filesystem.
+ */
 
 NAN_METHOD(WalletBackup) {
   NanScope();
@@ -2191,6 +2356,12 @@ NAN_METHOD(WalletBackup) {
 
   NanReturnValue(Undefined());
 }
+
+/**
+ * WalletPassphrase()
+ * bitcoindjs.walletPassphrase(options)
+ * Unlock wallet if encrypted already.
+ */
 
 NAN_METHOD(WalletPassphrase) {
   NanScope();
@@ -2227,6 +2398,12 @@ NAN_METHOD(WalletPassphrase) {
 
   NanReturnValue(Undefined());
 }
+
+/**
+ * WalletPassphraseChange()
+ * bitcoindjs.walletPassphraseChange(options)
+ * Change the current passphrase for the encrypted wallet.
+ */
 
 NAN_METHOD(WalletPassphraseChange) {
   NanScope();
@@ -2269,6 +2446,12 @@ NAN_METHOD(WalletPassphraseChange) {
   NanReturnValue(Undefined());
 }
 
+/**
+ * WalletLock()
+ * bitcoindjs.walletLock(options)
+ * Forget the encrypted wallet passphrase and lock the wallet once again.
+ */
+
 NAN_METHOD(WalletLock) {
   NanScope();
 
@@ -2287,6 +2470,13 @@ NAN_METHOD(WalletLock) {
 
   NanReturnValue(Undefined());
 }
+
+/**
+ * WalletEncrypt()
+ * bitcoindjs.walletEncrypt(options)
+ * Encrypt the global wallet with a particular passphrase. Requires restarted
+ * because Berkeley DB is bad.
+ */
 
 NAN_METHOD(WalletEncrypt) {
   NanScope();
@@ -2357,6 +2547,13 @@ NAN_METHOD(WalletSetTxFee) {
 
   NanReturnValue(True());
 }
+
+/**
+ * WalletImportKey()
+ * bitcoindjs.walletImportKey(options)
+ * Import private key into global wallet using standard compressed bitcoind
+ * format.
+ */
 
 NAN_METHOD(WalletImportKey) {
   NanScope();
@@ -2499,6 +2696,13 @@ async_import_key_after(uv_work_t *req) {
 
 /**
  * Conversions
+ *   cblock_to_jsblock(cblock, cblock_index, jsblock)
+ *   ctx_to_jstx(ctx, block_hash, jstx)
+ *   jsblock_to_cblock(jsblock, cblock)
+ *   jstx_to_ctx(jstx, ctx)
+ * These functions, only callable from C++, are used to convert javascript
+ * blocks and tx objects to bitcoin block and tx objects (CBlocks and
+ * CTransactions), and vice versa.
  */
 
 static inline void
@@ -2722,6 +2926,11 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
   }
 }
 
+// NOTE: For whatever reason when convertin a jstx to a CTransaction via
+// setting CTransaction properties, the binary output of a jstx is not the same
+// as what went in. It is unknow why this occurs. For now we are are using a
+// workaround by carrying the original hex value on the object which is changed
+// when the tx is changed.
 static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
   String::AsciiValue hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
@@ -2735,8 +2944,6 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
   }
 
   return;
-
-  // XXX This is returning bad hex values for some reason:
 
   ctx.nMinTxFee = (int64_t)jstx->Get(NanNew<String>("mintxfee"))->IntegerValue();
   ctx.nMinRelayTxFee = (int64_t)jstx->Get(NanNew<String>("minrelaytxfee"))->IntegerValue();
@@ -2822,7 +3029,8 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx) {
 }
 
 /**
- * Init
+ * Init()
+ * Initialize the singleton object known as bitcoindjs.
  */
 
 extern "C" void
