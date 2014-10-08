@@ -41,6 +41,7 @@
     'cflags_cc': [
       '-fexceptions',
       '-frtti',
+      '-fpermissive',
     ],
     'libraries': [
       # standard libs:
