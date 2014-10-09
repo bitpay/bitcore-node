@@ -15,9 +15,7 @@
  */
 
 #if V090
-#if defined(HAVE_CONFIG_H)
-#include "bitcoin-config.h"
-#endif
+#include "config/bitcoin-config.h"
 
 #include "core.h"
 #include "addrman.h"
@@ -82,9 +80,7 @@
 #endif
 
 #if !V090
-#if defined(HAVE_CONFIG_H)
-#include "bitcoin-config.h"
-#endif
+#include "config/bitcoin-config.h"
 
 #include "addrman.h"
 #include "alert.h"
@@ -106,7 +102,7 @@
 #include "core.h"
 #include "core_io.h"
 #include "crypter.h"
-// #include "db.h"
+#include "db.h"
 #include "hash.h"
 #include "init.h"
 #include "key.h"
@@ -147,16 +143,16 @@
 #include "utilmoneystr.h"
 #include "utiltime.h"
 #include "version.h"
-// #include "wallet.h"
+#include "wallet.h"
 #include "wallet_ismine.h"
-// #include "walletdb.h"
+#include "walletdb.h"
 #include "compat/sanity.h"
 
-#ifdef ENABLE_WALLET
-#include "db.h"
-#include "wallet.h"
-#include "walletdb.h"
-#endif
+// #ifdef ENABLE_WALLET
+// #include "db.h"
+// #include "wallet.h"
+// #include "walletdb.h"
+// #endif
 
 #include "json/json_spirit.h"
 #include "json/json_spirit_error_position.h"

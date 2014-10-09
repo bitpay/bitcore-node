@@ -28,16 +28,6 @@
     'sources': [
       './src/bitcoindjs.cc',
     ],
-    'defines': [
-      # boost sleep:
-      '<!(test $(grep "#define BOOST_VERSION " <(BOOST_INCLUDE)/version.hpp'\
-      ' | awk "{ print \$3 }") -ge 105200'\
-      ' && echo HAVE_WORKING_BOOST_SLEEP_FOR'\
-      ' || echo HAVE_WORKING_BOOST_SLEEP)',
-
-      # wallet:
-      'ENABLE_WALLET',
-    ],
     'cflags_cc': [
       '-fexceptions',
       '-frtti',

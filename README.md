@@ -38,9 +38,7 @@ bitcoind as a shared object. This may not be ideal yet.
 ``` bash
 # ensure clean up
 $ make clean
-$ find ~/bitcoin -type f -name '*.o' \
-  -or -name '*.so' -or -name '*.lo' \
-  -or -name '*.la' -print0 | xargs -0 rm -fv
+$ git clean -xdf
 
 # create configure file
 $ ./autogen.sh
@@ -48,6 +46,7 @@ $ ./autogen.sh
 # configure as a library with -fPIC on all object files
 # use --with-incompatible-bdb if necessary
 # use --prefix=/usr if necessary
+# osx users may have to specify a boost path
 $ ./configure --enable-daemonlib
 
 # build libbitcoind.so
@@ -79,22 +78,17 @@ $ BITCOIN_DIR=~/bitcoin BOOST_INCLUDE=/usr/include/boost PYTHON=/usr/bin/python2
 You can run bitcoind.js to start downloading the blockchain by doing:
 
 ``` bash
-$ node example/ &
-bitcoind: log pipe opened: 12
+$ node example --on-block &
 bitcoind: status="start_node(): bitcoind opened."
+...
+[should see full javascript blocks here]
 ```
 
 However, if you look at the bitcoind log files:
 
 ``` bash
 $ tail -f ~/.bitcoin/debug.log
-connect() to [2001:470:c1f2:3::201]:8333 failed: 101
-connect() to [2001:470:6c:778::2]:8333 failed: 101
-connect() to [2001:470:c1f2:3::201]:8333 failed: 101
 ```
-
-Right now, the `connect(3)` call is failing due to some conflict with node or
-libuv I'm guessing. This is being investigated.
 
 ^C (SIGINT) will call `StartShutdown()` in bitcoind on the node thread pool.
 
