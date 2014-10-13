@@ -586,13 +586,6 @@ start_node(void) {
 
   noui_connect();
 
-  // SelectBaseParams(CBaseChainParams::MAIN);
-  // bitdb.Open(GetDataDir());
-
-  // SelectBaseParams(CBaseChainParams::MAIN);
-  // printf("bitcoind.js: default datadir: %s\n", GetDefaultDataDir().string().c_str());
-  // printf("bitcoind.js: datadir: %s\n", GetDataDir().string().c_str());
-
   (boost::thread *)new boost::thread(boost::bind(&start_node_thread));
 
   // Wait for wallet to be instantiated. This also avoids
