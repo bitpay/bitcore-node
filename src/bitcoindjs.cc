@@ -206,7 +206,11 @@ extern std::map<std::string, std::string> mapArgs;
 extern std::string strWalletFile;
 extern CWallet *pwalletMain;
 #endif
+#if V090
 extern int64_t nTransactionFee;
+#else
+extern CFeeRate payTxFee;
+#endif
 extern const std::string strMessageMagic;
 
 /**
@@ -578,7 +582,16 @@ async_start_node_after(uv_work_t *req) {
 
 static int
 start_node(void) {
+  SetupEnvironment();
+
   noui_connect();
+
+  // SelectBaseParams(CBaseChainParams::MAIN);
+  // bitdb.Open(GetDataDir());
+
+  // SelectBaseParams(CBaseChainParams::MAIN);
+  // printf("bitcoind.js: default datadir: %s\n", GetDefaultDataDir().string().c_str());
+  // printf("bitcoind.js: datadir: %s\n", GetDataDir().string().c_str());
 
   (boost::thread *)new boost::thread(boost::bind(&start_node_thread));
 
@@ -599,6 +612,7 @@ start_node(void) {
 
 static void
 start_node_thread(void) {
+#if V090
   boost::thread_group threadGroup;
   boost::thread *detectShutdownThread = NULL;
 
@@ -635,6 +649,69 @@ start_node_thread(void) {
 
   // bitcoind is shutdown, notify the main thread.
   shutdownComplete = true;
+#else
+  boost::thread_group threadGroup;
+  boost::thread* detectShutdownThread = NULL;
+
+  // Workaround for AppInit2() arg parsing. Not ideal, but it works.
+  const int argc = 1;
+  const char *argv[argc + 1] = { "-server", NULL };
+
+  bool fRet = false;
+  try {
+    ParseParameters(argc, argv);
+
+    if (!boost::filesystem::is_directory(GetDataDir(false))) {
+      fprintf(stderr,
+        "Error: Specified data directory \"%s\" does not exist.\n",
+        mapArgs["-datadir"].c_str());
+      return;
+    }
+
+    try {
+      ReadConfigFile(mapArgs, mapMultiArgs);
+    } catch(std::exception &e) {
+      fprintf(stderr,"Error reading configuration file: %s\n", e.what());
+      return;
+    }
+
+    if (!SelectParamsFromCommandLine()) {
+      fprintf(stderr, "Error: Invalid combination of -regtest and -testnet.\n");
+      return;
+    }
+
+    // SoftSetBoolArg("-server", true);
+
+    // This is probably a good idea if people try to start bitcoind while
+    // running a program which links to libbitcoind.so, but disable it for now.
+    // CreatePidFile(GetPidFile(), getpid());
+
+    detectShutdownThread = new boost::thread(
+      boost::bind(&DetectShutdownThread, &threadGroup));
+    fRet = AppInit2(threadGroup);
+  } catch (std::exception& e) {
+    fprintf(stderr, "AppInit(): std::exception");
+  } catch (...) {
+    fprintf(stderr, "AppInit(): other exception");
+  }
+
+  if (!fRet) {
+    if (detectShutdownThread) {
+      detectShutdownThread->interrupt();
+    }
+    threadGroup.interrupt_all();
+  }
+
+  if (detectShutdownThread) {
+    detectShutdownThread->join();
+    delete detectShutdownThread;
+    detectShutdownThread = NULL;
+  }
+  Shutdown();
+
+  // bitcoind is shutdown, notify the main thread.
+  shutdownComplete = true;
+#endif
 }
 
 /**
@@ -1418,10 +1495,22 @@ NAN_METHOD(FillTransaction) {
 
   if (nValue <= 0)
     return NanThrowError("Invalid amount");
+#if V090
   if (nValue + nTransactionFee > pwalletMain->GetBalance())
     return NanThrowError("Insufficient funds");
+#else
+  // if (nValue + payTxFee > pwalletMain->GetBalance())
+  //   return NanThrowError("Insufficient funds");
+  if (nValue > pwalletMain->GetBalance())
+    return NanThrowError("Insufficient funds");
+#endif
 
+#if V090
   int64_t nFeeRet = nTransactionFee;
+#else
+  int64_t nFeeRet = 1000;
+  // int64_t nFeeRet = CFeeRate(nAmount, 1000);
+#endif
 
   if (pwalletMain->IsLocked()) {
     return NanThrowError("Error: Wallet locked, unable to create transaction!");
@@ -2846,6 +2935,7 @@ NAN_METHOD(WalletSetTxFee) {
 
   int64_t fee = options->Get(NanNew<String>("fee"))->IntegerValue();
 
+#if V090
   // Amount
   int64_t nAmount = 0;
   if (fee != 0.0) {
@@ -2853,6 +2943,15 @@ NAN_METHOD(WalletSetTxFee) {
   }
 
   nTransactionFee = nAmount;
+#else
+  // Amount
+  CAmount nAmount = 0;
+  if (fee != 0.0) {
+    nAmount = fee;
+  }
+
+  payTxFee = CFeeRate(nAmount, 1000);
+#endif
 
   NanReturnValue(True());
 }
