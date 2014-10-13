@@ -200,7 +200,6 @@ using namespace boost;
 
 extern void DetectShutdownThread(boost::thread_group*);
 extern int nScriptCheckThreads;
-extern bool fDaemon;
 extern std::map<std::string, std::string> mapArgs;
 #ifdef ENABLE_WALLET
 extern std::string strWalletFile;
