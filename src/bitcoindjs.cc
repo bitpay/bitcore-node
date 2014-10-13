@@ -609,6 +609,26 @@ start_node_thread(void) {
   boost::thread_group threadGroup;
   boost::thread *detectShutdownThread = NULL;
 
+  // XXX In case we ever want an option for a custom directory:
+#if 0
+  // Workaround for AppInit2() arg parsing. Not ideal, but it works.
+  int argc = 1;
+  char **argv = NULL;
+  if (dataDir) {
+    argc = 3;
+    argv = (char **)malloc((argc + 1) * sizeof(char **));
+    argv[0] = "bitcoind";
+    argv[1] = "-datadir";
+    argv[2] = dataDir;
+    argv[3] = NULL;
+  } else {
+    argc = 1;
+    argv = (char **)malloc((argc + 1) * sizeof(char **));
+    argv[0] = "bitcoind";
+    argv[1] = NULL;
+  }
+#endif
+
   // Workaround for AppInit2() arg parsing. Not ideal, but it works.
   const int argc = 0;
   const char *argv[argc + 1] = { NULL };
