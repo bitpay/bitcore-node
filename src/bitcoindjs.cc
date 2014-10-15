@@ -594,6 +594,7 @@ start_node_thread(void) {
       return;
     }
 
+    // XXX Potentially add an option for this.
     // This is probably a good idea if people try to start bitcoind while
     // running a program which links to libbitcoind.so, but disable it for now.
     CreatePidFile(GetPidFile(), getpid());
