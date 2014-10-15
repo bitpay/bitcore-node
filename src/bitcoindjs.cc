@@ -14,72 +14,6 @@
  * Bitcoin headers
  */
 
-#if V090
-#include "config/bitcoin-config.h"
-
-#include "core.h"
-#include "addrman.h"
-#include "checkpoints.h"
-#include "crypter.h"
-#include "main.h"
-// #include "random.h"
-// #include "timedata.h"
-
-#ifdef ENABLE_WALLET
-#include "db.h"
-#include "wallet.h"
-#include "walletdb.h"
-#endif
-
-// #include "walletdb.h"
-#include "alert.h"
-#include "checkqueue.h"
-// #include "db.h"
-#include "miner.h"
-#include "rpcclient.h"
-#include "tinyformat.h"
-// #include "wallet.h"
-#include "allocators.h"
-#include "clientversion.h"
-#include "hash.h"
-#include "mruset.h"
-#include "rpcprotocol.h"
-#include "txdb.h"
-#include "base58.h"
-#include "coincontrol.h"
-#include "init.h"
-#include "netbase.h"
-#include "rpcserver.h"
-// new:
-#include "rpcwallet.h"
-#include "txmempool.h"
-#include "bloom.h"
-#include "coins.h"
-#include "key.h"
-#include "net.h"
-#include "script.h"
-#include "ui_interface.h"
-// #include "chainparamsbase.h"
-#include "compat.h"
-#include "keystore.h"
-#include "noui.h"
-#include "serialize.h"
-#include "uint256.h"
-#include "chainparams.h"
-#include "core.h"
-#include "leveldbwrapper.h"
-// #include "pow.h"
-#include "sync.h"
-#include "util.h"
-// #include "chainparamsseeds.h"
-// #include "core_io.h"
-#include "limitedmap.h"
-#include "protocol.h"
-#include "threadsafety.h"
-#include "version.h"
-#endif
-
-#if !V090
 #include "config/bitcoin-config.h"
 
 #include "addrman.h"
@@ -173,7 +107,6 @@
 
 #include "univalue/univalue_escapes.h"
 #include "univalue/univalue.h"
-#endif
 
 /**
  * Bitcoin Globals
@@ -205,11 +138,7 @@ extern std::map<std::string, std::string> mapArgs;
 extern std::string strWalletFile;
 extern CWallet *pwalletMain;
 #endif
-#if V090
-extern int64_t nTransactionFee;
-#else
 extern CFeeRate payTxFee;
-#endif
 extern const std::string strMessageMagic;
 
 /**
@@ -604,9 +533,8 @@ start_node(void) {
 
 static void
 start_node_thread(void) {
-#if V090
   boost::thread_group threadGroup;
-  boost::thread *detectShutdownThread = NULL;
+  boost::thread* detectShutdownThread = NULL;
 
   // XXX In case we ever want an option for a custom directory:
 #if 0
@@ -627,43 +555,6 @@ start_node_thread(void) {
     argv[1] = NULL;
   }
 #endif
-
-  // Workaround for AppInit2() arg parsing. Not ideal, but it works.
-  const int argc = 0;
-  const char *argv[argc + 1] = { NULL };
-  ParseParameters(argc, argv);
-  ReadConfigFile(mapArgs, mapMultiArgs);
-  if (!SelectParamsFromCommandLine()) {
-    return;
-  }
-
-  // This is probably a good idea if people try to start bitcoind while running
-  // a program which links to libbitcoind.so, but disable it for now.
-  // CreatePidFile(GetPidFile(), getpid());
-
-  detectShutdownThread = new boost::thread(
-    boost::bind(&DetectShutdownThread, &threadGroup));
-
-  int fRet = AppInit2(threadGroup);
-
-  if (!fRet) {
-    if (detectShutdownThread)
-      detectShutdownThread->interrupt();
-    threadGroup.interrupt_all();
-  }
-
-  if (detectShutdownThread) {
-    detectShutdownThread->join();
-    delete detectShutdownThread;
-    detectShutdownThread = NULL;
-  }
-  Shutdown();
-
-  // bitcoind is shutdown, notify the main thread.
-  shutdownComplete = true;
-#else
-  boost::thread_group threadGroup;
-  boost::thread* detectShutdownThread = NULL;
 
   // Workaround for AppInit2() arg parsing. Not ideal, but it works.
   const int argc = 1;
@@ -723,7 +614,6 @@ start_node_thread(void) {
 
   // bitcoind is shutdown, notify the main thread.
   shutdownComplete = true;
-#endif
 }
 
 /**
@@ -1360,18 +1250,11 @@ async_broadcast_tx(uv_work_t *req) {
       return;
     }
   } else {
-#if V090
-    SyncWithWallets(hashTx, ctx, NULL);
-#else
-  ; // this is done automatically now with AcceptToMemoryPool?
-#endif
+    // With v0.9.0
+    // SyncWithWallets(hashTx, ctx, NULL);
   }
 
-#if V090
-  RelayTransaction(ctx, hashTx);
-#else
   RelayTransaction(ctx);
-#endif
 
   data->tx_hash = hashTx.GetHex();
 }
@@ -1507,22 +1390,17 @@ NAN_METHOD(FillTransaction) {
 
   if (nValue <= 0)
     return NanThrowError("Invalid amount");
-#if V090
-  if (nValue + nTransactionFee > pwalletMain->GetBalance())
-    return NanThrowError("Insufficient funds");
-#else
+  // With v0.9.0:
+  // if (nValue + nTransactionFee > pwalletMain->GetBalance())
   // if (nValue + payTxFee > pwalletMain->GetBalance())
   //   return NanThrowError("Insufficient funds");
   if (nValue > pwalletMain->GetBalance())
     return NanThrowError("Insufficient funds");
-#endif
 
-#if V090
-  int64_t nFeeRet = nTransactionFee;
-#else
+  // With v0.9.0:
+  // int64_t nFeeRet = nTransactionFee;
   int64_t nFeeRet = 1000;
   // int64_t nFeeRet = CFeeRate(nAmount, 1000);
-#endif
 
   if (pwalletMain->IsLocked()) {
     return NanThrowError("Error: Wallet locked, unable to create transaction!");
@@ -1538,21 +1416,6 @@ NAN_METHOD(FillTransaction) {
     return NanThrowError("Insufficient funds");
   }
 
-#if V090
-  // Fill inputs if they aren't already filled
-  ctx.vin.clear();
-  BOOST_FOREACH(const PAIRTYPE(const CWalletTx*, unsigned int)& coin, setCoins) {
-    ctx.vin.push_back(CTxIn(coin.first->GetHash(), coin.second));
-  }
-
-  // Sign everything
-  int nIn = 0;
-  BOOST_FOREACH(const PAIRTYPE(const CWalletTx*, unsigned int)& coin, setCoins) {
-    if (!SignSignature(*pwalletMain, *coin.first, ctx, nIn++)) {
-      return NanThrowError("Signing transaction failed");
-    }
-  }
-#else
   // Fill vin
   BOOST_FOREACH(const PAIRTYPE(const CWalletTx*, unsigned int)& coin, setCoins) {
     ctx.vin.push_back(CTxIn(coin.first->GetHash(), coin.second));
@@ -1570,7 +1433,6 @@ NAN_METHOD(FillTransaction) {
       return NanThrowError("Signing transaction failed");
     }
   }
-#endif
 
   // Turn our CTransaction into a javascript Transaction
   Local<Object> new_jstx = NanNew<Object>();
@@ -1750,7 +1612,6 @@ NAN_METHOD(WalletNewAddress) {
   NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString().c_str()));
 }
 
-#if 1
 // NOTE: This function was ripped out of the bitcoin core source. It needed to
 // be modified to fit v8's error handling.
 CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false) {
@@ -1763,12 +1624,7 @@ CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false) 
 
   // Check if the current key has been used
   if (account.vchPubKey.IsValid()) {
-#if V090
-    CScript scriptPubKey;
-    scriptPubKey.SetDestination(account.vchPubKey.GetID());
-#else
     CScript scriptPubKey = GetScriptForDestination(account.vchPubKey.GetID());
-#endif
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end() && account.vchPubKey.IsValid();
          ++it) {
@@ -1794,47 +1650,6 @@ CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false) 
 
   return CBitcoinAddress(account.vchPubKey.GetID());
 }
-#else
-CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false) {
-  CWalletDB walletdb(pwalletMain->strWalletFile);
-
-  CAccount account;
-  walletdb.ReadAccount(strAccount, account);
-
-  bool bKeyUsed = false;
-
-  // Check if the current key has been used
-  if (account.vchPubKey.IsValid()) {
-    CScript scriptPubKey = GetScriptForDestination(account.vchPubKey.GetID());
-    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
-         it != pwalletMain->mapWallet.end() && account.vchPubKey.IsValid();
-         ++it) {
-      const CWalletTx& wtx = (*it).second;
-      BOOST_FOREACH(const CTxOut& txout, wtx.vout) {
-        if (txout.scriptPubKey == scriptPubKey) {
-          bKeyUsed = true;
-        }
-      }
-    }
-  }
-
-  // Generate a new key
-  if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed) {
-    if (!pwalletMain->GetKeyFromPool(account.vchPubKey)) {
-      NanThrowError("Keypool ran out, please call keypoolrefill first");
-      //CTxDestination dest = CNoDestination();
-      CBitcoinAddress addr;
-      //addr.Set(dest);
-      return addr;
-    }
-
-    pwalletMain->SetAddressBook(account.vchPubKey.GetID(), strAccount, "receive");
-    walletdb.WriteAccount(strAccount, account);
-  }
-
-  return CBitcoinAddress(account.vchPubKey.GetID());
-}
-#endif
 
 /**
  * WalletGetAccountAddress()
@@ -2012,11 +1827,7 @@ async_wallet_sendto(uv_work_t *req) {
     return;
   }
 
-#if V090
-  std::string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
-#else
   std::string strError = pwalletMain->SendMoney(address.Get(), nAmount, wtx);
-#endif
   if (strError != "") {
     data->err_msg = strError;
     return;
@@ -2173,7 +1984,6 @@ NAN_METHOD(WalletVerifyMessage) {
  * Create a multisig address for the global wallet.
  */
 
-#if !V090
 CScript _createmultisig_redeemScript(int nRequired, Local<Array> keys) {
   // Gather public keys
   if (nRequired < 1) {
@@ -2240,7 +2050,6 @@ CScript _createmultisig_redeemScript(int nRequired, Local<Array> keys) {
 
   return result;
 }
-#endif
 
 NAN_METHOD(WalletCreateMultiSigAddress) {
   NanScope();
@@ -2269,52 +2078,7 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
     NanReturnValue(Undefined());
   }
 
-#if V090
-  std::vector<CPubKey> pubkeys;
-  pubkeys.resize(keys->Length());
-
-  for (unsigned int i = 0; i < keys->Length(); i++) {
-    String::Utf8Value key_(keys->Get(i)->ToString());
-    const std::string& ks = std::string(*key_);
-
-#ifdef ENABLE_WALLET
-    // Case 1: Bitcoin address and we have full public key:
-    CBitcoinAddress address(ks);
-    if (pwalletMain && address.IsValid()) {
-      CKeyID keyID;
-      if (!address.GetKeyID(keyID)) {
-        return NanThrowError((ks + std::string(" does not refer to a key")).c_str());
-      }
-      CPubKey vchPubKey;
-      if (!pwalletMain->GetPubKey(keyID, vchPubKey)) {
-        return NanThrowError((std::string("no full public key for address ") + ks).c_str());
-      }
-      if (!vchPubKey.IsFullyValid()) {
-        return NanThrowError((std::string("Invalid public key: ") + ks).c_str());
-      }
-      pubkeys[i] = vchPubKey;
-    } else
-    // Case 2: hex public key
-#endif
-    if (IsHex(ks)) {
-      CPubKey vchPubKey(ParseHex(ks));
-      if (!vchPubKey.IsFullyValid()) {
-        return NanThrowError((std::string("Invalid public key: ") + ks).c_str());
-      }
-      pubkeys[i] = vchPubKey;
-    } else {
-      return NanThrowError((std::string("Invalid public key: ") + ks).c_str());
-    }
-  }
-  #if V090
-  CScript inner;
-  inner.SetMultisig(nRequired, pubkeys);
-  #else
-  CScript inner = GetScriptForMultisig(nRequired, pubkeys);
-  #endif
-#else
   CScript inner = _createmultisig_redeemScript(nRequired, keys);
-#endif
 
   // Construct using pay-to-script-hash:
   CScriptID innerID = inner.GetID();
@@ -2374,9 +2138,8 @@ NAN_METHOD(WalletGetBalance) {
       string strSentAccount;
       list<pair<CTxDestination, int64_t> > listReceived;
       list<pair<CTxDestination, int64_t> > listSent;
-#if V090
-      wtx.GetAmounts(listReceived, listSent, allFee, strSentAccount);
-#endif
+      // With v0.9.0
+      // wtx.GetAmounts(listReceived, listSent, allFee, strSentAccount);
       if (wtx.GetDepthInMainChain() >= nMinDepth) {
         BOOST_FOREACH(const PAIRTYPE(CTxDestination,int64_t)& r, listReceived) {
           nBalance += r.second;
@@ -2390,13 +2153,8 @@ NAN_METHOD(WalletGetBalance) {
     NanReturnValue(NanNew<Number>(nBalance));
   }
 
-#if V090
-  int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
-  NanReturnValue(NanNew<Number>(nBalance));
-#else
   double nBalance = (double)GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
   NanReturnValue(NanNew<Number>((int64_t)(nBalance * 100000000)));
-#endif
 }
 
 /**
@@ -2497,26 +2255,14 @@ async_wallet_sendfrom(uv_work_t *req) {
   }
 
   // Check funds
-#if V090
-  int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
-  if (nAmount > nBalance) {
-    data->err_msg = std::string("Account has insufficient funds");
-    return;
-  }
-#else
   double nBalance = (double)GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
   if (((double)(nAmount * 1.0) / 100000000) > nBalance) {
     data->err_msg = std::string("Account has insufficient funds");
     return;
   }
-#endif
 
   // Send
-#if V090
-  std::string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx);
-#else
   std::string strError = pwalletMain->SendMoney(address.Get(), nAmount, wtx);
-#endif
   if (strError != "") {
     data->err_msg = strError;
     return;
@@ -2604,43 +2350,11 @@ NAN_METHOD(WalletListAccounts) {
 
   map<string, int64_t> mapAccountBalances;
   BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
-#if V090
-    if (IsMine(*pwalletMain, entry.first)) { // This address belongs to me
-#else
     if (IsMine(*pwalletMain, entry.first) & includeWatchonly) { // This address belongs to me
-#endif
       mapAccountBalances[entry.second.name] = 0;
     }
   }
 
-#if V090
-  for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
-      it != pwalletMain->mapWallet.end(); ++it) {
-    const CWalletTx& wtx = (*it).second;
-    int64_t nFee;
-    std::string strSentAccount;
-    list<pair<CTxDestination, int64_t> > listReceived;
-    list<pair<CTxDestination, int64_t> > listSent;
-    int nDepth = wtx.GetDepthInMainChain();
-    if (wtx.GetBlocksToMaturity() > 0 || nDepth < 0) {
-      continue;
-    }
-    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount);
-    mapAccountBalances[strSentAccount] -= nFee;
-    BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64_t)& s, listSent) {
-      mapAccountBalances[strSentAccount] -= s.second;
-    }
-    if (nDepth >= nMinDepth) {
-      BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64_t)& r, listReceived) {
-        if (pwalletMain->mapAddressBook.count(r.first)) {
-          mapAccountBalances[pwalletMain->mapAddressBook[r.first].name] += r.second;
-        } else {
-          mapAccountBalances[""] += r.second;
-        }
-      }
-    }
-  }
-#else
   for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
       it != pwalletMain->mapWallet.end(); ++it) {
     const CWalletTx& wtx = (*it).second;
@@ -2667,7 +2381,6 @@ NAN_METHOD(WalletListAccounts) {
       }
     }
   }
-#endif
 
   list<CAccountingEntry> acentries;
   CWalletDB(pwalletMain->strWalletFile).ListAccountCreditDebit("*", acentries);
@@ -2947,15 +2660,6 @@ NAN_METHOD(WalletSetTxFee) {
 
   int64_t fee = options->Get(NanNew<String>("fee"))->IntegerValue();
 
-#if V090
-  // Amount
-  int64_t nAmount = 0;
-  if (fee != 0.0) {
-    nAmount = fee;
-  }
-
-  nTransactionFee = nAmount;
-#else
   // Amount
   CAmount nAmount = 0;
   if (fee != 0.0) {
@@ -2963,7 +2667,6 @@ NAN_METHOD(WalletSetTxFee) {
   }
 
   payTxFee = CFeeRate(nAmount, 1000);
-#endif
 
   NanReturnValue(True());
 }
@@ -3129,11 +2832,7 @@ static inline void
 cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<Object> jsblock) {
   jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
   CMerkleTx txGen(cblock.vtx[0]);
-#if V090
-  txGen.SetMerkleBranch(&cblock);
-#else
   txGen.SetMerkleBranch(cblock);
-#endif
   jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
   jsblock->Set(NanNew<String>("size"),
     NanNew<Number>((int)::GetSerializeSize(cblock, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
@@ -3191,10 +2890,9 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
 
 static inline void
 ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
-#if V090
-  jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
-  jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
-#endif
+  // With v0.9.0
+  // jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
+  // jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
   jstx->Set(NanNew<String>("current_version"), NanNew<Number>((int)ctx.CURRENT_VERSION)->ToInt32());
 
   jstx->Set(NanNew<String>("txid"), NanNew<String>(ctx.GetHash().GetHex()));
@@ -3273,20 +2971,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
 
   if (block_hash != 0) {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
-#if V090
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(block_hash);
-    if (mi != mapBlockIndex.end() && (*mi).second) {
-      CBlockIndex* cblock_index = (*mi).second;
-      if (chainActive.Contains(cblock_index)) {
-        jstx->Set(NanNew<String>("confirmations"),
-          NanNew<Number>(1 + chainActive.Height() - cblock_index->nHeight));
-        jstx->Set(NanNew<String>("time"), NanNew<Number>((int64_t)cblock_index->nTime)->ToInteger());
-        jstx->Set(NanNew<String>("blocktime"), NanNew<Number>((int64_t)cblock_index->nTime)->ToInteger());
-      } else {
-        jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
-      }
-    }
-#else
     CWalletTx cwtx(pwalletMain, ctx);
     int confirms = cwtx.GetDepthInMainChain();
     jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(confirms));
@@ -3306,7 +2990,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     jstx->Set(NanNew<String>("walletconflicts"), conflicts);
     jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
     jstx->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)cwtx.nTimeReceived));
-#endif
   }
 
   CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -3393,18 +3076,12 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 
   return;
 
-#if V090
-  CTransaction& ctx = (CTransaction&)ctx_;
-#else
   CMutableTransaction& ctx = (CMutableTransaction&)ctx_;
-#endif
 
-#if V090
-  ctx.nMinTxFee = (int64_t)jstx->Get(NanNew<String>("mintxfee"))->IntegerValue();
-  ctx.nMinRelayTxFee = (int64_t)jstx->Get(NanNew<String>("minrelaytxfee"))->IntegerValue();
-#else
-  ; // these properties don't exist in v2
-#endif
+  // With v0.9.0
+  // ctx.nMinTxFee = (int64_t)jstx->Get(NanNew<String>("mintxfee"))->IntegerValue();
+  // ctx.nMinRelayTxFee = (int64_t)jstx->Get(NanNew<String>("minrelaytxfee"))->IntegerValue();
+
   // ctx.CURRENT_VERSION = (unsigned int)jstx->Get(NanNew<String>("current_version"))->Int32Value();
 
   ctx.nVersion = (int)jstx->Get(NanNew<String>("version"))->Int32Value();
