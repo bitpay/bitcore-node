@@ -427,19 +427,24 @@ NAN_METHOD(StartBitcoind) {
 
   Local<Function> callback;
   std::string datadir = std::string("");
-  if (args.Length() == 2 && args[0]->IsObject() && args[1]->IsFunction()) {
-    Local<Object> options = Local<Object>::Cast(args[0]);
-    String::Utf8Value datadir_(options->Get(NanNew<String>("datadir"))->ToString());
-    datadir = std::string(*datadir_);
-    callback = Local<Function>::Cast(args[1]);
-  } else {
-    if (args.Length() < 1 || !args[0]->IsFunction()) {
-      return NanThrowError(
-        "Usage: bitcoind.start(callback)");
-    }
-    callback = Local<Function>::Cast(args[0]);
-  }
 
+  if (args.Length() >= 2 && args[0]->IsObject() && args[1]->IsFunction()) {
+    Local<Object> options = Local<Object>::Cast(args[0]);
+    if (options->Get(NanNew<String>("datadir"))->IsString()) {
+      String::Utf8Value datadir_(options->Get(NanNew<String>("datadir"))->ToString());
+      datadir = std::string(*datadir_);
+    }
+    callback = Local<Function>::Cast(args[1]);
+  } else if (args.length >= 2
+             && (args[0]->IsUndefined() || args[0]->IsNull())
+             && args[1]->IsFunction()) {
+    callback = Local<Function>::Cast(args[1]);
+  } else if (args.length >= 1 && args[0]->IsFunction()) {
+    callback = Local<Function>::Cast(args[0]);
+  } else {
+    return NanThrowError(
+      "Usage: bitcoind.start(callback)");
+  }
 
   //
   // Run bitcoind's StartNode() on a separate thread.

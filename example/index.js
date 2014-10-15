@@ -27,6 +27,20 @@ bitcoind.on('error', function(err) {
 bitcoind.on('open', function(status) {
   print('status="%s"', status);
 
+  if (!argv.list
+      || !argv.blocks
+      || !argv['on-block']
+      || !argv['on-tx']
+      || !argv.broadcast
+      || !argv['get-tx']) {
+    argv['list'] = true;
+    argv['on-block'] = true;
+    setTimeout(function() {
+      argv['on-block'] = false;
+      print(bitcoind.wallet.listAccounts());
+    }, 5000);
+  }
+
   if (argv.list) {
     print(bitcoind.wallet.listAccounts());
   }
@@ -35,9 +49,11 @@ bitcoind.on('open', function(status) {
     getBlocks(bitcoind);
   }
 
-  // var tx = bitcoind.tx.fromHex(testTx);
-  // console.log(tx);
-  // console.log(tx.txid === tx.getHash('hex'));
+  if (argv['test-tx']) {
+    var tx = bitcoind.tx.fromHex(testTx);
+    console.log(tx);
+    console.log(tx.txid === tx.getHash('hex'));
+  }
 
   function compareObj(obj) {
     // Hash
@@ -64,7 +80,10 @@ bitcoind.on('open', function(status) {
   }
 
   if (argv['on-block']) {
-    bitcoind.on('block', function(block) {
+    bitcoind.on('block', function callee(block) {
+      if (!argv['on-block']) {
+        return bitcoind.removeListener('block', callee);
+      }
       print('Found Block:');
       print(block);
       compareObj(block);
