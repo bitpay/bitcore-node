@@ -26,7 +26,6 @@
 #include "chain.h"
 #include "chainparams.h"
 #include "chainparamsbase.h"
-// #include "chainparamsseeds.h"
 #include "checkpoints.h"
 #include "checkqueue.h"
 #include "clientversion.h"
@@ -55,7 +54,6 @@
 #include "rpcclient.h"
 #include "rpcprotocol.h"
 #include "rpcserver.h"
-// new:
 #include "rpcwallet.h"
 #include "script/compressor.h"
 #include "script/interpreter.h"
@@ -82,12 +80,6 @@
 #include "walletdb.h"
 #include "compat/sanity.h"
 
-// #ifdef ENABLE_WALLET
-// #include "db.h"
-// #include "wallet.h"
-// #include "walletdb.h"
-// #endif
-
 #include "json/json_spirit.h"
 #include "json/json_spirit_error_position.h"
 #include "json/json_spirit_reader.h"
@@ -98,8 +90,6 @@
 #include "json/json_spirit_writer.h"
 #include "json/json_spirit_writer_template.h"
 
-// #include "obj/build.h"
-
 #include "crypto/common.h"
 #include "crypto/sha2.h"
 #include "crypto/sha1.h"
@@ -109,11 +99,7 @@
 #include "univalue/univalue.h"
 
 /**
- * Bitcoin Globals
- * Relevant:
- *  ~/bitcoin/src/init.cpp
- *  ~/bitcoin/src/bitcoind.cpp
- *  ~/bitcoin/src/main.h
+ * Bitcoin System
  */
 
 #include <stdint.h>
@@ -128,8 +114,12 @@
 using namespace std;
 using namespace boost;
 
-// These global functions and variables are required to be defined/exposed
-// here.
+/**
+ * Bitcoin Globals
+ */
+
+// These global functions and variables are
+// required to be defined/exposed here.
 
 extern void DetectShutdownThread(boost::thread_group*);
 extern int nScriptCheckThreads;
@@ -142,7 +132,7 @@ extern CFeeRate payTxFee;
 extern const std::string strMessageMagic;
 
 /**
- * Node and Templates
+ * Node.js System
  */
 
 #include <node.h>
@@ -159,6 +149,10 @@ extern const std::string strMessageMagic;
 
 using namespace node;
 using namespace v8;
+
+/**
+ * Node.js Exposed Function Templates
+ */
 
 NAN_METHOD(StartBitcoind);
 NAN_METHOD(IsStopping);
@@ -198,6 +192,10 @@ NAN_METHOD(WalletLock);
 NAN_METHOD(WalletEncrypt);
 NAN_METHOD(WalletSetTxFee);
 NAN_METHOD(WalletImportKey);
+
+/**
+ * Node.js Internal Function Templates
+ */
 
 static void
 async_start_node(uv_work_t *req);
@@ -277,12 +275,12 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock);
 static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx);
 
-// extern "C" because C++ is a mess with name mangling.
 extern "C" void
 init(Handle<Object>);
 
 /**
- * Private Variables used only by bitcoindjs functions.
+ * Private Global Variables
+ * Used only by bitcoindjs functions.
  */
 
 static volatile bool shutdownComplete = false;
@@ -411,6 +409,10 @@ struct async_import_key_data {
   bool fRescan;
   Persistent<Function> callback;
 };
+
+/**
+ * Functions
+ */
 
 /**
  * StartBitcoind()
