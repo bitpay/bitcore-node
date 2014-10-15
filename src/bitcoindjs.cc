@@ -283,7 +283,7 @@ init(Handle<Object>);
  * Used only by bitcoindjs functions.
  */
 
-static volatile bool shutdownComplete = false;
+static volatile bool shutdown_complete = false;
 static int block_poll_top_height = -1;
 static char *g_data_dir = NULL;
 
@@ -623,7 +623,7 @@ start_node_thread(void) {
   Shutdown();
 
   // bitcoind is shutdown, notify the main thread.
-  shutdownComplete = true;
+  shutdown_complete = true;
 }
 
 /**
@@ -665,7 +665,7 @@ NAN_METHOD(StopBitcoind) {
 /**
  * async_stop_node()
  * Call StartShutdown() to join the boost threads, which will call Shutdown()
- * and set shutdownComplete to true to notify the main node.js thread.
+ * and set shutdown_complete to true to notify the main node.js thread.
  */
 
 static void
@@ -734,7 +734,7 @@ NAN_METHOD(IsStopping) {
 
 NAN_METHOD(IsStopped) {
   NanScope();
-  NanReturnValue(NanNew<Boolean>(shutdownComplete));
+  NanReturnValue(NanNew<Boolean>(shutdown_complete));
 }
 
 /**
