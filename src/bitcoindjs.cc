@@ -427,7 +427,7 @@ NAN_METHOD(StartBitcoind) {
 
   Local<Function> callback;
   std::string datadir = std::string("");
-  if (args.Length() === 2 && args[0]->IsObject() && args[1]->IsFunction()) {
+  if (args.Length() == 2 && args[0]->IsObject() && args[1]->IsFunction()) {
     Local<Object> options = Local<Object>::Cast(args[0]);
     String::Utf8Value datadir_(options->Get(NanNew<String>("datadir"))->ToString());
     datadir = std::string(*datadir_);
