@@ -285,6 +285,7 @@ init(Handle<Object>);
 
 static volatile bool shutdownComplete = false;
 static int block_poll_top_height = -1;
+static char *g_data_dir = NULL;
 
 /**
  * Private Structs
@@ -299,6 +300,7 @@ static int block_poll_top_height = -1;
 struct async_node_data {
   std::string err_msg;
   std::string result;
+  std::string datadir;
   Persistent<Function> callback;
 };
 
@@ -423,12 +425,21 @@ struct async_import_key_data {
 NAN_METHOD(StartBitcoind) {
   NanScope();
 
-  if (args.Length() < 1 || !args[0]->IsFunction()) {
-    return NanThrowError(
-      "Usage: bitcoind.start(callback)");
+  Local<Function> callback;
+  std::string datadir = std::string("");
+  if (args.Length() === 2 && args[0]->IsObject() && args[1]->IsFunction()) {
+    Local<Object> options = Local<Object>::Cast(args[0]);
+    String::Utf8Value datadir_(options->Get(NanNew<String>("datadir"))->ToString());
+    datadir = std::string(*datadir_);
+    callback = Local<Function>::Cast(args[1]);
+  } else {
+    if (args.Length() < 1 || !args[0]->IsFunction()) {
+      return NanThrowError(
+        "Usage: bitcoind.start(callback)");
+    }
+    callback = Local<Function>::Cast(args[0]);
   }
 
-  Local<Function> callback = Local<Function>::Cast(args[0]);
 
   //
   // Run bitcoind's StartNode() on a separate thread.
@@ -437,6 +448,7 @@ NAN_METHOD(StartBitcoind) {
   async_node_data *data = new async_node_data();
   data->err_msg = std::string("");
   data->result = std::string("");
+  data->datadir = datadir;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -459,6 +471,9 @@ NAN_METHOD(StartBitcoind) {
 static void
 async_start_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
+  if (!data->datadir.empty()) {
+    g_data_dir = data->datadir.c_str();
+  }
   start_node();
   data->result = std::string("start_node(): bitcoind opened.");
 }
@@ -495,6 +510,7 @@ async_start_node_after(uv_work_t *req) {
     }
   }
 
+  // XXX Figure out what to do here:
   // data->callback.Dispose();
 
   delete data;
@@ -538,17 +554,15 @@ start_node_thread(void) {
   boost::thread_group threadGroup;
   boost::thread* detectShutdownThread = NULL;
 
-  // XXX In case we ever want an option for a custom directory:
-#if 0
   // Workaround for AppInit2() arg parsing. Not ideal, but it works.
-  int argc = 1;
+  int argc = 0;
   char **argv = NULL;
-  if (dataDir) {
+  if (g_data_dir) {
     argc = 3;
     argv = (char **)malloc((argc + 1) * sizeof(char **));
     argv[0] = "bitcoind";
     argv[1] = "-datadir";
-    argv[2] = dataDir;
+    argv[2] = g_data_dir;
     argv[3] = NULL;
   } else {
     argc = 1;
@@ -556,15 +570,10 @@ start_node_thread(void) {
     argv[0] = "bitcoind";
     argv[1] = NULL;
   }
-#endif
-
-  // Workaround for AppInit2() arg parsing. Not ideal, but it works.
-  const int argc = 1;
-  const char *argv[argc + 1] = { "-server", NULL };
 
   bool fRet = false;
   try {
-    ParseParameters(argc, argv);
+    ParseParameters((const int)argc, (const char **)argv);
 
     if (!boost::filesystem::is_directory(GetDataDir(false))) {
       fprintf(stderr,
@@ -585,11 +594,9 @@ start_node_thread(void) {
       return;
     }
 
-    // SoftSetBoolArg("-server", true);
-
     // This is probably a good idea if people try to start bitcoind while
     // running a program which links to libbitcoind.so, but disable it for now.
-    // CreatePidFile(GetPidFile(), getpid());
+    CreatePidFile(GetPidFile(), getpid());
 
     detectShutdownThread = new boost::thread(
       boost::bind(&DetectShutdownThread, &threadGroup));
