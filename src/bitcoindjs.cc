@@ -2996,29 +2996,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   ssTx << ctx;
   std::string strHex = HexStr(ssTx.begin(), ssTx.end());
   jstx->Set(NanNew<String>("hex"), NanNew<String>(strHex));
-
-#if DEBUG_TX
-  printf("TO JS -----------------------------------------------------------------\n");
-  printf("nMinTxFee: %ld\n", ctx.nMinTxFee);
-  printf("nMinRelayTxFee: %ld\n", ctx.nMinRelayTxFee);
-  printf("CURRENT_VERSION: %d\n", ctx.CURRENT_VERSION);
-  printf("nVersion: %d\n", ctx.nVersion);
-  BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
-    printf("txin.prevout.hash: %s\n", txin.prevout.hash.GetHex().c_str());
-    printf("txin.prevout.n: %u\n", txin.prevout.n);
-    std::string strHex = HexStr(txin.scriptSig.begin(), txin.scriptSig.end(), true);
-    printf("txin.scriptSig: %s\n", strHex.c_str());
-    printf("txin.nSequence: %u\n", txin.nSequence);
-  }
-  for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
-    CTxOut txout = ctx.vout[vo];
-    printf("txout.nValue: %ld\n", txout.nValue);
-    std::string strHex = HexStr(txout.scriptPubKey.begin(), txout.scriptPubKey.end(), true);
-    printf("txin.scriptPubKey: %s\n", strHex.c_str());
-  }
-  printf("nLockTime: %u\n", ctx.nLockTime);
-  printf("/ TO JS -----------------------------------------------------------------\n");
-#endif
 }
 
 static inline void
@@ -3138,30 +3115,6 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
   }
 
   ctx.nLockTime = (unsigned int)jstx->Get(NanNew<String>("locktime"))->Uint32Value();
-
-#if DEBUG_TX
-  printf("TO CTX -----------------------------------------------------------------\n");
-  printf("nMinTxFee: %ld\n", ctx.nMinTxFee);
-  printf("nMinRelayTxFee: %ld\n", ctx.nMinRelayTxFee);
-  printf("CURRENT_VERSION: %d\n", ctx.CURRENT_VERSION);
-  printf("nVersion: %d\n", ctx.nVersion);
-  for (unsigned int vi = 0; vi < vin->Length(); vi++) {
-    CTxIn txin = ctx.vin[vi];
-    printf("txin.prevout.hash: %s\n", txin.prevout.hash.GetHex().c_str());
-    printf("txin.prevout.n: %u\n", txin.prevout.n);
-    std::string strHex = HexStr(txin.scriptSig.begin(), txin.scriptSig.end(), true);
-    printf("txin.scriptSig: %s\n", strHex.c_str());
-    printf("txin.nSequence: %u\n", txin.nSequence);
-  }
-  for (unsigned int vo = 0; vo < vout->Length(); vo++) {
-    CTxOut txout = ctx.vout[vo];
-    printf("txout.nValue: %ld\n", txout.nValue);
-    std::string strHex = HexStr(txout.scriptPubKey.begin(), txout.scriptPubKey.end(), true);
-    printf("txin.scriptPubKey: %s\n", strHex.c_str());
-  }
-  printf("nLockTime: %u\n", ctx.nLockTime);
-  printf("/ TO CTX -----------------------------------------------------------------\n");
-#endif
 }
 
 /**
