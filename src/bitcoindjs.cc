@@ -435,11 +435,11 @@ NAN_METHOD(StartBitcoind) {
       datadir = std::string(*datadir_);
     }
     callback = Local<Function>::Cast(args[1]);
-  } else if (args.length >= 2
+  } else if (args.Length() >= 2
              && (args[0]->IsUndefined() || args[0]->IsNull())
              && args[1]->IsFunction()) {
     callback = Local<Function>::Cast(args[1]);
-  } else if (args.length >= 1 && args[0]->IsFunction()) {
+  } else if (args.Length() >= 1 && args[0]->IsFunction()) {
     callback = Local<Function>::Cast(args[0]);
   } else {
     return NanThrowError(
@@ -477,7 +477,7 @@ static void
 async_start_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
   if (!data->datadir.empty()) {
-    g_data_dir = data->datadir.c_str();
+    g_data_dir = (char *)data->datadir.c_str();
   }
   start_node();
   data->result = std::string("start_node(): bitcoind opened.");
@@ -565,14 +565,14 @@ start_node_thread(void) {
   if (g_data_dir) {
     argc = 3;
     argv = (char **)malloc((argc + 1) * sizeof(char **));
-    argv[0] = "bitcoind";
-    argv[1] = "-datadir";
-    argv[2] = g_data_dir;
+    argv[0] = (char *)"bitcoind";
+    argv[1] = (char *)"-datadir";
+    argv[2] = (char *)g_data_dir;
     argv[3] = NULL;
   } else {
     argc = 1;
     argv = (char **)malloc((argc + 1) * sizeof(char **));
-    argv[0] = "bitcoind";
+    argv[0] = (char *)"bitcoind";
     argv[1] = NULL;
   }
 
