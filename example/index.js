@@ -59,8 +59,8 @@ bitcoind.on('open', function(status) {
 
   if (argv['test-tx']) {
     var tx = bitcoind.tx.fromHex(testTx);
-    console.log(tx);
-    console.log(tx.txid === tx.getHash('hex'));
+    print(tx);
+    print(tx.txid === tx.getHash('hex'));
   }
 
   function compareObj(obj) {

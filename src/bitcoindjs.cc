@@ -563,12 +563,20 @@ start_node_thread(void) {
   int argc = 0;
   char **argv = NULL;
   if (g_data_dir) {
-    argc = 3;
+    const int argl = 9 + strlen(g_data_dir) + 1;
+    char *arg = (char *)malloc(argl);
+    int w = snprintf(arg, argl, "-datadir=%s", g_data_dir);
+    if (w <= 0 || w >= argl) {
+      NanThrowError("Bad -datadir value.");
+      return;
+    }
+    arg[w] = '\0';
+
+    argc = 2;
     argv = (char **)malloc((argc + 1) * sizeof(char **));
     argv[0] = (char *)"bitcoind";
-    argv[1] = (char *)"-datadir";
-    argv[2] = (char *)g_data_dir;
-    argv[3] = NULL;
+    argv[1] = arg;
+    argv[2] = NULL;
   } else {
     argc = 1;
     argv = (char **)malloc((argc + 1) * sizeof(char **));

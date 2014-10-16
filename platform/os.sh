@@ -26,7 +26,7 @@ fi
 
 if test ! -e platform/${os}/libbitcoind.so; then
   cat platform/${os}/{xaa,xab} > platform/${os}/libbitcoind.so
-  chmod +x platform/${os}/libbitcoind.so
+  chmod 0755 platform/${os}/libbitcoind.so
 fi
 
 echo -n "$(pwd)/platform/${os}/libbitcoind.so"
