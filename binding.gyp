@@ -4,25 +4,21 @@
     'variables': {
       'BOOST_INCLUDE': '<!(test -n "$BOOST_INCLUDE"'\
       ' && echo "$BOOST_INCLUDE"'\
-      ' || echo /usr/include/boost)',
+      ' || test -e /usr/include/boost && echo /usr/include/boost' \
+      ' || echo ./include)',
+      'LEVELDB_INCLUDE': '<!(test -n "$LEVELDB_INCLUDE"'\
+      ' && echo "$LEVELDB_INCLUDE"'\
+      ' || test "$BITCOIN_DIR" && echo "${BITCOIN_DIR}/src/leveldb/include"' \
+      ' || echo ./include)',
       'BITCOIN_DIR': '<!(test -n "$BITCOIN_DIR"'\
         ' && echo "$BITCOIN_DIR"'\
         ' || echo "${HOME}/bitcoin")',
+      'LIBBITCOIND': '<!(./platform/os.sh)',
     },
     'include_dirs' : [
-      # standard include:
-      # '/usr/include',
-
-      # boost:
-      # '<(BOOST_INCLUDE)',
-
-      # leveldb:
-      '<(BITCOIN_DIR)/src/leveldb/include',
-
-      # bitcoind:
+      '<(BOOST_INCLUDE)',
+      '<(LEVELDB_INCLUDE)',
       '<(BITCOIN_DIR)/src',
-
-      # nan:
       '<!(node -e "require(\'nan\')")',
     ],
     'sources': [
@@ -34,23 +30,12 @@
       '-fpermissive',
     ],
     'libraries': [
-      # standard libs:
-      # '-L/usr/lib',
-      # '-L/usr/local/lib',
-
-      # boost:
       '-lboost_system',
       '-lboost_filesystem',
       '-lboost_program_options',
       '-lboost_thread',
       '-lboost_chrono',
-
-      # bitcoind:
-      '<(BITCOIN_DIR)/src/libbitcoind.so',
-
-      # '<(BITCOIN_DIR)/src/libbitcoin_server.a',
-      # '<(BITCOIN_DIR)/src/libbitcoin_common.a',
-      # '<(BITCOIN_DIR)/src/libbitcoin_wallet.a',
+      '<(LIBBITCOIND)',
     ]
   }]
 }
