@@ -1614,26 +1614,6 @@ NAN_METHOD(GetAddresses) {
   std::vector<CAddress> vAddr = addrman.GetAddr();
 
   BOOST_FOREACH(const CAddress& addr, vAddr) {
-    // //unsigned char *ip = addr.ip; // [16]
-    //bool a = addr.IsIPv4();
-    //bool a = addr.IsIPv6();
-    ////bool a = addr.IsTor();
-    //bool a = addr.IsLocal();
-    //bool a = addr.IsRoutable();
-    //bool a = addr.IsValid();
-    //bool a = addr.IsMulticast();
-    //enum Network n = addr.GetNetwork();
-    //std::string ip = addr.ToString();
-    //std::string ip = addr.ToStringIP();
-    //std::string ip = addr.ToStringIPPort();
-    //uint64_t hash = addr.GetHash();
-    //unsigned short port = addr.GetPort();
-    //std::vector<unsigned char> key = addr.GetKey();
-    // //unsigned short port = addr.port;
-    //uint64_t nServices = addr.nServices;
-    //unsigned int nTime = addr.nTime;
-    //int64_t nLastTry = addr.nLastTry;
-
     Local<Object> obj = NanNew<Object>();
 
     char nServices[21] = {0};
