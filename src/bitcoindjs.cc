@@ -286,6 +286,7 @@ init(Handle<Object>);
 static volatile bool shutdown_complete = false;
 static int block_poll_top_height = -1;
 static char *g_data_dir = NULL;
+static bool g_rpc = false;
 
 /**
  * Private Structs
@@ -301,6 +302,7 @@ struct async_node_data {
   std::string err_msg;
   std::string result;
   std::string datadir;
+  bool rpc;
   Persistent<Function> callback;
 };
 
@@ -427,12 +429,16 @@ NAN_METHOD(StartBitcoind) {
 
   Local<Function> callback;
   std::string datadir = std::string("");
+  bool rpc = false;
 
   if (args.Length() >= 2 && args[0]->IsObject() && args[1]->IsFunction()) {
     Local<Object> options = Local<Object>::Cast(args[0]);
     if (options->Get(NanNew<String>("datadir"))->IsString()) {
       String::Utf8Value datadir_(options->Get(NanNew<String>("datadir"))->ToString());
       datadir = std::string(*datadir_);
+    }
+    if (options->Get(NanNew<String>("rpc"))->IsBoolean()) {
+      rpc = options->Get(NanNew<String>("rpc"))->ToBoolean()->IsTrue();
     }
     callback = Local<Function>::Cast(args[1]);
   } else if (args.Length() >= 2
@@ -454,6 +460,7 @@ NAN_METHOD(StartBitcoind) {
   data->err_msg = std::string("");
   data->result = std::string("");
   data->datadir = datadir;
+  data->rpc = rpc;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -479,6 +486,7 @@ async_start_node(uv_work_t *req) {
   if (!data->datadir.empty()) {
     g_data_dir = (char *)data->datadir.c_str();
   }
+  g_rpc = (bool)data->rpc;
   start_node();
   data->result = std::string("start_node(): bitcoind opened.");
 }
@@ -576,7 +584,11 @@ start_node_thread(void) {
     argv = (char **)malloc((argc + 1) * sizeof(char **));
     argv[0] = (char *)"bitcoind";
     argv[1] = arg;
-    argv[2] = NULL;
+    if (g_rpc) {
+      argv[argc] = (char *)"-server";
+      argc++;
+    }
+    argv[argc] = NULL;
   } else {
     argc = 1;
     argv = (char **)malloc((argc + 1) * sizeof(char **));
