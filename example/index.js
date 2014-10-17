@@ -45,8 +45,10 @@ bitcoind.on('open', function(status) {
     argv['on-block'] = true;
     setTimeout(function() {
       argv['on-block'] = false;
+      print(bitcoind.getInfo());
+      print(bitcoind.getPeerInfo());
       print(bitcoind.wallet.listAccounts());
-    }, 5000);
+    }, 7000);
   }
 
   if (argv.list) {

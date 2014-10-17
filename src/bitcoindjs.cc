@@ -167,6 +167,7 @@ NAN_METHOD(VerifyBlock);
 NAN_METHOD(VerifyTransaction);
 NAN_METHOD(FillTransaction);
 NAN_METHOD(GetInfo);
+NAN_METHOD(GetPeerInfo);
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
 NAN_METHOD(BlockFromHex);
@@ -1491,39 +1492,97 @@ NAN_METHOD(GetInfo) {
       "Usage: bitcoindjs.getInfo()");
   }
 
-  Local<Value> obj = NanNew<Object>();
+  Local<Object> obj = NanNew<Object>();
 
   proxyType proxy;
   GetProxy(NET_IPV4, proxy);
 
-  obj->Set("version", NanNew<Number>(CLIENT_VERSION));
-  obj->Set("protocolversion", NanNew<Number>(PROTOCOL_VERSION));
+  obj->Set(NanNew<String>("version"), NanNew<Number>(CLIENT_VERSION));
+  obj->Set(NanNew<String>("protocolversion"), NanNew<Number>(PROTOCOL_VERSION));
 #ifdef ENABLE_WALLET
   if (pwalletMain) {
-    obj->Set("walletversion", NanNew<Number(pwalletMain->GetVersion()));
-    obj->Set("balance", NanNew<Number>(pwalletMain->GetBalance())); // double
+    obj->Set(NanNew<String>("walletversion"), NanNew<Number(pwalletMain->GetVersion()));
+    obj->Set(NanNew<String>("balance"), NanNew<Number>(pwalletMain->GetBalance())); // double
   }
 #endif
-  obj->Set("blocks", NanNew<Number>((int)chainActive.Height())->ToInt32());
-  obj->Set("timeoffset", NanNew<Number>(GetTimeOffset()));
-  obj->Set("connections", NanNew<Number>((int)vNodes.size())->ToInt32());
-  obj->Set("proxy", NanNew<String>(proxy.IsValid() ? proxy.ToStringIPPort() : std::string("")));
-  obj->Set("difficulty", NanNew<Number>((double)GetDifficulty()));
-  obj->Set("testnet", NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
+  obj->Set(NanNew<String>("blocks"), NanNew<Number>((int)chainActive.Height())->ToInt32());
+  obj->Set(NanNew<String>("timeoffset"), NanNew<Number>(GetTimeOffset()));
+  obj->Set(NanNew<String>("connections"), NanNew<Number>((int)vNodes.size())->ToInt32());
+  obj->Set(NanNew<String>("proxy", NanNew<String>(proxy.IsValid() ? proxy.ToStringIPPort() : std::string(""))));
+  obj->Set(NanNew<String>("difficulty"), NanNew<Number>((double)GetDifficulty()));
+  obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
 #ifdef ENABLE_WALLET
   if (pwalletMain) {
-    obj->Set("keypoololdest", NanNew<Number>(pwalletMain->GetOldestKeyPoolTime()));
-    obj->Set("keypoolsize", NanNew<Number>((int)pwalletMain->GetKeyPoolSize())->ToInt32());
+    obj->Set(NanNew<String>("keypoololdest"), NanNew<Number>(pwalletMain->GetOldestKeyPoolTime()));
+    obj->Set(NanNew<String>("keypoolsize"), NanNew<Number>((int)pwalletMain->GetKeyPoolSize())->ToInt32());
   }
   if (pwalletMain && pwalletMain->IsCrypted()) {
-    obj->Set("unlocked_until", NanNew<Number>(nWalletUnlockTime));
+    obj->Set(NanNew<String>("unlocked_until"), NanNew<Number>(nWalletUnlockTime));
   }
-  obj->Set("paytxfee", NanNew<Number>(payTxFee.GetFeePerK())); // double
+  obj->Set(NanNew<String>("paytxfee"), NanNew<Number>(payTxFee.GetFeePerK())); // double
 #endif
-  obj->Set("relayfee", NanNew<Number>(::minRelayTxFee.GetFeePerK())); // double
-  obj->Set("errors", NanNew<String>(GetWarnings("statusbar")));
+  obj->Set(NanNew<String>("relayfee"), NanNew<Number>(::minRelayTxFee.GetFeePerK())); // double
+  obj->Set(NanNew<String>("errors", NanNew<String>(GetWarnings("statusbar"))));
 
   NanReturnValue(obj);
+}
+
+/**
+ * GetPeerInfo()
+ * bitcoindjs.GetPeerInfo()
+ * Get peer information
+ */
+
+NAN_METHOD(GetPeerInfo) {
+  NanScope();
+
+  if (args.Length() > 0) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getPeerInfo()");
+  }
+
+  Local<Array> array = NanNew<Array>();
+  int i = 0;
+
+  vector<CNodeStats> vstats;
+  CopyNodeStats(vstats);
+
+  BOOST_FOREACH(const CNodeStats& stats, vstats) {
+    Local<Object> obj = NanNew<Object>();
+
+    CNodeStateStats statestats;
+    bool fStateStats = GetNodeStateStats(stats.nodeid, statestats);
+    obj->Set(NanNew<String>("id"), NanNew<Number>(stats.nodeid));
+    obj->Set(NanNew<String>("addr"), NanNew<String>(stats.addrName));
+    if (!(stats.addrLocal.empty())) {
+      obj->Set(NanNew<String>("addrlocal"), NanNew<String>(stats.addrLocal));
+    }
+    obj->Set(NanNew<String>("services"), NanNew<String>(strprintf("%016x", stats.nServices)));
+    obj->Set(NanNew<String>("lastsend"), NanNew<Number>(stats.nLastSend));
+    obj->Set(NanNew<String>("lastrecv"), NanNew<Number>(stats.nLastRecv));
+    obj->Set(NanNew<String>("bytessent"), NanNew<Number>(stats.nSendBytes));
+    obj->Set(NanNew<String>("bytesrecv"), NanNew<Number>(stats.nRecvBytes));
+    obj->Set(NanNew<String>("conntime"), NanNew<Number>(stats.nTimeConnected));
+    obj->Set(NanNew<String>("pingtime"), NanNew<Number>(stats.dPingTime)); // double
+    if (stats.dPingWait > 0.0) {
+      obj->Set(NanNew<String>("pingwait"), NanNew<Number>(stats.dPingWait)); // double
+    }
+    obj->Set(NanNew<String>("version"), NanNew<Number>(stats.nVersion));
+    obj->Set(NanNew<String>("subver"), NanNew<String>(stats.cleanSubVer));
+    obj->Set(NanNew<String>("inbound"), NanNew<Boolean>(stats.fInbound));
+    obj->Set(NanNew<String>("startingheight"), NanNew<Number>(stats.nStartingHeight));
+    if (fStateStats) {
+      obj->Set(NanNew<String>("banscore"), NanNew<Number>(statestats.nMisbehavior));
+      obj->Set(NanNew<String>("syncheight"), NanNew<Number>(statestats.nSyncHeight));
+    }
+    obj->Set(NanNew<String>("syncnode"), NanNew<Boolean>(stats.fSyncNode));
+    obj->Set(NanNew<String>("whitelisted"), NanNew<Boolean>(stats.fWhitelisted));
+
+    array->Set(i, obj);
+    i++;
+  }
+
+  NanReturnValue(array);
 }
 
 /**
@@ -3224,6 +3283,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
   NODE_SET_METHOD(target, "fillTransaction", FillTransaction);
   NODE_SET_METHOD(target, "getInfo", GetInfo);
+  NODE_SET_METHOD(target, "getPeerInfo", GetPeerInfo);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
