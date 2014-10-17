@@ -571,6 +571,8 @@ start_node_thread(void) {
   int argc = 0;
   char **argv = (char **)malloc((3 + 1) * sizeof(char **));
 
+  argv[0] = (char *)"bitcoind";
+
   if (g_data_dir) {
     const int argl = 9 + strlen(g_data_dir) + 1;
     char *arg = (char *)malloc(argl);
@@ -582,12 +584,9 @@ start_node_thread(void) {
     arg[w] = '\0';
 
     argc = 2;
-    argv = (char **)malloc((argc + 1) * sizeof(char **));
-    argv[0] = (char *)"bitcoind";
     argv[1] = arg;
   } else {
     argc = 1;
-    argv[0] = (char *)"bitcoind";
   }
 
   if (g_rpc) {
