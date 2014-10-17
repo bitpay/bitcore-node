@@ -48,11 +48,11 @@ bitcoind.on('open', function(status) {
       bitcoind.log(bitcoind.getInfo());
       bitcoind.log(bitcoind.getPeerInfo());
       bitcoind.log(bitcoind.wallet.listAccounts());
-      bitcoind.on('version', function(version) {
+      bitcoind.once('version', function(version) {
         bitcoind.log('VERSION packet:');
         bitcoind.log(version);
       });
-      bitcoind.on('addr', function(addr) {
+      bitcoind.once('addr', function(addr) {
         bitcoind.log('ADDR packet:');
         bitcoind.log(addr);
       });
