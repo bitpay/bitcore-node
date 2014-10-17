@@ -166,6 +166,7 @@ NAN_METHOD(BroadcastTx);
 NAN_METHOD(VerifyBlock);
 NAN_METHOD(VerifyTransaction);
 NAN_METHOD(FillTransaction);
+NAN_METHOD(GetInfo);
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
 NAN_METHOD(BlockFromHex);
@@ -1474,6 +1475,55 @@ NAN_METHOD(FillTransaction) {
   ctx_to_jstx(ctx, 0, new_jstx);
 
   NanReturnValue(new_jstx);
+}
+
+/**
+ * GetInfo()
+ * bitcoindjs.GetInfo()
+ * Get miscellaneous information
+ */
+
+NAN_METHOD(GetInfo) {
+  NanScope();
+
+  if (args.Length() > 0) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getInfo()");
+  }
+
+  Local<Value> obj = NanNew<Object>();
+
+  proxyType proxy;
+  GetProxy(NET_IPV4, proxy);
+
+  obj->Set("version", NanNew<Number>(CLIENT_VERSION));
+  obj->Set("protocolversion", NanNew<Number>(PROTOCOL_VERSION));
+#ifdef ENABLE_WALLET
+  if (pwalletMain) {
+    obj->Set("walletversion", NanNew<Number(pwalletMain->GetVersion()));
+    obj->Set("balance", NanNew<Number>(pwalletMain->GetBalance())); // double
+  }
+#endif
+  obj->Set("blocks", NanNew<Number>((int)chainActive.Height())->ToInt32());
+  obj->Set("timeoffset", NanNew<Number>(GetTimeOffset()));
+  obj->Set("connections", NanNew<Number>((int)vNodes.size())->ToInt32());
+  obj->Set("proxy", NanNew<String>(proxy.IsValid() ? proxy.ToStringIPPort() : std::string("")));
+  obj->Set("difficulty", NanNew<Number>((double)GetDifficulty()));
+  obj->Set("testnet", NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
+#ifdef ENABLE_WALLET
+  if (pwalletMain) {
+    obj->Set("keypoololdest", NanNew<Number>(pwalletMain->GetOldestKeyPoolTime()));
+    obj->Set("keypoolsize", NanNew<Number>((int)pwalletMain->GetKeyPoolSize())->ToInt32());
+  }
+  if (pwalletMain && pwalletMain->IsCrypted()) {
+    obj->Set("unlocked_until", NanNew<Number>(nWalletUnlockTime));
+  }
+  obj->Set("paytxfee", NanNew<Number>(payTxFee.GetFeePerK())); // double
+#endif
+  obj->Set("relayfee", NanNew<Number>(::minRelayTxFee.GetFeePerK())); // double
+  obj->Set("errors", NanNew<String>(GetWarnings("statusbar")));
+
+  NanReturnValue(obj);
 }
 
 /**
@@ -3173,6 +3223,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "verifyBlock", VerifyBlock);
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
   NODE_SET_METHOD(target, "fillTransaction", FillTransaction);
+  NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
