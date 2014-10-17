@@ -569,7 +569,8 @@ start_node_thread(void) {
 
   // Workaround for AppInit2() arg parsing. Not ideal, but it works.
   int argc = 0;
-  char **argv = NULL;
+  char **argv = (char **)malloc((3 + 1) * sizeof(char **));
+
   if (g_data_dir) {
     const int argl = 9 + strlen(g_data_dir) + 1;
     char *arg = (char *)malloc(argl);
@@ -584,17 +585,17 @@ start_node_thread(void) {
     argv = (char **)malloc((argc + 1) * sizeof(char **));
     argv[0] = (char *)"bitcoind";
     argv[1] = arg;
-    if (g_rpc) {
-      argv[argc] = (char *)"-server";
-      argc++;
-    }
-    argv[argc] = NULL;
   } else {
     argc = 1;
-    argv = (char **)malloc((argc + 1) * sizeof(char **));
     argv[0] = (char *)"bitcoind";
-    argv[1] = NULL;
   }
+
+  if (g_rpc) {
+    argv[argc] = (char *)"-server";
+    argc++;
+  }
+
+  argv[argc] = NULL;
 
   bool fRet = false;
   try {
