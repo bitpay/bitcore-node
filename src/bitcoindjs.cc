@@ -168,6 +168,7 @@ NAN_METHOD(VerifyTransaction);
 NAN_METHOD(FillTransaction);
 NAN_METHOD(GetInfo);
 NAN_METHOD(GetPeerInfo);
+NAN_METHOD(GetAddresses);
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
 NAN_METHOD(BlockFromHex);
@@ -1480,7 +1481,7 @@ NAN_METHOD(FillTransaction) {
 
 /**
  * GetInfo()
- * bitcoindjs.GetInfo()
+ * bitcoindjs.getInfo()
  * Get miscellaneous information
  */
 
@@ -1529,7 +1530,7 @@ NAN_METHOD(GetInfo) {
 
 /**
  * GetPeerInfo()
- * bitcoindjs.GetPeerInfo()
+ * bitcoindjs.getPeerInfo()
  * Get peer information
  */
 
@@ -1585,6 +1586,66 @@ NAN_METHOD(GetPeerInfo) {
     obj->Set(NanNew<String>("syncnode"), NanNew<Boolean>(stats.fSyncNode));
     obj->Set(NanNew<String>("whitelisted"), NanNew<Boolean>(stats.fWhitelisted));
     // obj->Set(NanNew<String>("relaytxes"), NanNew<Boolean>(stats.fRelayTxes));
+
+    array->Set(i, obj);
+    i++;
+  }
+
+  NanReturnValue(array);
+}
+
+/**
+ * GetAddresses()
+ * bitcoindjs.getAddresses()
+ * Get all addresses
+ */
+
+NAN_METHOD(GetAddresses) {
+  NanScope();
+
+  if (args.Length() > 0) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getAddresses()");
+  }
+
+  Local<Array> array = NanNew<Array>();
+  int i = 0;
+
+  std::vector<CAddress> vAddr = addrman.GetAddr();
+
+  BOOST_FOREACH(const CAddress& addr, vAddr) {
+    // //unsigned char *ip = addr.ip; // [16]
+    //bool a = addr.IsIPv4();
+    //bool a = addr.IsIPv6();
+    ////bool a = addr.IsTor();
+    //bool a = addr.IsLocal();
+    //bool a = addr.IsRoutable();
+    //bool a = addr.IsValid();
+    //bool a = addr.IsMulticast();
+    //enum Network n = addr.GetNetwork();
+    //std::string ip = addr.ToString();
+    //std::string ip = addr.ToStringIP();
+    //std::string ip = addr.ToStringIPPort();
+    //uint64_t hash = addr.GetHash();
+    //unsigned short port = addr.GetPort();
+    //std::vector<unsigned char> key = addr.GetKey();
+    // //unsigned short port = addr.port;
+    //uint64_t nServices = addr.nServices;
+    //unsigned int nTime = addr.nTime;
+    //int64_t nLastTry = addr.nLastTry;
+
+    Local<Object> obj = NanNew<Object>();
+
+    char nServices[21] = {0};
+    int written = snprintf(nServices, sizeof(nServices), "%020lu", (uint64_t)addr.nServices);
+    assert(written == 20);
+
+    obj->Set(NanNew<String>("services"), NanNew<String>((char *)nServices));
+    obj->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)addr.nTime)->ToUint32());
+    obj->Set(NanNew<String>("last"), NanNew<Number>((int64_t)addr.nLastTry));
+    obj->Set(NanNew<String>("ip"), NanNew<String>((std::string)addr.ToStringIP()));
+    obj->Set(NanNew<String>("port"), NanNew<Number>((unsigned short)addr.GetPort())->ToUint32());
+    obj->Set(NanNew<String>("address"), NanNew<String>((std::string)addr.ToStringIPPort()));
 
     array->Set(i, obj);
     i++;
@@ -3292,6 +3353,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "fillTransaction", FillTransaction);
   NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "getPeerInfo", GetPeerInfo);
+  NODE_SET_METHOD(target, "getAddresses", GetAddresses);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);

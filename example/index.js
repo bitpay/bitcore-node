@@ -29,11 +29,11 @@ var genesisTx = '0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda
 var testTx = "01000000010b26e9b7735eb6aabdf358bab62f9816a21ba9ebdb719d5299e88607d722c190000000008b4830450220070aca44506c5cef3a16ed519d7c3c39f8aab192c4e1c90d065f37b8a4af6141022100a8e160b856c2d43d27d8fba71e5aef6405b8643ac4cb7cb3c462aced7f14711a0141046d11fee51b0e60666d5049a9101a72741df480b96ee26488a4d3466b95c9a40ac5eeef87e10a5cd336c19a84565f80fa6c547957b7700ff4dfbdefe76036c339ffffffff021bff3d11000000001976a91404943fdd508053c75000106d3bc6e2754dbcff1988ac2f15de00000000001976a914a266436d2965547608b9e15d9032a7b9d64fa43188ac00000000";
 
 bitcoind.on('error', function(err) {
-  print('error="%s"', err.message);
+  bitcoind.log('error="%s"', err.message);
 });
 
 bitcoind.on('open', function(status) {
-  print('status="%s"', status);
+  bitcoind.log('status="%s"', status);
 
   if (!argv.list
       || !argv.blocks
@@ -45,18 +45,22 @@ bitcoind.on('open', function(status) {
     argv['on-block'] = true;
     setTimeout(function() {
       argv['on-block'] = false;
-      print(bitcoind.getInfo());
-      print(bitcoind.getPeerInfo());
-      print(bitcoind.wallet.listAccounts());
+      bitcoind.log(bitcoind.getInfo());
+      bitcoind.log(bitcoind.getPeerInfo());
+      bitcoind.log(bitcoind.wallet.listAccounts());
       bitcoind.on('version', function(version) {
-        print('Version packet:');
-        print(version);
+        bitcoind.log('VERSION packet:');
+        bitcoind.log(version);
+      });
+      bitcoind.on('addr', function(addr) {
+        bitcoind.log('ADDR packet:');
+        bitcoind.log(addr);
       });
     }, 7000);
   }
 
   if (argv.list) {
-    print(bitcoind.wallet.listAccounts());
+    bitcoind.log(bitcoind.wallet.listAccounts());
   }
 
   if (argv.blocks) {
@@ -65,31 +69,31 @@ bitcoind.on('open', function(status) {
 
   if (argv['test-tx']) {
     var tx = bitcoind.tx.fromHex(testTx);
-    print(tx);
-    print(tx.txid === tx.getHash('hex'));
+    bitcoind.log(tx);
+    bitcoind.log(tx.txid === tx.getHash('hex'));
   }
 
   function compareObj(obj) {
     // Hash
     if (obj.txid) {
-      print('tx.txid: %s', obj.txid);
-      print('tx.getHash("hex"): %s', obj.getHash('hex'));
-      print('tx.txid === tx.getHash("hex"): %s', obj.txid === obj.getHash('hex'));
+      bitcoind.log('tx.txid: %s', obj.txid);
+      bitcoind.log('tx.getHash("hex"): %s', obj.getHash('hex'));
+      bitcoind.log('tx.txid === tx.getHash("hex"): %s', obj.txid === obj.getHash('hex'));
     } else {
-      print('block.hash: %s', obj.hash);
-      print('block.getHash("hex"): %s', obj.getHash('hex'));
-      print('block.hash === block.getHash("hex"): %s', obj.hash === obj.getHash('hex'));
+      bitcoind.log('block.hash: %s', obj.hash);
+      bitcoind.log('block.getHash("hex"): %s', obj.getHash('hex'));
+      bitcoind.log('block.hash === block.getHash("hex"): %s', obj.hash === obj.getHash('hex'));
     }
 
     // Hex
     if (obj.txid) {
-      print('tx.hex: %s', obj.hex);
-      print('tx.toHex(): %s', obj.toHex());
-      print('tx.hex === tx.toHex(): %s', obj.hex === obj.toHex());
+      bitcoind.log('tx.hex: %s', obj.hex);
+      bitcoind.log('tx.toHex(): %s', obj.toHex());
+      bitcoind.log('tx.hex === tx.toHex(): %s', obj.hex === obj.toHex());
     } else {
-      print('block.hex: %s', obj.hex);
-      print('block.toHex(): %s', obj.toHex());
-      print('block.hex === block.toHex(): %s', obj.hex === obj.toHex());
+      bitcoind.log('block.hex: %s', obj.hex);
+      bitcoind.log('block.toHex(): %s', obj.toHex());
+      bitcoind.log('block.hex === block.toHex(): %s', obj.hex === obj.toHex());
     }
   }
 
@@ -98,32 +102,32 @@ bitcoind.on('open', function(status) {
       if (!argv['on-block']) {
         return bitcoind.removeListener('block', callee);
       }
-      print('Found Block:');
-      print(block);
+      bitcoind.log('Found Block:');
+      bitcoind.log(block);
       compareObj(block);
     });
   }
 
   if (argv['on-tx']) {
     bitcoind.on('tx', function(tx) {
-      print('Found TX:');
-      print(tx);
+      bitcoind.log('Found TX:');
+      bitcoind.log(tx);
       compareObj(tx);
     });
     bitcoind.on('mptx', function(mptx) {
-      print('Found mempool TX:');
-      print(mptx);
+      bitcoind.log('Found mempool TX:');
+      bitcoind.log(mptx);
       compareObj(mptx);
     });
   }
 
   if (argv.broadcast) {
     bitcoind.once('tx', function(tx) {
-      print('Broadcasting TX...');
+      bitcoind.log('Broadcasting TX...');
       return tx.broadcast(function(err, hash, tx) {
         if (err) throw err;
-        print('TX Hash: %s', hash);
-        print(tx);
+        bitcoind.log('TX Hash: %s', hash);
+        bitcoind.log(tx);
       });
     });
   }
@@ -137,19 +141,19 @@ function getBlocks(bitcoind) {
   return setTimeout(function() {
     return (function next(hash) {
       return bitcoind.getBlock(hash, function(err, block) {
-        if (err) return print(err.message);
+        if (err) return bitcoind.log(err.message);
 
-        print(block);
+        bitcoind.log(block);
 
         if (argv['get-tx'] && block.tx.length && block.tx[0].txid) {
           var txid = block.tx[0].txid;
           // XXX Dies with a segfault
           // bitcoind.getTx(txid, hash, function(err, tx) {
           bitcoind.getTx(txid, function(err, tx) {
-            if (err) return print(err.message);
-            print('TX -----------------------------------------------------');
-            print(tx);
-            print('/TX ----------------------------------------------------');
+            if (err) return bitcoind.log(err.message);
+            bitcoind.log('TX -----------------------------------------------------');
+            bitcoind.log(tx);
+            bitcoind.log('/TX ----------------------------------------------------');
           });
         }
 
@@ -159,18 +163,4 @@ function getBlocks(bitcoind) {
       });
     })(genesisBlock);
   }, 1000);
-}
-
-function inspect(obj) {
-  return util.inspect(obj, null, 20, true);
-}
-
-function print(obj) {
-  if (typeof obj === 'string') {
-    return process.stdout.write(
-      'bitcoind.js: '
-      + util.format.apply(util, arguments)
-      + '\n');
-  }
-  return process.stdout.write(inspect(obj) + '\n');
 }
