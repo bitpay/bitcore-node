@@ -48,6 +48,10 @@ bitcoind.on('open', function(status) {
       print(bitcoind.getInfo());
       print(bitcoind.getPeerInfo());
       print(bitcoind.wallet.listAccounts());
+      bitcoind.on('version', function(version) {
+        print('Version packet:');
+        print(version);
+      });
     }, 7000);
   }
 

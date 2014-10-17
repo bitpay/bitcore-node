@@ -1584,6 +1584,7 @@ NAN_METHOD(GetPeerInfo) {
     }
     obj->Set(NanNew<String>("syncnode"), NanNew<Boolean>(stats.fSyncNode));
     obj->Set(NanNew<String>("whitelisted"), NanNew<Boolean>(stats.fWhitelisted));
+    // obj->Set(NanNew<String>("relaytxes"), NanNew<Boolean>(stats.fRelayTxes));
 
     array->Set(i, obj);
     i++;
