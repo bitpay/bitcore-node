@@ -1501,14 +1501,14 @@ NAN_METHOD(GetInfo) {
   obj->Set(NanNew<String>("protocolversion"), NanNew<Number>(PROTOCOL_VERSION));
 #ifdef ENABLE_WALLET
   if (pwalletMain) {
-    obj->Set(NanNew<String>("walletversion"), NanNew<Number(pwalletMain->GetVersion()));
+    obj->Set(NanNew<String>("walletversion"), NanNew<Number>(pwalletMain->GetVersion()));
     obj->Set(NanNew<String>("balance"), NanNew<Number>(pwalletMain->GetBalance())); // double
   }
 #endif
   obj->Set(NanNew<String>("blocks"), NanNew<Number>((int)chainActive.Height())->ToInt32());
   obj->Set(NanNew<String>("timeoffset"), NanNew<Number>(GetTimeOffset()));
   obj->Set(NanNew<String>("connections"), NanNew<Number>((int)vNodes.size())->ToInt32());
-  obj->Set(NanNew<String>("proxy", NanNew<String>(proxy.IsValid() ? proxy.ToStringIPPort() : std::string(""))));
+  obj->Set(NanNew<String>("proxy"), NanNew<String>(proxy.IsValid() ? proxy.ToStringIPPort() : std::string("")));
   obj->Set(NanNew<String>("difficulty"), NanNew<Number>((double)GetDifficulty()));
   obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
 #ifdef ENABLE_WALLET
@@ -1522,7 +1522,7 @@ NAN_METHOD(GetInfo) {
   obj->Set(NanNew<String>("paytxfee"), NanNew<Number>(payTxFee.GetFeePerK())); // double
 #endif
   obj->Set(NanNew<String>("relayfee"), NanNew<Number>(::minRelayTxFee.GetFeePerK())); // double
-  obj->Set(NanNew<String>("errors", NanNew<String>(GetWarnings("statusbar"))));
+  obj->Set(NanNew<String>("errors"), NanNew<String>(GetWarnings("statusbar")));
 
   NanReturnValue(obj);
 }
@@ -1545,7 +1545,14 @@ NAN_METHOD(GetPeerInfo) {
   int i = 0;
 
   vector<CNodeStats> vstats;
-  CopyNodeStats(vstats);
+  vstats.clear();
+  LOCK(cs_vNodes);
+  vstats.reserve(vNodes.size());
+  BOOST_FOREACH(CNode* pnode, vNodes) {
+    CNodeStats stats;
+    pnode->copyStats(stats);
+    vstats.push_back(stats);
+  }
 
   BOOST_FOREACH(const CNodeStats& stats, vstats) {
     Local<Object> obj = NanNew<Object>();
@@ -1573,7 +1580,7 @@ NAN_METHOD(GetPeerInfo) {
     obj->Set(NanNew<String>("startingheight"), NanNew<Number>(stats.nStartingHeight));
     if (fStateStats) {
       obj->Set(NanNew<String>("banscore"), NanNew<Number>(statestats.nMisbehavior));
-      obj->Set(NanNew<String>("syncheight"), NanNew<Number>(statestats.nSyncHeight));
+      obj->Set(NanNew<String>("syncheight"), NanNew<Number>(statestats.nSyncHeight)->ToInt32());
     }
     obj->Set(NanNew<String>("syncnode"), NanNew<Boolean>(stats.fSyncNode));
     obj->Set(NanNew<String>("whitelisted"), NanNew<Boolean>(stats.fWhitelisted));
