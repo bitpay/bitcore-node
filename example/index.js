@@ -35,42 +35,19 @@ bitcoind.on('error', function(err) {
 bitcoind.on('open', function(status) {
   bitcoind.log('status="%s"', status);
 
-  if (!argv.list
-      || !argv.blocks
-      || !argv['on-block']
-      || !argv['on-tx']
-      || !argv.broadcast
-      || !argv['get-tx']) {
-    argv['list'] = true;
-    argv['on-block'] = true;
-    setTimeout(function() {
-      argv['on-block'] = false;
-      bitcoind.log(bitcoind.getInfo());
-      bitcoind.log(bitcoind.getPeerInfo());
-      bitcoind.log(bitcoind.wallet.listAccounts());
-      bitcoind.once('version', function(version) {
-        bitcoind.log('VERSION packet:');
-        bitcoind.log(version);
-      });
-      bitcoind.once('addr', function(addr) {
-        bitcoind.log('ADDR packet:');
-        bitcoind.log(addr);
-      });
-    }, 7000);
-  }
-
   if (argv.list) {
-    bitcoind.log(bitcoind.wallet.listAccounts());
+    return bitcoind.log(bitcoind.wallet.listAccounts());
   }
 
   if (argv.blocks) {
-    getBlocks(bitcoind);
+    return getBlocks(bitcoind);
   }
 
   if (argv['test-tx']) {
     var tx = bitcoind.tx.fromHex(testTx);
     bitcoind.log(tx);
     bitcoind.log(tx.txid === tx.getHash('hex'));
+    return;
   }
 
   function compareObj(obj) {
@@ -98,13 +75,13 @@ bitcoind.on('open', function(status) {
   }
 
   if (argv['on-block']) {
-    bitcoind.on('block', function callee(block) {
+    return bitcoind.on('block', function callee(block) {
       if (!argv['on-block']) {
         return bitcoind.removeListener('block', callee);
       }
       bitcoind.log('Found Block:');
       bitcoind.log(block);
-      compareObj(block);
+      return compareObj(block);
     });
   }
 
@@ -112,25 +89,47 @@ bitcoind.on('open', function(status) {
     bitcoind.on('tx', function(tx) {
       bitcoind.log('Found TX:');
       bitcoind.log(tx);
-      compareObj(tx);
+      return compareObj(tx);
     });
     bitcoind.on('mptx', function(mptx) {
       bitcoind.log('Found mempool TX:');
       bitcoind.log(mptx);
-      compareObj(mptx);
+      return compareObj(mptx);
     });
+    return;
   }
 
   if (argv.broadcast) {
-    bitcoind.once('tx', function(tx) {
+    // Help propagate transactions
+    return bitcoind.once('tx', function(tx) {
       bitcoind.log('Broadcasting TX...');
       return tx.broadcast(function(err, hash, tx) {
         if (err) throw err;
         bitcoind.log('TX Hash: %s', hash);
-        bitcoind.log(tx);
+        return bitcoind.log(tx);
       });
     });
   }
+
+  argv['list'] = true;
+  argv['on-block'] = true;
+  return setTimeout(function() {
+    argv['on-block'] = false;
+
+    bitcoind.log(bitcoind.getInfo());
+    bitcoind.log(bitcoind.getPeerInfo());
+    bitcoind.log(bitcoind.wallet.listAccounts());
+
+    bitcoind.once('version', function(version) {
+      bitcoind.log('VERSION packet:');
+      bitcoind.log(version);
+    });
+
+    bitcoind.once('addr', function(addr) {
+      bitcoind.log('ADDR packet:');
+      bitcoind.log(addr);
+    });
+  }, 7000);
 });
 
 /**

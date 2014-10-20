@@ -526,8 +526,7 @@ async_start_node_after(uv_work_t *req) {
     }
   }
 
-  // XXX Figure out what to do here:
-  // data->callback.Dispose();
+  data->callback.Dispose();
 
   delete data;
   delete req;
@@ -885,7 +884,8 @@ NAN_METHOD(GetTx) {
   std::string blockHash = std::string(*blockHash_);
 
   if (blockHash.empty()) {
-    blockHash = std::string("0x0000000000000000000000000000000000000000000000000000000000000000");
+    blockHash = std::string(
+      "0000000000000000000000000000000000000000000000000000000000000000");
   }
 
   async_tx_data *data = new async_tx_data();
