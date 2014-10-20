@@ -97,7 +97,8 @@ bitcoind.js has direct access to the global wallet:
 
 ``` js
 var bitcoind = require('bitcoind.js')({
-  directory: '~/.libbitcoin-test'
+  directory: '~/.libbitcoin-test',
+  testnet: false
 });
 bitcoind.on('open', function() {
   console.log(bitcoind.wallet.listAccounts());
