@@ -10,6 +10,7 @@ var util = require('util');
 var fs = require('fs');
 var argv = require('optimist').argv;
 var rimraf = require('rimraf');
+var assert = require('assert');
 
 /**
  * bitcoind
@@ -53,24 +54,28 @@ bitcoind.on('open', function(status) {
   function compareObj(obj) {
     // Hash
     if (obj.txid) {
-      bitcoind.log('tx.txid: %s', obj.txid);
-      bitcoind.log('tx.getHash("hex"): %s', obj.getHash('hex'));
-      bitcoind.log('tx.txid === tx.getHash("hex"): %s', obj.txid === obj.getHash('hex'));
+      //bitcoind.log('tx.txid: %s', obj.txid);
+      //bitcoind.log('tx.getHash("hex"): %s', obj.getHash('hex'));
+      //bitcoind.log('tx.txid === tx.getHash("hex"): %s', obj.txid === obj.getHash('hex'));
+      assert.equal(obj.hash, obj.getHash('hex'));
     } else {
-      bitcoind.log('block.hash: %s', obj.hash);
-      bitcoind.log('block.getHash("hex"): %s', obj.getHash('hex'));
-      bitcoind.log('block.hash === block.getHash("hex"): %s', obj.hash === obj.getHash('hex'));
+      //bitcoind.log('block.hash: %s', obj.hash);
+      //bitcoind.log('block.getHash("hex"): %s', obj.getHash('hex'));
+      //bitcoind.log('block.hash === block.getHash("hex"): %s', obj.hash === obj.getHash('hex'));
+      assert.equal(obj.hash, obj.getHash('hex'));
     }
 
     // Hex
     if (obj.txid) {
-      bitcoind.log('tx.hex: %s', obj.hex);
-      bitcoind.log('tx.toHex(): %s', obj.toHex());
-      bitcoind.log('tx.hex === tx.toHex(): %s', obj.hex === obj.toHex());
+      //bitcoind.log('tx.hex: %s', obj.hex);
+      //bitcoind.log('tx.toHex(): %s', obj.toHex());
+      //bitcoind.log('tx.hex === tx.toHex(): %s', obj.hex === obj.toHex());
+      assert.equal(obj.hex, obj.toHex());
     } else {
-      bitcoind.log('block.hex: %s', obj.hex);
-      bitcoind.log('block.toHex(): %s', obj.toHex());
-      bitcoind.log('block.hex === block.toHex(): %s', obj.hex === obj.toHex());
+      //bitcoind.log('block.hex: %s', obj.hex);
+      //bitcoind.log('block.toHex(): %s', obj.toHex());
+      //bitcoind.log('block.hex === block.toHex(): %s', obj.hex === obj.toHex());
+      assert.equal(obj.hex, obj.toHex());
     }
   }
 
@@ -108,11 +113,9 @@ bitcoind.on('open', function(status) {
     });
   }
 
-  bitcoind.log(bitcoind.wallet.listAccounts());
-
   argv['on-block'] = true;
   setTimeout(function() {
-    return bitcoind.on('block', function callee(block) {
+    bitcoind.on('block', function callee(block) {
       if (!argv['on-block']) {
         return bitcoind.removeListener('block', callee);
       }
@@ -120,25 +123,29 @@ bitcoind.on('open', function(status) {
       bitcoind.log(block);
       return compareObj(block);
     });
+
+    bitcoind.once('block', function(block) {
+      setTimeout(function() {
+        argv['on-block'] = false;
+
+        bitcoind.log(bitcoind.getInfo());
+        bitcoind.log(bitcoind.getPeerInfo());
+        bitcoind.log(bitcoind.wallet.listAccounts());
+
+        bitcoind.once('version', function(version) {
+          bitcoind.log('VERSION packet:');
+          bitcoind.log(version);
+        });
+
+        bitcoind.once('addr', function(addr) {
+          bitcoind.log('ADDR packet:');
+          bitcoind.log(addr);
+        });
+      }, 8000);
+    });
   }, 2000);
 
-  setTimeout(function() {
-    argv['on-block'] = false;
-
-    bitcoind.log(bitcoind.getInfo());
-    bitcoind.log(bitcoind.getPeerInfo());
-    bitcoind.log(bitcoind.wallet.listAccounts());
-
-    bitcoind.once('version', function(version) {
-      bitcoind.log('VERSION packet:');
-      bitcoind.log(version);
-    });
-
-    bitcoind.once('addr', function(addr) {
-      bitcoind.log('ADDR packet:');
-      bitcoind.log(addr);
-    });
-  }, 9000);
+  return bitcoind.log(bitcoind.wallet.listAccounts());
 });
 
 /**
