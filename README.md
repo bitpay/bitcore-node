@@ -8,9 +8,6 @@ making all useful bitcoind functions asynchronous.
 
 ### bitcoind
 
-- NOTE (to self): Arch is using bitcoin-daemon 0.9.2.1, the latest boost headers
-  in Arch should be correct.
-
 Cloning libbitcoind:
 
 ``` bash
@@ -28,11 +25,13 @@ bitcoind as a shared object. This may not be ideal yet.
 
 - Boost
   - Bost Header Files (`/usr/include/boost`)
+  - NOTE: These are now included in the repo if they're not present.
 
 - Berkeley DB
 
 - LevelDB Header Files (included in bitcoin source repo, leveldb itself
   unnecessary, libbitcoind.so is already linked to them)
+  - NOTE: These also are now included in the repo if they're not present.
 
 
 ``` bash
@@ -47,7 +46,7 @@ $ ./autogen.sh
 # use --with-incompatible-bdb if necessary
 # use --prefix=/usr if necessary
 # osx users may have to specify a boost path
-$ ./configure --enable-daemonlib
+$ ./configure --enable-daemonlib --with-incompatible-bdb
 
 # build libbitcoind.so
 $ time make
@@ -97,7 +96,9 @@ $ tail -f ~/.bitcoin/debug.log
 bitcoind.js has direct access to the global wallet:
 
 ``` js
-var bitcoind = require('bitcoind.js')();
+var bitcoind = require('bitcoind.js')({
+  directory: '~/.libbitcoin-test'
+});
 bitcoind.on('open', function() {
   console.log(bitcoind.wallet.listAccounts());
 });
