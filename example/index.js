@@ -76,9 +76,6 @@ bitcoind.on('open', function(status) {
 
   if (argv['on-block']) {
     return bitcoind.on('block', function callee(block) {
-      if (!argv['on-block']) {
-        return bitcoind.removeListener('block', callee);
-      }
       bitcoind.log('Found Block:');
       bitcoind.log(block);
       return compareObj(block);
@@ -111,9 +108,21 @@ bitcoind.on('open', function(status) {
     });
   }
 
-  argv['list'] = true;
+  bitcoind.log(bitcoind.wallet.listAccounts());
+
   argv['on-block'] = true;
-  return setTimeout(function() {
+  setTimeout(function() {
+    return bitcoind.on('block', function callee(block) {
+      if (!argv['on-block']) {
+        return bitcoind.removeListener('block', callee);
+      }
+      bitcoind.log('Found Block:');
+      bitcoind.log(block);
+      return compareObj(block);
+    });
+  }, 2000);
+
+  setTimeout(function() {
     argv['on-block'] = false;
 
     bitcoind.log(bitcoind.getInfo());
@@ -129,7 +138,7 @@ bitcoind.on('open', function(status) {
       bitcoind.log('ADDR packet:');
       bitcoind.log(addr);
     });
-  }, 7000);
+  }, 9000);
 });
 
 /**
