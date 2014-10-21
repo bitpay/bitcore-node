@@ -581,22 +581,20 @@ start_node_thread(void) {
   int argc = 0;
   char **argv = (char **)malloc((3 + 1) * sizeof(char **));
 
-  argv[0] = (char *)"bitcoind";
+  argv[argc] = (char *)"bitcoind";
+  argc++;
 
   if (g_data_dir) {
-    const int argl = 9 + strlen(g_data_dir) + 1;
-    char *arg = (char *)malloc(argl);
+    const int argl = 9 + strlen(g_data_dir);
+    char *arg = (char *)malloc(sizeof(char) * (argl + 1));
     int w = snprintf(arg, argl, "-datadir=%s", g_data_dir);
-    if (w <= 0 || w >= argl) {
-      NanThrowError("Bad -datadir value.");
-      return;
+    if (w > 9 && w <= argl) {
+      arg[w] = '\0';
+      argv[argc] = arg;
+      argc++;
+    } else {
+      fprintf(stderr, "bitcoind.js: Bad -datadir value.");
     }
-    arg[w] = '\0';
-
-    argc = 2;
-    argv[1] = arg;
-  } else {
-    argc = 1;
   }
 
   if (g_rpc) {
@@ -617,7 +615,7 @@ start_node_thread(void) {
 
     if (!boost::filesystem::is_directory(GetDataDir(false))) {
       fprintf(stderr,
-        "Error: Specified data directory \"%s\" does not exist.\n",
+        "bitcoind.js: Specified data directory \"%s\" does not exist.\n",
         mapArgs["-datadir"].c_str());
       return;
     }
@@ -625,7 +623,7 @@ start_node_thread(void) {
     try {
       ReadConfigFile(mapArgs, mapMultiArgs);
     } catch(std::exception &e) {
-      fprintf(stderr,"Error reading configuration file: %s\n", e.what());
+      fprintf(stderr,"bitcoind.js: Error reading configuration file: %s\n", e.what());
       return;
     }
 
@@ -634,7 +632,7 @@ start_node_thread(void) {
     // mapArgs["-testnet"] = g_testnet ? "1" : "0";
 
     if (!SelectParamsFromCommandLine()) {
-      fprintf(stderr, "Error: Invalid combination of -regtest and -testnet.\n");
+      fprintf(stderr, "bitcoind.js: Invalid combination of -regtest and -testnet.\n");
       return;
     }
 
@@ -647,9 +645,9 @@ start_node_thread(void) {
       boost::bind(&DetectShutdownThread, &threadGroup));
     fRet = AppInit2(threadGroup);
   } catch (std::exception& e) {
-    fprintf(stderr, "AppInit(): std::exception");
+    fprintf(stderr, "bitcoind.js: AppInit(): std::exception");
   } catch (...) {
-    fprintf(stderr, "AppInit(): other exception");
+    fprintf(stderr, "bitcoind.js: AppInit(): other exception");
   }
 
   if (!fRet) {
