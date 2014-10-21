@@ -623,7 +623,8 @@ start_node_thread(void) {
     try {
       ReadConfigFile(mapArgs, mapMultiArgs);
     } catch(std::exception &e) {
-      fprintf(stderr,"bitcoind.js: Error reading configuration file: %s\n", e.what());
+      fprintf(stderr,
+        "bitcoind.js: Error reading configuration file: %s\n", e.what());
       return;
     }
 
@@ -632,7 +633,8 @@ start_node_thread(void) {
     // mapArgs["-testnet"] = g_testnet ? "1" : "0";
 
     if (!SelectParamsFromCommandLine()) {
-      fprintf(stderr, "bitcoind.js: Invalid combination of -regtest and -testnet.\n");
+      fprintf(stderr,
+        "bitcoind.js: Invalid combination of -regtest and -testnet.\n");
       return;
     }
 
