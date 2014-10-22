@@ -3481,7 +3481,7 @@ NAN_METHOD(HookPackets) {
       // Get the new addresses
       int64_t nNow = GetAdjustedTime();
       BOOST_FOREACH(CAddress& addr, vAddr) {
-        // boost::this_thread::interruption_point();
+        boost::this_thread::interruption_point();
 
         unsigned int nTime = addr.nTime;
         if (nTime <= 100000000 || nTime > nNow + 10 * 60) {
@@ -3510,7 +3510,50 @@ NAN_METHOD(HookPackets) {
 
       o->Set(NanNew<String>("addresses"), array);
     } else if (strCommand == "inv") {
-      ;
+      vector<CInv> vInv;
+      cur->vRecv >> vInv;
+
+      // Bad size
+      if (vInv.size() > MAX_INV_SZ) {
+        return false;
+      }
+
+      LOCK(cs_main);
+
+      Local<Array> array = NanNew<Array>();
+      int i = 0;
+
+      for (unsigned int nInv = 0; nInv < vInv.size(); nInv++) {
+        const CInv &inv = vInv[nInv];
+
+        boost::this_thread::interruption_point();
+
+        bool fAlreadyHave = AlreadyHave(inv);
+
+        // Bad size
+        if (pfrom->nSendSize > (SendBufferSize() * 2)) {
+          return false;
+        }
+
+        Local<Object> item = NanNew<Object>();
+        item->Set(NanNew<String>("have"), NanNew<Boolean>(fAlreadyHave));
+        item->Set(NanNew<String>("hash"), NanNew<String>(inv.hash.GetHex().c_str()));
+        item->Set(NanNew<String>("type"), NanNew<String>(
+          inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK
+          ? "block" : "tx"));
+        if (inv.type == MSG_FILTERED_BLOCK) {
+          item->Set(NanNew<String>("filtered"), NanNew<Boolean>(true));
+        } else if (inv.type == MSG_BLOCK) {
+          item->Set(NanNew<String>("filtered"), NanNew<Boolean>(false));
+        }
+
+        array->Set(i, item);
+        i++;
+      }
+
+      o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
+      //o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
+      o->Set(NanNew<String>("items"), array);
     } else if (strCommand == "getdata") {
       ;
     } else if (strCommand == "getblocks") {
