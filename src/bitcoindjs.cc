@@ -3621,8 +3621,7 @@ NAN_METHOD(HookPackets) {
       ctx_to_jstx(tx, 0, jstx);
       // ctx_to_jstx(tx, 0, o);
       o->Set(NanNew<String>("tx"), jstx);
-    // } else if (strCommand == "block" && !fImporting && !fReindex) {
-    } else if (strCommand == "block") {
+    } else if (strCommand == "block") { // && !fImporting && !fReindex) {
       CBlock block;
       cur->vRecv >> block;
       Local<Object> jstx = NanNew<Object>();
