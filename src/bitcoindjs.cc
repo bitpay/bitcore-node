@@ -291,8 +291,8 @@ process_packets(CNode* pfrom);
 static bool
 process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTimeReceived);
 
-bool static
-process_getdata(CNode* pfrom);
+// bool static
+// process_getdata(CNode* pfrom);
 
 extern "C" void
 init(Handle<Object>);
@@ -3522,10 +3522,10 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
   return true;
 }
 
-bool static
-process_getdata(CNode* pfrom) {
-  return true;
-}
+// bool static
+// process_getdata(CNode* pfrom) {
+//   return true;
+// }
 
 /**
  * Init()
