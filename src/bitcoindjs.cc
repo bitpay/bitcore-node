@@ -3704,7 +3704,28 @@ NAN_METHOD(HookPackets) {
         o->Set(NanNew<String>("finished"), NanNew<Boolean>(false));
       }
     } else if (strCommand == "alert") {
-      ;
+      CAlert alert;
+      cur->vRecv >> alert;
+
+      uint256 alertHash = alert.GetHash();
+
+      o->Set(NanNew<String>("hash"), NanNew<String>(alertHash.GetHex().c_str()));
+
+      if (pfrom->setKnown.count(alertHash) == 0) {
+        if (alert.ProcessAlert()) {
+          o->Set(NanNew<String>("message"), NanNew<String>(alert.vchMsg.c_str()));
+          o->Set(NanNew<String>("signature"), NanNew<String>(alert.vchSig.c_str()));
+          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
+        } else {
+          // Small DoS penalty so peers that send us lots of
+          // duplicate/expired/invalid-signature/whatever alerts
+          // eventually get banned.
+          // This isn't a Misbehaving(100) (immediate ban) because the
+          // peer might be an older or different implementation with
+          // a different signature key, etc.
+          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
+        }
+      }
     } else if (strCommand == "filterload") {
       ;
     } else if (strCommand == "filteradd") {
