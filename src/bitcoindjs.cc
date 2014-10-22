@@ -3364,11 +3364,10 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
  */
 
 typedef struct _poll_packets_list {
-  //CNode *pfrom;
-  //std::string strCommand;
-  //CDataStream& vRec;
-  //int64_t nTimeReceived;
+  CNode *pfrom;
   char *strCommand;
+  // CDataStream& vRec;
+  int64_t nTimeReceived;
   struct _poll_packets_list *next;
 } poll_packets_list;
 
@@ -3403,10 +3402,9 @@ NAN_METHOD(HookPackets) {
       packets_queue_tail = NULL;
     }
     next = cur->next;
-    //delete cur->pfrom;
-    //delete cur->strCommand;
-    //delete cur;
+    // free(cur->pfrom); // cleaned up elsewhere?
     free(cur->strCommand);
+    // delete cur->vRec; // cleaned up elsewhere?
     free(cur);
   }
 
@@ -3485,6 +3483,9 @@ process_packets(CNode* pfrom) {
     fRet = process_packet(pfrom, strCommand, vRecv, msg.nTime);
     boost::this_thread::interruption_point();
 
+    if (!fRet)
+      LogPrintf("ProcessMessage(%s, %u bytes) FAILED peer=%d\n", strCommand, nMessageSize, pfrom->id);
+
     break;
   }
 
@@ -3493,31 +3494,8 @@ process_packets(CNode* pfrom) {
 
 static bool
 process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTimeReceived) {
-  // RandAddSeedPerfmon();
-
-  // {
-  //    LOCK(cs_main);
-  //    State(pfrom->GetId())->nLastBlockProcess = GetTimeMicros();
-  // }
-
-  // printf("BITCOIND.JS: ------- %s ------\n", strCommand.c_str());
-
-  // if (cb_hooked) {
-  //   const unsigned argc = 2;
-  //   Local<Value> argv[argc] = {
-  //     Local<Value>::New(Null()),
-  //     Local<Value>::New(String::New(strCommand.c_str()))
-  //   };
-  //   TryCatch try_catch;
-  //   hook_cb->Call(Context::GetCurrent()->Global(), argc, argv);
-  //   if (try_catch.HasCaught()) {
-  //     node::FatalException(try_catch);
-  //   }
-  // }
-
   poll_packets_mutex.lock();
 
-  //poll_packets_list *cur = new poll_packets_list();
   poll_packets_list *cur = (poll_packets_list *)malloc(sizeof(poll_packets_list));
   if (!packets_queue_head) {
     packets_queue_head = cur;
@@ -3527,47 +3505,14 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
     packets_queue_tail = cur;
   }
 
-  //cur->pfrom = pfrom;
-  //cur->strCommand = strCommand;
-  //cur->vRec = vRecv;
-  //cur->nTimeReceived = nTimeReceived;
+  cur->pfrom = pfrom;
+  // cur->vRec = vRecv;
+  cur->nTimeReceived = nTimeReceived;
+  // to dup or not to dup? cleaned up elsewhere?
   cur->strCommand = strdup(strCommand.c_str());
   cur->next = NULL;
 
   poll_packets_mutex.unlock();
-
-  if (strCommand == "version") {
-  } else if (pfrom->nVersion == 0) {
-  } else if (strCommand == "verack") {
-  } else if (strCommand == "addr") {
-  } else if (strCommand == "inv") {
-  } else if (strCommand == "getdata") {
-  } else if (strCommand == "getblocks") {
-  } else if (strCommand == "getheaders") {
-  } else if (strCommand == "tx") {
-  } else if (strCommand == "block" && !fImporting && !fReindex) { // Ignore blocks received while importing
-  } else if (strCommand == "getaddr") {
-  } else if (strCommand == "mempool") {
-  } else if (strCommand == "ping") {
-  } else if (strCommand == "pong") {
-  } else if (strCommand == "alert") {
-  } else if (strCommand == "filterload") {
-  } else if (strCommand == "filteradd") {
-  } else if (strCommand == "filterclear") {
-  } else if (strCommand == "reject") {
-  } else {
-  }
-
-  // Update the last seen time for this node's address
-  if (pfrom->fNetworkNode) {
-    if (strCommand == "version"
-        || strCommand == "addr"
-        || strCommand == "inv"
-        || strCommand == "getdata"
-        || strCommand == "ping") {
-      ;
-    }
-  }
 
   return true;
 }
