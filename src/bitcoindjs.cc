@@ -3716,7 +3716,6 @@ NAN_METHOD(HookPackets) {
       } else {
         o->Set(NanNew<String>("finished"), NanNew<Boolean>(false));
       }
-#if 0
     } else if (strCommand == "alert") {
       CAlert alert;
       *cur->vRecv >> alert;
@@ -3727,8 +3726,10 @@ NAN_METHOD(HookPackets) {
 
       if (cur->pfrom->setKnown.count(alertHash) == 0) {
         if (alert.ProcessAlert()) {
-          o->Set(NanNew<String>("message"), NanNew<String>(alert.vchMsg.c_str()));
-          o->Set(NanNew<String>("signature"), NanNew<String>(alert.vchSig.c_str()));
+          std::string vchMsg(alert.vchMsg.begin(), alert.vchMsg.end());
+          std::string vchSig(alert.vchSig.begin(), alert.vchSig.end());
+          o->Set(NanNew<String>("message"), NanNew<String>(vchMsg.c_str()));
+          o->Set(NanNew<String>("signature"), NanNew<String>(vchSig.c_str()));
           o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
         } else {
           // Small DoS penalty so peers that send us lots of
@@ -3740,6 +3741,7 @@ NAN_METHOD(HookPackets) {
           o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
         }
       }
+#if 0
     } else if (strCommand == "filterload") {
       CBloomFilter filter;
       *cur->vRecv >> filter;
@@ -3750,8 +3752,18 @@ NAN_METHOD(HookPackets) {
       } else {
         LOCK(cur->pfrom->cs_filter);
         filter.UpdateEmptyFull();
+
         // std::vector<unsigned char> vData;
-        o->Set(NanNew<String>("data"), NanNew<String>(filter.vData.GetHex().c_str()));
+        std::string svData(filter.vData.begin(), filter.vData.end());
+        char *cvData = svData.c_str();
+        int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
+        char *vDataHex = (char *)malloc(vDataHexLen);
+        int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
+        // assert(written == vDataHexLen);
+        vDataHex[written] = '\0';
+
+        o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
+        free(vDataHex);
         o->Set(NanNew<String>("full"), NanNew<Boolean>(filter.isFull));
         o->Set(NanNew<String>("empty"), NanNew<Boolean>(filter.isEmpty));
         o->Set(NanNew<String>("hashFuncs"), NanNew<Number>(filter.nHashFuncs));
@@ -3769,7 +3781,17 @@ NAN_METHOD(HookPackets) {
       } else {
         LOCK(cur->pfrom->cs_filter);
         if (cur->pfrom->pfilter) {
-          o->Set(NanNew<String>("data"), NanNew<String>(vData.GetHex().c_str()));
+
+          std::string svData(vData.begin(), vData.end());
+          char *cvData = svData.c_str();
+          int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
+          char *vDataHex = (char *)malloc(vDataHexLen);
+          int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
+          // assert(written == vDataHexLen);
+          vDataHex[written] = '\0';
+
+          o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
+          free(vDataHex);
         } else {
           o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
         }
