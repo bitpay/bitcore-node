@@ -3745,7 +3745,21 @@ NAN_METHOD(HookPackets) {
         o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
       }
     } else if (strCommand == "filteradd") {
-      ;
+      vector<unsigned char> vData;
+      cur->vRecv >> vData;
+
+      // Nodes must NEVER send a data item > 520 bytes (the max size for a script data object,
+      // and thus, the maximum size any matched object can have) in a filteradd message
+      if (vData.size() > MAX_SCRIPT_ELEMENT_SIZE) {
+        o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
+      } else {
+        LOCK(pfrom->cs_filter);
+        if (pfrom->pfilter) {
+          o->Set(NanNew<String>("data"), NanNew<String>(vData.GetHex().c_str()));
+        } else {
+          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
+        }
+      }
     } else if (strCommand == "filterclear") {
       ;
     } else if (strCommand == "reject") {
