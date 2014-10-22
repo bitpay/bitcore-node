@@ -3457,11 +3457,58 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("relay"), NanNew<Boolean>(fRelayTxes));
 #endif
     } else if (cur->pfrom->nVersion == 0) {
-      ;
+      // Must have a version message before anything else
+      return false;
     } else if (strCommand == "verack") {
-      ;
+      o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(min(pfrom->nVersion, PROTOCOL_VERSION)));
     } else if (strCommand == "addr") {
-      ;
+      vector<CAddress> vAddr;
+      cur->vRecv >> vAddr;
+
+      // Don't want addr from older versions unless seeding
+      if (cur->pfrom->nVersion < CADDR_TIME_VERSION && addrman.size() > 1000) {
+        return true;
+      }
+
+      // Bad address size
+      if (vAddr.size() > 1000) {
+        return false; // ?
+      }
+
+      Local<Array> array = NanNew<Array>();
+      int i = 0;
+
+      // Get the new addresses
+      int64_t nNow = GetAdjustedTime();
+      BOOST_FOREACH(CAddress& addr, vAddr) {
+        // boost::this_thread::interruption_point();
+
+        unsigned int nTime = addr.nTime;
+        if (nTime <= 100000000 || nTime > nNow + 10 * 60) {
+          nTime = nNow - 5 * 24 * 60 * 60;
+        }
+
+        bool fReachable = IsReachable(addr);
+
+        Local<Object> obj = NanNew<Object>();
+
+        char nServices[21] = {0};
+        int written = snprintf(nServices, sizeof(nServices), "%020lu", (uint64_t)addr.nServices);
+        assert(written == 20);
+
+        obj->Set(NanNew<String>("services"), NanNew<String>((char *)nServices));
+        obj->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)nTime)->ToUint32());
+        obj->Set(NanNew<String>("last"), NanNew<Number>((int64_t)addr.nLastTry));
+        obj->Set(NanNew<String>("ip"), NanNew<String>((std::string)addr.ToStringIP()));
+        obj->Set(NanNew<String>("port"), NanNew<Number>((unsigned short)addr.GetPort())->ToUint32());
+        obj->Set(NanNew<String>("address"), NanNew<String>((std::string)addr.ToStringIPPort()));
+        obj->Set(NanNew<String>("reachable"), NanNew<Boolean>((bool)fReachable));
+
+        array->Set(i, obj);
+        i++;
+      }
+
+      o->Set(NanNew<String>("addresses"), array);
     } else if (strCommand == "inv") {
       ;
     } else if (strCommand == "getdata") {
