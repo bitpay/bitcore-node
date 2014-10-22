@@ -3378,7 +3378,6 @@ boost::mutex poll_packets_mutex;
 /**
  * HookPackets()
  * bitcoind.hookPackets(callback)
- * NOTE: THIS NEEDS A MUTEX XXXXXXXXXX
  */
 
 NAN_METHOD(HookPackets) {
@@ -3392,15 +3391,22 @@ NAN_METHOD(HookPackets) {
   poll_packets_mutex.lock();
 
   for (cur = packets_queue_head; cur; cur = next) {
-    //obj->Set(i, NanNew<String>(cur->strCommand.c_str()));
-    obj->Set(i, NanNew<String>(cur->strCommand));
+    Local<Object> o = NanNew<Object>();
+
+    o->Set(NanNew<String>("name"), NanNew<String>(cur->strCommand));
+    o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)cur->nTimeReceived));
+
+    obj->Set(i, o);
     i++;
+
     if (cur == packets_queue_head) {
       packets_queue_head = NULL;
     }
+
     if (cur == packets_queue_tail) {
       packets_queue_tail = NULL;
     }
+
     next = cur->next;
     // delete cur->pfrom; // cleaned up elsewhere? C++ I DON'T UNDERSTAND YOU
     free(cur->strCommand);
@@ -3427,9 +3433,9 @@ static bool
 process_packets(CNode* pfrom) {
   bool fOk = true;
 
-  if (!pfrom->vRecvGetData.empty()) {
-    return process_getdata(pfrom);
-  }
+  // if (!pfrom->vRecvGetData.empty()) {
+  //   return process_getdata(pfrom);
+  // }
 
   std::deque<CNetMessage>::iterator it = pfrom->vRecvMsg.begin();
   while (!pfrom->fDisconnect && it != pfrom->vRecvMsg.end()) {

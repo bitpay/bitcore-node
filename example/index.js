@@ -113,6 +113,12 @@ bitcoind.on('open', function(status) {
     });
   }
 
+  bitcoind.on('packets', function(packets) {
+    bitcoind.log(packets);
+  });
+
+  return;
+
   argv['on-block'] = true;
   setTimeout(function() {
     bitcoind.on('block', function callee(block) {
