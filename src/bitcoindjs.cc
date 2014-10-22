@@ -3585,10 +3585,34 @@ NAN_METHOD(HookPackets) {
 
       o->Set(NanNew<Number>("peerId"), NanNew<Number>(pfrom->id));
       o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1);
-      o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop == uint256(0) ? "end" : hashStop.ToString()));
+      o->Set(NanNew<String>("toHash"), NanNew<String>(
+        hashStop == uint256(0) ? "end" : hashStop.GetHex().c_str()));
       o->Set(NanNew<String>("limit"), NanNew<Number>(nLimit));
     } else if (strCommand == "getheaders") {
-      ;
+      CBlockLocator locator;
+      uint256 hashStop;
+      cur->vRecv >> locator >> hashStop;
+
+      LOCK(cs_main);
+
+      CBlockIndex* pindex = NULL;
+      if (locator.IsNull()) {
+        // If locator is null, return the hashStop block
+        BlockMap::iterator mi = mapBlockIndex.find(hashStop);
+        if (mi == mapBlockIndex.end()) {
+          return true;
+        }
+        pindex = (*mi).second;
+      } else {
+        // Find the last block the caller has in the main chain
+        pindex = FindForkInGlobalIndex(chainActive, locator);
+        if (pindex) {
+          pindex = chainActive.Next(pindex);
+        }
+      }
+
+      o->Set(NanNew<String>("fromHeight"), pindex ? pindex->nHeight : -1);
+      o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop.GetHex().c_str()));
     } else if (strCommand == "tx") {
       ;
     // } else if (strCommand == "block" && !fImporting && !fReindex) {
