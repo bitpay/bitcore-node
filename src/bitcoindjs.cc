@@ -3727,7 +3727,23 @@ NAN_METHOD(HookPackets) {
         }
       }
     } else if (strCommand == "filterload") {
-      ;
+      CBloomFilter filter;
+      cur->vRecv >> filter;
+
+      if (!filter.IsWithinSizeConstraints()) {
+        // There is no excuse for sending a too-large filter
+        o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
+      } else {
+        LOCK(pfrom->cs_filter);
+        filter.UpdateEmptyFull();
+        // std::vector<unsigned char> vData;
+        o->Set(NanNew<String>("data"), NanNew<String>(filter.vData.GetHex().c_str()));
+        o->Set(NanNew<String>("full"), NanNew<Boolean>(filter.isFull));
+        o->Set(NanNew<String>("empty"), NanNew<Boolean>(filter.isEmpty));
+        o->Set(NanNew<String>("hashFuncs"), NanNew<Number>(filter.nHashFuncs));
+        o->Set(NanNew<String>("tweaks"), NanNew<Number>(filter.nTweak));
+        o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
+      }
     } else if (strCommand == "filteradd") {
       ;
     } else if (strCommand == "filterclear") {
