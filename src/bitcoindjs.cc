@@ -3517,7 +3517,6 @@ NAN_METHOD(HookPackets) {
       }
 
       o->Set(NanNew<String>("addresses"), array);
-#if 0
     } else if (strCommand == "inv") {
       vector<CInv> vInv;
       *cur->vRecv >> vInv;
@@ -3538,7 +3537,7 @@ NAN_METHOD(HookPackets) {
 
         boost::this_thread::interruption_point();
 
-        bool fAlreadyHave = AlreadyHave(inv);
+        //bool fAlreadyHave = AlreadyHave(inv);
 
         // Bad size
         if (cur->pfrom->nSendSize > (SendBufferSize() * 2)) {
@@ -3547,7 +3546,7 @@ NAN_METHOD(HookPackets) {
         }
 
         Local<Object> item = NanNew<Object>();
-        item->Set(NanNew<String>("have"), NanNew<Boolean>(fAlreadyHave));
+        //item->Set(NanNew<String>("have"), NanNew<Boolean>(fAlreadyHave));
         item->Set(NanNew<String>("hash"), NanNew<String>(inv.hash.GetHex().c_str()));
         item->Set(NanNew<String>("type"), NanNew<String>(
           inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK
@@ -3573,10 +3572,11 @@ NAN_METHOD(HookPackets) {
         NanReturnValue(obj);
       }
 
-      o->Set(NanNew<Number>("size"), NanNew<Number>(vInv.size()));
+      o->Set(NanNew<String>("size"), NanNew<Number>(vInv.size()));
       if (vInv.size() > 0) {
-        o->Set(NanNew<Number>("first"), NanNew<String>(vInv[0].ToString().c_str()));
+        o->Set(NanNew<String>("first"), NanNew<String>(vInv[0].ToString().c_str()));
       }
+#if 0
     } else if (strCommand == "getblocks") {
       CBlockLocator locator;
       uint256 hashStop;
