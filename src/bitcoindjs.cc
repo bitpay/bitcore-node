@@ -3399,7 +3399,7 @@ NAN_METHOD(HookPackets) {
     o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)cur->nTimeReceived));
     o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
     //o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
-    // pfrom->cleanSubVer, // string
+    o->Set(NanNew<String>("versionMessage"), NanNew<String>(pfrom->cleanSubVer.c_str()));
 
     if (strCommand == "version") {
 #if 0
@@ -3634,12 +3634,15 @@ NAN_METHOD(HookPackets) {
       if (pfrom->nVersion > BIP0031_VERSION) {
         uint64_t nonce = 0;
         cur->vRecv >> nonce;
-        char snonce[21] = {0};
-        int written = snprintf(snonce, sizeof(snonce), "%020lu", (uint64_t)nonce);
+        char sNonce[21] = {0};
+        int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)nonce);
         assert(written == 20);
-        o->Set(NanNew<String>("nonce"), NanNew<String>(snonce));
+        o->Set(NanNew<String>("nonce"), NanNew<String>(sNonce));
       } else {
-        o->Set(NanNew<String>("nonce"), NanNew<String>("0"));
+        char sNonce[21] = {0};
+        int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)0);
+        assert(written == 20);
+        o->Set(NanNew<String>("nonce"), NanNew<String>(sNonce));
       }
     } else if (strCommand == "pong") {
       int64_t pingUsecEnd = nTimeReceived;
@@ -3761,11 +3764,11 @@ NAN_METHOD(HookPackets) {
         }
       }
     } else if (strCommand == "filterclear") {
-      ;
+      ; // nothing much to grab from this packet
     } else if (strCommand == "reject") {
-      ;
+      ; // nothing much to grab from this packet
     } else {
-      ;
+      o->Set(NanNew<String>("unknown"), NanNew<Boolean>(true));
     }
 
     // Update the last seen time for this node's address
@@ -3775,7 +3778,7 @@ NAN_METHOD(HookPackets) {
           || strCommand == "inv"
           || strCommand == "getdata"
           || strCommand == "ping") {
-        ;
+        o->Set(NanNew<String>("connected"), NanNew<Boolean>(true));
       }
     }
 
