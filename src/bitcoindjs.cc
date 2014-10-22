@@ -3576,7 +3576,6 @@ NAN_METHOD(HookPackets) {
       if (vInv.size() > 0) {
         o->Set(NanNew<String>("first"), NanNew<String>(vInv[0].ToString().c_str()));
       }
-#if 0
     } else if (strCommand == "getblocks") {
       CBlockLocator locator;
       uint256 hashStop;
@@ -3592,10 +3591,11 @@ NAN_METHOD(HookPackets) {
         pindex = chainActive.Next(pindex);
       }
 
-      o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1);
+      o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1));
       o->Set(NanNew<String>("toHash"), NanNew<String>(
         hashStop == uint256(0) ? "end" : hashStop.GetHex().c_str()));
-      o->Set(NanNew<String>("limit"), NanNew<Number>(nLimit));
+      o->Set(NanNew<String>("limit"), NanNew<Number>(500));
+#if 0
     } else if (strCommand == "getheaders") {
       CBlockLocator locator;
       uint256 hashStop;
