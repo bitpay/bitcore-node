@@ -3391,12 +3391,121 @@ NAN_METHOD(HookPackets) {
   poll_packets_mutex.lock();
 
   for (cur = packets_queue_head; cur; cur = next) {
-    // std::string strCommand(cur->strCommand);
+    std::string strCommand(cur->strCommand);
 
     Local<Object> o = NanNew<Object>();
 
     o->Set(NanNew<String>("name"), NanNew<String>(cur->strCommand));
     o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)cur->nTimeReceived));
+
+    if (strCommand == "version") {
+#if 0
+      // Each connection can only send one version message
+      if (cur->pfrom->nVersion != 0) {
+        // reject
+        return false;
+      }
+
+      bool fRelayTxes = false;
+      int nStartingHeight = 0;
+      int cleanSubVer = 0;
+      std::string strSubVer("");
+      int nVersion = cur->pfrom->nVersion;
+      uint64_t nServices = cur->pfrom->nServices;
+
+      int64_t nTime;
+      CAddress addrMe;
+      CAddress addrFrom;
+      uint64_t nNonce = 1;
+      *cur->vRecv >> nVersion >> nServices >> nTime >> addrMe;
+      if (cur->pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
+        // disconnect from peers older than this proto version
+        // reject
+        return false;
+      }
+
+      if (nVersion == 10300) {
+        nVersion = 300;
+      }
+      if (!cur->vRecv->empty()) {
+        *cur->vRecv >> addrFrom >> nNonce;
+      }
+      if (!cur->vRecv->empty()) {
+        *cur->vRecv >> LIMITED_STRING(strSubVer, 256);
+        cleanSubVer = SanitizeString(strSubVer);
+      }
+      if (!cur->vRecv->empty()) {
+        *cur->vRecv >> nStartingHeight;
+      }
+      if (!cur->vRecv->empty()) {
+        fRelayTxes = false;
+      } else {
+        fRelayTxes = true;
+      }
+
+      // Disconnect if we connected to ourself
+      if (nNonce == nLocalHostNonce && nNonce > 1) {
+        return true;
+      }
+
+      o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(cleanSubVer));
+      o->Set(NanNew<String>("version"), NanNew<Number>(nVersion));
+      o->Set(NanNew<String>("height"), NanNew<Number>(nStartingHeight));
+      o->Set(NanNew<String>("us"), NanNew<String>(addrMe.ToString()));
+      o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
+      o->Set(NanNew<String>("address"), NanNew<String>(pfrom->addr.ToString()));
+      o->Set(NanNew<String>("relay"), NanNew<Boolean>(fRelayTxes));
+#endif
+    } else if (cur->pfrom->nVersion == 0) {
+      ;
+    } else if (strCommand == "verack") {
+      ;
+    } else if (strCommand == "addr") {
+      ;
+    } else if (strCommand == "inv") {
+      ;
+    } else if (strCommand == "getdata") {
+      ;
+    } else if (strCommand == "getblocks") {
+      ;
+    } else if (strCommand == "getheaders") {
+      ;
+    } else if (strCommand == "tx") {
+      ;
+    } else if (strCommand == "block" && !fImporting && !fReindex) {
+      ;
+    } else if (strCommand == "getaddr") {
+      ;
+    } else if (strCommand == "mempool") {
+      ;
+    } else if (strCommand == "ping") {
+      ;
+    } else if (strCommand == "pong") {
+      ;
+    } else if (strCommand == "alert") {
+      ;
+    } else if (strCommand == "filterload") {
+      ;
+    } else if (strCommand == "filteradd") {
+      ;
+    } else if (strCommand == "filterclear") {
+      ;
+    } else if (strCommand == "reject") {
+      ;
+    } else {
+      ;
+    }
+
+    // Update the last seen time for this node's address
+    if (cur->pfrom->fNetworkNode) {
+      if (strCommand == "version"
+          || strCommand == "addr"
+          || strCommand == "inv"
+          || strCommand == "getdata"
+          || strCommand == "ping") {
+        ;
+      }
+    }
 
     obj->Set(i, o);
     i++;
