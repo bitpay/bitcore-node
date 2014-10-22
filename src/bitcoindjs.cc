@@ -3397,6 +3397,8 @@ NAN_METHOD(HookPackets) {
 
     o->Set(NanNew<String>("name"), NanNew<String>(cur->strCommand));
     o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)cur->nTimeReceived));
+    o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
+    //o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
 
     if (strCommand == "version") {
 #if 0
@@ -3452,7 +3454,6 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("version"), NanNew<Number>(nVersion));
       o->Set(NanNew<String>("height"), NanNew<Number>(nStartingHeight));
       o->Set(NanNew<String>("us"), NanNew<String>(addrMe.ToString()));
-      o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
       o->Set(NanNew<String>("address"), NanNew<String>(pfrom->addr.ToString()));
       o->Set(NanNew<String>("relay"), NanNew<Boolean>(fRelayTxes));
 #endif
@@ -3551,8 +3552,6 @@ NAN_METHOD(HookPackets) {
         i++;
       }
 
-      o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
-      //o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
       o->Set(NanNew<String>("items"), array);
     } else if (strCommand == "getdata") {
       vector<CInv> vInv;
@@ -3563,7 +3562,6 @@ NAN_METHOD(HookPackets) {
         return false;
       }
 
-      o->Set(NanNew<Number>("peerId"), NanNew<Number>(pfrom->id));
       o->Set(NanNew<Number>("size"), NanNew<Number>(vInv.size()));
       if (vInv.size() > 0) {
         o->Set(NanNew<Number>("first"), NanNew<String>(vInv[0].ToString().c_str()));
@@ -3583,7 +3581,6 @@ NAN_METHOD(HookPackets) {
         pindex = chainActive.Next(pindex);
       }
 
-      o->Set(NanNew<Number>("peerId"), NanNew<Number>(pfrom->id));
       o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1);
       o->Set(NanNew<String>("toHash"), NanNew<String>(
         hashStop == uint256(0) ? "end" : hashStop.GetHex().c_str()));
@@ -3629,11 +3626,20 @@ NAN_METHOD(HookPackets) {
       // cblock_to_jsblock(block, 0, o);
       o->Set(NanNew<String>("tx"), jstx);
     } else if (strCommand == "getaddr") {
-      ;
+      ; // not much other information in getaddr as long as we know we got a getaddr
     } else if (strCommand == "mempool") {
-      ;
+      ; // not much other information in getaddr as long as we know we got a getaddr
     } else if (strCommand == "ping") {
-      ;
+      if (pfrom->nVersion > BIP0031_VERSION) {
+        uint64_t nonce = 0;
+        cur->vRecv >> nonce;
+        char snonce[21] = {0};
+        int written = snprintf(snonce, sizeof(snonce), "%020lu", (uint64_t)nonce);
+        assert(written == 20);
+        o->Set(NanNew<String>("nonce"), NanNew<String>(snonce));
+      } else {
+        o->Set(NanNew<String>("nonce"), NanNew<String>("0"));
+      }
     } else if (strCommand == "pong") {
       ;
     } else if (strCommand == "alert") {
