@@ -3614,7 +3614,13 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("fromHeight"), pindex ? pindex->nHeight : -1);
       o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop.GetHex().c_str()));
     } else if (strCommand == "tx") {
-      ;
+      // XXX Potentially check for "reject" in original code
+      CTransaction tx;
+      cur->vRecv >> tx;
+      Local<Object> jstx = NanNew<Object>();
+      ctx_to_jstx(tx, 0, jstx);
+      // ctx_to_jstx(tx, 0, o);
+      o->Set(NanNew<String>("tx"), jstx);
     // } else if (strCommand == "block" && !fImporting && !fReindex) {
     } else if (strCommand == "block") {
       ;
