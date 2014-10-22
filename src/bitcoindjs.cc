@@ -3397,16 +3397,17 @@ NAN_METHOD(HookPackets) {
 
     o->Set(NanNew<String>("name"), NanNew<String>(cur->strCommand));
     o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)cur->nTimeReceived));
-    o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
-    //o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
-    o->Set(NanNew<String>("versionMessage"), NanNew<String>(pfrom->cleanSubVer.c_str()));
+    o->Set(NanNew<String>("peerId"), NanNew<Number>(cur->pfrom->id));
+    //o->Set(NanNew<String>("peerId"), NanNew<Number>(cur->pfrom->GetId()));
+    o->Set(NanNew<String>("versionMessage"), NanNew<String>(cur->pfrom->cleanSubVer.c_str()));
 
     if (strCommand == "version") {
 #if 0
       // Each connection can only send one version message
       if (cur->pfrom->nVersion != 0) {
         // reject
-        return false;
+        // return false;
+        NanReturnValue(obj);
       }
 
       bool fRelayTxes = false;
@@ -3424,7 +3425,8 @@ NAN_METHOD(HookPackets) {
       if (cur->pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
         // disconnect from peers older than this proto version
         // reject
-        return false;
+        // return false;
+        NanReturnValue(obj);
       }
 
       if (nVersion == 10300) {
@@ -3448,33 +3450,37 @@ NAN_METHOD(HookPackets) {
 
       // Disconnect if we connected to ourself
       if (nNonce == nLocalHostNonce && nNonce > 1) {
-        return true;
+        // return true;
+        NanReturnValue(obj);
       }
 
       o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(cleanSubVer));
       o->Set(NanNew<String>("version"), NanNew<Number>(nVersion));
       o->Set(NanNew<String>("height"), NanNew<Number>(nStartingHeight));
       o->Set(NanNew<String>("us"), NanNew<String>(addrMe.ToString()));
-      o->Set(NanNew<String>("address"), NanNew<String>(pfrom->addr.ToString()));
+      o->Set(NanNew<String>("address"), NanNew<String>(cur->pfrom->addr.ToString()));
       o->Set(NanNew<String>("relay"), NanNew<Boolean>(fRelayTxes));
 #endif
     } else if (cur->pfrom->nVersion == 0) {
       // Must have a version message before anything else
-      return false;
+      // return false;
+      NanReturnValue(obj);
     } else if (strCommand == "verack") {
-      o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(min(pfrom->nVersion, PROTOCOL_VERSION)));
+      o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(min(cur->pfrom->nVersion, PROTOCOL_VERSION)));
     } else if (strCommand == "addr") {
       vector<CAddress> vAddr;
-      cur->vRecv >> vAddr;
+      *cur->vRecv >> vAddr;
 
       // Don't want addr from older versions unless seeding
       if (cur->pfrom->nVersion < CADDR_TIME_VERSION && addrman.size() > 1000) {
-        return true;
+        // return true;
+        NanReturnValue(obj);
       }
 
       // Bad address size
       if (vAddr.size() > 1000) {
-        return false; // ?
+        // return false; // ?
+        NanReturnValue(obj);
       }
 
       Local<Array> array = NanNew<Array>();
@@ -3511,13 +3517,15 @@ NAN_METHOD(HookPackets) {
       }
 
       o->Set(NanNew<String>("addresses"), array);
+#if 0
     } else if (strCommand == "inv") {
       vector<CInv> vInv;
-      cur->vRecv >> vInv;
+      *cur->vRecv >> vInv;
 
       // Bad size
       if (vInv.size() > MAX_INV_SZ) {
-        return false;
+        // return false;
+        NanReturnValue(obj);
       }
 
       LOCK(cs_main);
@@ -3533,8 +3541,9 @@ NAN_METHOD(HookPackets) {
         bool fAlreadyHave = AlreadyHave(inv);
 
         // Bad size
-        if (pfrom->nSendSize > (SendBufferSize() * 2)) {
-          return false;
+        if (cur->pfrom->nSendSize > (SendBufferSize() * 2)) {
+          // return false;
+          NanReturnValue(obj);
         }
 
         Local<Object> item = NanNew<Object>();
@@ -3556,11 +3565,12 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("items"), array);
     } else if (strCommand == "getdata") {
       vector<CInv> vInv;
-      cur->vRecv >> vInv;
+      *cur->vRecv >> vInv;
 
       // Bad size
       if (vInv.size() > MAX_INV_SZ) {
-        return false;
+        // return false;
+        NanReturnValue(obj);
       }
 
       o->Set(NanNew<Number>("size"), NanNew<Number>(vInv.size()));
@@ -3570,7 +3580,7 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "getblocks") {
       CBlockLocator locator;
       uint256 hashStop;
-      cur->vRecv >> locator >> hashStop;
+      *cur->vRecv >> locator >> hashStop;
 
       LOCK(cs_main);
 
@@ -3589,7 +3599,7 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "getheaders") {
       CBlockLocator locator;
       uint256 hashStop;
-      cur->vRecv >> locator >> hashStop;
+      *cur->vRecv >> locator >> hashStop;
 
       LOCK(cs_main);
 
@@ -3598,7 +3608,8 @@ NAN_METHOD(HookPackets) {
         // If locator is null, return the hashStop block
         BlockMap::iterator mi = mapBlockIndex.find(hashStop);
         if (mi == mapBlockIndex.end()) {
-          return true;
+          // return true;
+          NanReturnValue(obj);
         }
         pindex = (*mi).second;
       } else {
@@ -3614,14 +3625,14 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "tx") {
       // XXX Potentially check for "reject" in original code
       CTransaction tx;
-      cur->vRecv >> tx;
+      *cur->vRecv >> tx;
       Local<Object> jstx = NanNew<Object>();
       ctx_to_jstx(tx, 0, jstx);
       // ctx_to_jstx(tx, 0, o);
       o->Set(NanNew<String>("tx"), jstx);
     } else if (strCommand == "block") { // && !fImporting && !fReindex) {
       CBlock block;
-      cur->vRecv >> block;
+      *cur->vRecv >> block;
       Local<Object> jstx = NanNew<Object>();
       cblock_to_jsblock(block, 0, jsblock);
       // cblock_to_jsblock(block, 0, o);
@@ -3631,9 +3642,9 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "mempool") {
       ; // not much other information in getaddr as long as we know we got a getaddr
     } else if (strCommand == "ping") {
-      if (pfrom->nVersion > BIP0031_VERSION) {
+      if (cur->pfrom->nVersion > BIP0031_VERSION) {
         uint64_t nonce = 0;
-        cur->vRecv >> nonce;
+        *cur->vRecv >> nonce;
         char sNonce[21] = {0};
         int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)nonce);
         assert(written == 20);
@@ -3647,19 +3658,19 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "pong") {
       int64_t pingUsecEnd = nTimeReceived;
       uint64_t nonce = 0;
-      size_t nAvail = vRecv.in_avail();
+      size_t nAvail = cur->vRecv->in_avail();
       bool bPingFinished = false;
       std::string sProblem;
 
       if (nAvail >= sizeof(nonce)) {
-        cur->vRecv >> nonce;
+        *cur->vRecv >> nonce;
 
         // Only process pong message if there is an outstanding ping (old ping without nonce should never pong)
-        if (pfrom->nPingNonceSent != 0) {
-          if (nonce == pfrom->nPingNonceSent) {
+        if (cur->pfrom->nPingNonceSent != 0) {
+          if (nonce == cur->pfrom->nPingNonceSent) {
             // Matching pong received, this ping is no longer outstanding
             bPingFinished = true;
-            int64_t pingUsecTime = pingUsecEnd - pfrom->nPingUsecStart;
+            int64_t pingUsecTime = pingUsecEnd - cur->pfrom->nPingUsecStart;
             if (pingUsecTime > 0) {
               // Successful ping time measurement, replace previous
               ;
@@ -3690,7 +3701,7 @@ NAN_METHOD(HookPackets) {
       assert(written == 20);
 
       char sPingNonceSent[21] = {0};
-      written = snprintf(sPingNonceSent, sizeof(sPingNonceSent), "%020lu", (uint64_t)pfrom->nPingNonceSent);
+      written = snprintf(sPingNonceSent, sizeof(sPingNonceSent), "%020lu", (uint64_t)cur->pfrom->nPingNonceSent);
       assert(written == 20);
 
       o->Set(NanNew<String>("expected"), NanNew<String>(sPingNonceSent));
@@ -3708,13 +3719,13 @@ NAN_METHOD(HookPackets) {
       }
     } else if (strCommand == "alert") {
       CAlert alert;
-      cur->vRecv >> alert;
+      *cur->vRecv >> alert;
 
       uint256 alertHash = alert.GetHash();
 
       o->Set(NanNew<String>("hash"), NanNew<String>(alertHash.GetHex().c_str()));
 
-      if (pfrom->setKnown.count(alertHash) == 0) {
+      if (cur->pfrom->setKnown.count(alertHash) == 0) {
         if (alert.ProcessAlert()) {
           o->Set(NanNew<String>("message"), NanNew<String>(alert.vchMsg.c_str()));
           o->Set(NanNew<String>("signature"), NanNew<String>(alert.vchSig.c_str()));
@@ -3731,13 +3742,13 @@ NAN_METHOD(HookPackets) {
       }
     } else if (strCommand == "filterload") {
       CBloomFilter filter;
-      cur->vRecv >> filter;
+      *cur->vRecv >> filter;
 
       if (!filter.IsWithinSizeConstraints()) {
         // There is no excuse for sending a too-large filter
         o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
       } else {
-        LOCK(pfrom->cs_filter);
+        LOCK(cur->pfrom->cs_filter);
         filter.UpdateEmptyFull();
         // std::vector<unsigned char> vData;
         o->Set(NanNew<String>("data"), NanNew<String>(filter.vData.GetHex().c_str()));
@@ -3749,15 +3760,15 @@ NAN_METHOD(HookPackets) {
       }
     } else if (strCommand == "filteradd") {
       vector<unsigned char> vData;
-      cur->vRecv >> vData;
+      *cur->vRecv >> vData;
 
       // Nodes must NEVER send a data item > 520 bytes (the max size for a script data object,
       // and thus, the maximum size any matched object can have) in a filteradd message
       if (vData.size() > MAX_SCRIPT_ELEMENT_SIZE) {
         o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
       } else {
-        LOCK(pfrom->cs_filter);
-        if (pfrom->pfilter) {
+        LOCK(cur->pfrom->cs_filter);
+        if (cur->pfrom->pfilter) {
           o->Set(NanNew<String>("data"), NanNew<String>(vData.GetHex().c_str()));
         } else {
           o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
@@ -3767,6 +3778,7 @@ NAN_METHOD(HookPackets) {
       ; // nothing much to grab from this packet
     } else if (strCommand == "reject") {
       ; // nothing much to grab from this packet
+#endif
     } else {
       o->Set(NanNew<String>("unknown"), NanNew<Boolean>(true));
     }
