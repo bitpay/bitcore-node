@@ -3555,7 +3555,19 @@ NAN_METHOD(HookPackets) {
       //o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
       o->Set(NanNew<String>("items"), array);
     } else if (strCommand == "getdata") {
-      ;
+      vector<CInv> vInv;
+      cur->vRecv >> vInv;
+
+      // Bad size
+      if (vInv.size() > MAX_INV_SZ) {
+        return false;
+      }
+
+      o->Set(NanNew<Number>("peerId"), NanNew<Number>(pfrom->id));
+      o->Set(NanNew<Number>("size"), NanNew<Number>(vInv.size()));
+      if (vInv.size() > 0) {
+        o->Set(NanNew<Number>("first"), NanNew<String>(vInv[0].ToString().c_str()));
+      }
     } else if (strCommand == "getblocks") {
       ;
     } else if (strCommand == "getheaders") {
