@@ -3472,7 +3472,8 @@ NAN_METHOD(HookPackets) {
       ;
     } else if (strCommand == "tx") {
       ;
-    } else if (strCommand == "block" && !fImporting && !fReindex) {
+    // } else if (strCommand == "block" && !fImporting && !fReindex) {
+    } else if (strCommand == "block") {
       ;
     } else if (strCommand == "getaddr") {
       ;
