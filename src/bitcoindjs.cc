@@ -3569,7 +3569,24 @@ NAN_METHOD(HookPackets) {
         o->Set(NanNew<Number>("first"), NanNew<String>(vInv[0].ToString().c_str()));
       }
     } else if (strCommand == "getblocks") {
-      ;
+      CBlockLocator locator;
+      uint256 hashStop;
+      cur->vRecv >> locator >> hashStop;
+
+      LOCK(cs_main);
+
+      // Find the last block the caller has in the main chain
+      CBlockIndex* pindex = FindForkInGlobalIndex(chainActive, locator);
+
+      // Send the rest of the chain
+      if (pindex) {
+        pindex = chainActive.Next(pindex);
+      }
+
+      o->Set(NanNew<Number>("peerId"), NanNew<Number>(pfrom->id));
+      o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1);
+      o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop == uint256(0) ? "end" : hashStop.ToString()));
+      o->Set(NanNew<String>("limit"), NanNew<Number>(nLimit));
     } else if (strCommand == "getheaders") {
       ;
     } else if (strCommand == "tx") {
