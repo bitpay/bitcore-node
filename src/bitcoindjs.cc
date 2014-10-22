@@ -3366,7 +3366,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 typedef struct _poll_packets_list {
   CNode *pfrom;
   char *strCommand;
-  // CDataStream& vRec;
+  CDataStream *vRec;
   int64_t nTimeReceived;
   struct _poll_packets_list *next;
 } poll_packets_list;
@@ -3402,7 +3402,7 @@ NAN_METHOD(HookPackets) {
       packets_queue_tail = NULL;
     }
     next = cur->next;
-    // free(cur->pfrom); // cleaned up elsewhere?
+    // delete cur->pfrom; // cleaned up elsewhere? C++ I DON'T UNDERSTAND YOU
     free(cur->strCommand);
     // delete cur->vRec; // cleaned up elsewhere?
     free(cur);
@@ -3506,9 +3506,8 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
   }
 
   cur->pfrom = pfrom;
-  // cur->vRec = vRecv;
+  cur->vRec = &vRecv;
   cur->nTimeReceived = nTimeReceived;
-  // to dup or not to dup? cleaned up elsewhere?
   cur->strCommand = strdup(strCommand.c_str());
   cur->next = NULL;
 
