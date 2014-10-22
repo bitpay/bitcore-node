@@ -3399,6 +3399,7 @@ NAN_METHOD(HookPackets) {
     o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)cur->nTimeReceived));
     o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
     //o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
+    // pfrom->cleanSubVer, // string
 
     if (strCommand == "version") {
 #if 0
@@ -3641,7 +3642,67 @@ NAN_METHOD(HookPackets) {
         o->Set(NanNew<String>("nonce"), NanNew<String>("0"));
       }
     } else if (strCommand == "pong") {
-      ;
+      int64_t pingUsecEnd = nTimeReceived;
+      uint64_t nonce = 0;
+      size_t nAvail = vRecv.in_avail();
+      bool bPingFinished = false;
+      std::string sProblem;
+
+      if (nAvail >= sizeof(nonce)) {
+        cur->vRecv >> nonce;
+
+        // Only process pong message if there is an outstanding ping (old ping without nonce should never pong)
+        if (pfrom->nPingNonceSent != 0) {
+          if (nonce == pfrom->nPingNonceSent) {
+            // Matching pong received, this ping is no longer outstanding
+            bPingFinished = true;
+            int64_t pingUsecTime = pingUsecEnd - pfrom->nPingUsecStart;
+            if (pingUsecTime > 0) {
+              // Successful ping time measurement, replace previous
+              ;
+            } else {
+              // This should never happen
+              sProblem = "Timing mishap";
+            }
+          } else {
+            // Nonce mismatches are normal when pings are overlapping
+            sProblem = "Nonce mismatch";
+            if (nonce == 0) {
+              // This is most likely a bug in another implementation somewhere, cancel this ping
+              bPingFinished = true;
+              sProblem = "Nonce zero";
+            }
+          }
+        } else {
+          sProblem = "Unsolicited pong without ping";
+        }
+      } else {
+        // This is most likely a bug in another implementation somewhere, cancel this ping
+        bPingFinished = true;
+        sProblem = "Short payload";
+      }
+
+      char sNonce[21] = {0};
+      int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)nonce);
+      assert(written == 20);
+
+      char sPingNonceSent[21] = {0};
+      written = snprintf(sPingNonceSent, sizeof(sPingNonceSent), "%020lu", (uint64_t)pfrom->nPingNonceSent);
+      assert(written == 20);
+
+      o->Set(NanNew<String>("expected"), NanNew<String>(sPingNonceSent));
+      o->Set(NanNew<String>("received"), NanNew<String>(sNonce));
+      o->Set(NanNew<String>("bytes"), NanNew<Number>((unsigned int)nAvail));
+
+      if (!(sProblem.empty())) {
+        o->Set(NanNew<String>("problem"), NanNew<String>(sProblem));
+      }
+
+      if (bPingFinished) {
+        o->Set(NanNew<String>("finished"), NanNew<Boolean>(true));
+      } else {
+        o->Set(NanNew<String>("finished"), NanNew<Boolean>(false));
+      }
     } else if (strCommand == "alert") {
       ;
     } else if (strCommand == "filterload") {
