@@ -3933,21 +3933,8 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
     packets_queue_tail = cur;
   }
 
-  //CNode *pfrom_ = new CNode(*pfrom);
-  //cur->pfrom = pfrom_;
-
   cur->pfrom = pfrom;
-
-  //CDataStream vRecv_(vRecv.begin(), vRecv.end(), SER_NETWORK, PROTOCOL_VERSION);
-  //CDataStream vRecv_(vRecv.begin(), vRecv.end(), SER_DISK, PROTOCOL_VERSION);
-  //CDataStream vRecv_(vRecv.begin(), vRecv.end(), SER_GETHASH, PROTOCOL_VERSION);
-  //CDataStream vRecv_(vRecv.begin(), vRecv.end(),
-  //  SER_NETWORK | SER_DISK | SER_GETHASH,
-  //  PROTOCOL_VERSION);
-  //char *cvRecv = strdup(vRecv.str().c_str());
-  //CDataStream vRecv_(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
-  CDataStream *vRecv_ = new CDataStream(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
-  cur->vRecv = vRecv_;
+  cur->vRecv = &vRecv;
   cur->nTimeReceived = nTimeReceived;
   cur->strCommand = strdup(strCommand.c_str());
   cur->next = NULL;
