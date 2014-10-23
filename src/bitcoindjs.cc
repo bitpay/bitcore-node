@@ -3934,7 +3934,9 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
   }
 
   cur->pfrom = pfrom;
-  cur->vRecv = &vRecv;
+  //cur->vRecv = &vRecv;
+  CDataStream *vRecv_ = new CDataStream(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
+  cur->vRecv = vRecv_;
   cur->nTimeReceived = nTimeReceived;
   cur->strCommand = strdup(strCommand.c_str());
   cur->next = NULL;
