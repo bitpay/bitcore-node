@@ -142,13 +142,6 @@ bitcoind.on('open', function(status) {
     return getBlocks(bitcoind);
   }
 
-  if (argv['test-tx']) {
-    var tx = bitcoind.tx.fromHex(testTx);
-    bitcoind.log(tx);
-    bitcoind.log(tx.txid === tx.getHash('hex'));
-    return;
-  }
-
   function assertHex(obj) {
     // Hash
     if (obj.txid) {
@@ -200,12 +193,12 @@ bitcoind.on('open', function(status) {
 
   // Test fromHex:
   if (argv['from-hex']) {
-    var block = bitcoind.block.fromHex(testBlock);
+    var block = bitcoind.block(testBlock);
     assert.equal(block.hash, '0000000000013b8ab2cd513b0261a14096412195a72a0c4827d229dcc7e0f7af');
     assert.equal(block.merkleroot, '2fda58e5959b0ee53c5253da9b9f3c0c739422ae04946966991cf55895287552');
     bitcoind.log('Block:');
     bitcoind.log(block);
-    var tx = bitcoind.tx.fromHex(testTx);
+    var tx = bitcoind.tx(testTx);
     assert.equal(tx.txid, 'b4749f017444b051c44dfd2720e88f314ff94f3dd6d56d40ef65854fcd7fff6b');
     bitcoind.log('Transaction:');
     bitcoind.log(tx);
