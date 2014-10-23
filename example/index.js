@@ -149,32 +149,17 @@ bitcoind.on('open', function(status) {
     return;
   }
 
-  function compareObj(obj) {
+  function assertHex(obj) {
     // Hash
     if (obj.txid) {
-      //bitcoind.log('tx.txid: %s', obj.txid);
-      //bitcoind.log('tx.getHash("hex"): %s', obj.getHash('hex'));
-      //bitcoind.log('tx.txid === tx.getHash("hex"): %s', obj.txid === obj.getHash('hex'));
       assert.equal(obj.hash, obj.getHash('hex'));
     } else {
-      //bitcoind.log('block.hash: %s', obj.hash);
-      //bitcoind.log('block.getHash("hex"): %s', obj.getHash('hex'));
-      //bitcoind.log('block.hash === block.getHash("hex"): %s', obj.hash === obj.getHash('hex'));
-      // XXX block hash is not equal
       assert.equal(obj.hash, obj.getHash('hex'));
     }
-
     // Hex
     if (obj.txid) {
-      //bitcoind.log('tx.hex: %s', obj.hex);
-      //bitcoind.log('tx.toHex(): %s', obj.toHex());
-      //bitcoind.log('tx.hex === tx.toHex(): %s', obj.hex === obj.toHex());
       assert.equal(obj.hex, obj.toHex());
     } else {
-      //bitcoind.log('block.hex: %s', obj.hex);
-      //bitcoind.log('block.toHex(): %s', obj.toHex());
-      //bitcoind.log('block.hex === block.toHex(): %s', obj.hex === obj.toHex());
-      // XXX block hex is not equal
       assert.equal(obj.hex, obj.toHex());
     }
   }
@@ -183,7 +168,7 @@ bitcoind.on('open', function(status) {
     return bitcoind.on('block', function callee(block) {
       bitcoind.log('Found Block:');
       bitcoind.log(block);
-      return compareObj(block);
+      return assertHex(block);
     });
   }
 
@@ -191,12 +176,12 @@ bitcoind.on('open', function(status) {
     bitcoind.on('tx', function(tx) {
       bitcoind.log('Found TX:');
       bitcoind.log(tx);
-      return compareObj(tx);
+      return assertHex(tx);
     });
     bitcoind.on('mptx', function(mptx) {
       bitcoind.log('Found mempool TX:');
       bitcoind.log(mptx);
-      return compareObj(mptx);
+      return assertHex(mptx);
     });
     return;
   }
@@ -243,7 +228,7 @@ bitcoind.on('open', function(status) {
       }
       bitcoind.log('Found Block:');
       bitcoind.log(block);
-      return compareObj(block);
+      return assertHex(block);
     });
 
     bitcoind.once('block', function(block) {
