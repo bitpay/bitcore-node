@@ -3656,7 +3656,6 @@ NAN_METHOD(HookPackets) {
         assert(written == 20);
         o->Set(NanNew<String>("nonce"), NanNew<String>(sNonce));
       }
-#if 0
     } else if (strCommand == "pong") {
       int64_t pingUsecEnd = cur->nTimeReceived;
       uint64_t nonce = 0;
@@ -3719,6 +3718,7 @@ NAN_METHOD(HookPackets) {
       } else {
         o->Set(NanNew<String>("finished"), NanNew<Boolean>(false));
       }
+#if 0
     } else if (strCommand == "alert") {
       CAlert alert;
       *cur->vRecv >> alert;
