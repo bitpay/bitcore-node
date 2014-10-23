@@ -3718,7 +3718,6 @@ NAN_METHOD(HookPackets) {
       } else {
         o->Set(NanNew<String>("finished"), NanNew<Boolean>(false));
       }
-#if 0
     } else if (strCommand == "alert") {
       CAlert alert;
       *cur->vRecv >> alert;
@@ -3774,6 +3773,7 @@ NAN_METHOD(HookPackets) {
         //o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
         o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
       }
+#if 0
     } else if (strCommand == "filteradd") {
       vector<unsigned char> vData;
       *cur->vRecv >> vData;
