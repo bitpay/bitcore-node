@@ -254,7 +254,7 @@ static void
 async_import_key_after(uv_work_t *req);
 
 static inline void
-cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool isNew);
+cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
 
 static inline void
 ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx);
@@ -831,7 +831,7 @@ async_get_block_after(uv_work_t *req) {
     }
   } else {
     const CBlock& cblock = data->result_block;
-    const CBlockIndex* cblock_index = data->result_blockindex;
+    CBlockIndex* cblock_index = data->result_blockindex;
 
     Local<Object> jsblock = NanNew<Object>();
     cblock_to_jsblock(cblock, cblock_index, jsblock, false);
@@ -1547,7 +1547,7 @@ NAN_METHOD(WalletNewAddress) {
 
   if (!pwalletMain->GetKeyFromPool(newKey)) {
     // return NanThrowError("Keypool ran out, please call keypoolrefill first");
-    // EnsureWalletIsUnlocked();
+    // Call to EnsureWalletIsUnlocked()
     if (pwalletMain->IsLocked()) {
       return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
     }
@@ -1773,7 +1773,7 @@ async_wallet_sendto(uv_work_t *req) {
   // Wallet Transaction
   CWalletTx wtx = data->wtx;
 
-  // EnsureWalletIsUnlocked();
+  // Call to EnsureWalletIsUnlocked()
   if (pwalletMain->IsLocked()) {
     data->err_msg = std::string("Please enter the wallet passphrase with walletpassphrase first.");
     return;
@@ -1842,7 +1842,7 @@ NAN_METHOD(WalletSignMessage) {
   String::Utf8Value strMessage_(options->Get(NanNew<String>("message"))->ToString());
   std::string strMessage = std::string(*strMessage_);
 
-  // EnsureWalletIsUnlocked();
+  // Call to EnsureWalletIsUnlocked()
   if (pwalletMain->IsLocked()) {
     return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
   }
@@ -2200,7 +2200,7 @@ async_wallet_sendfrom(uv_work_t *req) {
   CWalletTx wtx = data->wtx;
   std::string strAccount = data->wtx.strFromAccount;
 
-  // EnsureWalletIsUnlocked();
+  // Call to: EnsureWalletIsUnlocked()
   if (pwalletMain->IsLocked()) {
     data->err_msg = std::string("Please enter the wallet passphrase with walletpassphrase first.");
     return;
@@ -2385,6 +2385,7 @@ NAN_METHOD(WalletListAccounts) {
  * WalletGetTransaction()
  * bitcoindjs.walletGetTransaction(options)
  * Get any transaction pertaining to any owned addresses. NOT YET IMPLEMENTED.
+ * XXX TODO
  */
 
 NAN_METHOD(WalletGetTransaction) {
@@ -2395,7 +2396,13 @@ NAN_METHOD(WalletGetTransaction) {
       "Usage: bitcoindjs.walletGetTransaction(options)");
   }
 
-  // Local<Object> options = Local<Object>::Cast(args[0]);
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  if (options->Get(NanNew<String>("txid"))->IsString()) {
+    String::Utf8Value txid_(options->Get(NanNew<String>("txid"))->ToString());
+    std::string txid = std::string(*txid_);
+    NanReturnValue(NanNew<String>(txid));
+  }
 
   NanReturnValue(Undefined());
 }
@@ -2524,12 +2531,10 @@ NAN_METHOD(WalletPassphraseChange) {
 NAN_METHOD(WalletLock) {
   NanScope();
 
-  if (args.Length() < 1 || !args[0]->IsObject()) {
+  if (args.Length() < 0) {
     return NanThrowError(
-      "Usage: bitcoindjs.walletLock(options)");
+      "Usage: bitcoindjs.walletLock([options])");
   }
-
-  // Local<Object> options = Local<Object>::Cast(args[0]);
 
   if (!pwalletMain->IsCrypted()) {
     return NanThrowError("Error: running with an unencrypted wallet, but walletlock was called.");
@@ -2659,19 +2664,15 @@ NAN_METHOD(WalletImportKey) {
     strLabel = std::string(*label_);
   }
 
-  // EnsureWalletIsUnlocked();
+  // Call to: EnsureWalletIsUnlocked()
   if (pwalletMain->IsLocked()) {
     return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
   }
 
   // Whether to perform rescan after import
-  // data->fRescan = true;
-  data->fRescan = args.Length() > 1 && args[1]->IsFunction() ? true : false;
-
-  // if (options->Get(NanNew<String>("rescan"))->IsBoolean()
-  //     && options->Get(NanNew<String>("rescan"))->IsFalse()) {
-  //   data->fRescan = false;
-  // }
+  data->fRescan = args.Length() > 1 && args[1]->IsFunction()
+    ? true
+    : false;
 
   CBitcoinSecret vchSecret;
   bool fGood = vchSecret.SetString(strSecret);
@@ -2706,11 +2707,6 @@ NAN_METHOD(WalletImportKey) {
 
     // whenever a key is imported, we need to scan the whole chain
     pwalletMain->nTimeFirstKey = 1; // 0 would be considered 'no value'
-
-    // Do this on the threadpool instead.
-    // if (data->fRescan) {
-    //   pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
-    // }
   }
 
   if (data->fRescan) {
@@ -2771,7 +2767,7 @@ async_import_key_after(uv_work_t *req) {
 
 /**
  * Conversions
- *   cblock_to_jsblock(cblock, cblock_index, jsblock, isNew)
+ *   cblock_to_jsblock(cblock, cblock_index, jsblock, is_new)
  *   ctx_to_jstx(ctx, block_hash, jstx)
  *   jsblock_to_cblock(jsblock, cblock)
  *   jstx_to_ctx(jstx, ctx)
@@ -2805,9 +2801,10 @@ find_new_block_index(uint256 hash, uint256 hashPrevBlock, bool *is_allocated) {
 }
 
 static inline void
-cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool isNew) {
+cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new) {
   bool is_allocated = false;
-  if (!cblock_index && isNew) {
+
+  if (!cblock_index && is_new) {
     cblock_index = find_new_block_index(cblock.GetHash(), cblock.hashPrevBlock, &is_allocated);
   }
 
@@ -2894,25 +2891,16 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
     Local<Object> in = NanNew<Object>();
 
-    //if (ctx.IsCoinBase()) {
-    //  in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-    //  in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
-    //  in->Set(NanNew<String>("vout"), NanNew<Number>((unsigned int)0)->ToUint32());
-    //  Local<Object> o = NanNew<Object>();
-    //  o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
-    //  o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-    //  in->Set(NanNew<String>("scriptSig"), o);
-    //} else {
     if (ctx.IsCoinBase()) {
       in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
     }
     in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
     in->Set(NanNew<String>("vout"), NanNew<Number>((unsigned int)txin.prevout.n)->ToUint32());
+
     Local<Object> o = NanNew<Object>();
     o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
     o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
     in->Set(NanNew<String>("scriptSig"), o);
-    //}
 
     in->Set(NanNew<String>("sequence"), NanNew<Number>((unsigned int)txin.nSequence)->ToUint32());
 
