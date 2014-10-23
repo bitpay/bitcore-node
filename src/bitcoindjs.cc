@@ -1773,7 +1773,7 @@ NAN_METHOD(BlockFromHex) {
   }
 
   Local<Object> jsblock = NanNew<Object>();
-  cblock_to_jsblock(cblock, 0, jsblock);
+  cblock_to_jsblock(cblock, NULL, jsblock);
 
   NanReturnValue(jsblock);
 }
@@ -3073,13 +3073,14 @@ async_import_key_after(uv_work_t *req) {
 static inline void
 cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<Object> jsblock) {
   jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
-  return;
   CMerkleTx txGen(cblock.vtx[0]);
   txGen.SetMerkleBranch(cblock);
   jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
   jsblock->Set(NanNew<String>("size"),
     NanNew<Number>((int)::GetSerializeSize(cblock, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
-  jsblock->Set(NanNew<String>("height"), NanNew<Number>(cblock_index->nHeight));
+  if (cblock_index) {
+    jsblock->Set(NanNew<String>("height"), NanNew<Number>(cblock_index->nHeight));
+  }
   jsblock->Set(NanNew<String>("version"), NanNew<Number>(cblock.nVersion));
   jsblock->Set(NanNew<String>("merkleroot"), NanNew<String>(cblock.hashMerkleRoot.GetHex()));
 
@@ -3109,10 +3110,12 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
   jsblock->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)cblock.GetBlockTime())->ToUint32());
   jsblock->Set(NanNew<String>("nonce"), NanNew<Number>((unsigned int)cblock.nNonce)->ToUint32());
   jsblock->Set(NanNew<String>("bits"), NanNew<Number>((unsigned int)cblock.nBits)->ToUint32());
-  jsblock->Set(NanNew<String>("difficulty"), NanNew<Number>(GetDifficulty(cblock_index)));
-  jsblock->Set(NanNew<String>("chainwork"), NanNew<String>(cblock_index->nChainWork.GetHex()));
+  if (cblock_index) {
+    jsblock->Set(NanNew<String>("difficulty"), NanNew<Number>(GetDifficulty(cblock_index)));
+    jsblock->Set(NanNew<String>("chainwork"), NanNew<String>(cblock_index->nChainWork.GetHex()));
+  }
 
-  if (cblock_index->pprev) {
+  if (cblock_index && cblock_index->pprev) {
     jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>(cblock_index->pprev->GetBlockHash().GetHex()));
   } else {
     // genesis
@@ -3120,9 +3123,11 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
       NanNew<String>("0000000000000000000000000000000000000000000000000000000000000000"));
   }
 
-  CBlockIndex *pnext = chainActive.Next(cblock_index);
-  if (pnext) {
-    jsblock->Set(NanNew<String>("nextblockhash"), NanNew<String>(pnext->GetBlockHash().GetHex()));
+  if (cblock_index) {
+    CBlockIndex *pnext = chainActive.Next(cblock_index);
+    if (pnext) {
+      jsblock->Set(NanNew<String>("nextblockhash"), NanNew<String>(pnext->GetBlockHash().GetHex()));
+    }
   }
 
   CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
@@ -3634,8 +3639,8 @@ NAN_METHOD(HookPackets) {
       CBlock block;
       *cur->vRecv >> block;
       Local<Object> jsblock = NanNew<Object>();
-      cblock_to_jsblock(block, 0, jsblock);
-      // cblock_to_jsblock(block, 0, o);
+      cblock_to_jsblock(block, NULL, jsblock);
+      // cblock_to_jsblock(block, NULL, o);
       o->Set(NanNew<String>("block"), jsblock);
     } else if (strCommand == "getaddr") {
       ; // not much other information in getaddr as long as we know we got a getaddr
