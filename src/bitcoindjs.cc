@@ -3629,15 +3629,13 @@ NAN_METHOD(HookPackets) {
       ctx_to_jstx(tx, 0, jstx);
       // ctx_to_jstx(tx, 0, o);
       o->Set(NanNew<String>("tx"), jstx);
-#if 0
-    } else if (strCommand == "block") { // && !fImporting && !fReindex) {
+    } else if (strCommand == "block" && !fImporting && !fReindex) {
       CBlock block;
       *cur->vRecv >> block;
       Local<Object> jsblock = NanNew<Object>();
       cblock_to_jsblock(block, 0, jsblock);
       // cblock_to_jsblock(block, 0, o);
       o->Set(NanNew<String>("block"), jsblock);
-#endif
     } else if (strCommand == "getaddr") {
       ; // not much other information in getaddr as long as we know we got a getaddr
     } else if (strCommand == "mempool") {
