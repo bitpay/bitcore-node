@@ -113,11 +113,12 @@ bitcoind.on('open', function(status) {
     });
   }
 
-  bitcoind.on('parsed', function(packet) {
-    bitcoind.log(packet);
-  });
+  // test tx:
+  // return bitcoind.log(bitcoind.tx.fromHex(testTx));
 
-  return;
+  return bitcoind.on('parsed', function(packet) {
+    return bitcoind.log(packet);
+  });
 
   argv['on-block'] = true;
   setTimeout(function() {
