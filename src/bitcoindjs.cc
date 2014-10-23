@@ -3366,7 +3366,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 typedef struct _poll_packets_list {
   CNode *pfrom;
   char *strCommand;
-  CDataStream *vRecv;
+  CDataStream vRecv;
   int64_t nTimeReceived;
   struct _poll_packets_list *next;
 } poll_packets_list;
@@ -3399,7 +3399,7 @@ NAN_METHOD(HookPackets) {
     o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)cur->nTimeReceived));
     o->Set(NanNew<String>("peerId"), NanNew<Number>(cur->pfrom->id));
     //o->Set(NanNew<String>("peerId"), NanNew<Number>(cur->pfrom->GetId()));
-    o->Set(NanNew<String>("versionMessage"), NanNew<String>(cur->pfrom->cleanSubVer.c_str()));
+    o->Set(NanNew<String>("agent"), NanNew<String>(cur->pfrom->cleanSubVer.c_str()));
 
     if (strCommand == "version") {
       // Each connection can only send one version message
@@ -3421,7 +3421,7 @@ NAN_METHOD(HookPackets) {
       CAddress addrMe;
       CAddress addrFrom;
       uint64_t nNonce = 1;
-      *cur->vRecv >> nVersion >> nServices >> nTime >> addrMe;
+      cur->vRecv >> nVersion >> nServices >> nTime >> addrMe;
       if (cur->pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
         // disconnect from peers older than this proto version
         // reject
@@ -3432,18 +3432,18 @@ NAN_METHOD(HookPackets) {
       if (nVersion == 10300) {
         nVersion = 300;
       }
-      if (!cur->vRecv->empty()) {
-        *cur->vRecv >> addrFrom >> nNonce;
+      if (!cur->vRecv.empty()) {
+        cur->vRecv >> addrFrom >> nNonce;
       }
-      if (!cur->vRecv->empty()) {
-        *cur->vRecv >> LIMITED_STRING(strSubVer, 256);
+      if (!cur->vRecv.empty()) {
+        cur->vRecv >> LIMITED_STRING(strSubVer, 256);
         //cleanSubVer = SanitizeString(strSubVer);
         cleanSubVer = atoi(strSubVer.c_str());
       }
-      if (!cur->vRecv->empty()) {
-        *cur->vRecv >> nStartingHeight;
+      if (!cur->vRecv.empty()) {
+        cur->vRecv >> nStartingHeight;
       }
-      if (!cur->vRecv->empty()) {
+      if (!cur->vRecv.empty()) {
         fRelayTxes = false;
       } else {
         fRelayTxes = true;
@@ -3469,7 +3469,7 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(min(cur->pfrom->nVersion, PROTOCOL_VERSION)));
     } else if (strCommand == "addr") {
       vector<CAddress> vAddr;
-      *cur->vRecv >> vAddr;
+      cur->vRecv >> vAddr;
 
       // Don't want addr from older versions unless seeding
       if (cur->pfrom->nVersion < CADDR_TIME_VERSION && addrman.size() > 1000) {
@@ -3519,7 +3519,7 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("addresses"), array);
     } else if (strCommand == "inv") {
       vector<CInv> vInv;
-      *cur->vRecv >> vInv;
+      cur->vRecv >> vInv;
 
       // Bad size
       if (vInv.size() > MAX_INV_SZ) {
@@ -3564,7 +3564,7 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("items"), array);
     } else if (strCommand == "getdata") {
       vector<CInv> vInv;
-      *cur->vRecv >> vInv;
+      cur->vRecv >> vInv;
 
       // Bad size
       if (vInv.size() > MAX_INV_SZ) {
@@ -3579,7 +3579,7 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "getblocks") {
       CBlockLocator locator;
       uint256 hashStop;
-      *cur->vRecv >> locator >> hashStop;
+      cur->vRecv >> locator >> hashStop;
 
       LOCK(cs_main);
 
@@ -3598,7 +3598,7 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "getheaders") {
       CBlockLocator locator;
       uint256 hashStop;
-      *cur->vRecv >> locator >> hashStop;
+      cur->vRecv >> locator >> hashStop;
 
       LOCK(cs_main);
 
@@ -3624,14 +3624,14 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "tx") {
       // XXX Potentially check for "reject" in original code
       CTransaction tx;
-      *cur->vRecv >> tx;
+      cur->vRecv >> tx;
       Local<Object> jstx = NanNew<Object>();
       ctx_to_jstx(tx, 0, jstx);
       // ctx_to_jstx(tx, 0, o);
       o->Set(NanNew<String>("tx"), jstx);
     } else if (strCommand == "block") { // && !fImporting && !fReindex) {
       CBlock block;
-      *cur->vRecv >> block;
+      cur->vRecv >> block;
       Local<Object> jsblock = NanNew<Object>();
       cblock_to_jsblock(block, 0, jsblock);
       // cblock_to_jsblock(block, 0, o);
@@ -3643,7 +3643,7 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "ping") {
       if (cur->pfrom->nVersion > BIP0031_VERSION) {
         uint64_t nonce = 0;
-        *cur->vRecv >> nonce;
+        cur->vRecv >> nonce;
         char sNonce[21] = {0};
         int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)nonce);
         assert(written == 20);
@@ -3657,12 +3657,12 @@ NAN_METHOD(HookPackets) {
     } else if (strCommand == "pong") {
       int64_t pingUsecEnd = cur->nTimeReceived;
       uint64_t nonce = 0;
-      size_t nAvail = cur->vRecv->in_avail();
+      size_t nAvail = cur->vRecv.in_avail();
       bool bPingFinished = false;
       std::string sProblem;
 
       if (nAvail >= sizeof(nonce)) {
-        *cur->vRecv >> nonce;
+        cur->vRecv >> nonce;
 
         // Only process pong message if there is an outstanding ping (old ping without nonce should never pong)
         if (cur->pfrom->nPingNonceSent != 0) {
@@ -3718,7 +3718,7 @@ NAN_METHOD(HookPackets) {
       }
     } else if (strCommand == "alert") {
       CAlert alert;
-      *cur->vRecv >> alert;
+      cur->vRecv >> alert;
 
       uint256 alertHash = alert.GetHash();
 
@@ -3743,7 +3743,7 @@ NAN_METHOD(HookPackets) {
       }
     } else if (strCommand == "filterload") {
       CBloomFilter filter;
-      *cur->vRecv >> filter;
+      cur->vRecv >> filter;
 
       if (!filter.IsWithinSizeConstraints()) {
         // There is no excuse for sending a too-large filter
@@ -3773,7 +3773,7 @@ NAN_METHOD(HookPackets) {
       }
     } else if (strCommand == "filteradd") {
       vector<unsigned char> vData;
-      *cur->vRecv >> vData;
+      cur->vRecv >> vData;
 
       // Nodes must NEVER send a data item > 520 bytes (the max size for a script data object,
       // and thus, the maximum size any matched object can have) in a filteradd message
@@ -3933,8 +3933,21 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
     packets_queue_tail = cur;
   }
 
+  //CNode *pfrom_ = new CNode(*pfrom);
+  //cur->pfrom = pfrom_;
+
   cur->pfrom = pfrom;
-  cur->vRecv = &vRecv;
+
+  //CDataStream vRecv_(vRecv.begin(), vRecv.end(), SER_NETWORK, PROTOCOL_VERSION);
+  //CDataStream vRecv_(vRecv.begin(), vRecv.end(), SER_DISK, PROTOCOL_VERSION);
+  //CDataStream vRecv_(vRecv.begin(), vRecv.end(), SER_GETHASH, PROTOCOL_VERSION);
+  //CDataStream vRecv_(vRecv.begin(), vRecv.end(),
+  //  SER_NETWORK | SER_DISK | SER_GETHASH,
+  //  PROTOCOL_VERSION);
+  //char *cvRecv = strdup(vRecv.str().c_str());
+  CDataStream vRecv_(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
+  //CDataStream *vRecv_ = new CDataStream(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
+  cur->vRecv = vRecv_;
   cur->nTimeReceived = nTimeReceived;
   cur->strCommand = strdup(strCommand.c_str());
   cur->next = NULL;
