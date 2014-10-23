@@ -3933,10 +3933,72 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
     packets_queue_tail = cur;
   }
 
-  cur->pfrom = pfrom;
+  //cur->pfrom = pfrom;
+
+  CNode *pfrom_ = new CNode(pfrom->hSocket, pfrom->addr, pfrom->addrName, pfrom->fInbound);
+
+  // copy properties here:
+  pfrom_->nServices = pfrom->nServices;
+  //pfrom_->hSocket = pfrom->hSocket;
+  pfrom_->ssSend = pfrom->ssSend;
+  pfrom_->nSendSize = pfrom->nSendSize;
+  pfrom_->nSendOffset = pfrom->nSendOffset;
+  pfrom_->nSendBytes = pfrom->nSendBytes;
+  pfrom_->vSendMsg = pfrom->vSendMsg;
+  //pfrom_->cs_vSend = pfrom->cs_vSend;
+  pfrom_->vRecvGetData = pfrom->vRecvGetData;
+  pfrom_->vRecvMsg = pfrom->vRecvMsg;
+  //pfrom_->cs_vRecvMsg = pfrom->cs_vRecvMsg;
+  pfrom_->nRecvBytes = pfrom->nRecvBytes;
+  pfrom_->nRecvVersion = pfrom->nRecvVersion;
+  pfrom_->nLastSend = pfrom->nLastSend;
+  pfrom_->nLastRecv = pfrom->nLastRecv;
+  pfrom_->nTimeConnected = pfrom->nTimeConnected;
+  //pfrom_->addr = pfrom->addr;
+  //pfrom_->addrName = pfrom->addrName;
+  pfrom_->addrLocal = pfrom->addrLocal;
+  pfrom_->nVersion = pfrom->nVersion;
+  pfrom_->strSubVer = pfrom->strSubVer;
+  pfrom_->cleanSubVer = pfrom->cleanSubVer;
+  pfrom_->fWhitelisted = pfrom->fWhitelisted;
+  pfrom_->fOneShot = pfrom->fOneShot;
+  pfrom_->fClient = pfrom->fClient;
+  //pfrom_->fInbound = pfrom->fInbound;
+  pfrom_->fNetworkNode = pfrom->fNetworkNode;
+  pfrom_->fSuccessfullyConnected = pfrom->fSuccessfullyConnected;
+  pfrom_->fDisconnect = pfrom->fDisconnect;
+  pfrom_->fRelayTxes = pfrom->fRelayTxes;
+  pfrom_->grantOutbound = pfrom->grantOutbound;
+  //pfrom_->cs_filter = pfrom->cs_filter;
+  pfrom_->pfilter = pfrom->pfilter;
+  pfrom_->nRefCount = pfrom->nRefCount;
+  pfrom_->id = pfrom->id;
+  pfrom_->hashContinue = pfrom->hashContinue;
+  pfrom_->pindexLastGetBlocksBegin = pfrom->pindexLastGetBlocksBegin;
+  pfrom_->hashLastGetBlocksEnd = pfrom->hashLastGetBlocksEnd;
+  pfrom_->nStartingHeight = pfrom->nStartingHeight;
+  pfrom_->fStartSync = pfrom->fStartSync;
+  pfrom_->vAddrToSend = pfrom->vAddrToSend;
+  pfrom_->setAddrKnown = pfrom->setAddrKnown;
+  pfrom_->fGetAddr = pfrom->fGetAddr;
+  pfrom_->setKnown = pfrom->setKnown;
+  pfrom_->setInventoryKnown = pfrom->setInventoryKnown;
+  pfrom_->vInventoryToSend = pfrom->vInventoryToSend;
+  pfrom_->vInventoryToSend = pfrom->vInventoryToSend;
+  //pfrom_->cs_inventory = pfrom->cs_inventory;
+  pfrom_->mapAskFor = pfrom->mapAskFor;
+  pfrom_->nPingNonceSent = pfrom->nPingNonceSent;
+  pfrom_->nPingUsecStart = pfrom->nPingUsecStart;
+  pfrom_->nPingUsecTime = pfrom->nPingUsecTime;
+  pfrom_->fPingQueued = pfrom->fPingQueued;
+
+  cur->pfrom = pfrom_;
+
   //cur->vRecv = &vRecv;
+
   CDataStream *vRecv_ = new CDataStream(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
   cur->vRecv = vRecv_;
+
   cur->nTimeReceived = nTimeReceived;
   cur->strCommand = strdup(strCommand.c_str());
   cur->next = NULL;
