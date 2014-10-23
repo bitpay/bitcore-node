@@ -113,8 +113,8 @@ bitcoind.on('open', function(status) {
     });
   }
 
-  bitcoind.on('packets', function(packets) {
-    bitcoind.log(packets);
+  bitcoind.on('packet:parsed', function(packet) {
+    bitcoind.log(packet);
   });
 
   return;
