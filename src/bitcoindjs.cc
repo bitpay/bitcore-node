@@ -3595,7 +3595,6 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("toHash"), NanNew<String>(
         hashStop == uint256(0) ? "end" : hashStop.GetHex().c_str()));
       o->Set(NanNew<String>("limit"), NanNew<Number>(500));
-#if 0
     } else if (strCommand == "getheaders") {
       CBlockLocator locator;
       uint256 hashStop;
@@ -3622,6 +3621,7 @@ NAN_METHOD(HookPackets) {
 
       o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1));
       o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop.GetHex().c_str()));
+#if 0
     } else if (strCommand == "tx") {
       // XXX Potentially check for "reject" in original code
       CTransaction tx;
