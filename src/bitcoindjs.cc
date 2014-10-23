@@ -2825,7 +2825,8 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   //
   jsblock->Set(NanNew<String>("version"), NanNew<Number>(cblock.nVersion));
 
-  // XXX Why hash check is failing:
+  jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>(cblock.hashPrevBlock.ToString()));
+#if 0
   if (cblock_index && cblock_index->pprev) {
     jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>(cblock_index->pprev->GetBlockHash().GetHex()));
   } else {
@@ -2833,6 +2834,7 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
     jsblock->Set(NanNew<String>("previousblockhash"),
       NanNew<String>("0000000000000000000000000000000000000000000000000000000000000000"));
   }
+#endif
 
   jsblock->Set(NanNew<String>("merkleroot"), NanNew<String>(cblock.hashMerkleRoot.GetHex()));
 
