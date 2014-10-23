@@ -3402,7 +3402,6 @@ NAN_METHOD(HookPackets) {
     o->Set(NanNew<String>("versionMessage"), NanNew<String>(cur->pfrom->cleanSubVer.c_str()));
 
     if (strCommand == "version") {
-#if 0
       // Each connection can only send one version message
       if (cur->pfrom->nVersion != 0) {
         // reject
@@ -3413,7 +3412,8 @@ NAN_METHOD(HookPackets) {
       bool fRelayTxes = false;
       int nStartingHeight = 0;
       int cleanSubVer = 0;
-      std::string strSubVer("");
+      //std::string strSubVer(strdup(cur->pfrom->strSubVer.c_str()));
+      std::string strSubVer = cur->pfrom->strSubVer;
       int nVersion = cur->pfrom->nVersion;
       uint64_t nServices = cur->pfrom->nServices;
 
@@ -3437,7 +3437,8 @@ NAN_METHOD(HookPackets) {
       }
       if (!cur->vRecv->empty()) {
         *cur->vRecv >> LIMITED_STRING(strSubVer, 256);
-        cleanSubVer = SanitizeString(strSubVer);
+        //cleanSubVer = SanitizeString(strSubVer);
+        cleanSubVer = atoi(strSubVer.c_str());
       }
       if (!cur->vRecv->empty()) {
         *cur->vRecv >> nStartingHeight;
@@ -3460,7 +3461,6 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("us"), NanNew<String>(addrMe.ToString()));
       o->Set(NanNew<String>("address"), NanNew<String>(cur->pfrom->addr.ToString()));
       o->Set(NanNew<String>("relay"), NanNew<Boolean>(fRelayTxes));
-#endif
     } else if (cur->pfrom->nVersion == 0) {
       // Must have a version message before anything else
       // return false;
