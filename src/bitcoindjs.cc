@@ -1483,6 +1483,7 @@ NAN_METHOD(BlockFromHex) {
   }
 
   Local<Object> jsblock = NanNew<Object>();
+  // XXX Possibly pass true into is_new to search for CBlockIndex?
   cblock_to_jsblock(cblock, NULL, jsblock, false);
 
   NanReturnValue(jsblock);
