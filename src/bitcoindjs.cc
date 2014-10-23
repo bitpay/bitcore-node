@@ -3741,7 +3741,6 @@ NAN_METHOD(HookPackets) {
           o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
         }
       }
-#if 0
     } else if (strCommand == "filterload") {
       CBloomFilter filter;
       *cur->vRecv >> filter;
@@ -3753,23 +3752,25 @@ NAN_METHOD(HookPackets) {
         LOCK(cur->pfrom->cs_filter);
         filter.UpdateEmptyFull();
 
-        // std::vector<unsigned char> vData;
-        std::string svData(filter.vData.begin(), filter.vData.end());
-        char *cvData = svData.c_str();
-        int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
-        char *vDataHex = (char *)malloc(vDataHexLen);
-        int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
-        // assert(written == vDataHexLen);
-        vDataHex[written] = '\0';
+        //std::string svData(filter.vData.begin(), filter.vData.end());
+        //char *cvData = svData.c_str();
+        //int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
+        //char *vDataHex = (char *)malloc(vDataHexLen);
+        //int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
+        //uint64_t dataHex;
+        //sscanf(cvData, "%x", &dataHex);
+        //// assert(written == vDataHexLen);
+        //vDataHex[written] = '\0';
 
-        o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
-        free(vDataHex);
-        o->Set(NanNew<String>("full"), NanNew<Boolean>(filter.isFull));
-        o->Set(NanNew<String>("empty"), NanNew<Boolean>(filter.isEmpty));
-        o->Set(NanNew<String>("hashFuncs"), NanNew<Number>(filter.nHashFuncs));
-        o->Set(NanNew<String>("tweaks"), NanNew<Number>(filter.nTweak));
-        o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
+        //o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
+        //free(vDataHex);
+        //o->Set(NanNew<String>("full"), NanNew<Boolean>(filter.isFull));
+        //o->Set(NanNew<String>("empty"), NanNew<Boolean>(filter.isEmpty));
+        //o->Set(NanNew<String>("hashFuncs"), NanNew<Number>(filter.nHashFuncs));
+        //o->Set(NanNew<String>("tweaks"), NanNew<Number>(filter.nTweak));
+        //o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
       }
+#if 0
     } else if (strCommand == "filteradd") {
       vector<unsigned char> vData;
       *cur->vRecv >> vData;
