@@ -2824,20 +2824,8 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   // Headers
   //
   jsblock->Set(NanNew<String>("version"), NanNew<Number>(cblock.nVersion));
-
   jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>(cblock.hashPrevBlock.ToString()));
-#if 0
-  if (cblock_index && cblock_index->pprev) {
-    jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>(cblock_index->pprev->GetBlockHash().GetHex()));
-  } else {
-    // genesis
-    jsblock->Set(NanNew<String>("previousblockhash"),
-      NanNew<String>("0000000000000000000000000000000000000000000000000000000000000000"));
-  }
-#endif
-
   jsblock->Set(NanNew<String>("merkleroot"), NanNew<String>(cblock.hashMerkleRoot.GetHex()));
-
   jsblock->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)cblock.GetBlockTime())->ToUint32());
   jsblock->Set(NanNew<String>("bits"), NanNew<Number>((unsigned int)cblock.nBits)->ToUint32());
   jsblock->Set(NanNew<String>("nonce"), NanNew<Number>((unsigned int)cblock.nNonce)->ToUint32());
