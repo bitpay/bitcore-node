@@ -3637,10 +3637,12 @@ NAN_METHOD(HookPackets) {
       cblock_to_jsblock(block, 0, jsblock);
       // cblock_to_jsblock(block, 0, o);
       o->Set(NanNew<String>("block"), jsblock);
+#endif
     } else if (strCommand == "getaddr") {
       ; // not much other information in getaddr as long as we know we got a getaddr
     } else if (strCommand == "mempool") {
       ; // not much other information in getaddr as long as we know we got a getaddr
+#if 0
     } else if (strCommand == "ping") {
       if (cur->pfrom->nVersion > BIP0031_VERSION) {
         uint64_t nonce = 0;
