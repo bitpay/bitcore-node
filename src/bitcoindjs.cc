@@ -3833,6 +3833,7 @@ NAN_METHOD(HookPackets) {
     }
 
     next = cur->next;
+    // XXX Figure out what to do here:
     // delete cur->pfrom; // cleaned up elsewhere? C++ I DON'T UNDERSTAND YOU
     free(cur->strCommand);
     // delete cur->vRecv; // cleaned up elsewhere?
@@ -3945,6 +3946,8 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
 
   //cur->pfrom = pfrom;
 
+  // XXX Bad - sends version again and creates a new global peer
+  // XXX Figure out what to do here
   CNode *pfrom_ = new CNode(pfrom->hSocket, pfrom->addr, pfrom->addrName, pfrom->fInbound);
 
   // copy properties here:
@@ -3993,7 +3996,6 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
   pfrom_->fGetAddr = pfrom->fGetAddr;
   pfrom_->setKnown = pfrom->setKnown;
   pfrom_->setInventoryKnown = pfrom->setInventoryKnown;
-  pfrom_->vInventoryToSend = pfrom->vInventoryToSend;
   pfrom_->vInventoryToSend = pfrom->vInventoryToSend;
   //pfrom_->cs_inventory = pfrom->cs_inventory;
   pfrom_->mapAskFor = pfrom->mapAskFor;
