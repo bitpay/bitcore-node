@@ -3769,8 +3769,8 @@ NAN_METHOD(HookPackets) {
         //o->Set(NanNew<String>("hashFuncs"), NanNew<Number>(filter.nHashFuncs));
         //o->Set(NanNew<String>("tweaks"), NanNew<Number>(filter.nTweak));
         //o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
+        o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
       }
-#if 0
     } else if (strCommand == "filteradd") {
       vector<unsigned char> vData;
       *cur->vRecv >> vData;
@@ -3782,17 +3782,19 @@ NAN_METHOD(HookPackets) {
       } else {
         LOCK(cur->pfrom->cs_filter);
         if (cur->pfrom->pfilter) {
+          //std::string svData(vData.begin(), vData.end());
+          //char *cvData = svData.c_str();
+          //int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
+          //char *vDataHex = (char *)malloc(vDataHexLen);
+          //int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
+          //uint64_t dataHex;
+          //sscanf(cvData, "%x", &dataHex);
+          //// assert(written == vDataHexLen);
+          //vDataHex[written] = '\0';
 
-          std::string svData(vData.begin(), vData.end());
-          char *cvData = svData.c_str();
-          int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
-          char *vDataHex = (char *)malloc(vDataHexLen);
-          int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
-          // assert(written == vDataHexLen);
-          vDataHex[written] = '\0';
-
-          o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
-          free(vDataHex);
+          //o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
+          //free(vDataHex);
+          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
         } else {
           o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
         }
@@ -3801,7 +3803,6 @@ NAN_METHOD(HookPackets) {
       ; // nothing much to grab from this packet
     } else if (strCommand == "reject") {
       ; // nothing much to grab from this packet
-#endif
     } else {
       o->Set(NanNew<String>("unknown"), NanNew<Boolean>(true));
     }
