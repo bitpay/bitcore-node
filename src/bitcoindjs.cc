@@ -3073,6 +3073,7 @@ async_import_key_after(uv_work_t *req) {
 static inline void
 cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<Object> jsblock) {
   jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
+  return;
   CMerkleTx txGen(cblock.vtx[0]);
   txGen.SetMerkleBranch(cblock);
   jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
