@@ -3517,6 +3517,7 @@ NAN_METHOD(HookPackets) {
       }
 
       o->Set(NanNew<String>("addresses"), array);
+#if 0
     } else if (strCommand == "inv") {
       vector<CInv> vInv;
       *cur->vRecv >> vInv;
@@ -3803,6 +3804,7 @@ NAN_METHOD(HookPackets) {
       ; // nothing much to grab from this packet
     } else if (strCommand == "reject") {
       ; // nothing much to grab from this packet
+#endif
     } else {
       o->Set(NanNew<String>("unknown"), NanNew<Boolean>(true));
     }
