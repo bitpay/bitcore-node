@@ -2780,56 +2780,8 @@ async_import_key_after(uv_work_t *req) {
  * CTransactions), and vice versa.
  */
 
-/*
-  // header
-  static const int32_t CURRENT_VERSION=2;
-  int32_t nVersion;
-  uint256 hashPrevBlock;
-  uint256 hashMerkleRoot;
-  uint32_t nTime;
-  uint32_t nBits;
-  uint32_t nNonce;
-
-  utils.writeU32(res, this.version, 0); // SHOULD BE int32_t
-  utils.copy(utils.toArray(this.prevBlock, 'hex'), res, 4);
-  utils.copy(utils.toArray(this.merkleRoot, 'hex'), res, 36);
-  utils.writeU32(res, this.ts, 68);
-  utils.writeU32(res, this.bits, 72);
-  utils.writeU32(res, this.nonce, 76);
-*/
-
 CBlockIndex *
-find_new_block_index(CBlockHeader& header) {
-  // Check for duplicate
-  uint256 hash = header.GetHash();
-  BlockMap::iterator it = mapBlockIndex.find(hash);
-  if (it != mapBlockIndex.end()) {
-    return it->second;
-  }
-
-  // Construct new block index object
-  CBlockIndex* pindexNew = new CBlockIndex(header);
-  assert(pindexNew);
-  //{
-  //  LOCK(cs_nBlockSequenceId);
-  //  pindexNew->nSequenceId = nBlockSequenceId++;
-  //}
-  //BlockMap::iterator mi = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
-  //pindexNew->phashBlock = &((*mi).first);
-  BlockMap::iterator miPrev = mapBlockIndex.find(header.hashPrevBlock);
-  if (miPrev != mapBlockIndex.end()) {
-    pindexNew->pprev = (*miPrev).second;
-    pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
-    //pindexNew->BuildSkip();
-  }
-  //pindexNew->nChainWork = (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) + pindexNew->GetBlockWork();
-  //pindexNew->RaiseValidity(BLOCK_VALID_TREE);
-
-  return pindexNew;
-}
-
-CBlockIndex *
-find_new_block_index_(uint256 hash, uint256 hashPrevBlock) {
+find_new_block_index(uint256 hash, uint256 hashPrevBlock) {
   // Check for duplicate
   BlockMap::iterator it = mapBlockIndex.find(hash);
   if (it != mapBlockIndex.end()) {
@@ -2841,8 +2793,8 @@ find_new_block_index_(uint256 hash, uint256 hashPrevBlock) {
   assert(pindexNew);
   BlockMap::iterator miPrev = mapBlockIndex.find(hashPrevBlock);
   if (miPrev != mapBlockIndex.end()) {
-      pindexNew->pprev = (*miPrev).second;
-      pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
+    pindexNew->pprev = (*miPrev).second;
+    pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
   }
 
   return pindexNew;
@@ -2850,70 +2802,8 @@ find_new_block_index_(uint256 hash, uint256 hashPrevBlock) {
 
 static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool isNew) {
-  bool index_alloc = false;
   if (!cblock_index && isNew) {
-#if 0
-        CBlockHeader block;
-        block.nVersion       = nVersion;
-        block.hashPrevBlock  = hashPrevBlock;
-        block.hashMerkleRoot = hashMerkleRoot;
-        block.nTime          = nTime;
-        block.nBits          = nBits;
-        block.nNonce         = nNonce;
-        return block;
-#endif
-#if 0
-    CBlockHeader& header =(const CBlockHeader&) *(cblock.GetBlockHeader());
-    cblock_index = (CBlockIndex *)new CBlockIndex(header);
-    index_alloc = true;
-#endif
-#if 0
-    CBlockHeader _header;
-    CBlockHeader& header = _header;
-    header.nVersion = cblock.nVersion;
-    header.hashPrevBlock = cblock.hashPrevBlock;
-    header.hashMerkleRoot = cblock.hashMerkleRoot;
-    header.nTime = cblock.nTime;
-    header.nBits = cblock.nBits;
-    header.nNonce = cblock.nNonce;
-    cblock_index = (CBlockIndex *)new CBlockIndex(header);
-    index_alloc = true;
-#endif
-#if 0
-    cblock_index = chainActive[chainActive.Tip()->nHeight];
-    index_alloc = true;
-#endif
-// WORKS:
-#if 0
-    CBlockHeader _header;
-    CBlockHeader& header = _header;
-    header.nVersion = cblock.nVersion;
-    header.hashPrevBlock = cblock.hashPrevBlock;
-    header.hashMerkleRoot = cblock.hashMerkleRoot;
-    header.nTime = cblock.nTime;
-    header.nBits = cblock.nBits;
-    header.nNonce = cblock.nNonce;
-    cblock_index = find_new_block_index(header);
-    cblock_index = AddToBlockIndex(header); // will not add if there's a duplicate
-    index_alloc = true;
-#endif
-// WORKS:
-#if 0
-    cblock_index = find_new_block_index_(cblock.GetHash(), cblock.hashPrevBlock);
-    index_alloc = true;
-#endif
-#if 1
-    CBlockHeader _header;
-    CBlockHeader& header = _header;
-    header.nVersion = cblock.nVersion;
-    header.hashPrevBlock = cblock.hashPrevBlock;
-    header.hashMerkleRoot = cblock.hashMerkleRoot;
-    header.nTime = cblock.nTime;
-    header.nBits = cblock.nBits;
-    header.nNonce = cblock.nNonce;
-    cblock_index = AddToBlockIndex(header); // will not add if there's a duplicate
-    index_alloc = true;
-#endif
+    cblock_index = find_new_block_index(cblock.GetHash(), cblock.hashPrevBlock);
   }
 
   jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
@@ -2987,9 +2877,10 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
   jsblock->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
-  if (index_alloc) {
-    //delete cblock_index;
-  }
+  // Freed up elsewhere:
+  // if (isNew) {
+  //   delete cblock_index;
+  // }
 }
 
 static inline void
