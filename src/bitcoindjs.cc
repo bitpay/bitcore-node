@@ -2780,6 +2780,8 @@ async_import_key_after(uv_work_t *req) {
  * CTransactions), and vice versa.
  */
 
+// XXX Potentially add entire function's code. If there's a race
+// condition, the duplicate check will handle it.
 CBlockIndex *
 find_new_block_index(uint256 hash, uint256 hashPrevBlock, bool *is_allocated) {
   // Check for duplicate
@@ -2823,12 +2825,12 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   //
   // Headers
   //
-  jsblock->Set(NanNew<String>("version"), NanNew<Number>(cblock.nVersion));
-  jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>(cblock.hashPrevBlock.ToString()));
-  jsblock->Set(NanNew<String>("merkleroot"), NanNew<String>(cblock.hashMerkleRoot.GetHex()));
-  jsblock->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)cblock.GetBlockTime())->ToUint32());
-  jsblock->Set(NanNew<String>("bits"), NanNew<Number>((unsigned int)cblock.nBits)->ToUint32());
-  jsblock->Set(NanNew<String>("nonce"), NanNew<Number>((unsigned int)cblock.nNonce)->ToUint32());
+  jsblock->Set(NanNew<String>("version"), NanNew<Number>((int32_t)cblock.nVersion));
+  jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>((std::string)cblock.hashPrevBlock.ToString()));
+  jsblock->Set(NanNew<String>("merkleroot"), NanNew<String>((std::string)cblock.hashMerkleRoot.GetHex()));
+  jsblock->Set(NanNew<String>("time"), NanNew<Number>((uint32_t)cblock.GetBlockTime())->ToUint32());
+  jsblock->Set(NanNew<String>("bits"), NanNew<Number>((uint32_t)cblock.nBits)->ToUint32());
+  jsblock->Set(NanNew<String>("nonce"), NanNew<Number>((uint32_t)cblock.nNonce)->ToUint32());
 
   if (cblock_index) {
     jsblock->Set(NanNew<String>("difficulty"), NanNew<Number>(GetDifficulty(cblock_index)));
