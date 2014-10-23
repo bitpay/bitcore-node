@@ -3127,7 +3127,6 @@ NAN_METHOD(HookPackets) {
 
   poll_packets_mutex.lock();
 
-
   for (cur = packets_queue_head; cur; cur = next) {
     CNode *pfrom = cur->pfrom;
     std::string strCommand(cur->strCommand);
