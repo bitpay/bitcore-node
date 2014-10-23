@@ -3773,7 +3773,6 @@ NAN_METHOD(HookPackets) {
         //o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
         o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
       }
-#if 0
     } else if (strCommand == "filteradd") {
       vector<unsigned char> vData;
       *cur->vRecv >> vData;
@@ -3806,7 +3805,6 @@ NAN_METHOD(HookPackets) {
       ; // nothing much to grab from this packet
     } else if (strCommand == "reject") {
       ; // nothing much to grab from this packet
-#endif
     } else {
       o->Set(NanNew<String>("unknown"), NanNew<Boolean>(true));
     }
