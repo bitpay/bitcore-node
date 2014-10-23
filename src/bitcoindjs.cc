@@ -160,8 +160,6 @@ NAN_METHOD(IsStopped);
 NAN_METHOD(StopBitcoind);
 NAN_METHOD(GetBlock);
 NAN_METHOD(GetTx);
-NAN_METHOD(PollBlocks);
-NAN_METHOD(PollMempool);
 NAN_METHOD(BroadcastTx);
 NAN_METHOD(VerifyBlock);
 NAN_METHOD(VerifyTransaction);
@@ -232,18 +230,6 @@ static void
 async_get_tx_after(uv_work_t *req);
 
 static void
-async_poll_blocks(uv_work_t *req);
-
-static void
-async_poll_blocks_after(uv_work_t *req);
-
-static void
-async_poll_mempool(uv_work_t *req);
-
-static void
-async_poll_mempool_after(uv_work_t *req);
-
-static void
 async_broadcast_tx(uv_work_t *req);
 
 static void
@@ -300,7 +286,6 @@ init(Handle<Object>);
  */
 
 static volatile bool shutdown_complete = false;
-static int block_poll_top_height = -1;
 static char *g_data_dir = NULL;
 static bool g_rpc = false;
 static bool g_testnet = false;
@@ -357,39 +342,6 @@ struct async_tx_data {
   std::string txHash;
   std::string blockHash;
   CTransaction ctx;
-  Persistent<Function> callback;
-};
-
-/**
- * poll_blocks_list
- * A singly linked list containing any polled CBlocks and CBlockIndexes.
- * Contained by async_poll_blocks_data struct.
- */
-
-typedef struct _poll_blocks_list {
-  CBlock cblock;
-  CBlockIndex *cblock_index;
-  struct _poll_blocks_list *next;
-} poll_blocks_list;
-
-/**
- * async_poll_blocks_data
- */
-
-struct async_poll_blocks_data {
-  std::string err_msg;
-  poll_blocks_list *head;
-  Persistent<Array> result_array;
-  Persistent<Function> callback;
-};
-
-/**
- * async_poll_mempool_data
- */
-
-struct async_poll_mempool_data {
-  std::string err_msg;
-  Persistent<Array> result_array;
   Persistent<Function> callback;
 };
 
@@ -996,245 +948,6 @@ async_get_tx_after(uv_work_t *req) {
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
       Local<Value>::New(jstx)
-    };
-    TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
-    if (try_catch.HasCaught()) {
-      node::FatalException(try_catch);
-    }
-  }
-
-  data->callback.Dispose();
-
-  delete data;
-  delete req;
-}
-
-/**
- * PollBlocks()
- * bitcoind.pollBlocks(callback)
- * Poll for new blocks on the chain. This is necessary since we have no way of
- * hooking in to AcceptBlock(). Instead, we constant check for new blocks using
- * a SetTimeout() within node.js.
- * Creating a linked list of all blocks within the work function is necessary
- * due to doing v8 things within the libuv thread pool will cause a segfault.
- * Since this reads full blocks, obviously it will poll for transactions which
- * have already been included in blocks as well.
- */
-
-NAN_METHOD(PollBlocks) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsFunction()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.pollBlocks(callback)");
-  }
-
-  Local<Function> callback = Local<Function>::Cast(args[0]);
-
-  async_poll_blocks_data *data = new async_poll_blocks_data();
-  data->err_msg = std::string("");
-  data->callback = Persistent<Function>::New(callback);
-
-  uv_work_t *req = new uv_work_t();
-  req->data = data;
-
-  int status = uv_queue_work(uv_default_loop(),
-    req, async_poll_blocks,
-    (uv_after_work_cb)async_poll_blocks_after);
-
-  assert(status == 0);
-
-  NanReturnValue(Undefined());
-}
-
-static void
-async_poll_blocks(uv_work_t *req) {
-  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
-
-  int poll_saved_height = block_poll_top_height;
-
-  // Poll, wait until we actually have a blockchain download.
-  // Once we've noticed the height changed, assume we gained a few blocks.
-  while (chainActive.Tip()) {
-    int cur_height = chainActive.Height();
-    if (cur_height != block_poll_top_height) {
-      block_poll_top_height = cur_height;
-      break;
-    }
-    // Try again in 100ms
-    useconds_t usec = 100 * 1000;
-    usleep(usec);
-  }
-
-  // NOTE: Since we can't do v8 stuff on the uv thread pool, we need to create
-  // a linked list for all the blocks and free them up later.
-  poll_blocks_list *head = NULL;
-  poll_blocks_list *cur = NULL;
-
-  for (int i = poll_saved_height; i < block_poll_top_height; i++) {
-    if (i == -1) continue;
-    CBlockIndex *cblock_index = chainActive[i];
-    if (cblock_index != NULL) {
-      CBlock cblock;
-      if (ReadBlockFromDisk(cblock, cblock_index)) {
-        poll_blocks_list *next = new poll_blocks_list();
-        next->next = NULL;
-        if (cur == NULL) {
-          head = next;
-          cur = next;
-        } else {
-          cur->next = next;
-          cur = next;
-        }
-        cur->cblock = cblock;
-        cur->cblock_index = cblock_index;
-      }
-    }
-  }
-
-  data->head = head;
-}
-
-static void
-async_poll_blocks_after(uv_work_t *req) {
-  NanScope();
-  async_poll_blocks_data* data = static_cast<async_poll_blocks_data*>(req->data);
-
-  if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
-    const unsigned argc = 1;
-    Local<Value> argv[argc] = { err };
-    TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
-    if (try_catch.HasCaught()) {
-      node::FatalException(try_catch);
-    }
-  } else {
-    const unsigned argc = 2;
-    Local<Array> blocks = NanNew<Array>();
-
-    poll_blocks_list *cur = static_cast<poll_blocks_list*>(data->head);
-    poll_blocks_list *next;
-    int i = 0;
-
-    while (cur != NULL) {
-      CBlock cblock = cur->cblock;
-      CBlockIndex *cblock_index = cur->cblock_index;
-      Local<Object> jsblock = NanNew<Object>();
-      cblock_to_jsblock(cblock, cblock_index, jsblock);
-      blocks->Set(i, jsblock);
-      i++;
-      next = cur->next;
-      delete cur;
-      cur = next;
-    }
-
-    Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(blocks)
-    };
-    TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
-    if (try_catch.HasCaught()) {
-      node::FatalException(try_catch);
-    }
-  }
-
-  data->callback.Dispose();
-
-  delete data;
-  delete req;
-}
-
-/**
- * PollMempool()
- * bitcoind.pollMempool(callback)
- * This will poll for any transactions in the mempool. i.e. Transactions which
- * have not been included in blocks yet. This is not technically necessary to
- * be done asynchronously since there are no real blocking calls done here, but
- * we will leave the async function here as a placeholder in case we're wrong.
- */
-
-NAN_METHOD(PollMempool) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsFunction()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.pollMempool(callback)");
-  }
-
-  Local<Function> callback = Local<Function>::Cast(args[0]);
-
-  async_poll_mempool_data *data = new async_poll_mempool_data();
-  data->err_msg = std::string("");
-  data->callback = Persistent<Function>::New(callback);
-
-  uv_work_t *req = new uv_work_t();
-  req->data = data;
-
-  int status = uv_queue_work(uv_default_loop(),
-    req, async_poll_mempool,
-    (uv_after_work_cb)async_poll_mempool_after);
-
-  assert(status == 0);
-
-  NanReturnValue(Undefined());
-}
-
-static void
-async_poll_mempool(uv_work_t *req) {
-  // XXX Potentially do everything async, but would it matter? Everything is in
-  // memory. There aren't really any harsh blocking calls. Leave this here as a
-  // placeholder.
-  useconds_t usec = 5 * 1000;
-  usleep(usec);
-}
-
-static void
-async_poll_mempool_after(uv_work_t *req) {
-  NanScope();
-  async_poll_mempool_data* data = static_cast<async_poll_mempool_data*>(req->data);
-
-  if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
-    const unsigned argc = 1;
-    Local<Value> argv[argc] = { err };
-    TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
-    if (try_catch.HasCaught()) {
-      node::FatalException(try_catch);
-    }
-  } else {
-    int ti = 0;
-    Local<Array> txs = NanNew<Array>();
-
-    {
-      std::map<uint256, CTxMemPoolEntry>::const_iterator it = mempool.mapTx.begin();
-      for (; it != mempool.mapTx.end(); it++) {
-        const CTransaction& ctx = it->second.GetTx();
-        Local<Object> jstx = NanNew<Object>();
-        ctx_to_jstx(ctx, 0, jstx);
-        txs->Set(ti, jstx);
-        ti++;
-      }
-    }
-
-    {
-      std::map<COutPoint, CInPoint>::const_iterator it = mempool.mapNextTx.begin();
-      for (; it != mempool.mapNextTx.end(); it++) {
-        const CTransaction ctx = *it->second.ptx;
-        Local<Object> jstx = NanNew<Object>();
-        ctx_to_jstx(ctx, 0, jstx);
-        txs->Set(ti, jstx);
-        ti++;
-      }
-    }
-
-    const unsigned argc = 2;
-    Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(txs)
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -3964,8 +3677,6 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
   NODE_SET_METHOD(target, "getTx", GetTx);
-  NODE_SET_METHOD(target, "pollBlocks", PollBlocks);
-  NODE_SET_METHOD(target, "pollMempool", PollMempool);
   NODE_SET_METHOD(target, "broadcastTx", BroadcastTx);
   NODE_SET_METHOD(target, "verifyBlock", VerifyBlock);
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
