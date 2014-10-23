@@ -3642,7 +3642,6 @@ NAN_METHOD(HookPackets) {
       ; // not much other information in getaddr as long as we know we got a getaddr
     } else if (strCommand == "mempool") {
       ; // not much other information in getaddr as long as we know we got a getaddr
-#if 0
     } else if (strCommand == "ping") {
       if (cur->pfrom->nVersion > BIP0031_VERSION) {
         uint64_t nonce = 0;
@@ -3657,6 +3656,7 @@ NAN_METHOD(HookPackets) {
         assert(written == 20);
         o->Set(NanNew<String>("nonce"), NanNew<String>(sNonce));
       }
+#if 0
     } else if (strCommand == "pong") {
       int64_t pingUsecEnd = cur->nTimeReceived;
       uint64_t nonce = 0;
