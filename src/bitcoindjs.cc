@@ -2781,7 +2781,7 @@ async_import_key_after(uv_work_t *req) {
  */
 
 CBlockIndex *
-find_new_block_index(uint256 hash, uint256 hashPrevBlock) {
+find_new_block_index(uint256 hash, uint256 hashPrevBlock, bool *is_allocated) {
   // Check for duplicate
   BlockMap::iterator it = mapBlockIndex.find(hash);
   if (it != mapBlockIndex.end()) {
@@ -2797,13 +2797,16 @@ find_new_block_index(uint256 hash, uint256 hashPrevBlock) {
     pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
   }
 
+  *is_allocated = true;
+
   return pindexNew;
 }
 
 static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool isNew) {
+  bool is_allocated = false;
   if (!cblock_index && isNew) {
-    cblock_index = find_new_block_index(cblock.GetHash(), cblock.hashPrevBlock);
+    cblock_index = find_new_block_index(cblock.GetHash(), cblock.hashPrevBlock, &is_allocated);
   }
 
   jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
@@ -2878,9 +2881,9 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   jsblock->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
   // Freed up elsewhere:
-  // if (isNew) {
-  //   delete cblock_index;
-  // }
+  if (is_allocated) {
+    delete cblock_index;
+  }
 }
 
 static inline void
