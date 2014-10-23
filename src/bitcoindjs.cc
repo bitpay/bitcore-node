@@ -254,7 +254,7 @@ static void
 async_import_key_after(uv_work_t *req);
 
 static inline void
-cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<Object> jsblock);
+cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool isNew);
 
 static inline void
 ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx);
@@ -834,7 +834,7 @@ async_get_block_after(uv_work_t *req) {
     const CBlockIndex* cblock_index = data->result_blockindex;
 
     Local<Object> jsblock = NanNew<Object>();
-    cblock_to_jsblock(cblock, cblock_index, jsblock);
+    cblock_to_jsblock(cblock, cblock_index, jsblock, false);
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
@@ -1483,7 +1483,7 @@ NAN_METHOD(BlockFromHex) {
   }
 
   Local<Object> jsblock = NanNew<Object>();
-  cblock_to_jsblock(cblock, NULL, jsblock);
+  cblock_to_jsblock(cblock, NULL, jsblock, false);
 
   NanReturnValue(jsblock);
 }
@@ -2771,7 +2771,7 @@ async_import_key_after(uv_work_t *req) {
 
 /**
  * Conversions
- *   cblock_to_jsblock(cblock, cblock_index, jsblock)
+ *   cblock_to_jsblock(cblock, cblock_index, jsblock, isNew)
  *   ctx_to_jstx(ctx, block_hash, jstx)
  *   jsblock_to_cblock(jsblock, cblock)
  *   jstx_to_ctx(jstx, ctx)
@@ -2780,19 +2780,184 @@ async_import_key_after(uv_work_t *req) {
  * CTransactions), and vice versa.
  */
 
+/*
+  // header
+  static const int32_t CURRENT_VERSION=2;
+  int32_t nVersion;
+  uint256 hashPrevBlock;
+  uint256 hashMerkleRoot;
+  uint32_t nTime;
+  uint32_t nBits;
+  uint32_t nNonce;
+
+  utils.writeU32(res, this.version, 0); // SHOULD BE int32_t
+  utils.copy(utils.toArray(this.prevBlock, 'hex'), res, 4);
+  utils.copy(utils.toArray(this.merkleRoot, 'hex'), res, 36);
+  utils.writeU32(res, this.ts, 68);
+  utils.writeU32(res, this.bits, 72);
+  utils.writeU32(res, this.nonce, 76);
+*/
+
+CBlockIndex *
+find_new_block_index(CBlockHeader& header) {
+  // Check for duplicate
+  uint256 hash = header.GetHash();
+  BlockMap::iterator it = mapBlockIndex.find(hash);
+  if (it != mapBlockIndex.end()) {
+    return it->second;
+  }
+
+  // Construct new block index object
+  CBlockIndex* pindexNew = new CBlockIndex(header);
+  assert(pindexNew);
+  //{
+  //  LOCK(cs_nBlockSequenceId);
+  //  pindexNew->nSequenceId = nBlockSequenceId++;
+  //}
+  //BlockMap::iterator mi = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
+  //pindexNew->phashBlock = &((*mi).first);
+  BlockMap::iterator miPrev = mapBlockIndex.find(header.hashPrevBlock);
+  if (miPrev != mapBlockIndex.end()) {
+    pindexNew->pprev = (*miPrev).second;
+    pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
+    //pindexNew->BuildSkip();
+  }
+  //pindexNew->nChainWork = (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) + pindexNew->GetBlockWork();
+  //pindexNew->RaiseValidity(BLOCK_VALID_TREE);
+
+  return pindexNew;
+}
+
+CBlockIndex *
+find_new_block_index_(uint256 hash, uint256 hashPrevBlock) {
+  // Check for duplicate
+  BlockMap::iterator it = mapBlockIndex.find(hash);
+  if (it != mapBlockIndex.end()) {
+    return it->second;
+  }
+
+  // Construct new block index object
+  CBlockIndex* pindexNew = new CBlockIndex();
+  assert(pindexNew);
+  BlockMap::iterator miPrev = mapBlockIndex.find(hashPrevBlock);
+  if (miPrev != mapBlockIndex.end()) {
+      pindexNew->pprev = (*miPrev).second;
+      pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
+  }
+
+  return pindexNew;
+}
+
 static inline void
-cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<Object> jsblock) {
+cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool isNew) {
+  bool index_alloc = false;
+  if (!cblock_index && isNew) {
+#if 0
+        CBlockHeader block;
+        block.nVersion       = nVersion;
+        block.hashPrevBlock  = hashPrevBlock;
+        block.hashMerkleRoot = hashMerkleRoot;
+        block.nTime          = nTime;
+        block.nBits          = nBits;
+        block.nNonce         = nNonce;
+        return block;
+#endif
+#if 0
+    CBlockHeader& header =(const CBlockHeader&) *(cblock.GetBlockHeader());
+    cblock_index = (CBlockIndex *)new CBlockIndex(header);
+    index_alloc = true;
+#endif
+#if 0
+    CBlockHeader _header;
+    CBlockHeader& header = _header;
+    header.nVersion = cblock.nVersion;
+    header.hashPrevBlock = cblock.hashPrevBlock;
+    header.hashMerkleRoot = cblock.hashMerkleRoot;
+    header.nTime = cblock.nTime;
+    header.nBits = cblock.nBits;
+    header.nNonce = cblock.nNonce;
+    cblock_index = (CBlockIndex *)new CBlockIndex(header);
+    index_alloc = true;
+#endif
+#if 0
+    cblock_index = chainActive[chainActive.Tip()->nHeight];
+    index_alloc = true;
+#endif
+// WORKS:
+#if 0
+    CBlockHeader _header;
+    CBlockHeader& header = _header;
+    header.nVersion = cblock.nVersion;
+    header.hashPrevBlock = cblock.hashPrevBlock;
+    header.hashMerkleRoot = cblock.hashMerkleRoot;
+    header.nTime = cblock.nTime;
+    header.nBits = cblock.nBits;
+    header.nNonce = cblock.nNonce;
+    cblock_index = find_new_block_index(header);
+    cblock_index = AddToBlockIndex(header); // will not add if there's a duplicate
+    index_alloc = true;
+#endif
+// WORKS:
+#if 0
+    cblock_index = find_new_block_index_(cblock.GetHash(), cblock.hashPrevBlock);
+    index_alloc = true;
+#endif
+#if 1
+    CBlockHeader _header;
+    CBlockHeader& header = _header;
+    header.nVersion = cblock.nVersion;
+    header.hashPrevBlock = cblock.hashPrevBlock;
+    header.hashMerkleRoot = cblock.hashMerkleRoot;
+    header.nTime = cblock.nTime;
+    header.nBits = cblock.nBits;
+    header.nNonce = cblock.nNonce;
+    cblock_index = AddToBlockIndex(header); // will not add if there's a duplicate
+    index_alloc = true;
+#endif
+  }
+
   jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
   CMerkleTx txGen(cblock.vtx[0]);
   txGen.SetMerkleBranch(cblock);
   jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
   jsblock->Set(NanNew<String>("size"),
     NanNew<Number>((int)::GetSerializeSize(cblock, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
+
   if (cblock_index) {
     jsblock->Set(NanNew<String>("height"), NanNew<Number>(cblock_index->nHeight));
   }
+
+  //
+  // Headers
+  //
   jsblock->Set(NanNew<String>("version"), NanNew<Number>(cblock.nVersion));
+
+  // XXX Why hash check is failing:
+  if (cblock_index && cblock_index->pprev) {
+    jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>(cblock_index->pprev->GetBlockHash().GetHex()));
+  } else {
+    // genesis
+    jsblock->Set(NanNew<String>("previousblockhash"),
+      NanNew<String>("0000000000000000000000000000000000000000000000000000000000000000"));
+  }
+
   jsblock->Set(NanNew<String>("merkleroot"), NanNew<String>(cblock.hashMerkleRoot.GetHex()));
+
+  jsblock->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)cblock.GetBlockTime())->ToUint32());
+  jsblock->Set(NanNew<String>("bits"), NanNew<Number>((unsigned int)cblock.nBits)->ToUint32());
+  jsblock->Set(NanNew<String>("nonce"), NanNew<Number>((unsigned int)cblock.nNonce)->ToUint32());
+
+  if (cblock_index) {
+    jsblock->Set(NanNew<String>("difficulty"), NanNew<Number>(GetDifficulty(cblock_index)));
+    jsblock->Set(NanNew<String>("chainwork"), NanNew<String>(cblock_index->nChainWork.GetHex()));
+  }
+
+  if (cblock_index) {
+    CBlockIndex *pnext = chainActive.Next(cblock_index);
+    if (pnext) {
+      jsblock->Set(NanNew<String>("nextblockhash"), NanNew<String>(pnext->GetBlockHash().GetHex()));
+    }
+  }
 
   // Build merkle tree
   if (cblock.vMerkleTree.empty()) {
@@ -2817,33 +2982,14 @@ cblock_to_jsblock(const CBlock& cblock, const CBlockIndex* cblock_index, Local<O
   }
   jsblock->Set(NanNew<String>("tx"), txs);
 
-  jsblock->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)cblock.GetBlockTime())->ToUint32());
-  jsblock->Set(NanNew<String>("nonce"), NanNew<Number>((unsigned int)cblock.nNonce)->ToUint32());
-  jsblock->Set(NanNew<String>("bits"), NanNew<Number>((unsigned int)cblock.nBits)->ToUint32());
-  if (cblock_index) {
-    jsblock->Set(NanNew<String>("difficulty"), NanNew<Number>(GetDifficulty(cblock_index)));
-    jsblock->Set(NanNew<String>("chainwork"), NanNew<String>(cblock_index->nChainWork.GetHex()));
-  }
-
-  if (cblock_index && cblock_index->pprev) {
-    jsblock->Set(NanNew<String>("previousblockhash"), NanNew<String>(cblock_index->pprev->GetBlockHash().GetHex()));
-  } else {
-    // genesis
-    jsblock->Set(NanNew<String>("previousblockhash"),
-      NanNew<String>("0000000000000000000000000000000000000000000000000000000000000000"));
-  }
-
-  if (cblock_index) {
-    CBlockIndex *pnext = chainActive.Next(cblock_index);
-    if (pnext) {
-      jsblock->Set(NanNew<String>("nextblockhash"), NanNew<String>(pnext->GetBlockHash().GetHex()));
-    }
-  }
-
   CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
   ssBlock << cblock;
   std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
   jsblock->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+
+  if (index_alloc) {
+    //delete cblock_index;
+  }
 }
 
 static inline void
@@ -2958,26 +3104,26 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
 
 static inline void
 jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
-  cblock.nVersion = (int)jsblock->Get(NanNew<String>("version"))->Int32Value();
-
-  String::AsciiValue mhash__(jsblock->Get(NanNew<String>("merkleroot"))->ToString());
-  std::string mhash_ = *mhash__;
-  uint256 mhash(mhash_);
-
-  cblock.hashMerkleRoot = mhash;
-  cblock.nTime = (unsigned int)jsblock->Get(NanNew<String>("time"))->Uint32Value();
-  cblock.nNonce = (unsigned int)jsblock->Get(NanNew<String>("nonce"))->Uint32Value();
-  cblock.nBits = (unsigned int)jsblock->Get(NanNew<String>("bits"))->Uint32Value();
+  cblock.nVersion = (int32_t)jsblock->Get(NanNew<String>("version"))->Int32Value();
 
   if (jsblock->Get(NanNew<String>("previousblockhash"))->IsString()) {
     String::AsciiValue hash__(jsblock->Get(NanNew<String>("previousblockhash"))->ToString());
     std::string hash_ = *hash__;
     uint256 hash(hash_);
-    cblock.hashPrevBlock = hash;
+    cblock.hashPrevBlock = (uint256)hash;
   } else {
     // genesis block
-    cblock.hashPrevBlock = uint256(0);
+    cblock.hashPrevBlock = (uint256)uint256(0);
   }
+
+  String::AsciiValue mhash__(jsblock->Get(NanNew<String>("merkleroot"))->ToString());
+  std::string mhash_ = *mhash__;
+  uint256 mhash(mhash_);
+  cblock.hashMerkleRoot = (uint256)mhash;
+
+  cblock.nTime = (uint32_t)jsblock->Get(NanNew<String>("time"))->Uint32Value();
+  cblock.nBits = (uint32_t)jsblock->Get(NanNew<String>("bits"))->Uint32Value();
+  cblock.nNonce = (uint32_t)jsblock->Get(NanNew<String>("nonce"))->Uint32Value();
 
   Local<Array> txs = Local<Array>::Cast(jsblock->Get(NanNew<String>("tx")));
   for (unsigned int ti = 0; ti < txs->Length(); ti++) {
@@ -3342,8 +3488,8 @@ NAN_METHOD(HookPackets) {
       CBlock block;
       vRecv >> block;
       Local<Object> jsblock = NanNew<Object>();
-      cblock_to_jsblock(block, NULL, jsblock);
-      // cblock_to_jsblock(block, NULL, o);
+      cblock_to_jsblock(block, NULL, jsblock, true);
+      // cblock_to_jsblock(block, NULL, o, true);
       o->Set(NanNew<String>("block"), jsblock);
     } else if (strCommand == "getaddr") {
       ; // not much other information in getaddr as long as we know we got a getaddr
