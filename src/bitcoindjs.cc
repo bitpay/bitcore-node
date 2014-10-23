@@ -3562,7 +3562,6 @@ NAN_METHOD(HookPackets) {
       }
 
       o->Set(NanNew<String>("items"), array);
-#if 0
     } else if (strCommand == "getdata") {
       vector<CInv> vInv;
       *cur->vRecv >> vInv;
@@ -3577,6 +3576,7 @@ NAN_METHOD(HookPackets) {
       if (vInv.size() > 0) {
         o->Set(NanNew<String>("first"), NanNew<String>(vInv[0].ToString().c_str()));
       }
+#if 0
     } else if (strCommand == "getblocks") {
       CBlockLocator locator;
       uint256 hashStop;
