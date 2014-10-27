@@ -171,6 +171,7 @@ NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
 NAN_METHOD(BlockFromHex);
 NAN_METHOD(TxFromHex);
+NAN_METHOD(HookPackets);
 
 NAN_METHOD(WalletNewAddress);
 NAN_METHOD(WalletGetAccountAddress);
@@ -193,7 +194,6 @@ NAN_METHOD(WalletLock);
 NAN_METHOD(WalletEncrypt);
 NAN_METHOD(WalletSetTxFee);
 NAN_METHOD(WalletImportKey);
-NAN_METHOD(HookPackets);
 
 /**
  * Node.js Internal Function Templates
@@ -1518,6 +1518,592 @@ NAN_METHOD(TxFromHex) {
   ctx_to_jstx(ctx, 0, jstx);
 
   NanReturnValue(jstx);
+}
+
+/**
+ * Linked List for queued packets
+ */
+
+typedef struct _poll_packets_list {
+  CNode *pfrom;
+  char *strCommand;
+  CDataStream *vRecv;
+  int64_t nTimeReceived;
+  struct _poll_packets_list *next;
+} poll_packets_list;
+
+poll_packets_list *packets_queue_head = NULL;
+poll_packets_list *packets_queue_tail = NULL;
+boost::mutex poll_packets_mutex;
+
+/**
+ * HookPackets()
+ * bitcoind.hookPackets(callback)
+ */
+
+NAN_METHOD(HookPackets) {
+  NanScope();
+
+  Local<Array> obj = NanNew<Array>();
+  poll_packets_list *cur = NULL;
+  poll_packets_list *next = NULL;
+  int i = 0;
+
+  poll_packets_mutex.lock();
+
+  for (cur = packets_queue_head; cur; cur = next) {
+    CNode *pfrom = cur->pfrom;
+    std::string strCommand(cur->strCommand);
+    CDataStream vRecv = *cur->vRecv;
+    int64_t nTimeReceived = cur->nTimeReceived;
+
+    Local<Object> o = NanNew<Object>();
+
+    o->Set(NanNew<String>("name"), NanNew<String>(strCommand.c_str()));
+    o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)nTimeReceived));
+    o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
+    // o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
+    o->Set(NanNew<String>("userAgent"),
+      NanNew<String>(pfrom->cleanSubVer.c_str()));
+
+    if (strCommand == "version") {
+      // Each connection can only send one version message
+      if (pfrom->nVersion != 0) {
+        NanReturnValue(Undefined());
+      }
+
+      bool fRelayTxes = false;
+      int nStartingHeight = 0;
+      int cleanSubVer = 0;
+      //std::string strSubVer(strdup(pfrom->strSubVer.c_str()));
+      std::string strSubVer = pfrom->strSubVer;
+      int nVersion = pfrom->nVersion;
+      uint64_t nServices = pfrom->nServices;
+
+      int64_t nTime;
+      CAddress addrMe;
+      CAddress addrFrom;
+      uint64_t nNonce = 1;
+      vRecv >> nVersion >> nServices >> nTime >> addrMe;
+      if (pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
+        // disconnect from peers older than this proto version
+        NanReturnValue(Undefined());
+      }
+
+      if (nVersion == 10300) {
+        nVersion = 300;
+      }
+      if (!vRecv.empty()) {
+        vRecv >> addrFrom >> nNonce;
+      }
+      if (!vRecv.empty()) {
+        vRecv >> LIMITED_STRING(strSubVer, 256);
+        //cleanSubVer = SanitizeString(strSubVer);
+        cleanSubVer = atoi(strSubVer.c_str());
+      }
+      if (!vRecv.empty()) {
+        vRecv >> nStartingHeight;
+      }
+      if (!vRecv.empty()) {
+        fRelayTxes = false;
+      } else {
+        fRelayTxes = true;
+      }
+
+      // Disconnect if we connected to ourself
+      if (nNonce == nLocalHostNonce && nNonce > 1) {
+        NanReturnValue(obj);
+      }
+
+      o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(cleanSubVer));
+      o->Set(NanNew<String>("version"), NanNew<Number>(nVersion));
+      o->Set(NanNew<String>("height"), NanNew<Number>(nStartingHeight));
+      o->Set(NanNew<String>("us"), NanNew<String>(addrMe.ToString()));
+      o->Set(NanNew<String>("address"), NanNew<String>(pfrom->addr.ToString()));
+      o->Set(NanNew<String>("relay"), NanNew<Boolean>(fRelayTxes));
+    } else if (pfrom->nVersion == 0) {
+      // Must have a version message before anything else
+      NanReturnValue(Undefined());
+    } else if (strCommand == "verack") {
+      o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(min(pfrom->nVersion, PROTOCOL_VERSION)));
+    } else if (strCommand == "addr") {
+      vector<CAddress> vAddr;
+      vRecv >> vAddr;
+
+      // Don't want addr from older versions unless seeding
+      if (pfrom->nVersion < CADDR_TIME_VERSION && addrman.size() > 1000) {
+        NanReturnValue(obj);
+      }
+
+      // Bad address size
+      if (vAddr.size() > 1000) {
+        NanReturnValue(Undefined());
+      }
+
+      Local<Array> array = NanNew<Array>();
+      int i = 0;
+
+      // Get the new addresses
+      int64_t nNow = GetAdjustedTime();
+      BOOST_FOREACH(CAddress& addr, vAddr) {
+        boost::this_thread::interruption_point();
+
+        unsigned int nTime = addr.nTime;
+        if (nTime <= 100000000 || nTime > nNow + 10 * 60) {
+          nTime = nNow - 5 * 24 * 60 * 60;
+        }
+
+        bool fReachable = IsReachable(addr);
+
+        Local<Object> obj = NanNew<Object>();
+
+        char nServices[21] = {0};
+        int written = snprintf(nServices, sizeof(nServices), "%020lu", (uint64_t)addr.nServices);
+        assert(written == 20);
+
+        obj->Set(NanNew<String>("services"), NanNew<String>((char *)nServices));
+        obj->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)nTime)->ToUint32());
+        obj->Set(NanNew<String>("last"), NanNew<Number>((int64_t)addr.nLastTry));
+        obj->Set(NanNew<String>("ip"), NanNew<String>((std::string)addr.ToStringIP()));
+        obj->Set(NanNew<String>("port"), NanNew<Number>((unsigned short)addr.GetPort())->ToUint32());
+        obj->Set(NanNew<String>("address"), NanNew<String>((std::string)addr.ToStringIPPort()));
+        obj->Set(NanNew<String>("reachable"), NanNew<Boolean>((bool)fReachable));
+
+        array->Set(i, obj);
+        i++;
+      }
+
+      o->Set(NanNew<String>("addresses"), array);
+    } else if (strCommand == "inv") {
+      vector<CInv> vInv;
+      vRecv >> vInv;
+
+      // Bad size
+      if (vInv.size() > MAX_INV_SZ) {
+        NanReturnValue(Undefined());
+      }
+
+      LOCK(cs_main);
+
+      Local<Array> array = NanNew<Array>();
+      int i = 0;
+
+      for (unsigned int nInv = 0; nInv < vInv.size(); nInv++) {
+        const CInv &inv = vInv[nInv];
+
+        boost::this_thread::interruption_point();
+
+        //bool fAlreadyHave = AlreadyHave(inv);
+
+        // Bad size
+        if (pfrom->nSendSize > (SendBufferSize() * 2)) {
+          NanReturnValue(Undefined());
+        }
+
+        Local<Object> item = NanNew<Object>();
+        //item->Set(NanNew<String>("have"), NanNew<Boolean>(fAlreadyHave));
+        item->Set(NanNew<String>("hash"), NanNew<String>(inv.hash.GetHex().c_str()));
+        item->Set(NanNew<String>("type"), NanNew<String>(
+          inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK
+          ? "block" : "tx"));
+        if (inv.type == MSG_FILTERED_BLOCK) {
+          item->Set(NanNew<String>("filtered"), NanNew<Boolean>(true));
+        } else if (inv.type == MSG_BLOCK) {
+          item->Set(NanNew<String>("filtered"), NanNew<Boolean>(false));
+        }
+
+        array->Set(i, item);
+        i++;
+      }
+
+      o->Set(NanNew<String>("items"), array);
+    } else if (strCommand == "getdata") {
+      vector<CInv> vInv;
+      vRecv >> vInv;
+
+      // Bad size
+      if (vInv.size() > MAX_INV_SZ) {
+        NanReturnValue(Undefined());
+      }
+
+      o->Set(NanNew<String>("size"), NanNew<Number>(vInv.size()));
+      if (vInv.size() > 0) {
+        o->Set(NanNew<String>("first"), NanNew<String>(vInv[0].ToString().c_str()));
+      }
+    } else if (strCommand == "getblocks") {
+      CBlockLocator locator;
+      uint256 hashStop;
+      vRecv >> locator >> hashStop;
+
+      LOCK(cs_main);
+
+      // Find the last block the caller has in the main chain
+      CBlockIndex* pindex = FindForkInGlobalIndex(chainActive, locator);
+
+      // Send the rest of the chain
+      if (pindex) {
+        pindex = chainActive.Next(pindex);
+      }
+
+      o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1));
+      o->Set(NanNew<String>("toHash"), NanNew<String>(
+        hashStop == uint256(0) ? "end" : hashStop.GetHex().c_str()));
+      o->Set(NanNew<String>("limit"), NanNew<Number>(500));
+    } else if (strCommand == "getheaders") {
+      CBlockLocator locator;
+      uint256 hashStop;
+      vRecv >> locator >> hashStop;
+
+      LOCK(cs_main);
+
+      CBlockIndex* pindex = NULL;
+      if (locator.IsNull()) {
+        // If locator is null, return the hashStop block
+        BlockMap::iterator mi = mapBlockIndex.find(hashStop);
+        if (mi == mapBlockIndex.end()) {
+          NanReturnValue(obj);
+        }
+        pindex = (*mi).second;
+      } else {
+        // Find the last block the caller has in the main chain
+        pindex = FindForkInGlobalIndex(chainActive, locator);
+        if (pindex) {
+          pindex = chainActive.Next(pindex);
+        }
+      }
+
+      o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1));
+      o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop.GetHex().c_str()));
+    } else if (strCommand == "tx") {
+      // XXX Potentially check for "reject" in original code
+      CTransaction tx;
+      vRecv >> tx;
+      Local<Object> jstx = NanNew<Object>();
+      ctx_to_jstx(tx, 0, jstx);
+      // ctx_to_jstx(tx, 0, o);
+      o->Set(NanNew<String>("tx"), jstx);
+    } else if (strCommand == "block" && !fImporting && !fReindex) {
+      CBlock block;
+      vRecv >> block;
+      Local<Object> jsblock = NanNew<Object>();
+      cblock_to_jsblock(block, NULL, jsblock, true);
+      // cblock_to_jsblock(block, NULL, o, true);
+      o->Set(NanNew<String>("block"), jsblock);
+    } else if (strCommand == "getaddr") {
+      ; // not much other information in getaddr as long as we know we got a getaddr
+    } else if (strCommand == "mempool") {
+      ; // not much other information in getaddr as long as we know we got a getaddr
+    } else if (strCommand == "ping") {
+      if (pfrom->nVersion > BIP0031_VERSION) {
+        uint64_t nonce = 0;
+        vRecv >> nonce;
+        char sNonce[21] = {0};
+        int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)nonce);
+        assert(written == 20);
+        o->Set(NanNew<String>("nonce"), NanNew<String>(sNonce));
+      } else {
+        char sNonce[21] = {0};
+        int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)0);
+        assert(written == 20);
+        o->Set(NanNew<String>("nonce"), NanNew<String>(sNonce));
+      }
+    } else if (strCommand == "pong") {
+      int64_t pingUsecEnd = nTimeReceived;
+      uint64_t nonce = 0;
+      size_t nAvail = vRecv.in_avail();
+      bool bPingFinished = false;
+      std::string sProblem;
+
+      if (nAvail >= sizeof(nonce)) {
+        vRecv >> nonce;
+
+        // Only process pong message if there is an outstanding ping (old ping without nonce should never pong)
+        if (pfrom->nPingNonceSent != 0) {
+          if (nonce == pfrom->nPingNonceSent) {
+            // Matching pong received, this ping is no longer outstanding
+            bPingFinished = true;
+            int64_t pingUsecTime = pingUsecEnd - pfrom->nPingUsecStart;
+            if (pingUsecTime > 0) {
+              // Successful ping time measurement, replace previous
+              ;
+            } else {
+              // This should never happen
+              sProblem = "Timing mishap";
+            }
+          } else {
+            // Nonce mismatches are normal when pings are overlapping
+            sProblem = "Nonce mismatch";
+            if (nonce == 0) {
+              // This is most likely a bug in another implementation somewhere, cancel this ping
+              bPingFinished = true;
+              sProblem = "Nonce zero";
+            }
+          }
+        } else {
+          sProblem = "Unsolicited pong without ping";
+        }
+      } else {
+        // This is most likely a bug in another implementation somewhere, cancel this ping
+        bPingFinished = true;
+        sProblem = "Short payload";
+      }
+
+      char sNonce[21] = {0};
+      int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)nonce);
+      assert(written == 20);
+
+      char sPingNonceSent[21] = {0};
+      written = snprintf(sPingNonceSent, sizeof(sPingNonceSent), "%020lu", (uint64_t)pfrom->nPingNonceSent);
+      assert(written == 20);
+
+      o->Set(NanNew<String>("expected"), NanNew<String>(sPingNonceSent));
+      o->Set(NanNew<String>("received"), NanNew<String>(sNonce));
+      o->Set(NanNew<String>("bytes"), NanNew<Number>((unsigned int)nAvail));
+
+      if (!(sProblem.empty())) {
+        o->Set(NanNew<String>("problem"), NanNew<String>(sProblem));
+      }
+
+      if (bPingFinished) {
+        o->Set(NanNew<String>("finished"), NanNew<Boolean>(true));
+      } else {
+        o->Set(NanNew<String>("finished"), NanNew<Boolean>(false));
+      }
+    } else if (strCommand == "alert") {
+      CAlert alert;
+      vRecv >> alert;
+
+      uint256 alertHash = alert.GetHash();
+
+      o->Set(NanNew<String>("hash"), NanNew<String>(alertHash.GetHex().c_str()));
+
+      if (pfrom->setKnown.count(alertHash) == 0) {
+        if (alert.ProcessAlert()) {
+          std::string vchMsg(alert.vchMsg.begin(), alert.vchMsg.end());
+          std::string vchSig(alert.vchSig.begin(), alert.vchSig.end());
+          o->Set(NanNew<String>("message"), NanNew<String>(vchMsg.c_str()));
+          o->Set(NanNew<String>("signature"), NanNew<String>(vchSig.c_str()));
+          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
+        } else {
+          // Small DoS penalty so peers that send us lots of
+          // duplicate/expired/invalid-signature/whatever alerts
+          // eventually get banned.
+          // This isn't a Misbehaving(100) (immediate ban) because the
+          // peer might be an older or different implementation with
+          // a different signature key, etc.
+          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
+        }
+      }
+    } else if (strCommand == "filterload") {
+      CBloomFilter filter;
+      vRecv >> filter;
+
+      if (!filter.IsWithinSizeConstraints()) {
+        // There is no excuse for sending a too-large filter
+        o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
+      } else {
+        LOCK(pfrom->cs_filter);
+        filter.UpdateEmptyFull();
+
+        //std::string svData(filter.vData.begin(), filter.vData.end());
+        //char *cvData = svData.c_str();
+        //int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
+        //char *vDataHex = (char *)malloc(vDataHexLen);
+        //int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
+        //uint64_t dataHex;
+        //sscanf(cvData, "%x", &dataHex);
+        //// assert(written == vDataHexLen);
+        //vDataHex[written] = '\0';
+
+        //o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
+        //free(vDataHex);
+        //o->Set(NanNew<String>("full"), NanNew<Boolean>(filter.isFull));
+        //o->Set(NanNew<String>("empty"), NanNew<Boolean>(filter.isEmpty));
+        //o->Set(NanNew<String>("hashFuncs"), NanNew<Number>(filter.nHashFuncs));
+        //o->Set(NanNew<String>("tweaks"), NanNew<Number>(filter.nTweak));
+        //o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
+        o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
+      }
+    } else if (strCommand == "filteradd") {
+      vector<unsigned char> vData;
+      vRecv >> vData;
+
+      // Nodes must NEVER send a data item > 520 bytes (the max size for a script data object,
+      // and thus, the maximum size any matched object can have) in a filteradd message
+      if (vData.size() > MAX_SCRIPT_ELEMENT_SIZE) {
+        o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
+      } else {
+        LOCK(pfrom->cs_filter);
+        if (pfrom->pfilter) {
+          //std::string svData(vData.begin(), vData.end());
+          //char *cvData = svData.c_str();
+          //int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
+          //char *vDataHex = (char *)malloc(vDataHexLen);
+          //int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
+          //uint64_t dataHex;
+          //sscanf(cvData, "%x", &dataHex);
+          //// assert(written == vDataHexLen);
+          //vDataHex[written] = '\0';
+
+          //o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
+          //free(vDataHex);
+          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
+        } else {
+          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
+        }
+      }
+    } else if (strCommand == "filterclear") {
+      ; // nothing much to grab from this packet
+    } else if (strCommand == "reject") {
+      ; // nothing much to grab from this packet
+    } else {
+      o->Set(NanNew<String>("unknown"), NanNew<Boolean>(true));
+    }
+
+    // Update the last seen time for this node's address
+    if (pfrom->fNetworkNode) {
+      if (strCommand == "version"
+          || strCommand == "addr"
+          || strCommand == "inv"
+          || strCommand == "getdata"
+          || strCommand == "ping") {
+        o->Set(NanNew<String>("connected"), NanNew<Boolean>(true));
+      }
+    }
+
+    obj->Set(i, o);
+    i++;
+
+    if (cur == packets_queue_head) {
+      packets_queue_head = NULL;
+    }
+
+    if (cur == packets_queue_tail) {
+      packets_queue_tail = NULL;
+    }
+
+    next = cur->next;
+    // delete cur->pfrom; // cleaned up on disconnect
+    free(cur->strCommand);
+    delete cur->vRecv;
+    free(cur);
+  }
+
+  poll_packets_mutex.unlock();
+
+  NanReturnValue(obj);
+}
+
+static void
+hook_packets(CNodeSignals& nodeSignals) {
+  nodeSignals.ProcessMessages.connect(&process_packets);
+}
+
+static void
+unhook_packets(CNodeSignals& nodeSignals) {
+  nodeSignals.ProcessMessages.disconnect(&process_packets);
+}
+
+static bool
+process_packets(CNode* pfrom) {
+  bool fOk = true;
+
+  // if (!pfrom->vRecvGetData.empty()) {
+  //   return process_getdata(pfrom);
+  // }
+
+  std::deque<CNetMessage>::iterator it = pfrom->vRecvMsg.begin();
+  while (!pfrom->fDisconnect && it != pfrom->vRecvMsg.end()) {
+    // Don't bother if send buffer is too full to respond anyway
+    if (pfrom->nSendSize >= SendBufferSize()) {
+      break;
+    }
+
+    // get next message
+    CNetMessage& msg = *it;
+
+    // end, if an incomplete message is found
+    if (!msg.complete()) {
+      break;
+    }
+
+    // at this point, any failure means we can delete the current message
+    it++;
+
+    // Scan for message start
+    if (memcmp(msg.hdr.pchMessageStart,
+        Params().MessageStart(), MESSAGE_START_SIZE) != 0) {
+      LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n",
+        msg.hdr.GetCommand(), pfrom->id);
+      fOk = false;
+      break;
+    }
+
+    // Read header
+    CMessageHeader& hdr = msg.hdr;
+    if (!hdr.IsValid()) {
+      LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n",
+        hdr.GetCommand(), pfrom->id);
+      continue;
+    }
+    string strCommand = hdr.GetCommand();
+
+    // Message size
+    unsigned int nMessageSize = hdr.nMessageSize;
+
+    // Checksum
+    CDataStream& vRecv = msg.vRecv;
+    uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
+    unsigned int nChecksum = 0;
+    memcpy(&nChecksum, &hash, sizeof(nChecksum));
+    if (nChecksum != hdr.nChecksum) {
+      LogPrintf(
+        "ProcessMessages(%s, %u bytes) :"
+        " CHECKSUM ERROR nChecksum=%08x hdr.nChecksum=%08x\n",
+       strCommand, nMessageSize, nChecksum, hdr.nChecksum);
+      continue;
+    }
+
+    // Process message
+    bool fRet = false;
+    fRet = process_packet(pfrom, strCommand, vRecv, msg.nTime);
+    boost::this_thread::interruption_point();
+
+    if (!fRet) {
+      LogPrintf("ProcessMessage(%s, %u bytes) FAILED peer=%d\n",
+        strCommand, nMessageSize, pfrom->id);
+    }
+
+    break;
+  }
+
+  return fOk;
+}
+
+static bool
+process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTimeReceived) {
+  poll_packets_mutex.lock();
+
+  poll_packets_list *cur = (poll_packets_list *)malloc(sizeof(poll_packets_list));
+  if (!packets_queue_head) {
+    packets_queue_head = cur;
+    packets_queue_tail = cur;
+  } else {
+    packets_queue_tail->next = cur;
+    packets_queue_tail = cur;
+  }
+
+  cur->pfrom = pfrom;
+  // NOTE: Copy the data stream.
+  CDataStream *vRecv_ = new CDataStream(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
+  cur->vRecv = vRecv_;
+  cur->nTimeReceived = nTimeReceived;
+  cur->strCommand = strdup(strCommand.c_str());
+  cur->next = NULL;
+
+  poll_packets_mutex.unlock();
+
+  return true;
 }
 
 /**
@@ -3097,592 +3683,6 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 }
 
 /**
- * Linked List for queued packets
- */
-
-typedef struct _poll_packets_list {
-  CNode *pfrom;
-  char *strCommand;
-  CDataStream *vRecv;
-  int64_t nTimeReceived;
-  struct _poll_packets_list *next;
-} poll_packets_list;
-
-poll_packets_list *packets_queue_head = NULL;
-poll_packets_list *packets_queue_tail = NULL;
-boost::mutex poll_packets_mutex;
-
-/**
- * HookPackets()
- * bitcoind.hookPackets(callback)
- */
-
-NAN_METHOD(HookPackets) {
-  NanScope();
-
-  Local<Array> obj = NanNew<Array>();
-  poll_packets_list *cur = NULL;
-  poll_packets_list *next = NULL;
-  int i = 0;
-
-  poll_packets_mutex.lock();
-
-  for (cur = packets_queue_head; cur; cur = next) {
-    CNode *pfrom = cur->pfrom;
-    std::string strCommand(cur->strCommand);
-    CDataStream vRecv = *cur->vRecv;
-    int64_t nTimeReceived = cur->nTimeReceived;
-
-    Local<Object> o = NanNew<Object>();
-
-    o->Set(NanNew<String>("name"), NanNew<String>(strCommand.c_str()));
-    o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)nTimeReceived));
-    o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
-    // o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
-    o->Set(NanNew<String>("userAgent"),
-      NanNew<String>(pfrom->cleanSubVer.c_str()));
-
-    if (strCommand == "version") {
-      // Each connection can only send one version message
-      if (pfrom->nVersion != 0) {
-        NanReturnValue(Undefined());
-      }
-
-      bool fRelayTxes = false;
-      int nStartingHeight = 0;
-      int cleanSubVer = 0;
-      //std::string strSubVer(strdup(pfrom->strSubVer.c_str()));
-      std::string strSubVer = pfrom->strSubVer;
-      int nVersion = pfrom->nVersion;
-      uint64_t nServices = pfrom->nServices;
-
-      int64_t nTime;
-      CAddress addrMe;
-      CAddress addrFrom;
-      uint64_t nNonce = 1;
-      vRecv >> nVersion >> nServices >> nTime >> addrMe;
-      if (pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
-        // disconnect from peers older than this proto version
-        NanReturnValue(Undefined());
-      }
-
-      if (nVersion == 10300) {
-        nVersion = 300;
-      }
-      if (!vRecv.empty()) {
-        vRecv >> addrFrom >> nNonce;
-      }
-      if (!vRecv.empty()) {
-        vRecv >> LIMITED_STRING(strSubVer, 256);
-        //cleanSubVer = SanitizeString(strSubVer);
-        cleanSubVer = atoi(strSubVer.c_str());
-      }
-      if (!vRecv.empty()) {
-        vRecv >> nStartingHeight;
-      }
-      if (!vRecv.empty()) {
-        fRelayTxes = false;
-      } else {
-        fRelayTxes = true;
-      }
-
-      // Disconnect if we connected to ourself
-      if (nNonce == nLocalHostNonce && nNonce > 1) {
-        NanReturnValue(obj);
-      }
-
-      o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(cleanSubVer));
-      o->Set(NanNew<String>("version"), NanNew<Number>(nVersion));
-      o->Set(NanNew<String>("height"), NanNew<Number>(nStartingHeight));
-      o->Set(NanNew<String>("us"), NanNew<String>(addrMe.ToString()));
-      o->Set(NanNew<String>("address"), NanNew<String>(pfrom->addr.ToString()));
-      o->Set(NanNew<String>("relay"), NanNew<Boolean>(fRelayTxes));
-    } else if (pfrom->nVersion == 0) {
-      // Must have a version message before anything else
-      NanReturnValue(Undefined());
-    } else if (strCommand == "verack") {
-      o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(min(pfrom->nVersion, PROTOCOL_VERSION)));
-    } else if (strCommand == "addr") {
-      vector<CAddress> vAddr;
-      vRecv >> vAddr;
-
-      // Don't want addr from older versions unless seeding
-      if (pfrom->nVersion < CADDR_TIME_VERSION && addrman.size() > 1000) {
-        NanReturnValue(obj);
-      }
-
-      // Bad address size
-      if (vAddr.size() > 1000) {
-        NanReturnValue(Undefined());
-      }
-
-      Local<Array> array = NanNew<Array>();
-      int i = 0;
-
-      // Get the new addresses
-      int64_t nNow = GetAdjustedTime();
-      BOOST_FOREACH(CAddress& addr, vAddr) {
-        boost::this_thread::interruption_point();
-
-        unsigned int nTime = addr.nTime;
-        if (nTime <= 100000000 || nTime > nNow + 10 * 60) {
-          nTime = nNow - 5 * 24 * 60 * 60;
-        }
-
-        bool fReachable = IsReachable(addr);
-
-        Local<Object> obj = NanNew<Object>();
-
-        char nServices[21] = {0};
-        int written = snprintf(nServices, sizeof(nServices), "%020lu", (uint64_t)addr.nServices);
-        assert(written == 20);
-
-        obj->Set(NanNew<String>("services"), NanNew<String>((char *)nServices));
-        obj->Set(NanNew<String>("time"), NanNew<Number>((unsigned int)nTime)->ToUint32());
-        obj->Set(NanNew<String>("last"), NanNew<Number>((int64_t)addr.nLastTry));
-        obj->Set(NanNew<String>("ip"), NanNew<String>((std::string)addr.ToStringIP()));
-        obj->Set(NanNew<String>("port"), NanNew<Number>((unsigned short)addr.GetPort())->ToUint32());
-        obj->Set(NanNew<String>("address"), NanNew<String>((std::string)addr.ToStringIPPort()));
-        obj->Set(NanNew<String>("reachable"), NanNew<Boolean>((bool)fReachable));
-
-        array->Set(i, obj);
-        i++;
-      }
-
-      o->Set(NanNew<String>("addresses"), array);
-    } else if (strCommand == "inv") {
-      vector<CInv> vInv;
-      vRecv >> vInv;
-
-      // Bad size
-      if (vInv.size() > MAX_INV_SZ) {
-        NanReturnValue(Undefined());
-      }
-
-      LOCK(cs_main);
-
-      Local<Array> array = NanNew<Array>();
-      int i = 0;
-
-      for (unsigned int nInv = 0; nInv < vInv.size(); nInv++) {
-        const CInv &inv = vInv[nInv];
-
-        boost::this_thread::interruption_point();
-
-        //bool fAlreadyHave = AlreadyHave(inv);
-
-        // Bad size
-        if (pfrom->nSendSize > (SendBufferSize() * 2)) {
-          NanReturnValue(Undefined());
-        }
-
-        Local<Object> item = NanNew<Object>();
-        //item->Set(NanNew<String>("have"), NanNew<Boolean>(fAlreadyHave));
-        item->Set(NanNew<String>("hash"), NanNew<String>(inv.hash.GetHex().c_str()));
-        item->Set(NanNew<String>("type"), NanNew<String>(
-          inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK
-          ? "block" : "tx"));
-        if (inv.type == MSG_FILTERED_BLOCK) {
-          item->Set(NanNew<String>("filtered"), NanNew<Boolean>(true));
-        } else if (inv.type == MSG_BLOCK) {
-          item->Set(NanNew<String>("filtered"), NanNew<Boolean>(false));
-        }
-
-        array->Set(i, item);
-        i++;
-      }
-
-      o->Set(NanNew<String>("items"), array);
-    } else if (strCommand == "getdata") {
-      vector<CInv> vInv;
-      vRecv >> vInv;
-
-      // Bad size
-      if (vInv.size() > MAX_INV_SZ) {
-        NanReturnValue(Undefined());
-      }
-
-      o->Set(NanNew<String>("size"), NanNew<Number>(vInv.size()));
-      if (vInv.size() > 0) {
-        o->Set(NanNew<String>("first"), NanNew<String>(vInv[0].ToString().c_str()));
-      }
-    } else if (strCommand == "getblocks") {
-      CBlockLocator locator;
-      uint256 hashStop;
-      vRecv >> locator >> hashStop;
-
-      LOCK(cs_main);
-
-      // Find the last block the caller has in the main chain
-      CBlockIndex* pindex = FindForkInGlobalIndex(chainActive, locator);
-
-      // Send the rest of the chain
-      if (pindex) {
-        pindex = chainActive.Next(pindex);
-      }
-
-      o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1));
-      o->Set(NanNew<String>("toHash"), NanNew<String>(
-        hashStop == uint256(0) ? "end" : hashStop.GetHex().c_str()));
-      o->Set(NanNew<String>("limit"), NanNew<Number>(500));
-    } else if (strCommand == "getheaders") {
-      CBlockLocator locator;
-      uint256 hashStop;
-      vRecv >> locator >> hashStop;
-
-      LOCK(cs_main);
-
-      CBlockIndex* pindex = NULL;
-      if (locator.IsNull()) {
-        // If locator is null, return the hashStop block
-        BlockMap::iterator mi = mapBlockIndex.find(hashStop);
-        if (mi == mapBlockIndex.end()) {
-          NanReturnValue(obj);
-        }
-        pindex = (*mi).second;
-      } else {
-        // Find the last block the caller has in the main chain
-        pindex = FindForkInGlobalIndex(chainActive, locator);
-        if (pindex) {
-          pindex = chainActive.Next(pindex);
-        }
-      }
-
-      o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1));
-      o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop.GetHex().c_str()));
-    } else if (strCommand == "tx") {
-      // XXX Potentially check for "reject" in original code
-      CTransaction tx;
-      vRecv >> tx;
-      Local<Object> jstx = NanNew<Object>();
-      ctx_to_jstx(tx, 0, jstx);
-      // ctx_to_jstx(tx, 0, o);
-      o->Set(NanNew<String>("tx"), jstx);
-    } else if (strCommand == "block" && !fImporting && !fReindex) {
-      CBlock block;
-      vRecv >> block;
-      Local<Object> jsblock = NanNew<Object>();
-      cblock_to_jsblock(block, NULL, jsblock, true);
-      // cblock_to_jsblock(block, NULL, o, true);
-      o->Set(NanNew<String>("block"), jsblock);
-    } else if (strCommand == "getaddr") {
-      ; // not much other information in getaddr as long as we know we got a getaddr
-    } else if (strCommand == "mempool") {
-      ; // not much other information in getaddr as long as we know we got a getaddr
-    } else if (strCommand == "ping") {
-      if (pfrom->nVersion > BIP0031_VERSION) {
-        uint64_t nonce = 0;
-        vRecv >> nonce;
-        char sNonce[21] = {0};
-        int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)nonce);
-        assert(written == 20);
-        o->Set(NanNew<String>("nonce"), NanNew<String>(sNonce));
-      } else {
-        char sNonce[21] = {0};
-        int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)0);
-        assert(written == 20);
-        o->Set(NanNew<String>("nonce"), NanNew<String>(sNonce));
-      }
-    } else if (strCommand == "pong") {
-      int64_t pingUsecEnd = nTimeReceived;
-      uint64_t nonce = 0;
-      size_t nAvail = vRecv.in_avail();
-      bool bPingFinished = false;
-      std::string sProblem;
-
-      if (nAvail >= sizeof(nonce)) {
-        vRecv >> nonce;
-
-        // Only process pong message if there is an outstanding ping (old ping without nonce should never pong)
-        if (pfrom->nPingNonceSent != 0) {
-          if (nonce == pfrom->nPingNonceSent) {
-            // Matching pong received, this ping is no longer outstanding
-            bPingFinished = true;
-            int64_t pingUsecTime = pingUsecEnd - pfrom->nPingUsecStart;
-            if (pingUsecTime > 0) {
-              // Successful ping time measurement, replace previous
-              ;
-            } else {
-              // This should never happen
-              sProblem = "Timing mishap";
-            }
-          } else {
-            // Nonce mismatches are normal when pings are overlapping
-            sProblem = "Nonce mismatch";
-            if (nonce == 0) {
-              // This is most likely a bug in another implementation somewhere, cancel this ping
-              bPingFinished = true;
-              sProblem = "Nonce zero";
-            }
-          }
-        } else {
-          sProblem = "Unsolicited pong without ping";
-        }
-      } else {
-        // This is most likely a bug in another implementation somewhere, cancel this ping
-        bPingFinished = true;
-        sProblem = "Short payload";
-      }
-
-      char sNonce[21] = {0};
-      int written = snprintf(sNonce, sizeof(sNonce), "%020lu", (uint64_t)nonce);
-      assert(written == 20);
-
-      char sPingNonceSent[21] = {0};
-      written = snprintf(sPingNonceSent, sizeof(sPingNonceSent), "%020lu", (uint64_t)pfrom->nPingNonceSent);
-      assert(written == 20);
-
-      o->Set(NanNew<String>("expected"), NanNew<String>(sPingNonceSent));
-      o->Set(NanNew<String>("received"), NanNew<String>(sNonce));
-      o->Set(NanNew<String>("bytes"), NanNew<Number>((unsigned int)nAvail));
-
-      if (!(sProblem.empty())) {
-        o->Set(NanNew<String>("problem"), NanNew<String>(sProblem));
-      }
-
-      if (bPingFinished) {
-        o->Set(NanNew<String>("finished"), NanNew<Boolean>(true));
-      } else {
-        o->Set(NanNew<String>("finished"), NanNew<Boolean>(false));
-      }
-    } else if (strCommand == "alert") {
-      CAlert alert;
-      vRecv >> alert;
-
-      uint256 alertHash = alert.GetHash();
-
-      o->Set(NanNew<String>("hash"), NanNew<String>(alertHash.GetHex().c_str()));
-
-      if (pfrom->setKnown.count(alertHash) == 0) {
-        if (alert.ProcessAlert()) {
-          std::string vchMsg(alert.vchMsg.begin(), alert.vchMsg.end());
-          std::string vchSig(alert.vchSig.begin(), alert.vchSig.end());
-          o->Set(NanNew<String>("message"), NanNew<String>(vchMsg.c_str()));
-          o->Set(NanNew<String>("signature"), NanNew<String>(vchSig.c_str()));
-          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
-        } else {
-          // Small DoS penalty so peers that send us lots of
-          // duplicate/expired/invalid-signature/whatever alerts
-          // eventually get banned.
-          // This isn't a Misbehaving(100) (immediate ban) because the
-          // peer might be an older or different implementation with
-          // a different signature key, etc.
-          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
-        }
-      }
-    } else if (strCommand == "filterload") {
-      CBloomFilter filter;
-      vRecv >> filter;
-
-      if (!filter.IsWithinSizeConstraints()) {
-        // There is no excuse for sending a too-large filter
-        o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
-      } else {
-        LOCK(pfrom->cs_filter);
-        filter.UpdateEmptyFull();
-
-        //std::string svData(filter.vData.begin(), filter.vData.end());
-        //char *cvData = svData.c_str();
-        //int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
-        //char *vDataHex = (char *)malloc(vDataHexLen);
-        //int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
-        //uint64_t dataHex;
-        //sscanf(cvData, "%x", &dataHex);
-        //// assert(written == vDataHexLen);
-        //vDataHex[written] = '\0';
-
-        //o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
-        //free(vDataHex);
-        //o->Set(NanNew<String>("full"), NanNew<Boolean>(filter.isFull));
-        //o->Set(NanNew<String>("empty"), NanNew<Boolean>(filter.isEmpty));
-        //o->Set(NanNew<String>("hashFuncs"), NanNew<Number>(filter.nHashFuncs));
-        //o->Set(NanNew<String>("tweaks"), NanNew<Number>(filter.nTweak));
-        //o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
-        o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
-      }
-    } else if (strCommand == "filteradd") {
-      vector<unsigned char> vData;
-      vRecv >> vData;
-
-      // Nodes must NEVER send a data item > 520 bytes (the max size for a script data object,
-      // and thus, the maximum size any matched object can have) in a filteradd message
-      if (vData.size() > MAX_SCRIPT_ELEMENT_SIZE) {
-        o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
-      } else {
-        LOCK(pfrom->cs_filter);
-        if (pfrom->pfilter) {
-          //std::string svData(vData.begin(), vData.end());
-          //char *cvData = svData.c_str();
-          //int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
-          //char *vDataHex = (char *)malloc(vDataHexLen);
-          //int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
-          //uint64_t dataHex;
-          //sscanf(cvData, "%x", &dataHex);
-          //// assert(written == vDataHexLen);
-          //vDataHex[written] = '\0';
-
-          //o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
-          //free(vDataHex);
-          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
-        } else {
-          o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
-        }
-      }
-    } else if (strCommand == "filterclear") {
-      ; // nothing much to grab from this packet
-    } else if (strCommand == "reject") {
-      ; // nothing much to grab from this packet
-    } else {
-      o->Set(NanNew<String>("unknown"), NanNew<Boolean>(true));
-    }
-
-    // Update the last seen time for this node's address
-    if (pfrom->fNetworkNode) {
-      if (strCommand == "version"
-          || strCommand == "addr"
-          || strCommand == "inv"
-          || strCommand == "getdata"
-          || strCommand == "ping") {
-        o->Set(NanNew<String>("connected"), NanNew<Boolean>(true));
-      }
-    }
-
-    obj->Set(i, o);
-    i++;
-
-    if (cur == packets_queue_head) {
-      packets_queue_head = NULL;
-    }
-
-    if (cur == packets_queue_tail) {
-      packets_queue_tail = NULL;
-    }
-
-    next = cur->next;
-    // delete cur->pfrom; // cleaned up on disconnect
-    free(cur->strCommand);
-    delete cur->vRecv;
-    free(cur);
-  }
-
-  poll_packets_mutex.unlock();
-
-  NanReturnValue(obj);
-}
-
-static void
-hook_packets(CNodeSignals& nodeSignals) {
-  nodeSignals.ProcessMessages.connect(&process_packets);
-}
-
-static void
-unhook_packets(CNodeSignals& nodeSignals) {
-  nodeSignals.ProcessMessages.disconnect(&process_packets);
-}
-
-static bool
-process_packets(CNode* pfrom) {
-  bool fOk = true;
-
-  // if (!pfrom->vRecvGetData.empty()) {
-  //   return process_getdata(pfrom);
-  // }
-
-  std::deque<CNetMessage>::iterator it = pfrom->vRecvMsg.begin();
-  while (!pfrom->fDisconnect && it != pfrom->vRecvMsg.end()) {
-    // Don't bother if send buffer is too full to respond anyway
-    if (pfrom->nSendSize >= SendBufferSize()) {
-      break;
-    }
-
-    // get next message
-    CNetMessage& msg = *it;
-
-    // end, if an incomplete message is found
-    if (!msg.complete()) {
-      break;
-    }
-
-    // at this point, any failure means we can delete the current message
-    it++;
-
-    // Scan for message start
-    if (memcmp(msg.hdr.pchMessageStart,
-        Params().MessageStart(), MESSAGE_START_SIZE) != 0) {
-      LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n",
-        msg.hdr.GetCommand(), pfrom->id);
-      fOk = false;
-      break;
-    }
-
-    // Read header
-    CMessageHeader& hdr = msg.hdr;
-    if (!hdr.IsValid()) {
-      LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n",
-        hdr.GetCommand(), pfrom->id);
-      continue;
-    }
-    string strCommand = hdr.GetCommand();
-
-    // Message size
-    unsigned int nMessageSize = hdr.nMessageSize;
-
-    // Checksum
-    CDataStream& vRecv = msg.vRecv;
-    uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
-    unsigned int nChecksum = 0;
-    memcpy(&nChecksum, &hash, sizeof(nChecksum));
-    if (nChecksum != hdr.nChecksum) {
-      LogPrintf(
-        "ProcessMessages(%s, %u bytes) :"
-        " CHECKSUM ERROR nChecksum=%08x hdr.nChecksum=%08x\n",
-       strCommand, nMessageSize, nChecksum, hdr.nChecksum);
-      continue;
-    }
-
-    // Process message
-    bool fRet = false;
-    fRet = process_packet(pfrom, strCommand, vRecv, msg.nTime);
-    boost::this_thread::interruption_point();
-
-    if (!fRet) {
-      LogPrintf("ProcessMessage(%s, %u bytes) FAILED peer=%d\n",
-        strCommand, nMessageSize, pfrom->id);
-    }
-
-    break;
-  }
-
-  return fOk;
-}
-
-static bool
-process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTimeReceived) {
-  poll_packets_mutex.lock();
-
-  poll_packets_list *cur = (poll_packets_list *)malloc(sizeof(poll_packets_list));
-  if (!packets_queue_head) {
-    packets_queue_head = cur;
-    packets_queue_tail = cur;
-  } else {
-    packets_queue_tail->next = cur;
-    packets_queue_tail = cur;
-  }
-
-  cur->pfrom = pfrom;
-  // NOTE: Copy the data stream.
-  CDataStream *vRecv_ = new CDataStream(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
-  cur->vRecv = vRecv_;
-  cur->nTimeReceived = nTimeReceived;
-  cur->strCommand = strdup(strCommand.c_str());
-  cur->next = NULL;
-
-  poll_packets_mutex.unlock();
-
-  return true;
-}
-
-/**
  * Init()
  * Initialize the singleton object known as bitcoindjs.
  */
@@ -3708,6 +3708,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
   NODE_SET_METHOD(target, "txFromHex", TxFromHex);
+  NODE_SET_METHOD(target, "hookPackets", HookPackets);
 
   NODE_SET_METHOD(target, "walletNewAddress", WalletNewAddress);
   NODE_SET_METHOD(target, "walletGetAccountAddress", WalletGetAccountAddress);
@@ -3730,8 +3731,6 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletEncrypt", WalletEncrypt);
   NODE_SET_METHOD(target, "walletSetTxFee", WalletSetTxFee);
   NODE_SET_METHOD(target, "walletImportKey", WalletImportKey);
-
-  NODE_SET_METHOD(target, "hookPackets", HookPackets);
 }
 
 NODE_MODULE(bitcoindjs, init)
