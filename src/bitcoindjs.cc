@@ -2008,10 +2008,6 @@ static bool
 process_packets(CNode* pfrom) {
   bool fOk = true;
 
-  // if (!pfrom->vRecvGetData.empty()) {
-  //   return process_getdata(pfrom);
-  // }
-
   std::deque<CNetMessage>::iterator it = pfrom->vRecvMsg.begin();
   while (!pfrom->fDisconnect && it != pfrom->vRecvMsg.end()) {
     // Don't bother if send buffer is too full to respond anyway
@@ -2033,8 +2029,6 @@ process_packets(CNode* pfrom) {
     // Scan for message start
     if (memcmp(msg.hdr.pchMessageStart,
         Params().MessageStart(), MESSAGE_START_SIZE) != 0) {
-      LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n",
-        msg.hdr.GetCommand(), pfrom->id);
       fOk = false;
       break;
     }
@@ -2042,8 +2036,6 @@ process_packets(CNode* pfrom) {
     // Read header
     CMessageHeader& hdr = msg.hdr;
     if (!hdr.IsValid()) {
-      LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n",
-        hdr.GetCommand(), pfrom->id);
       continue;
     }
     string strCommand = hdr.GetCommand();
@@ -2057,22 +2049,12 @@ process_packets(CNode* pfrom) {
     unsigned int nChecksum = 0;
     memcpy(&nChecksum, &hash, sizeof(nChecksum));
     if (nChecksum != hdr.nChecksum) {
-      LogPrintf(
-        "ProcessMessages(%s, %u bytes) :"
-        " CHECKSUM ERROR nChecksum=%08x hdr.nChecksum=%08x\n",
-       strCommand, nMessageSize, nChecksum, hdr.nChecksum);
       continue;
     }
 
     // Process message
-    bool fRet = false;
-    fRet = process_packet(pfrom, strCommand, vRecv, msg.nTime);
+    process_packet(pfrom, strCommand, vRecv, msg.nTime);
     boost::this_thread::interruption_point();
-
-    if (!fRet) {
-      LogPrintf("ProcessMessage(%s, %u bytes) FAILED peer=%d\n",
-        strCommand, nMessageSize, pfrom->id);
-    }
 
     break;
   }
