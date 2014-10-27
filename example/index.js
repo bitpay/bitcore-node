@@ -205,9 +205,9 @@ bitcoind.on('open', function(status) {
     return;
   }
 
-  // Test all parsed packets:
+  // Test all digest packets:
   if (argv['packets']) {
-    bitcoind.on('parsed', function(packet) {
+    bitcoind.on('digest', function(packet) {
       return bitcoind.log(packet);
     });
     return;
