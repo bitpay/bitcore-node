@@ -296,6 +296,21 @@ process_packets(CNode* pfrom);
 static bool
 process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTimeReceived);
 
+static void
+AcentryToJSON_V8(const CAccountingEntry& acentry,
+                const string& strAccount, Local<Array>& ret, int a_count);
+
+static void
+WalletTxToJSON_V8(const CWalletTx& wtx, Local<Object>& entry);
+
+static void
+MaybePushAddress_V8(Local<Object>& entry, const CTxDestination &dest);
+
+static void
+ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
+                  int nMinDepth, bool fLong, Local<Array> ret,
+                  const isminefilter& filter);
+
 extern "C" void
 init(Handle<Object>);
 
@@ -3124,9 +3139,214 @@ NAN_METHOD(WalletListTransactions) {
       "Usage: bitcoindjs.walletListTransactions(options)");
   }
 
-  // Local<Object> options = Local<Object>::Cast(args[0]);
+  Local<Object> options = Local<Object>::Cast(args[0]);
 
-  NanReturnValue(Undefined());
+  std::string strAccount = "*";
+  if (options->Get(NanNew<String>("account"))->IsString()) {
+    String::Utf8Value acc_(options->Get(NanNew<String>("account"))->ToString());
+    strAccount = std::string(*acc_);
+  }
+
+  int nCount = 10;
+  if (options->Get(NanNew<String>("count"))->IsNumber()) {
+    nCount = options->Get(NanNew<String>("count"))->ToInt32();
+  }
+
+  int nFrom = 0;
+  if (options->Get(NanNew<String>("from"))->IsNumber()) {
+    nFrom = options->Get(NanNew<String>("from"))->ToInt32();
+  }
+
+  isminefilter filter = ISMINE_SPENDABLE;
+  if (options->Get(NanNew<String>("spendable"))->IsBoolean()) {
+    if (options->Get(NanNew<String>("spendable"))->ToBoolean->IsTrue()) {
+      filter = filter | ISMINE_WATCH_ONLY;
+    }
+  }
+
+  if (nCount < 0) {
+    return NanThrowError("Negative count");
+  }
+
+  if (nFrom < 0) {
+    return NanThrowError("Negative from");
+  }
+
+  Local<Array> ret = NanNew<Array>();
+
+  std::list<CAccountingEntry> acentries;
+  CWallet::TxItems txOrdered = pwalletMain->OrderedTxItems(acentries, strAccount);
+
+  // iterate backwards until we have nCount items to return:
+  int a_count = 0;
+  for (CWallet::TxItems::reverse_iterator it = txOrdered.rbegin();
+      it != txOrdered.rend();
+      ++it) {
+    CWalletTx *const pwtx = (*it).second.first;
+    if (pwtx != 0) {
+      ListTransactions_V8(*pwtx, strAccount, 0, true, ret, filter);
+    }
+    CAccountingEntry *const pacentry = (*it).second.second;
+    if (pacentry != 0) {
+      AcentryToJSON_V8(*pacentry, strAccount, ret, a_count);
+      a_count++;
+    }
+    if ((int)ret->Length() >= (nCount+nFrom)) {
+      break;
+    }
+  }
+  // ret is newest to oldest
+
+  if (nFrom > (int)ret->Length()) {
+    nFrom = ret->Length();
+  }
+  if ((nFrom + nCount) > (int)ret->Length()) {
+    nCount = ret->Length() - nFrom;
+  }
+
+  // Array::iterator first = ret.begin();
+  // std::advance(first, nFrom);
+  // Array::iterator last = ret.begin();
+  // std::advance(last, nFrom+nCount);
+  //
+  // if (last != ret.end()) {
+  //   ret.erase(last, ret.end());
+  // }
+  // if (first != ret.begin()) {
+  //   ret.erase(ret.begin(), first);
+  // }
+  //
+  // std::reverse(ret.begin(), ret.end()); // Return oldest to newest
+
+  NanReturnValue(ret);
+}
+
+static void
+AcentryToJSON_V8(const CAccountingEntry& acentry,
+                const string& strAccount, Local<Array>& ret, int a_count) {
+  bool fAllAccounts = (strAccount == string("*"));
+
+  if (fAllAccounts || acentry.strAccount == strAccount) {
+    Local<Object> entry = NanNew<Object>();
+    entry->Set(NanNew<String>("account"), NanNew<String>(acentry.strAccount));
+    entry->Set(NanNew<String>("category"), NanNew<String>("move"));
+    entry->Set(NanNew<String>("time"), NanNew<Number>(acentry.nTime));
+    entry->Set(NanNew<String>("amount"), NanNew<Number>(acentry.nCreditDebit));
+    entry->Set(NanNew<String>("otheraccount"), NanNew<String>(acentry.strOtherAccount));
+    entry->Set(NanNew<String>("comment"), NanNew<String>(acentry.strComment));
+    ret->Set(a_count, entry);
+  }
+}
+
+static void
+WalletTxToJSON_V8(const CWalletTx& wtx, Local<Object>& entry) {
+  int confirms = wtx.GetDepthInMainChain();
+  entry->Set(NanNew<String>("confirmations"), NanNew<Number>(confirms));
+  if (wtx.IsCoinBase()) {
+    entry->Set(NanNew<String>("generated"), NanNew<Boolean>(true));
+  }
+  if (confirms > 0) {
+    entry->Set(NanNew<String>("blockhash"), NanNew<String>(wtx.hashBlock.GetHex()));
+    entry->Set(NanNew<String>("blockindex"), NanNew<Number>(wtx.nIndex));
+    entry->Set(NanNew<String>("blocktime"), NanNew<Number>(mapBlockIndex[wtx.hashBlock]->GetBlockTime()));
+  }
+  uint256 hash = wtx.GetHash();
+  entry->Set(NanNew<String>("txid"), NanNew<String>(hash.GetHex()));
+  Local<Array> conflicts = NanNew<Array>();
+  int i = 0;
+  BOOST_FOREACH(const uint256& conflict, wtx.GetConflicts()) {
+    conflicts->Set(i, NanNew<String>(conflict.GetHex()));
+    i++;
+  }
+  entry->Set(NanNew<String>("walletconflicts"), conflicts);
+  entry->Set(NanNew<String>("time"), NanNew<Number>(wtx.GetTxTime()));
+  entry->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)wtx.nTimeReceived));
+  BOOST_FOREACH(const PAIRTYPE(string,string)& item, wtx.mapValue) {
+    entry->Set(NanNew<String>(item.first), NanNew<String>(item.second));
+  }
+}
+
+static void
+MaybePushAddress_V8(Local<Object>& entry, const CTxDestination &dest) {
+  CBitcoinAddress addr;
+  if (addr.Set(dest)) {
+    entry->Set(NanNew<String>("address"), addr.ToString());
+  }
+}
+
+static void
+ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
+                  int nMinDepth, bool fLong, Local<Array> ret,
+                  const isminefilter& filter) {
+  CAmount nFee;
+  string strSentAccount;
+  list<COutputEntry> listReceived;
+  list<COutputEntry> listSent;
+
+  wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
+
+  bool fAllAccounts = (strAccount == string("*"));
+  bool involvesWatchonly = wtx.IsFromMe(ISMINE_WATCH_ONLY);
+
+  int i = 0;
+  // Sent
+  if ((!listSent.empty() || nFee != 0) && (fAllAccounts || strAccount == strSentAccount)) {
+    BOOST_FOREACH(const COutputEntry& s, listSent) {
+      Local<Object> entry = NanNew<Object>();
+      if (involvesWatchonly || (::IsMine(*pwalletMain, s.destination) & ISMINE_WATCH_ONLY)) {
+        entry->Set(NanNew<String>("involvesWatchonly", NanNew<Boolean>(true)));
+      }
+      entry->Set(NanNew<String>("account", NanNew<String>(strSentAccount)));
+      MaybePushAddress_V8(entry, s.destination);
+      entry->Set(NanNew<String>("category", NanNew<String>("send")));
+      entry->Set(NanNew<String>("amount", NanNew<Number>(-s.amount)));
+      entry->Set(NanNew<String>("vout", NanNew<Number>(s.vout)));
+      entry->Set(NanNew<String>("fee", NanNew<Number>(-nFee)));
+      if (fLong) {
+        WalletTxToJSON_V8(wtx, entry);
+      }
+      ret->Set(i, entry);
+      i++;
+    }
+  }
+
+  i = 0;
+  // Received
+  if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= nMinDepth) {
+    BOOST_FOREACH(const COutputEntry& r, listReceived) {
+      string account;
+      if (pwalletMain->mapAddressBook.count(r.destination)) {
+        account = pwalletMain->mapAddressBook[r.destination].name;
+      }
+      if (fAllAccounts || (account == strAccount)) {
+        Local<Object> entry = NanNew<Object>();
+        if(involvesWatchonly || (::IsMine(*pwalletMain, r.destination) & ISMINE_WATCH_ONLY)) {
+          entry->Set(NanNew<String>("involvesWatchonly"), NanNew<Boolean>(true));
+        }
+        entry->Set(NanNew<String>("account"), NanNew<String>(account));
+        MaybePushAddress_V8(entry, r.destination);
+        if (wtx.IsCoinBase()) {
+          if (wtx.GetDepthInMainChain() < 1) {
+            entry->Set(NanNew<String>("category"), NanNew<String>("orphan"));
+          } else if (wtx.GetBlocksToMaturity() > 0) {
+            entry->Set(NanNew<String>("category"), NanNew<String>("immature"));
+          } else {
+            entry->Set(NanNew<String>("category"), NanNew<String>("generate"));
+          }
+        } else {
+          entry->Set(NanNew<String>("category"), NanNew<String>("receive"));
+        }
+        entry->Set(NanNew<String>("amount"), NanNew<Number>(r.amount));
+        // XXX What is COutputEntry::vout?
+        // entry->Set(NanNew<String>("vout"), NanNew<Number>(r.vout));
+        if (fLong) {
+          WalletTxToJSON_V8(wtx, entry);
+        }
+        ret->Set(i, entry);
+        i++;
+      }
+    }
+  }
 }
 
 /**
