@@ -190,6 +190,7 @@ NAN_METHOD(WalletCreateMultiSigAddress);
 NAN_METHOD(WalletGetUnconfirmedBalance);
 NAN_METHOD(WalletSendFrom);
 NAN_METHOD(WalletListTransactions);
+NAN_METHOD(WalletReceivedByAddress);
 NAN_METHOD(WalletListAccounts);
 NAN_METHOD(WalletGetTransaction);
 NAN_METHOD(WalletBackup);
@@ -3129,6 +3130,63 @@ NAN_METHOD(WalletListTransactions) {
 }
 
 /**
+ * WalletReceivedByAddress()
+ * bitcoindjs.walletReceivedByAddress(options)
+ * List all transactions pertaining to any owned addreses. NOT YET IMPLEMENTED>
+ */
+
+NAN_METHOD(WalletReceivedByAddress) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletReceivedByAddress(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+  std::string addr = std::string(*addr_);
+
+  // Bitcoin address
+  CBitcoinAddress address = CBitcoinAddress(addr);
+  if (!address.IsValid()) {
+    return NanThrowError("Invalid Bitcoin address");
+  }
+  CScript scriptPubKey = GetScriptForDestination(address.Get());
+
+  if (!IsMine(*pwalletMain, scriptPubKey)) {
+    NanReturnValue(NanNew<Number>((double)0.0));
+  }
+
+  // Minimum confirmations
+  int nMinDepth = 1;
+  if (options->Get(NanNew<String>("confirmations"))->IsString()) {
+    nMinDepth = options->Get(NanNew<String>("confirmations"))->ToInt32();
+  }
+
+  // Tally
+  CAmount nAmount = 0;
+  for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
+      it != pwalletMain->mapWallet.end();
+      ++it) {
+    const CWalletTx& wtx = (*it).second;
+    if (wtx.IsCoinBase() || !IsFinalTx(wtx)) {
+      continue;
+    }
+    BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+      if (txout.scriptPubKey == scriptPubKey) {
+        if (wtx.GetDepthInMainChain() >= nMinDepth) {
+          nAmount += txout.nValue;
+        }
+      }
+    }
+  }
+
+  NanReturnValue(NanNew<Number>(nAmount));
+}
+
+/**
  * WalletListAccounts()
  * bitcoindjs.walletListAccounts(options)
  * This will list all accounts, addresses, balanced, private keys, public keys,
@@ -4533,6 +4591,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletGetUnconfirmedBalance", WalletGetUnconfirmedBalance);
   NODE_SET_METHOD(target, "walletSendFrom", WalletSendFrom);
   NODE_SET_METHOD(target, "walletListTransactions", WalletListTransactions);
+  NODE_SET_METHOD(target, "walletReceivedByAddress", WalletReceivedByAddress);
   NODE_SET_METHOD(target, "walletListAccounts", WalletListAccounts);
   NODE_SET_METHOD(target, "walletGetTransaction", WalletGetTransaction);
   NODE_SET_METHOD(target, "walletBackup", WalletBackup);
