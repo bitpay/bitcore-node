@@ -192,6 +192,7 @@ NAN_METHOD(WalletPassphrase);
 NAN_METHOD(WalletPassphraseChange);
 NAN_METHOD(WalletLock);
 NAN_METHOD(WalletEncrypt);
+NAN_METHOD(WalletEncrypted);
 NAN_METHOD(WalletSetTxFee);
 NAN_METHOD(WalletImportKey);
 
@@ -3169,6 +3170,25 @@ NAN_METHOD(WalletEncrypt) {
 }
 
 /**
+ * WalletEncrypted()
+ * bitcoindjs.walletEncrypted()
+ * Check whether the wallet is encrypted.
+ */
+
+NAN_METHOD(WalletEncrypted) {
+  NanScope();
+
+  if (args.Length() > 0) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletEncrypted()");
+  }
+
+  bool isEncrypted = pwalletMain->IsCrypted();
+
+  NanReturnValue(NanNew<Boolean>(isEncrypted));
+}
+
+/**
  * WalletSetTxFee()
  * bitcoindjs.walletSetTxFee(options)
  * Set default global wallet transaction fee internally.
@@ -3712,6 +3732,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletPassphraseChange", WalletPassphraseChange);
   NODE_SET_METHOD(target, "walletLock", WalletLock);
   NODE_SET_METHOD(target, "walletEncrypt", WalletEncrypt);
+  NODE_SET_METHOD(target, "walletEncrypted", WalletEncrypted);
   NODE_SET_METHOD(target, "walletSetTxFee", WalletSetTxFee);
   NODE_SET_METHOD(target, "walletImportKey", WalletImportKey);
 }
