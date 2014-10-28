@@ -204,6 +204,8 @@ NAN_METHOD(WalletSetTxFee);
 NAN_METHOD(WalletImportKey);
 NAN_METHOD(WalletDumpWallet);
 NAN_METHOD(WalletImportWallet);
+NAN_METHOD(WalletChangeLabel);
+NAN_METHOD(WalletDeleteAccount);
 
 /**
  * Node.js Internal Function Templates
@@ -4037,6 +4039,126 @@ async_import_wallet_after(uv_work_t *req) {
 }
 
 /**
+ * WalletChangeLabel()
+ * bitcoindjs.walletChangeLabel(options)
+ * Change account label
+ */
+
+NAN_METHOD(WalletChangeLabel) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletChangeLabel(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  std::string accountName = std::string("");
+  if (options->Get(NanNew<String>("account"))->IsString()) {
+    String::Utf8Value accountName_(options->Get(NanNew<String>("account"))->ToString());
+    accountName = std::string(*accountName_);
+  }
+
+  std::string addr = std::string("");
+  if (options->Get(NanNew<String>("address"))->IsString()) {
+    String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+    addr = std::string(*addr_);
+  }
+
+  String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
+  std::string label = std::string(*label_);
+
+  // LOCK2(cs_main, pwalletMain->cs_wallet);
+
+  CWalletDB walletdb(pwalletMain->strWalletFile);
+
+  CAccount account;
+  walletdb.ReadAccount(accountName, account);
+
+  if (accountName.empty()) {
+    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
+      const CBitcoinAddress& address = item.first;
+      const string& strName = item.second.name;
+      if (address.ToString() == addr) {
+        accountName = strName;
+        break;
+      }
+    }
+  }
+
+  // Find all addresses that have the given account
+  BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
+    const CBitcoinAddress& address = item.first;
+    const string& strName = item.second.name;
+    if (strName == accountName) {
+      walletdb.WriteName(address.ToString(), label);
+      walletdb.WritePurpose(address.ToString(), std::string("receive"));
+      // pwalletMain->SetAddressBook(address, accountName, std::string("receive"));
+    }
+  }
+
+  NanReturnValue(True());
+}
+
+/**
+ * WalletDeleteAccount()
+ * bitcoindjs.walletDeleteAccount(options)
+ * Delete account and all associated addresses
+ */
+
+NAN_METHOD(WalletDeleteAccount) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletDeleteAccount(options)");
+  }
+
+  std::string accountName = std::string("");
+  if (options->Get(NanNew<String>("account"))->IsString()) {
+    String::Utf8Value accountName_(options->Get(NanNew<String>("account"))->ToString());
+    accountName = std::string(*accountName_);
+  }
+
+  std::string addr = std::string("");
+  if (options->Get(NanNew<String>("address"))->IsString()) {
+    String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+    addr = std::string(*addr_);
+  }
+
+  // LOCK2(cs_main, pwalletMain->cs_wallet);
+
+  CWalletDB walletdb(pwalletMain->strWalletFile);
+
+  CAccount account;
+  walletdb.ReadAccount(accountName, account);
+
+  if (accountName.empty()) {
+    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
+      const CBitcoinAddress& address = item.first;
+      const string& strName = item.second.name;
+      if (address.ToString() == addr) {
+        accountName = strName;
+        break;
+      }
+    }
+  }
+
+  // Find all addresses that have the given account
+  BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
+    const CBitcoinAddress& address = item.first;
+    const string& strName = item.second.name;
+    if (strName == accountName) {
+      walletdb.EraseName(address.ToString());
+      walletdb.ErasePurpose(address.ToString());
+    }
+  }
+
+  NanReturnValue(True());
+}
+
+/**
  * Conversions
  *   cblock_to_jsblock(cblock, cblock_index, jsblock, is_new)
  *   ctx_to_jstx(ctx, block_hash, jstx)
@@ -4425,6 +4547,8 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletImportKey", WalletImportKey);
   NODE_SET_METHOD(target, "walletDumpWallet", WalletDumpWallet);
   NODE_SET_METHOD(target, "walletImportWallet", WalletImportWallet);
+  NODE_SET_METHOD(target, "walletChangeLabel", WalletChangeLabel);
+  NODE_SET_METHOD(target, "walletDeleteAccount", WalletDeleteAccount);
 }
 
 NODE_MODULE(bitcoindjs, init)
