@@ -168,6 +168,9 @@ NAN_METHOD(GetInfo);
 NAN_METHOD(GetPeerInfo);
 NAN_METHOD(GetAddresses);
 NAN_METHOD(GetProgress);
+NAN_METHOD(SetGenerate);
+NAN_METHOD(GetGenerate);
+
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
 NAN_METHOD(BlockFromHex);
@@ -1560,6 +1563,84 @@ async_get_progress_after(uv_work_t *req) {
 
   delete data;
   delete req;
+}
+
+/**
+ * SetGenerate()
+ * bitcoindjs.setGenerate(options)
+ * Set coin generation / mining
+ */
+
+NAN_METHOD(SetGenerate) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.setGenerate(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  if (pwalletMain == NULL) {
+    return NanThrowError("Method not found (disabled)");
+  }
+
+  bool fGenerate = true;
+  if (options->Get(NanNew<String>("generate"))->IsBoolean()) {
+    fGenerate = options->Get(NanNew<String>("generate"))->ToBoolean()->IsTrue();
+  }
+
+  int nGenProcLimit = -1;
+  if (options->Get(NanNew<String>("limit"))->IsNumber()) {
+    nGenProcLimit = options->Get(NanNew<String>("limit"))->ToInt32();
+    if (nGenProcLimit == 0) {
+      fGenerate = false;
+    }
+  }
+
+  // -regtest mode: don't return until nGenProcLimit blocks are generated
+  if (fGenerate && Params().MineBlocksOnDemand()) {
+    int nHeightStart = 0;
+    int nHeightEnd = 0;
+    int nHeight = 0;
+    int nGenerate = (nGenProcLimit > 0 ? nGenProcLimit : 1);
+    { // Don't keep cs_main locked
+      LOCK(cs_main);
+      nHeightStart = chainActive.Height();
+      nHeight = nHeightStart;
+      nHeightEnd = nHeightStart+nGenerate;
+    }
+    int nHeightLast = -1;
+    while (nHeight < nHeightEnd) {
+      if (nHeightLast != nHeight) {
+        nHeightLast = nHeight;
+        GenerateBitcoins(fGenerate, pwalletMain, 1);
+      }
+      MilliSleep(1);
+      {   // Don't keep cs_main locked
+        LOCK(cs_main);
+        nHeight = chainActive.Height();
+      }
+    }
+  } else { // Not -regtest: start generate thread, return immediately
+    mapArgs["-gen"] = (fGenerate ? "1" : "0");
+    mapArgs ["-genproclimit"] = itostr(nGenProcLimit);
+    GenerateBitcoins(fGenerate, pwalletMain, nGenProcLimit);
+  }
+
+  NanReturnValue(True());
+}
+
+/**
+ * GetGenerate()
+ * bitcoindjs.GetGenerate()
+ * Get coin generation / mining
+ */
+
+NAN_METHOD(GetGenerate) {
+  NanScope();
+  bool generate = GetBoolArg("-gen", false);
+  NanReturnValue(NanNew<Boolean>(generate));
 }
 
 /**
@@ -4279,6 +4360,8 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getPeerInfo", GetPeerInfo);
   NODE_SET_METHOD(target, "getAddresses", GetAddresses);
   NODE_SET_METHOD(target, "getProgress", GetProgress);
+  NODE_SET_METHOD(target, "setGenerate", SetGenerate);
+  NODE_SET_METHOD(target, "getGenerate", GetGenerate);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
