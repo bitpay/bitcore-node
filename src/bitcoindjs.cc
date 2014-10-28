@@ -3191,6 +3191,7 @@ NAN_METHOD(WalletEncrypted) {
       "Usage: bitcoindjs.walletEncrypted()");
   }
 
+  // bool isLocked = pwalletMain->IsLocked();
   bool isEncrypted = pwalletMain->IsCrypted();
 
   NanReturnValue(NanNew<Boolean>(isEncrypted));
