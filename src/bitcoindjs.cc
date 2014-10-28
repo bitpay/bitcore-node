@@ -199,9 +199,9 @@ NAN_METHOD(WalletPassphraseChange);
 NAN_METHOD(WalletLock);
 NAN_METHOD(WalletEncrypt);
 NAN_METHOD(WalletEncrypted);
-NAN_METHOD(WalletDumpPrivKey);
 NAN_METHOD(WalletKeyPoolRefill);
 NAN_METHOD(WalletSetTxFee);
+NAN_METHOD(WalletDumpKey);
 NAN_METHOD(WalletImportKey);
 NAN_METHOD(WalletDumpWallet);
 NAN_METHOD(WalletImportWallet);
@@ -3755,52 +3755,6 @@ NAN_METHOD(WalletEncrypted) {
 }
 
 /**
- * WalletDumpPrivKey()
- * bitcoindjs.walletDumpPrivKey(options)
- * Dump private key
- */
-
-NAN_METHOD(WalletDumpPrivKey) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.walletDumpPrivKey(options)");
-  }
-
-  Local<Object> options = Local<Object>::Cast(args[0]);
-  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
-  std::string addr = std::string(*addr_);
-
-  CBitcoinAddress address(addr);
-
-  Local<Object> obj = NanNew<Object>();
-  obj->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
-
-  CKeyID keyID;
-  if (!address.GetKeyID(keyID)) {
-    return NanThrowError("Address does not refer to a key");
-  }
-  CKey vchSecret;
-  if (!pwalletMain->GetKey(keyID, vchSecret)) {
-    return NanThrowError("Private key for address is not known");
-  }
-
-  if (!pwalletMain->IsCrypted()) {
-    std::string priv = CBitcoinSecret(vchSecret).ToString();
-    obj->Set(NanNew<String>("privkeycompressed"), NanNew<Boolean>(vchSecret.IsCompressed()));
-    obj->Set(NanNew<String>("privkey"), NanNew<String>(priv));
-  }
-
-  CPubKey vchPubKey;
-  pwalletMain->GetPubKey(keyID, vchPubKey);
-  obj->Set(NanNew<String>("pubkeycompressed"), NanNew<Boolean>(vchPubKey.IsCompressed()));
-  obj->Set(NanNew<String>("pubkey"), NanNew<String>(HexStr(vchPubKey)));
-
-  NanReturnValue(obj);
-}
-
-/**
  * WalletKeyPoolRefill()
  * bitcoindjs.walletKeyPoolRefill(options)
  * Refill key pool
@@ -3863,6 +3817,52 @@ NAN_METHOD(WalletSetTxFee) {
   payTxFee = CFeeRate(nAmount, 1000);
 
   NanReturnValue(True());
+}
+
+/**
+ * WalletDumpKey()
+ * bitcoindjs.walletDumpKey(options)
+ * Dump private key
+ */
+
+NAN_METHOD(WalletDumpKey) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletDumpKey(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+  std::string addr = std::string(*addr_);
+
+  CBitcoinAddress address(addr);
+
+  Local<Object> obj = NanNew<Object>();
+  obj->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
+
+  CKeyID keyID;
+  if (!address.GetKeyID(keyID)) {
+    return NanThrowError("Address does not refer to a key");
+  }
+  CKey vchSecret;
+  if (!pwalletMain->GetKey(keyID, vchSecret)) {
+    return NanThrowError("Private key for address is not known");
+  }
+
+  if (!pwalletMain->IsCrypted()) {
+    std::string priv = CBitcoinSecret(vchSecret).ToString();
+    obj->Set(NanNew<String>("privkeycompressed"), NanNew<Boolean>(vchSecret.IsCompressed()));
+    obj->Set(NanNew<String>("privkey"), NanNew<String>(priv));
+  }
+
+  CPubKey vchPubKey;
+  pwalletMain->GetPubKey(keyID, vchPubKey);
+  obj->Set(NanNew<String>("pubkeycompressed"), NanNew<Boolean>(vchPubKey.IsCompressed()));
+  obj->Set(NanNew<String>("pubkey"), NanNew<String>(HexStr(vchPubKey)));
+
+  NanReturnValue(obj);
 }
 
 /**
@@ -4820,7 +4820,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletLock", WalletLock);
   NODE_SET_METHOD(target, "walletEncrypt", WalletEncrypt);
   NODE_SET_METHOD(target, "walletEncrypted", WalletEncrypted);
-  NODE_SET_METHOD(target, "walletDumpPrivKey", WalletDumpPrivKey);
+  NODE_SET_METHOD(target, "walletDumpKey", WalletDumpKey);
   NODE_SET_METHOD(target, "walletKeyPoolRefill", WalletKeyPoolRefill);
   NODE_SET_METHOD(target, "walletSetTxFee", WalletSetTxFee);
   NODE_SET_METHOD(target, "walletImportKey", WalletImportKey);
