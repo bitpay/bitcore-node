@@ -170,6 +170,7 @@ NAN_METHOD(GetAddresses);
 NAN_METHOD(GetProgress);
 NAN_METHOD(SetGenerate);
 NAN_METHOD(GetGenerate);
+NAN_METHOD(GetMiningInfo);
 
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
@@ -1641,6 +1642,35 @@ NAN_METHOD(GetGenerate) {
   NanScope();
   bool generate = GetBoolArg("-gen", false);
   NanReturnValue(NanNew<Boolean>(generate));
+}
+
+/**
+ * GetMiningInfo()
+ * bitcoindjs.getMiningInfo()
+ * Get coin generation / mining information
+ */
+
+NAN_METHOD(GetMiningInfo) {
+  NanScope();
+
+  Local<Object> obj = NanNew<Object>();
+
+  obj->Set(NanNew<String>("blocks"), (int)chainActive.Height()));
+  obj->Set(NanNew<String>("currentblocksize"), (uint64_t)nLastBlockSize));
+  obj->Set(NanNew<String>("currentblocktx"), (uint64_t)nLastBlockTx));
+  obj->Set(NanNew<String>("difficulty"), (double)GetDifficulty()));
+  obj->Set(NanNew<String>("errors"), GetWarnings("statusbar")));
+  obj->Set(NanNew<String>("genproclimit"), (int)GetArg("-genproclimit", -1)));
+  obj->Set(NanNew<String>("networkhashps"), getnetworkhashps(params, false)));
+  obj->Set(NanNew<String>("pooledtx"), (uint64_t)mempool.size()));
+  obj->Set(NanNew<String>("testnet"), Params().NetworkID() == CBaseChainParams::TESTNET));
+  obj->Set(NanNew<String>("chain"), Params().NetworkIDString()));
+#ifdef ENABLE_WALLET
+  obj->Set(NanNew<String>("generate"), getgenerate(params, false)));
+  obj->Set(NanNew<String>("hashespersec"), gethashespersec(params, false)));
+#endif
+
+  NanReturnValue(obj);
 }
 
 /**
@@ -4362,6 +4392,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getProgress", GetProgress);
   NODE_SET_METHOD(target, "setGenerate", SetGenerate);
   NODE_SET_METHOD(target, "getGenerate", GetGenerate);
+  NODE_SET_METHOD(target, "getMiningInfo", GetMiningInfo);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
