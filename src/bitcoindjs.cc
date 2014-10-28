@@ -198,6 +198,8 @@ NAN_METHOD(WalletDumpPrivKey);
 NAN_METHOD(WalletKeyPoolRefill);
 NAN_METHOD(WalletSetTxFee);
 NAN_METHOD(WalletImportKey);
+NAN_METHOD(WalletDumpWallet);
+NAN_METHOD(WalletImportWallet);
 
 /**
  * Node.js Internal Function Templates
@@ -403,6 +405,26 @@ struct async_wallet_sendfrom_data {
 struct async_import_key_data {
   std::string err_msg;
   bool fRescan;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_import_wallet_data
+ */
+
+struct async_import_wallet_data {
+  std::string err_msg;
+  std::string path;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_dump_wallet_data
+ */
+
+struct async_dump_wallet_data {
+  std::string err_msg;
+  std::string path;
   Persistent<Function> callback;
 };
 
@@ -3574,7 +3596,321 @@ async_import_key_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(Null())
+      Local<Value>::New(True())
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+/**
+ * WalletDumpWallet()
+ * bitcoindjs.walletDumpWallet(options, callback)
+ * Dump wallet to bitcoind plaintext format.
+ */
+
+NAN_METHOD(WalletDumpWallet) {
+  NanScope();
+
+  if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletDumpWallet(options, callback)");
+  }
+
+  async_dump_wallet_data *data = new async_dump_wallet_data();
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  Local<Function> callback = Local<Function>::Cast(args[1]);
+
+  String::Utf8Value path_(options->Get(NanNew<String>("path"))->ToString());
+  std::string path = std::string(*path_);
+
+  // Call to: EnsureWalletIsUnlocked()
+  if (pwalletMain->IsLocked()) {
+    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+  }
+
+  data->path = path;
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_dump_wallet,
+    (uv_after_work_cb)async_dump_wallet_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_dump_wallet(uv_work_t *req) {
+  async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
+
+  std::string path = data->path;
+
+  ofstream file;
+  file.open(path.c_str());
+  if (!file.is_open()) {
+    data->err_msg = std::string("Cannot open wallet dump file");
+  }
+
+  std::map<CKeyID, int64_t> mapKeyBirth;
+  std::set<CKeyID> setKeyPool;
+  pwalletMain->GetKeyBirthTimes(mapKeyBirth);
+  pwalletMain->GetAllReserveKeys(setKeyPool);
+
+  // sort time/key pairs
+  std::vector<std::pair<int64_t, CKeyID> > vKeyBirth;
+  for (std::map<CKeyID, int64_t>::const_iterator it = mapKeyBirth.begin();
+      it != mapKeyBirth.end();
+      it++) {
+    vKeyBirth.push_back(std::make_pair(it->second, it->first));
+  }
+  mapKeyBirth.clear();
+  std::sort(vKeyBirth.begin(), vKeyBirth.end());
+
+  // produce output
+  file << strprintf("# Wallet dump created by Bitcoin %s (%s)\n",
+    CLIENT_BUILD, CLIENT_DATE);
+  file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()));
+  file << strprintf("# * Best block at time of backup was %i (%s),\n",
+    chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString());
+  file << strprintf("#   mined on %s\n",
+    EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
+  file << "\n";
+  for (std::vector<std::pair<int64_t, CKeyID> >::const_iterator it = vKeyBirth.begin();
+      it != vKeyBirth.end();
+      it++) {
+    const CKeyID &keyid = it->second;
+    std::string strTime = EncodeDumpTime(it->first);
+    std::string strAddr = CBitcoinAddress(keyid).ToString();
+    CKey key;
+    if (pwalletMain->GetKey(keyid, key)) {
+      if (pwalletMain->mapAddressBook.count(keyid)) {
+        file << strprintf("%s %s label=%s # addr=%s\n",
+          CBitcoinSecret(key).ToString(),
+          strTime,
+          EncodeDumpString(pwalletMain->mapAddressBook[keyid].name),
+          strAddr);
+      } else if (setKeyPool.count(keyid)) {
+        file << strprintf("%s %s reserve=1 # addr=%s\n",
+          CBitcoinSecret(key).ToString(),
+          strTime, strAddr);
+      } else {
+        file << strprintf("%s %s change=1 # addr=%s\n",
+          CBitcoinSecret(key).ToString(),
+          strTime, strAddr);
+      }
+    }
+  }
+  file << "\n";
+  file << "# End of dump\n";
+  file.close();
+}
+
+static void
+async_dump_wallet_after(uv_work_t *req) {
+  NanScope();
+  async_dump_wallet_data* data = static_cast<async_dump_key_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(NanNew<String>(data->path))
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+/**
+ * WalletImportWallet()
+ * bitcoindjs.walletImportWallet(options, callback)
+ * Import bitcoind wallet from plaintext format.
+ */
+
+NAN_METHOD(WalletImportWallet) {
+  NanScope();
+
+  if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletImportWallet(options, callback)");
+  }
+
+  async_import_wallet_data *data = new async_import_wallet_data();
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  Local<Function> callback = Local<Function>::Cast(args[1]);
+
+  String::Utf8Value path_(options->Get(NanNew<String>("path"))->ToString());
+  std::string path = std::string(*path_);
+
+  // Call to: EnsureWalletIsUnlocked()
+  if (pwalletMain->IsLocked()) {
+    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+  }
+
+  data->path = path;
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_import_wallet,
+    (uv_after_work_cb)async_import_wallet_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_import_wallet(uv_work_t *req) {
+  async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
+
+  std::string path = data->path;
+
+  ifstream file;
+  file.open(path.c_str(), std::ios::in | std::ios::ate);
+  if (!file.is_open()) {
+    return NanThrowError("Cannot open wallet dump file");
+  }
+
+  int64_t nTimeBegin = chainActive.Tip()->GetBlockTime();
+
+  bool fGood = true;
+
+  int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
+  file.seekg(0, file.beg);
+
+  pwalletMain->ShowProgress(_("Importing..."), 0); // show progress dialog in GUI
+  while (file.good()) {
+    pwalletMain->ShowProgress("",
+      std::max(1, std::min(99,
+        (int)(((double)file.tellg() / (double)nFilesize) * 100)))
+    );
+    std::string line;
+    std::getline(file, line);
+
+    if (line.empty() || line[0] == '#') {
+      continue;
+    }
+
+    std::vector<std::string> vstr;
+    boost::split(vstr, line, boost::is_any_of(" "));
+    if (vstr.size() < 2) {
+      continue;
+    }
+    CBitcoinSecret vchSecret;
+    if (!vchSecret.SetString(vstr[0])) {
+      continue;
+    }
+    CKey key = vchSecret.GetKey();
+    CPubKey pubkey = key.GetPubKey();
+    CKeyID keyid = pubkey.GetID();
+    if (pwalletMain->HaveKey(keyid)) {
+      // LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
+      continue;
+    }
+    int64_t nTime = DecodeDumpTime(vstr[1]);
+    std::string strLabel;
+    bool fLabel = true;
+    for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
+      if (boost::algorithm::starts_with(vstr[nStr], "#")) {
+        break;
+      }
+      if (vstr[nStr] == "change=1") {
+        fLabel = false;
+      }
+      if (vstr[nStr] == "reserve=1") {
+        fLabel = false;
+      }
+      if (boost::algorithm::starts_with(vstr[nStr], "label=")) {
+        strLabel = DecodeDumpString(vstr[nStr].substr(6));
+        fLabel = true;
+      }
+    }
+    // LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
+    if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
+      fGood = false;
+      continue;
+    }
+    pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
+    if (fLabel) {
+      pwalletMain->SetAddressBook(keyid, strLabel, "receive");
+    }
+    nTimeBegin = std::min(nTimeBegin, nTime);
+  }
+  file.close();
+  pwalletMain->ShowProgress("", 100); // hide progress dialog in GUI
+
+  CBlockIndex *pindex = chainActive.Tip();
+  while (pindex && pindex->pprev && pindex->GetBlockTime() > nTimeBegin - 7200) {
+    pindex = pindex->pprev;
+  }
+
+  if (!pwalletMain->nTimeFirstKey || nTimeBegin < pwalletMain->nTimeFirstKey) {
+    pwalletMain->nTimeFirstKey = nTimeBegin;
+  }
+
+  // LogPrintf("Rescanning last %i blocks\n", chainActive.Height() - pindex->nHeight + 1);
+  pwalletMain->ScanForWalletTransactions(pindex);
+  pwalletMain->MarkDirty();
+
+  if (!fGood) {
+    data->err_msg = std::string("Cannot open wallet dump file");
+  }
+}
+
+static void
+async_import_wallet_after(uv_work_t *req) {
+  NanScope();
+  async_import_wallet_data* data = static_cast<async_import_key_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(NanNew<String>(data->path))
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -3973,6 +4309,8 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletKeyPoolRefill", WalletKeyPoolRefill);
   NODE_SET_METHOD(target, "walletSetTxFee", WalletSetTxFee);
   NODE_SET_METHOD(target, "walletImportKey", WalletImportKey);
+  NODE_SET_METHOD(target, "walletDumpWallet", WalletDumpWallet);
+  NODE_SET_METHOD(target, "walletImportWallet", WalletImportWallet);
 }
 
 NODE_MODULE(bitcoindjs, init)
