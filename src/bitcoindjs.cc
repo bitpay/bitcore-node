@@ -1416,21 +1416,7 @@ NAN_METHOD(GetProgress) {
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
-#if 0
-NOTES:
-chainActive.Height()
-    CBlockIndex *pindexMax = chainActive[std::max(0, chainActive.Height() - 144)]; // the tip can be reorganised; use a 144-block safety margin
-    if (!pindex || !chainActive.Contains(pindex))
-    return chainActive.Height() - pindex->nHeight + 1;
-        while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
-            pindex = chainActive.Next(pindex);
-        double dProgressTip = Checkpoints::GuessVerificationProgress(chainActive.Tip(), false);
-#endif
-
   CBlockIndex *pindex = chainActive.Tip();
-
-  // pindex->nHeight;
-  // pindex->GetBlockHash();
 
   async_block_data *data = new async_block_data();
   data->err_msg = std::string("");
