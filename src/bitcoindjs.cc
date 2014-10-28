@@ -228,6 +228,9 @@ static void
 async_get_block_after(uv_work_t *req);
 
 static void
+get_genesis_block(CBlock *genesis);
+
+static void
 async_get_progress_after(uv_work_t *req);
 
 static void
@@ -1435,6 +1438,40 @@ NAN_METHOD(GetProgress) {
   NanReturnValue(Undefined());
 }
 
+// Luckily, we never have to change this.
+static void
+get_genesis_block(CBlock *genesis) {
+  // Satoshi's first coinbase:
+  const char* pszTimestamp =
+    "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
+  CMutableTransaction txNew;
+  txNew.vin.resize(1);
+  txNew.vout.resize(1);
+  txNew.vin[0].scriptSig = CScript()
+    << 486604799
+    << CScriptNum(4)
+    << vector<unsigned char>((const unsigned char*)pszTimestamp,
+        (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+  txNew.vout[0].nValue = 50 * COIN;
+  txNew.vout[0].scriptPubKey = CScript() << ParseHex(
+    "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6"
+    "bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f"
+  ) << OP_CHECKSIG;
+  genesis->vtx.push_back(txNew);
+  genesis->hashPrevBlock = 0;
+  genesis->hashMerkleRoot = genesis->BuildMerkleTree();
+  genesis->nVersion = 1;
+  genesis->nTime = 1231006505;
+  genesis->nBits = 0x1d00ffff;
+  genesis->nNonce = 2083236893;
+  const uint256& hashGenesisBlock = genesis->GetHash();
+  hashGenesisBlock = genesis->GetHash();
+  assert(hashGenesisBlock == uint256(
+    "0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
+  assert(genesis->hashMerkleRoot == uint256(
+    "0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+}
+
 static void
 async_get_progress_after(uv_work_t *req) {
   NanScope();
@@ -1451,21 +1488,44 @@ async_get_progress_after(uv_work_t *req) {
     }
   } else {
     const CBlock& cblock = data->result_block;
+    CBlockIndex* cblock_index = data->result_blockindex;
+
+    Local<Object> jsblock = NanNew<Object>();
+    cblock_to_jsblock(cblock, cblock_index, jsblock, false);
+
+    CBlock cgenesis;
+    get_genesis_block(&cgenesis);
+
+    Local<Object> genesis = NanNew<Object>();
+    cblock_to_jsblock(cgenesis, NULL, genesis, false);
 
     uint32_t ts_ = cblock.GetBlockTime();
     time_t now_ = time(NULL);
 
     uint64_t ts = (uint64_t)ts_;
-    // Assume last block was ten minutes ago:
-    uint64_t now = ((uint64_t)now_ * 1000) - (10 * (60 * 1000));
 
-    uint64_t diff = now - ts;
-    unsigned int perc = 100 - (diff / now * 100);
+    // Assume last block was ten minutes ago:
+    uint64_t now = (((uint64_t)now_ * 1000) - (10 * (60 * 1000))) / 1000;
+    uint64_t left = (now - ts) / 1000;
+
+    unsigned int hours_behind = left / 60 / 60;
+    unsigned int days_behind = left / 60 / 60 / 24;
+    unsigned int percent = 100 - (left / now * 100);
+
+    Local<Object> result = NanNew<Object>();
+
+    result->Set(NanNew<String>("blocks"), NanNew<Number>(cblock_index->nHeight));
+    result->Set(NanNew<String>("connections"), NanNew<Number>((int)vNodes.size())->ToInt32());
+    result->Set(NanNew<String>("genesisBlock"), genesis);
+    result->Set(NanNew<String>("currentBlock"), jsblock);
+    result->Set(NanNew<String>("hoursBehind"), NanNew<Number>(hours_behind));
+    result->Set(NanNew<String>("daysBehind"), NanNew<Number>(days_behind));
+    result->Set(NanNew<String>("percent"), NanNew<Number>(percent));
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<Number>(perc))
+      Local<Value>::New(result)
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
