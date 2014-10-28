@@ -167,6 +167,7 @@ NAN_METHOD(FillTransaction);
 NAN_METHOD(GetInfo);
 NAN_METHOD(GetPeerInfo);
 NAN_METHOD(GetAddresses);
+NAN_METHOD(GetProgress);
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
 NAN_METHOD(BlockFromHex);
@@ -225,6 +226,9 @@ async_get_block(uv_work_t *req);
 
 static void
 async_get_block_after(uv_work_t *req);
+
+static void
+async_get_progress_after(uv_work_t *req);
 
 static void
 async_get_tx(uv_work_t *req);
@@ -1394,6 +1398,100 @@ NAN_METHOD(GetAddresses) {
   }
 
   NanReturnValue(array);
+}
+
+/**
+ * GetProgress()
+ * bitcoindjs.getProgress(callback)
+ * Get progress of blockchain download
+ */
+
+NAN_METHOD(GetProgress) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getProgress(callback)");
+  }
+
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+
+#if 0
+NOTES:
+chainActive.Height()
+    CBlockIndex *pindexMax = chainActive[std::max(0, chainActive.Height() - 144)]; // the tip can be reorganised; use a 144-block safety margin
+    if (!pindex || !chainActive.Contains(pindex))
+    return chainActive.Height() - pindex->nHeight + 1;
+        while (pindex && nTimeFirstKey && (pindex->GetBlockTime() < (nTimeFirstKey - 7200)))
+            pindex = chainActive.Next(pindex);
+        double dProgressTip = Checkpoints::GuessVerificationProgress(chainActive.Tip(), false);
+#endif
+
+  CBlockIndex *pindex = chainActive.Tip();
+
+  // pindex->nHeight;
+  // pindex->GetBlockHash();
+
+  async_block_data *data = new async_block_data();
+  data->err_msg = std::string("");
+  data->hash = pindex->GetBlockHash();
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_get_block,
+    (uv_after_work_cb)async_get_progress_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_get_progress_after(uv_work_t *req) {
+  NanScope();
+  async_block_data* data = static_cast<async_block_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const CBlock& cblock = data->result_block;
+
+    uint32_t ts_ = cblock.GetBlockTime();
+    time_t now_ = time(NULL);
+
+    uint64_t ts = (uint64_t)ts_;
+    // Assume last block was ten minutes ago:
+    uint64_t now = ((uint64_t)now_ * 1000) - (10 * (60 * 1000));
+
+    uint64_t diff = now - ts;
+    unsigned int perc = 100 - (diff / now * 100);
+
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(NanNew<Number>(perc))
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
 }
 
 /**
@@ -3798,6 +3896,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "getPeerInfo", GetPeerInfo);
   NODE_SET_METHOD(target, "getAddresses", GetAddresses);
+  NODE_SET_METHOD(target, "getProgress", GetProgress);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
