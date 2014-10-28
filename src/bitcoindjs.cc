@@ -3438,7 +3438,8 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
   jsblock->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
-  // Freed up elsewhere:
+  // Was it allocated in find_new_block_index(), or did it already exist?
+  // (race condition here)
   if (is_allocated) {
     delete cblock_index;
   }
