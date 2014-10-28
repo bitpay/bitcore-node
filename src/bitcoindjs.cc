@@ -194,6 +194,7 @@ NAN_METHOD(WalletLock);
 NAN_METHOD(WalletEncrypt);
 NAN_METHOD(WalletEncrypted);
 NAN_METHOD(WalletDumpPrivKey);
+NAN_METHOD(WalletKeyPoolRefill);
 NAN_METHOD(WalletSetTxFee);
 NAN_METHOD(WalletImportKey);
 
@@ -2110,6 +2111,7 @@ NAN_METHOD(WalletNewAddress) {
   std::string strAccount = std::string(*name_);
 
   if (!pwalletMain->IsLocked()) {
+    // XXX Do this asynchronously
     pwalletMain->TopUpKeyPool();
   }
 
@@ -2122,6 +2124,7 @@ NAN_METHOD(WalletNewAddress) {
     if (pwalletMain->IsLocked()) {
       return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
     }
+    // XXX Do this asynchronously
     pwalletMain->TopUpKeyPool(100);
     if (pwalletMain->GetKeyPoolSize() < 100) {
       return NanThrowError("Error refreshing keypool.");
@@ -3044,6 +3047,7 @@ NAN_METHOD(WalletPassphrase) {
       "Stores the wallet decryption key in memory for <timeout> seconds.");
   }
 
+  // XXX Do this asynchronously
   pwalletMain->TopUpKeyPool();
 
   NanReturnValue(Undefined());
@@ -3236,6 +3240,42 @@ NAN_METHOD(WalletDumpPrivKey) {
   obj->Set(NanNew<String>("pubkey"), NanNew<String>(HexStr(vchPubKey)));
 
   NanReturnValue(obj);
+}
+
+/**
+ * WalletKeyPoolRefill()
+ * bitcoindjs.walletKeyPoolRefill(options)
+ * Refill key pool
+ */
+
+NAN_METHOD(WalletKeyPoolRefill) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletKeyPoolRefill(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  // 0 is interpreted by TopUpKeyPool() as the default keypool size given by -keypool
+  unsigned int kpSize = 0;
+  if (options->Get(NanNew<String>("size"))->IsNumber()) {
+    kpSize = (unsigned int)options->Get(NanNew<String>("size"))->IntegerValue();
+  }
+
+  // EnsureWalletIsUnlocked();
+  if (pwalletMain->IsLocked()) {
+    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+  }
+  // XXX Do this asynchronously
+  pwalletMain->TopUpKeyPool(kpSize);
+
+  if (pwalletMain->GetKeyPoolSize() < kpSize) {
+    return NanThrowError("Error refreshing keypool.");
+  }
+
+  NanReturnValue(True());
 }
 
 /**
@@ -3784,6 +3824,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletEncrypt", WalletEncrypt);
   NODE_SET_METHOD(target, "walletEncrypted", WalletEncrypted);
   NODE_SET_METHOD(target, "walletDumpPrivKey", WalletDumpPrivKey);
+  NODE_SET_METHOD(target, "walletKeyPoolRefill", WalletKeyPoolRefill);
   NODE_SET_METHOD(target, "walletSetTxFee", WalletSetTxFee);
   NODE_SET_METHOD(target, "walletImportKey", WalletImportKey);
 }
