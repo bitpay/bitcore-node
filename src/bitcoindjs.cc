@@ -106,9 +106,14 @@
 #include <signal.h>
 #include <stdio.h>
 
+#include <fstream>
+
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 #include <openssl/crypto.h>
 
 using namespace std;
@@ -130,6 +135,12 @@ extern CWallet *pwalletMain;
 #endif
 extern CFeeRate payTxFee;
 extern const std::string strMessageMagic;
+
+// XXX May not link properly: some functions here are static (rpcdump.cpp):
+extern std::string EncodeDumpTime(int64_t nTime);
+extern int64_t DecodeDumpTime(const std::string &str);
+extern std::string EncodeDumpString(const std::string &str);
+extern std::string DecodeDumpString(const std::string &str);
 
 /**
  * Node.js System
@@ -271,6 +282,18 @@ async_import_key(uv_work_t *req);
 
 static void
 async_import_key_after(uv_work_t *req);
+
+static void
+async_dump_wallet(uv_work_t *req);
+
+static void
+async_dump_wallet_after(uv_work_t *req);
+
+static void
+async_import_wallet(uv_work_t *req);
+
+static void
+async_import_wallet_after(uv_work_t *req);
 
 static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
@@ -1467,7 +1490,7 @@ NAN_METHOD(GetProgress) {
 
   async_block_data *data = new async_block_data();
   data->err_msg = std::string("");
-  data->hash = pindex->GetBlockHash();
+  data->hash = pindex->GetBlockHash().GetHex(); // .ToString();
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -1508,8 +1531,7 @@ get_genesis_block(CBlock *genesis) {
   genesis->nTime = 1231006505;
   genesis->nBits = 0x1d00ffff;
   genesis->nNonce = 2083236893;
-  const uint256& hashGenesisBlock = genesis->GetHash();
-  hashGenesisBlock = genesis->GetHash();
+  const uint256 hashGenesisBlock = genesis->GetHash();
   assert(hashGenesisBlock == uint256(
     "0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
   assert(genesis->hashMerkleRoot == uint256(
@@ -1611,7 +1633,7 @@ NAN_METHOD(SetGenerate) {
 
   int nGenProcLimit = -1;
   if (options->Get(NanNew<String>("limit"))->IsNumber()) {
-    nGenProcLimit = options->Get(NanNew<String>("limit"))->ToInt32();
+    nGenProcLimit = (int)options->Get(NanNew<String>("limit"))->IntegerValue();
     if (nGenProcLimit == 0) {
       fGenerate = false;
     }
@@ -1673,19 +1695,45 @@ NAN_METHOD(GetMiningInfo) {
 
   Local<Object> obj = NanNew<Object>();
 
-  obj->Set(NanNew<String>("blocks"), (int)chainActive.Height()));
-  obj->Set(NanNew<String>("currentblocksize"), (uint64_t)nLastBlockSize));
-  obj->Set(NanNew<String>("currentblocktx"), (uint64_t)nLastBlockTx));
-  obj->Set(NanNew<String>("difficulty"), (double)GetDifficulty()));
-  obj->Set(NanNew<String>("errors"), GetWarnings("statusbar")));
-  obj->Set(NanNew<String>("genproclimit"), (int)GetArg("-genproclimit", -1)));
-  obj->Set(NanNew<String>("networkhashps"), getnetworkhashps(params, false)));
-  obj->Set(NanNew<String>("pooledtx"), (uint64_t)mempool.size()));
-  obj->Set(NanNew<String>("testnet"), Params().NetworkID() == CBaseChainParams::TESTNET));
-  obj->Set(NanNew<String>("chain"), Params().NetworkIDString()));
+  json_spirit::Array empty_params;
+
+  // (json_spirit::Value)GetNetworkHashPS(120 /* blocks=-1 */, -1 /* height=x */);
+  // (int64_t)GetNetworkHashPS(120 /* blocks=-1 */, -1 /* height=x */).get_int64();
+  // (int64_t)getnetworkhashps(empty_params, false).get_int64();
+
+  // (json_spirit::Value)getgenerate(empty_params, false);
+  // (bool)getgenerate(empty_params, false).get_bool();
+  // (bool)GetBoolArg("-gen", false);
+
+  // (json_spirit::Value)gethashespersec(empty_params, false);
+  // (int64_t)gethashespersec(empty_params, false).get_int64();
+  // int64_t hashespersec = 0;
+  // if (GetTimeMillis() - nHPSTimerStart > 8000) {
+  //   hashespersec = (int64_t)0;
+  // } else {
+  //   hashespersec = (int64_t)dHashesPerSec;
+  // }
+
+  obj->Set(NanNew<String>("blocks"), NanNew<Number>((int)chainActive.Height()));
+  obj->Set(NanNew<String>("currentblocksize"), NanNew<Number>((uint64_t)nLastBlockSize));
+  obj->Set(NanNew<String>("currentblocktx"), NanNew<Number>((uint64_t)nLastBlockTx));
+  obj->Set(NanNew<String>("difficulty"), NanNew<Number>((double)GetDifficulty()));
+  obj->Set(NanNew<String>("errors"), NanNew<String>(GetWarnings("statusbar")));
+  obj->Set(NanNew<String>("genproclimit"), NanNew<Number>((int)GetArg("-genproclimit", -1)));
+  // If lookup is -1, then use blocks since last difficulty change.
+  // If lookup is larger than chain, then set it to chain length.
+  // ~/bitcoin/src/json/json_spirit_value.h
+  // ~/bitcoin/src/rpcmining.cpp
+  obj->Set(NanNew<String>("networkhashps"), NanNew<Number>(
+    (int64_t)getnetworkhashps(empty_params, false).get_int64()));
+  obj->Set(NanNew<String>("pooledtx"), NanNew<Number>((uint64_t)mempool.size()));
+  obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
+  obj->Set(NanNew<String>("chain"), NanNew<String>(Params().NetworkIDString()));
 #ifdef ENABLE_WALLET
-  obj->Set(NanNew<String>("generate"), getgenerate(params, false)));
-  obj->Set(NanNew<String>("hashespersec"), gethashespersec(params, false)));
+  obj->Set(NanNew<String>("generate"), NanNew<Boolean>(
+    (bool)getgenerate(empty_params, false).get_bool()));
+  obj->Set(NanNew<String>("hashespersec"), NanNew<Number>(
+    (int64_t)gethashespersec(empty_params, false).get_int64()));
 #endif
 
   NanReturnValue(obj);
@@ -3149,17 +3197,17 @@ NAN_METHOD(WalletListTransactions) {
 
   int nCount = 10;
   if (options->Get(NanNew<String>("count"))->IsNumber()) {
-    nCount = options->Get(NanNew<String>("count"))->ToInt32();
+    nCount = (int)options->Get(NanNew<String>("count"))->IntegerValue();
   }
 
   int nFrom = 0;
   if (options->Get(NanNew<String>("from"))->IsNumber()) {
-    nFrom = options->Get(NanNew<String>("from"))->ToInt32();
+    nFrom = (int)options->Get(NanNew<String>("from"))->IntegerValue();
   }
 
   isminefilter filter = ISMINE_SPENDABLE;
   if (options->Get(NanNew<String>("spendable"))->IsBoolean()) {
-    if (options->Get(NanNew<String>("spendable"))->ToBoolean->IsTrue()) {
+    if (options->Get(NanNew<String>("spendable"))->ToBoolean()->IsTrue()) {
       filter = filter | ISMINE_WATCH_ONLY;
     }
   }
@@ -3270,7 +3318,7 @@ static void
 MaybePushAddress_V8(Local<Object>& entry, const CTxDestination &dest) {
   CBitcoinAddress addr;
   if (addr.Set(dest)) {
-    entry->Set(NanNew<String>("address"), addr.ToString());
+    entry->Set(NanNew<String>("address"), NanNew<String>(addr.ToString()));
   }
 }
 
@@ -3294,14 +3342,14 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
     BOOST_FOREACH(const COutputEntry& s, listSent) {
       Local<Object> entry = NanNew<Object>();
       if (involvesWatchonly || (::IsMine(*pwalletMain, s.destination) & ISMINE_WATCH_ONLY)) {
-        entry->Set(NanNew<String>("involvesWatchonly", NanNew<Boolean>(true)));
+        entry->Set(NanNew<String>("involvesWatchonly"), NanNew<Boolean>(true));
       }
-      entry->Set(NanNew<String>("account", NanNew<String>(strSentAccount)));
+      entry->Set(NanNew<String>("account"), NanNew<String>(strSentAccount));
       MaybePushAddress_V8(entry, s.destination);
-      entry->Set(NanNew<String>("category", NanNew<String>("send")));
-      entry->Set(NanNew<String>("amount", NanNew<Number>(-s.amount)));
-      entry->Set(NanNew<String>("vout", NanNew<Number>(s.vout)));
-      entry->Set(NanNew<String>("fee", NanNew<Number>(-nFee)));
+      entry->Set(NanNew<String>("category"), NanNew<String>("send"));
+      entry->Set(NanNew<String>("amount"), NanNew<Number>(-s.amount));
+      entry->Set(NanNew<String>("vout"), NanNew<Number>(s.vout));
+      entry->Set(NanNew<String>("fee"), NanNew<Number>(-nFee));
       if (fLong) {
         WalletTxToJSON_V8(wtx, entry);
       }
@@ -3381,8 +3429,8 @@ NAN_METHOD(WalletReceivedByAddress) {
 
   // Minimum confirmations
   int nMinDepth = 1;
-  if (options->Get(NanNew<String>("confirmations"))->IsString()) {
-    nMinDepth = options->Get(NanNew<String>("confirmations"))->ToInt32();
+  if (options->Get(NanNew<String>("confirmations"))->IsNumber()) {
+    nMinDepth = (int)options->Get(NanNew<String>("confirmations"))->IntegerValue();
   }
 
   // Tally
@@ -3394,7 +3442,7 @@ NAN_METHOD(WalletReceivedByAddress) {
     if (wtx.IsCoinBase() || !IsFinalTx(wtx)) {
       continue;
     }
-    BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+    BOOST_FOREACH(const CTxOut& txout, wtx.vout) {
       if (txout.scriptPubKey == scriptPubKey) {
         if (wtx.GetDepthInMainChain() >= nMinDepth) {
           nAmount += txout.nValue;
@@ -3403,7 +3451,7 @@ NAN_METHOD(WalletReceivedByAddress) {
     }
   }
 
-  NanReturnValue(NanNew<Number>(nAmount));
+  NanReturnValue(NanNew<Number>((int64_t)nAmount));
 }
 
 /**
@@ -4123,7 +4171,7 @@ async_dump_wallet(uv_work_t *req) {
 static void
 async_dump_wallet_after(uv_work_t *req) {
   NanScope();
-  async_dump_wallet_data* data = static_cast<async_dump_key_data*>(req->data);
+  async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
 
   if (!data->err_msg.empty()) {
     Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
@@ -4204,7 +4252,7 @@ async_import_wallet(uv_work_t *req) {
   ifstream file;
   file.open(path.c_str(), std::ios::in | std::ios::ate);
   if (!file.is_open()) {
-    return NanThrowError("Cannot open wallet dump file");
+    data->err_msg = std::string("Cannot open wallet dump file");
   }
 
   int64_t nTimeBegin = chainActive.Tip()->GetBlockTime();
@@ -4296,7 +4344,7 @@ async_import_wallet(uv_work_t *req) {
 static void
 async_import_wallet_after(uv_work_t *req) {
   NanScope();
-  async_import_wallet_data* data = static_cast<async_import_key_data*>(req->data);
+  async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
 
   if (!data->err_msg.empty()) {
     Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
@@ -4403,10 +4451,14 @@ NAN_METHOD(WalletDeleteAccount) {
       "Usage: bitcoindjs.walletDeleteAccount(options)");
   }
 
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
   std::string accountName = std::string("");
+  bool accountNameSet = false;
   if (options->Get(NanNew<String>("account"))->IsString()) {
     String::Utf8Value accountName_(options->Get(NanNew<String>("account"))->ToString());
     accountName = std::string(*accountName_);
+    accountNameSet = true;
   }
 
   std::string addr = std::string("");
@@ -4422,14 +4474,23 @@ NAN_METHOD(WalletDeleteAccount) {
   CAccount account;
   walletdb.ReadAccount(accountName, account);
 
-  if (accountName.empty()) {
+  if (!accountNameSet) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
       if (address.ToString() == addr) {
         accountName = strName;
+        accountNameSet = true;
         break;
       }
+    }
+  }
+
+  if (!accountNameSet) {
+    if (addr.empty()) {
+      return NanThrowError("No account name specified.");
+    } else {
+      return NanThrowError("No account tied to specified address.");
     }
   }
 

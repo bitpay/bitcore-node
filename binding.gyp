@@ -15,6 +15,9 @@
         ' || echo "${HOME}/bitcoin")',
       'LIBBITCOIND': '<!(./platform/os.sh)',
     },
+    'defines': [
+      'ENABLE_WALLET=1',
+    ],
     'include_dirs' : [
       '<(BOOST_INCLUDE)',
       '<(LEVELDB_INCLUDE)',
