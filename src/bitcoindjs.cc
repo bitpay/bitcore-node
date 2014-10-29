@@ -3748,12 +3748,18 @@ NAN_METHOD(WalletEncrypted) {
       "Usage: bitcoindjs.walletEncrypted()");
   }
 
-  bool isLocked = pwalletMain->IsLocked();
-  bool isEncrypted = pwalletMain->IsCrypted();
+  bool isLocked = false;
+  bool isEncrypted = false;
+
+  isEncrypted = pwalletMain->IsCrypted();
+
+  if (isEncrypted) {
+    isLocked = pwalletMain->IsLocked();
+  }
 
   Local<Object> result = NanNew<Object>();
   result->Set(NanNew<String>("locked"), NanNew<Boolean>(isLocked));
-  result->Set(NanNew<String>("encrypted"), NanNew<Boolean>(isCrypted));
+  result->Set(NanNew<String>("encrypted"), NanNew<Boolean>(isEncrypted));
 
   NanReturnValue(result);
 }
