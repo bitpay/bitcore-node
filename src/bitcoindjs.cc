@@ -178,6 +178,7 @@ NAN_METHOD(FillTransaction);
 NAN_METHOD(GetInfo);
 NAN_METHOD(GetPeerInfo);
 NAN_METHOD(GetAddresses);
+NAN_METHOD(GetRecipients);
 NAN_METHOD(GetProgress);
 NAN_METHOD(SetGenerate);
 NAN_METHOD(GetGenerate);
@@ -1471,6 +1472,82 @@ NAN_METHOD(GetAddresses) {
 }
 
 /**
+ * GetRecipients()
+ * bitcoindjs.getRecipients()
+ * Get all addresses
+ */
+
+NAN_METHOD(GetRecipients) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getRecipients(options)");
+  }
+
+/*
+  Local<Array> array = NanNew<Array>();
+  int i = 0;
+
+  BOOST_FOREACH(const CAddress& addr, vAddr) {
+    array->Set(i, obj);
+    i++;
+  }
+
+  CScript inner = GetScriptForMultisig(nRequired, pubkeys);
+
+  // ~/bitcoin/src/wallet.cpp
+  // ~/bitcoin/src/walletdb.cpp
+  // ReadKeyValue
+  // ~/bitcoin/src/rpcwallet.cpp
+  // ~/bitcoin/src/base58.h
+  bool CWallet::SetAddressBook(const CTxDestination& address, const string& strName, const string& strPurpose)
+  bool CWallet::DelAddressBook(const CTxDestination& address)
+
+  BOOST_FOREACH(CBitcoinAddress& addr, vAddr) {
+          ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+          ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+  class CWalletScanState {
+  bool
+  ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
+               CWalletScanState &wss, string& strType, string& strErr)
+  {
+  ./rpcwallet.cpp:
+  BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
+*/
+
+  Local<Array> array = NanNew<Array>();
+  int i = 0;
+
+  BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
+    const CBitcoinAddress& address = item.first;
+    const string& strName = item.second.name;
+    if (item.second.purpose == "send" && address.IsValid()) {
+      array->Set(i, NanNew<String>(strName));
+      i++;
+    }
+  }
+
+  NanReturnValue(array);
+
+/*
+  CScript inner = _createmultisig_redeemScript(params);
+  CScriptID innerID = inner.GetID();
+  pwalletMain->AddCScript(inner);
+
+  CTxDestination address;
+  std::string label;
+  pwalletMain->SetAddressBook(address, label, "send");
+
+  CTxDestination address;
+  pwalletMain->DelAddressBook(address);
+  // pwalletMain->SetAddressBook(keyID, strAccount, "send");
+
+  NanReturnValue(array);
+*/
+}
+
+/**
  * GetProgress()
  * bitcoindjs.getProgress(callback)
  * Get progress of blockchain download
@@ -1565,14 +1642,14 @@ async_get_progress_after(uv_work_t *req) {
     Local<Object> genesis = NanNew<Object>();
     cblock_to_jsblock(cgenesis, NULL, genesis, false);
 
-    uint32_t ts_ = cblock.GetBlockTime();
+    int64_t ts_ = cblock.GetBlockTime();
     time_t now_ = time(NULL);
 
-    uint64_t ts = (uint64_t)ts_;
+    int64_t ts = (int64_t)ts_;
 
     // Assume last block was ten minutes ago:
-    uint64_t now = (((uint64_t)now_ * 1000) - (10 * (60 * 1000))) / 1000;
-    uint64_t left = (now - ts) / 1000;
+    int64_t now = ((int64_t)now_ - (10 * 60));
+    int64_t left = (now - ts);
 
     unsigned int hours_behind = left / 60 / 60;
     unsigned int days_behind = left / 60 / 60 / 24;
@@ -4860,6 +4937,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "getPeerInfo", GetPeerInfo);
   NODE_SET_METHOD(target, "getAddresses", GetAddresses);
+  NODE_SET_METHOD(target, "getRecipients", GetRecipients);
   NODE_SET_METHOD(target, "getProgress", GetProgress);
   NODE_SET_METHOD(target, "setGenerate", SetGenerate);
   NODE_SET_METHOD(target, "getGenerate", GetGenerate);
