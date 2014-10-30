@@ -178,9 +178,6 @@ NAN_METHOD(FillTransaction);
 NAN_METHOD(GetInfo);
 NAN_METHOD(GetPeerInfo);
 NAN_METHOD(GetAddresses);
-NAN_METHOD(GetRecipients);
-NAN_METHOD(SetRecipient);
-NAN_METHOD(RemoveRecipient);
 NAN_METHOD(GetProgress);
 NAN_METHOD(SetGenerate);
 NAN_METHOD(GetGenerate);
@@ -196,6 +193,9 @@ NAN_METHOD(WalletNewAddress);
 NAN_METHOD(WalletGetAccountAddress);
 NAN_METHOD(WalletSetAccount);
 NAN_METHOD(WalletGetAccount);
+NAN_METHOD(WalletGetRecipients);
+NAN_METHOD(WalletSetRecipient);
+NAN_METHOD(WalletRemoveRecipient);
 NAN_METHOD(WalletSendTo);
 NAN_METHOD(WalletSignMessage);
 NAN_METHOD(WalletVerifyMessage);
@@ -1474,102 +1474,6 @@ NAN_METHOD(GetAddresses) {
 }
 
 /**
- * GetRecipients()
- * bitcoindjs.getRecipients()
- * Get all recipients
- */
-
-NAN_METHOD(GetRecipients) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.getRecipients(options)");
-  }
-
-  Local<Object> options = Local<Object>::Cast(args[0]);
-
-  Local<Array> array = NanNew<Array>();
-  int i = 0;
-
-  BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
-    const CBitcoinAddress& address = item.first;
-    const string& strName = item.second.name;
-    if (item.second.purpose == "send" && address.IsValid()) {
-      Local<Object> recipient = NanNew<Object>();
-      recipient->Set(NanNew<String>("label"), NanNew<String>(strName));
-      recipient->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
-      array->Set(i, recipient);
-      i++;
-      if (options->Get(NanNew<String>("_label"))->IsString()) {
-        break;
-      }
-    }
-  }
-
-  if (options->Get(NanNew<String>("_label"))->IsString()) {
-    NanReturnValue(array->Get(0));
-  }
-
-  NanReturnValue(array);
-}
-
-/**
- * SetRecipient()
- * bitcoindjs.setRecipient()
- * Set a recipient
- */
-
-NAN_METHOD(SetRecipient) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.setRecipient(options)");
-  }
-
-  Local<Object> options = Local<Object>::Cast(args[0]);
-
-  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
-  std::string addr = std::string(*addr_);
-
-  String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
-  std::string label = std::string(*label_);
-
-  CTxDestination address = CBitcoinAddress(addr).Get();
-
-  pwalletMain->SetAddressBook(address, label, "send");
-
-  NanReturnValue(True());
-}
-
-/**
- * RemoveRecipient()
- * bitcoindjs.removeRecipient()
- * Remove a recipient
- */
-
-NAN_METHOD(RemoveRecipient) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.removeRecipient(options)");
-  }
-
-  Local<Object> options = Local<Object>::Cast(args[0]);
-
-  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
-  std::string addr = std::string(*addr_);
-
-  CTxDestination address = CBitcoinAddress(addr).Get();
-
-  pwalletMain->DelAddressBook(address);
-
-  NanReturnValue(True());
-}
-
-/**
  * GetProgress()
  * bitcoindjs.getProgress(callback)
  * Get progress of blockchain download
@@ -2717,6 +2621,102 @@ NAN_METHOD(WalletGetAccount) {
   }
 
   NanReturnValue(NanNew<String>(strAccount.c_str()));
+}
+
+/**
+ * WalletGetRecipients()
+ * bitcoindjs.walletGetRecipients()
+ * Get all recipients
+ */
+
+NAN_METHOD(WalletGetRecipients) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletGetRecipients(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  Local<Array> array = NanNew<Array>();
+  int i = 0;
+
+  BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
+    const CBitcoinAddress& address = item.first;
+    const string& strName = item.second.name;
+    if (item.second.purpose == "send" && address.IsValid()) {
+      Local<Object> recipient = NanNew<Object>();
+      recipient->Set(NanNew<String>("label"), NanNew<String>(strName));
+      recipient->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
+      array->Set(i, recipient);
+      i++;
+      if (options->Get(NanNew<String>("_label"))->IsString()) {
+        break;
+      }
+    }
+  }
+
+  if (options->Get(NanNew<String>("_label"))->IsString()) {
+    NanReturnValue(array->Get(0));
+  }
+
+  NanReturnValue(array);
+}
+
+/**
+ * WalletSetRecipient()
+ * bitcoindjs.walletSetRecipient()
+ * Set a recipient
+ */
+
+NAN_METHOD(WalletSetRecipient) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletSetRecipient(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+  std::string addr = std::string(*addr_);
+
+  String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
+  std::string label = std::string(*label_);
+
+  CTxDestination address = CBitcoinAddress(addr).Get();
+
+  pwalletMain->SetAddressBook(address, label, "send");
+
+  NanReturnValue(True());
+}
+
+/**
+ * WalletRemoveRecipient()
+ * bitcoindjs.walletRemoveRecipient()
+ * Remove a recipient
+ */
+
+NAN_METHOD(WalletRemoveRecipient) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletRemoveRecipient(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+  std::string addr = std::string(*addr_);
+
+  CTxDestination address = CBitcoinAddress(addr).Get();
+
+  pwalletMain->DelAddressBook(address);
+
+  NanReturnValue(True());
 }
 
 /**
@@ -4959,9 +4959,9 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "getPeerInfo", GetPeerInfo);
   NODE_SET_METHOD(target, "getAddresses", GetAddresses);
-  NODE_SET_METHOD(target, "getRecipients", GetRecipients);
-  NODE_SET_METHOD(target, "setRecipient", SetRecipient);
-  NODE_SET_METHOD(target, "removeRecipient", RemoveRecipient);
+  NODE_SET_METHOD(target, "walletGetRecipients", WalletGetRecipients);
+  NODE_SET_METHOD(target, "walletSetRecipient", WalletSetRecipient);
+  NODE_SET_METHOD(target, "walletRemoveRecipient", WalletRemoveRecipient);
   NODE_SET_METHOD(target, "getProgress", GetProgress);
   NODE_SET_METHOD(target, "setGenerate", SetGenerate);
   NODE_SET_METHOD(target, "getGenerate", GetGenerate);

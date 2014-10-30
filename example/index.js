@@ -231,6 +231,7 @@ bitcoind.on('open', function(status) {
         bitcoind.log(bitcoind.getInfo());
         bitcoind.log(bitcoind.getPeerInfo());
         bitcoind.log(bitcoind.wallet.listAccounts());
+        bitcoind.log(bitcoind.wallet.getRecipients());
 
         bitcoind.once('version', function(version) {
           bitcoind.log('VERSION packet:');
