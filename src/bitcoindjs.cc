@@ -1487,6 +1487,8 @@ NAN_METHOD(GetRecipients) {
       "Usage: bitcoindjs.getRecipients(options)");
   }
 
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
   Local<Array> array = NanNew<Array>();
   int i = 0;
 
@@ -1495,11 +1497,18 @@ NAN_METHOD(GetRecipients) {
     const string& strName = item.second.name;
     if (item.second.purpose == "send" && address.IsValid()) {
       Local<Object> recipient = NanNew<Object>();
-      recipient->Set(NanNew<String>("label"), strName);
-      recipient->Set(NanNew<String>("address"), address.ToString());
+      recipient->Set(NanNew<String>("label"), NanNew<String>(strName));
+      recipient->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
       array->Set(i, recipient);
       i++;
+      if (options->Get(NanNew<String>("_label"))->IsString()) {
+        break;
+      }
     }
+  }
+
+  if (options->Get(NanNew<String>("_label"))->IsString()) {
+    NanReturnValue(array->Get(0));
   }
 
   NanReturnValue(array);
@@ -1518,6 +1527,8 @@ NAN_METHOD(SetRecipient) {
     return NanThrowError(
       "Usage: bitcoindjs.setRecipient(options)");
   }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
 
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
@@ -1545,6 +1556,8 @@ NAN_METHOD(RemoveRecipient) {
     return NanThrowError(
       "Usage: bitcoindjs.removeRecipient(options)");
   }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
 
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
