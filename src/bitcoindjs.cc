@@ -1579,7 +1579,8 @@ async_get_progress_after(uv_work_t *req) {
 
     unsigned int hours_behind = left / 60 / 60;
     unsigned int days_behind = left / 60 / 60 / 24;
-    unsigned int percent = 100 - (left / now * 100);
+    double cur = (double)left / (double)now;
+    unsigned int percent = (unsigned int)(cur * 100.0);
 
     Local<Object> result = NanNew<Object>();
 
