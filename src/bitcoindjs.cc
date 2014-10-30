@@ -179,6 +179,8 @@ NAN_METHOD(GetInfo);
 NAN_METHOD(GetPeerInfo);
 NAN_METHOD(GetAddresses);
 NAN_METHOD(GetRecipients);
+NAN_METHOD(SetRecipient);
+NAN_METHOD(RemoveRecipient);
 NAN_METHOD(GetProgress);
 NAN_METHOD(SetGenerate);
 NAN_METHOD(GetGenerate);
@@ -1474,7 +1476,7 @@ NAN_METHOD(GetAddresses) {
 /**
  * GetRecipients()
  * bitcoindjs.getRecipients()
- * Get all addresses
+ * Get all recipients
  */
 
 NAN_METHOD(GetRecipients) {
@@ -1514,6 +1516,26 @@ NAN_METHOD(GetRecipients) {
   {
   ./rpcwallet.cpp:
   BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
+
+  Array jsonGroupings;
+  map<CTxDestination, CAmount> balances = pwalletMain->GetAddressBalances();
+  BOOST_FOREACH(set<CTxDestination> grouping, pwalletMain->GetAddressGroupings())
+  {
+      Array jsonGrouping;
+      BOOST_FOREACH(CTxDestination address, grouping)
+      {
+          Array addressInfo;
+          addressInfo.push_back(CBitcoinAddress(address).ToString());
+          addressInfo.push_back(ValueFromAmount(balances[address]));
+          {
+              LOCK(pwalletMain->cs_wallet);
+              if (pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get()) != pwalletMain->mapAddressBook.end())
+                  addressInfo.push_back(pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get())->second.name);
+          }
+          jsonGrouping.push_back(addressInfo);
+      }
+      jsonGroupings.push_back(jsonGrouping);
+  }
 */
 
   Local<Array> array = NanNew<Array>();
@@ -1523,7 +1545,10 @@ NAN_METHOD(GetRecipients) {
     const CBitcoinAddress& address = item.first;
     const string& strName = item.second.name;
     if (item.second.purpose == "send" && address.IsValid()) {
-      array->Set(i, NanNew<String>(strName));
+      Local<Object> recipient = NanNew<Object>();
+      recipient->Set(NanNew<String>("label"), strName);
+      recipient->Set(NanNew<String>("address"), address.ToString());
+      array->Set(i, recipient);
       i++;
     }
   }
@@ -1543,8 +1568,98 @@ NAN_METHOD(GetRecipients) {
   pwalletMain->DelAddressBook(address);
   // pwalletMain->SetAddressBook(keyID, strAccount, "send");
 
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    CAccount account;
+    walletdb.ReadAccount(strAccount, account);
+    if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed)
+        pwalletMain->SetAddressBook(account.vchPubKey.GetID(), strAccount, "receive");
+
+  CBitcoinAddress address = account.vchPubKey.GetID();
+
   NanReturnValue(array);
 */
+}
+
+/**
+ * SetRecipient()
+ * bitcoindjs.setRecipient()
+ * Set a recipient
+ */
+
+NAN_METHOD(SetRecipient) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.setRecipient(options)");
+  }
+
+  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+  std::string addr = std::string(*addr_);
+
+  String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
+  std::string label = std::string(*label_);
+
+  //CTxDestination dest = CBitcoinAddress(address.toStdString()).Get();
+  CTxDestination address = CBitcoinAddress(addr).Get();
+
+/*
+  BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
+    if (IsMine(*pwalletMain, entry.first) & includeWatchonly) // This address belongs to me
+      mapAccountBalances[entry.second.name] = 0;
+  }
+*/
+
+  // bool CWallet::SetAddressBook(const CTxDestination& address, const string& strName, const string& strPurpose)
+  pwalletMain->SetAddressBook(address, label, "send");
+
+/*
+            CTxDestination address;
+            if (!ExtractDestination(txout.scriptPubKey, address))
+*/
+
+  NanReturnValue(True());
+}
+
+/**
+ * RemoveRecipient()
+ * bitcoindjs.removeRecipient()
+ * Remove a recipient
+ */
+
+NAN_METHOD(RemoveRecipient) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.removeRecipient(options)");
+  }
+
+  // CTxDestination setAddress = pwalletMain->GetAccountAddresses(accountName);
+
+  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+  std::string addr = std::string(*addr_);
+
+  CTxDestination address = CBitcoinAddress(addr).Get();
+
+/*
+  CTxDestination& address;
+
+  BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& item, mapAddressBook) {
+    const CTxDestination& address_ = item.first;
+    const string& strName = item.second.name;
+    if (strName == accountName)
+      address = address_;
+      break;
+    }
+  }
+*/
+
+  // bool CWallet::DelAddressBook(const CTxDestination& address)
+  pwalletMain->DelAddressBook(address);
+
+  NanReturnValue(True());
 }
 
 /**
@@ -4938,6 +5053,8 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getPeerInfo", GetPeerInfo);
   NODE_SET_METHOD(target, "getAddresses", GetAddresses);
   NODE_SET_METHOD(target, "getRecipients", GetRecipients);
+  NODE_SET_METHOD(target, "setRecipient", SetRecipient);
+  NODE_SET_METHOD(target, "removeRecipient", RemoveRecipient);
   NODE_SET_METHOD(target, "getProgress", GetProgress);
   NODE_SET_METHOD(target, "setGenerate", SetGenerate);
   NODE_SET_METHOD(target, "getGenerate", GetGenerate);
