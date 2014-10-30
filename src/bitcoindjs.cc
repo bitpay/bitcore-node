@@ -1487,57 +1487,6 @@ NAN_METHOD(GetRecipients) {
       "Usage: bitcoindjs.getRecipients(options)");
   }
 
-/*
-  Local<Array> array = NanNew<Array>();
-  int i = 0;
-
-  BOOST_FOREACH(const CAddress& addr, vAddr) {
-    array->Set(i, obj);
-    i++;
-  }
-
-  CScript inner = GetScriptForMultisig(nRequired, pubkeys);
-
-  // ~/bitcoin/src/wallet.cpp
-  // ~/bitcoin/src/walletdb.cpp
-  // ReadKeyValue
-  // ~/bitcoin/src/rpcwallet.cpp
-  // ~/bitcoin/src/base58.h
-  bool CWallet::SetAddressBook(const CTxDestination& address, const string& strName, const string& strPurpose)
-  bool CWallet::DelAddressBook(const CTxDestination& address)
-
-  BOOST_FOREACH(CBitcoinAddress& addr, vAddr) {
-          ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
-          ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
-  class CWalletScanState {
-  bool
-  ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
-               CWalletScanState &wss, string& strType, string& strErr)
-  {
-  ./rpcwallet.cpp:
-  BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook)
-
-  Array jsonGroupings;
-  map<CTxDestination, CAmount> balances = pwalletMain->GetAddressBalances();
-  BOOST_FOREACH(set<CTxDestination> grouping, pwalletMain->GetAddressGroupings())
-  {
-      Array jsonGrouping;
-      BOOST_FOREACH(CTxDestination address, grouping)
-      {
-          Array addressInfo;
-          addressInfo.push_back(CBitcoinAddress(address).ToString());
-          addressInfo.push_back(ValueFromAmount(balances[address]));
-          {
-              LOCK(pwalletMain->cs_wallet);
-              if (pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get()) != pwalletMain->mapAddressBook.end())
-                  addressInfo.push_back(pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get())->second.name);
-          }
-          jsonGrouping.push_back(addressInfo);
-      }
-      jsonGroupings.push_back(jsonGrouping);
-  }
-*/
-
   Local<Array> array = NanNew<Array>();
   int i = 0;
 
@@ -1554,31 +1503,6 @@ NAN_METHOD(GetRecipients) {
   }
 
   NanReturnValue(array);
-
-/*
-  CScript inner = _createmultisig_redeemScript(params);
-  CScriptID innerID = inner.GetID();
-  pwalletMain->AddCScript(inner);
-
-  CTxDestination address;
-  std::string label;
-  pwalletMain->SetAddressBook(address, label, "send");
-
-  CTxDestination address;
-  pwalletMain->DelAddressBook(address);
-  // pwalletMain->SetAddressBook(keyID, strAccount, "send");
-
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-
-    CAccount account;
-    walletdb.ReadAccount(strAccount, account);
-    if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed)
-        pwalletMain->SetAddressBook(account.vchPubKey.GetID(), strAccount, "receive");
-
-  CBitcoinAddress address = account.vchPubKey.GetID();
-
-  NanReturnValue(array);
-*/
 }
 
 /**
@@ -1601,23 +1525,9 @@ NAN_METHOD(SetRecipient) {
   String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
   std::string label = std::string(*label_);
 
-  //CTxDestination dest = CBitcoinAddress(address.toStdString()).Get();
   CTxDestination address = CBitcoinAddress(addr).Get();
 
-/*
-  BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
-    if (IsMine(*pwalletMain, entry.first) & includeWatchonly) // This address belongs to me
-      mapAccountBalances[entry.second.name] = 0;
-  }
-*/
-
-  // bool CWallet::SetAddressBook(const CTxDestination& address, const string& strName, const string& strPurpose)
   pwalletMain->SetAddressBook(address, label, "send");
-
-/*
-            CTxDestination address;
-            if (!ExtractDestination(txout.scriptPubKey, address))
-*/
 
   NanReturnValue(True());
 }
@@ -1636,27 +1546,11 @@ NAN_METHOD(RemoveRecipient) {
       "Usage: bitcoindjs.removeRecipient(options)");
   }
 
-  // CTxDestination setAddress = pwalletMain->GetAccountAddresses(accountName);
-
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
 
   CTxDestination address = CBitcoinAddress(addr).Get();
 
-/*
-  CTxDestination& address;
-
-  BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& item, mapAddressBook) {
-    const CTxDestination& address_ = item.first;
-    const string& strName = item.second.name;
-    if (strName == accountName)
-      address = address_;
-      break;
-    }
-  }
-*/
-
-  // bool CWallet::DelAddressBook(const CTxDestination& address)
   pwalletMain->DelAddressBook(address);
 
   NanReturnValue(True());
