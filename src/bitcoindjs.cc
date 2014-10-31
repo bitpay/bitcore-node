@@ -137,10 +137,63 @@ extern CFeeRate payTxFee;
 extern const std::string strMessageMagic;
 
 // XXX May not link properly: some functions here are static (rpcdump.cpp):
-extern std::string EncodeDumpTime(int64_t nTime);
-extern int64_t DecodeDumpTime(const std::string &str);
-extern std::string EncodeDumpString(const std::string &str);
+// extern std::string EncodeDumpTime(int64_t nTime);
+// extern int64_t DecodeDumpTime(const std::string &str);
+// extern std::string EncodeDumpString(const std::string &str);
+// extern std::string DecodeDumpString(const std::string &str);
+
+static std::string
+EncodeDumpTime(int64_t nTime) {
+  return DateTimeStrFormat("%Y-%m-%dT%H:%M:%SZ", nTime);
+}
+
+static int64_t
+DecodeDumpTime(const std::string &str) {
+  static const boost::posix_time::ptime epoch = boost::posix_time::from_time_t(0);
+  static const std::locale loc(std::locale::classic(),
+    new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ"));
+  std::istringstream iss(str);
+  iss.imbue(loc);
+  boost::posix_time::ptime ptime(boost::date_time::not_a_date_time);
+  iss >> ptime;
+  if (ptime.is_not_a_date_time()) {
+    return 0;
+  }
+  return (ptime - epoch).total_seconds();
+}
+
+static std::string
+EncodeDumpString(const std::string &str) {
+  std::stringstream ret;
+  BOOST_FOREACH(unsigned char c, str) {
+    if (c <= 32 || c >= 128 || c == '%') {
+      ret << '%' << HexStr(&c, &c + 1);
+    } else {
+      ret << c;
+    }
+  }
+  return ret.str();
+}
+
+// May not need this - not static:
+#if 0
+static std::string
+DecodeDumpString(const std::string &str) {
+  std::stringstream ret;
+  for (unsigned int pos = 0; pos < str.length(); pos++) {
+      unsigned char c = str[pos];
+    if (c == '%' && pos+2 < str.length()) {
+      c = (((str[pos+1]>>6)*9+((str[pos+1]-'0')&15)) << 4) |
+          ((str[pos+2]>>6)*9+((str[pos+2]-'0')&15));
+      pos += 2;
+    }
+    ret << c;
+  }
+  return ret.str();
+}
+#else
 extern std::string DecodeDumpString(const std::string &str);
+#endif
 
 /**
  * Node.js System
@@ -4230,7 +4283,7 @@ async_dump_wallet(uv_work_t *req) {
   std::sort(vKeyBirth.begin(), vKeyBirth.end());
 
   // produce output
-  file << strprintf("# Wallet dump created by Bitcoin %s (%s)\n",
+  file << strprintf("# Wallet dump created by bitcoind.js %s (%s)\n",
     CLIENT_BUILD, CLIENT_DATE);
   file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()));
   file << strprintf("# * Best block at time of backup was %i (%s),\n",
