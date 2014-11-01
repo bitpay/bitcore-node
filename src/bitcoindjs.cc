@@ -4565,6 +4565,16 @@ NAN_METHOD(WalletChangeLabel) {
   CAccount account;
   walletdb.ReadAccount(accountName, account);
 
+  // setaccount logic:
+  // If address is mine - set account label
+  // If address is not mine - create recipient
+  // NOTE: This now throws an error if the address is not owned by you.
+  // if (coin.accountByAddress(address)) {
+  //   coin.accountByAddress(address).label = label;
+  // } else {
+  //   coin.createRecipient(address, label);
+  // }
+
   if (accountName.empty()) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
@@ -4574,6 +4584,11 @@ NAN_METHOD(WalletChangeLabel) {
         break;
       }
     }
+    // If it isn't our address, create a recipient:
+    if (!IsMine(*pwalletMain, address.Get())) {
+      WalletSetRecipient(args);
+      NanReturnValue(True());
+    }
   }
 
   // Find all addresses that have the given account
@@ -4581,9 +4596,9 @@ NAN_METHOD(WalletChangeLabel) {
     const CBitcoinAddress& address = item.first;
     const string& strName = item.second.name;
     if (strName == accountName) {
-      walletdb.WriteName(address.ToString(), label);
-      walletdb.WritePurpose(address.ToString(), std::string("receive"));
-      // pwalletMain->SetAddressBook(address, accountName, std::string("receive"));
+      // walletdb.WriteName(address.ToString(), label);
+      // walletdb.WritePurpose(address.ToString(), std::string("receive"));
+      pwalletMain->SetAddressBook(address, accountName, std::string("receive"));
     }
   }
 
