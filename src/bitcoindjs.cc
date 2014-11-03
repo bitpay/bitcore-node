@@ -4621,7 +4621,8 @@ NAN_METHOD(WalletChangeLabel) {
       // walletdb.WritePurpose(address.ToString(), std::string("receive"));
       CKeyID keyID;
       address.GetKeyID(keyID);
-      pwalletMain->SetAddressBook(keyID, accountName, "receive");
+      //pwalletMain->SetAddressBook(keyID, accountName, "receive");
+      pwalletMain->SetAddressBook(address.Get(), accountName, "receive");
     }
   }
 
