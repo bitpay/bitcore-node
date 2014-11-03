@@ -4563,23 +4563,6 @@ NAN_METHOD(WalletChangeLabel) {
     addr = std::string(*addr_);
   }
 
-  // LOCK2(cs_main, pwalletMain->cs_wallet);
-
-  // CWalletDB walletdb(pwalletMain->strWalletFile);
-
-  // CAccount account;
-  // walletdb.ReadAccount(accountName, account);
-
-  // setaccount/changelabel logic (bcoin):
-  // If address is mine - set account label
-  // If address is not mine - create recipient
-  // NOTE: This now throws an error if the address is not owned by you (bitcoind).
-  // if (coin.accountByAddress(address)) {
-  //   coin.accountByAddress(address).label = label;
-  // } else {
-  //   coin.createRecipient(address, label);
-  // }
-
   if (IS_EMPTY(accountName) && IS_EMPTY(addr)) {
     return NanThrowError("No address or account name entered.");
   }
@@ -4593,8 +4576,6 @@ NAN_METHOD(WalletChangeLabel) {
         break;
       }
     }
-    // options->Set(NanNew<String>("account"), NanNew<String>(accountName));
-    // options->Set(NanNew<String>("label"), NanNew<String>(accountName));
   }
 
   if (IS_EMPTY(addr) && !IS_EMPTY(accountName)) {
@@ -4606,7 +4587,6 @@ NAN_METHOD(WalletChangeLabel) {
         break;
       }
     }
-    // options->Set(NanNew<String>("address"), NanNew<String>(addr));
   }
 
   // If it isn't our address, create a recipient:
@@ -4614,20 +4594,6 @@ NAN_METHOD(WalletChangeLabel) {
     CTxDestination address = CBitcoinAddress(addr).Get();
     if (!IsMine(*pwalletMain, address)) {
       pwalletMain->SetAddressBook(address, accountName, "send");
-
-      // ~/work/node_modules/termcoin/lib/backend/libbitcoind.js
-      // ~/work/node_modules/termcoin/lib/ui.js
-      // ~/bitcoin/src/wallet.cpp
-
-      // ~/bitcoin/src/qt/walletmodel.cpp
-      // ~/bitcoin/src/qt/addresstablemodel.cpp
-      // ~/bitcoin/src/rpcwallet.cpp
-
-      //walletdb.WriteName(addr, accountName);
-      //walletdb.WritePurpose(addr, std::string("send"));
-
-      //WalletSetRecipient(args);
-
       NanReturnValue(True());
     }
   }
@@ -4637,13 +4603,6 @@ NAN_METHOD(WalletChangeLabel) {
     const CBitcoinAddress& address = item.first;
     const string& strName = item.second.name;
     if (strName == accountName) {
-      // walletdb.WriteName(address.ToString(), accountName);
-      // walletdb.WritePurpose(address.ToString(), std::string("receive"));
-
-      // CKeyID keyID;
-      // address.GetKeyID(keyID);
-      // pwalletMain->SetAddressBook(keyID, accountName, "receive");
-
       pwalletMain->SetAddressBook(address.Get(), accountName, "receive");
     }
   }
@@ -4667,15 +4626,13 @@ NAN_METHOD(WalletDeleteAccount) {
 
   Local<Object> options = Local<Object>::Cast(args[0]);
 
-  std::string accountName = std::string("");
-  bool accountNameSet = false;
+  std::string accountName = std::string(EMPTY);
   if (options->Get(NanNew<String>("account"))->IsString()) {
     String::Utf8Value accountName_(options->Get(NanNew<String>("account"))->ToString());
     accountName = std::string(*accountName_);
-    accountNameSet = true;
   }
 
-  std::string addr = std::string("");
+  std::string addr = std::string(EMPTY);
   if (options->Get(NanNew<String>("address"))->IsString()) {
     String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
     addr = std::string(*addr_);
@@ -4688,20 +4645,19 @@ NAN_METHOD(WalletDeleteAccount) {
   CAccount account;
   walletdb.ReadAccount(accountName, account);
 
-  if (!accountNameSet) {
+  if (IS_EMPTY(accountName)) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
       if (address.ToString() == addr) {
         accountName = strName;
-        accountNameSet = true;
         break;
       }
     }
   }
 
-  if (!accountNameSet) {
-    if (addr.empty()) {
+  if (IS_EMPTY(accountName)) {
+    if (IS_EMPTY(addr)) {
       return NanThrowError("No account name specified.");
     } else {
       return NanThrowError("No account tied to specified address.");
