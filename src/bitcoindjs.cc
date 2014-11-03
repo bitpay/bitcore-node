@@ -2634,6 +2634,20 @@ NAN_METHOD(WalletSetAccount) {
     strAccount = std::string(*account_);
   }
 
+  if (options->Get(NanNew<String>("label"))->IsString()) {
+    String::Utf8Value account_(options->Get(NanNew<String>("label"))->ToString());
+    strAccount = std::string(*account_);
+  }
+
+  // If it isn't our address, create a recipient:
+  {
+    CTxDestination dest = address.Get();
+    if (!IsMine(*pwalletMain, dest)) {
+      pwalletMain->SetAddressBook(dest, strAccount, "send");
+      NanReturnValue(Undefined());
+    }
+  }
+
   // Detect when changing the account of an address that is the 'unused current key' of another account:
   if (pwalletMain->mapAddressBook.count(address.Get())) {
     string strOldAccount = pwalletMain->mapAddressBook[address.Get()].name;
@@ -2742,10 +2756,33 @@ NAN_METHOD(WalletSetRecipient) {
 
   String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
   std::string label = std::string(*label_);
+  std::string accountName = label;
 
-  CTxDestination address = CBitcoinAddress(addr).Get();
+  CWalletDB walletdb(pwalletMain->strWalletFile);
+  CAccount account;
+  //walletdb.ReadAccount(accountName, account);
 
-  pwalletMain->SetAddressBook(address, label, "send");
+  walletdb.WriteAccount(accountName, account);
+  walletdb.WriteName(addr, accountName);
+  walletdb.WritePurpose(addr, std::string("send"));
+
+  // bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata &keyMeta);
+  // bool WriteAccount(const std::string& strAccount, const CAccount& account);
+  // bool WriteName(const std::string& strAddress, const std::string& strName);
+  // bool WritePurpose(const std::string& strAddress, const std::string& purpose);
+
+  //CTxDestination address = CBitcoinAddress(addr).Get();
+  //pwalletMain->SetAddressBook(address, label, "send");
+
+/*
+            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+        }
+        else if (strType == "purpose")
+        {
+            string strAddress;
+            ssKey >> strAddress;
+            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+*/
 
   NanReturnValue(True());
 }
@@ -3684,7 +3721,7 @@ NAN_METHOD(WalletListAccounts) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const std::string& strName = item.second.name;
-      if (strName == accountBalance.first) {
+      if (strName == accountBalance.first && item.second.purpose != "send") {
         Local<Object> a = NanNew<Object>();
         a->Set(NanNew<String>("address"), NanNew<String>(address.ToString()));
 
@@ -3697,7 +3734,7 @@ NAN_METHOD(WalletListAccounts) {
           return NanThrowError("Private key for address is not known");
         }
 
-        if (!pwalletMain->IsCrypted()) {
+        if (!pwalletMain->IsLocked()) {
           std::string priv = CBitcoinSecret(vchSecret).ToString();
           a->Set(NanNew<String>("privkeycompressed"), NanNew<Boolean>(vchSecret.IsCompressed()));
           a->Set(NanNew<String>("privkey"), NanNew<String>(priv));
