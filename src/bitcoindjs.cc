@@ -4543,7 +4543,7 @@ NAN_METHOD(WalletChangeLabel) {
 
   Local<Object> options = Local<Object>::Cast(args[0]);
 
-  std::string accountName = std::string("");
+  std::string accountName = std::string("\x01");
   if (options->Get(NanNew<String>("account"))->IsString()) {
     String::Utf8Value accountName_(options->Get(NanNew<String>("account"))->ToString());
     accountName = std::string(*accountName_);
@@ -4554,7 +4554,7 @@ NAN_METHOD(WalletChangeLabel) {
     accountName = std::string(*label_);
   }
 
-  std::string addr = std::string("");
+  std::string addr = std::string("\x01");
   if (options->Get(NanNew<String>("address"))->IsString()) {
     String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
     addr = std::string(*addr_);
@@ -4577,11 +4577,11 @@ NAN_METHOD(WalletChangeLabel) {
   //   coin.createRecipient(address, label);
   // }
 
-  if (accountName.empty() && addr.empty()) {
+  if (accountName == "\x01" && addr == "\x01") {
     return NanThrowError("No address or account name entered.");
   }
 
-  if (accountName.empty() && !addr.empty()) {
+  if (accountName == "\x01" && addr != "\x01") {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -4594,7 +4594,7 @@ NAN_METHOD(WalletChangeLabel) {
     // options->Set(NanNew<String>("label"), NanNew<String>(accountName));
   }
 
-  if (addr.empty() && !accountName.empty()) {
+  if (addr == "\x01" && accountName != "\x01") {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -4611,6 +4611,10 @@ NAN_METHOD(WalletChangeLabel) {
     CTxDestination address = CBitcoinAddress(addr).Get();
     if (!IsMine(*pwalletMain, address)) {
       pwalletMain->SetAddressBook(address, accountName, "send");
+
+      // ~/work/node_modules/termcoin/lib/backend/libbitcoind.js
+      // ~/work/node_modules/termcoin/lib/ui.js
+      // ~/bitcoin/src/wallet.cpp
 
       // ~/bitcoin/src/qt/walletmodel.cpp
       // ~/bitcoin/src/qt/addresstablemodel.cpp
@@ -4637,21 +4641,7 @@ NAN_METHOD(WalletChangeLabel) {
       // address.GetKeyID(keyID);
       // pwalletMain->SetAddressBook(keyID, accountName, "receive");
 
-      // Generate a new key that is added to wallet
-      CPubKey newKey;
-      if (!pwalletMain->GetKeyFromPool(newKey)) {
-        if (pwalletMain->IsLocked()) {
-          return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
-        }
-        pwalletMain->TopUpKeyPool(100);
-        if (pwalletMain->GetKeyPoolSize() < 100) {
-          return NanThrowError("Error refreshing keypool.");
-        }
-      }
-      CKeyID keyID = newKey.GetID();
-      pwalletMain->SetAddressBook(keyID, accountName, "receive");
-
-      // pwalletMain->SetAddressBook(address.Get(), accountName, "receive");
+      pwalletMain->SetAddressBook(address.Get(), accountName, "receive");
     }
   }
 
