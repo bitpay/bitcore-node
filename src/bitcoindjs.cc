@@ -4549,23 +4549,23 @@ NAN_METHOD(WalletChangeLabel) {
     accountName = std::string(*accountName_);
   }
 
+  if (options->Get(NanNew<String>("label"))->IsString()) {
+    String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
+    accountName = std::string(*label_);
+  }
+
   std::string addr = std::string("");
   if (options->Get(NanNew<String>("address"))->IsString()) {
     String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
     addr = std::string(*addr_);
   }
 
-  if (options->Get(NanNew<String>("label"))->IsString()) {
-    String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
-    accountName = std::string(*label_);
-  }
-
   // LOCK2(cs_main, pwalletMain->cs_wallet);
 
-  // CWalletDB walletdb(pwalletMain->strWalletFile);
+  CWalletDB walletdb(pwalletMain->strWalletFile);
 
-  // CAccount account;
-  // walletdb.ReadAccount(accountName, account);
+  CAccount account;
+  walletdb.ReadAccount(accountName, account);
 
   // setaccount/changelabel logic (bcoin):
   // If address is mine - set account label
@@ -4577,7 +4577,11 @@ NAN_METHOD(WalletChangeLabel) {
   //   coin.createRecipient(address, label);
   // }
 
-  if (accountName.empty()) {
+  if (accountName.empty() && addr.empty()) {
+    return NanThrowError("No address or account name entered.");
+  }
+
+  if (accountName.empty() && !addr.empty()) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -4590,7 +4594,7 @@ NAN_METHOD(WalletChangeLabel) {
     // options->Set(NanNew<String>("label"), NanNew<String>(accountName));
   }
 
-  if (addr.empty()) {
+  if (addr.empty() && !accountName.empty()) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -4603,8 +4607,7 @@ NAN_METHOD(WalletChangeLabel) {
   }
 
   // If it isn't our address, create a recipient:
-  CBitcoinAddress address(addr);
-  if (!IsMine(*pwalletMain, address.Get())) {
+  if (!IsMine(*pwalletMain, CBitcoinAddress(addr).Get())) {
     WalletSetRecipient(args);
     NanReturnValue(True());
   }
@@ -4614,9 +4617,9 @@ NAN_METHOD(WalletChangeLabel) {
     const CBitcoinAddress& address = item.first;
     const string& strName = item.second.name;
     if (strName == accountName) {
-      // walletdb.WriteName(address.ToString(), label);
-      // walletdb.WritePurpose(address.ToString(), std::string("receive"));
-      pwalletMain->SetAddressBook(address, accountName, std::string("receive"));
+      walletdb.WriteName(address.ToString(), accountName);
+      walletdb.WritePurpose(address.ToString(), std::string("receive"));
+      // pwalletMain->SetAddressBook(address, accountName, std::string("receive"));
     }
   }
 
