@@ -4555,20 +4555,22 @@ NAN_METHOD(WalletChangeLabel) {
     addr = std::string(*addr_);
   }
 
-  String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
-  std::string label = std::string(*label_);
+  if (options->Get(NanNew<String>("label"))->IsString()) {
+    String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
+    accountName = std::string(*label_);
+  }
 
   // LOCK2(cs_main, pwalletMain->cs_wallet);
 
-  CWalletDB walletdb(pwalletMain->strWalletFile);
+  // CWalletDB walletdb(pwalletMain->strWalletFile);
 
-  CAccount account;
-  walletdb.ReadAccount(accountName, account);
+  // CAccount account;
+  // walletdb.ReadAccount(accountName, account);
 
-  // setaccount logic:
+  // setaccount/changelabel logic (bcoin):
   // If address is mine - set account label
   // If address is not mine - create recipient
-  // NOTE: This now throws an error if the address is not owned by you.
+  // NOTE: This now throws an error if the address is not owned by you (bitcoind).
   // if (coin.accountByAddress(address)) {
   //   coin.accountByAddress(address).label = label;
   // } else {
@@ -4584,11 +4586,27 @@ NAN_METHOD(WalletChangeLabel) {
         break;
       }
     }
-    // If it isn't our address, create a recipient:
-    if (!IsMine(*pwalletMain, address.Get())) {
-      WalletSetRecipient(args);
-      NanReturnValue(True());
+    args->Set(NanNew<String>("account"), NanNew<String>(accountName));
+    args->Set(NanNew<String>("label"), NanNew<String>(accountName));
+  }
+
+  if (addr.empty()) {
+    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
+      const CBitcoinAddress& address = item.first;
+      const string& strName = item.second.name;
+      if (strName == accountName) {
+        addr = address.ToString();
+        break;
+      }
     }
+    args->Set(NanNew<String>("address"), NanNew<String>(addr));
+  }
+
+  // If it isn't our address, create a recipient:
+  CBitcoinAddress address(addr);
+  if (!IsMine(*pwalletMain, address.Get())) {
+    WalletSetRecipient(args);
+    NanReturnValue(True());
   }
 
   // Find all addresses that have the given account
