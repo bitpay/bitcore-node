@@ -4586,8 +4586,8 @@ NAN_METHOD(WalletChangeLabel) {
         break;
       }
     }
-    args->Set(NanNew<String>("account"), NanNew<String>(accountName));
-    args->Set(NanNew<String>("label"), NanNew<String>(accountName));
+    // options->Set(NanNew<String>("account"), NanNew<String>(accountName));
+    // options->Set(NanNew<String>("label"), NanNew<String>(accountName));
   }
 
   if (addr.empty()) {
@@ -4599,7 +4599,7 @@ NAN_METHOD(WalletChangeLabel) {
         break;
       }
     }
-    args->Set(NanNew<String>("address"), NanNew<String>(addr));
+    // options->Set(NanNew<String>("address"), NanNew<String>(addr));
   }
 
   // If it isn't our address, create a recipient:
