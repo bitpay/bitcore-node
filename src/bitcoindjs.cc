@@ -4562,10 +4562,10 @@ NAN_METHOD(WalletChangeLabel) {
 
   // LOCK2(cs_main, pwalletMain->cs_wallet);
 
-  CWalletDB walletdb(pwalletMain->strWalletFile);
+  // CWalletDB walletdb(pwalletMain->strWalletFile);
 
-  CAccount account;
-  walletdb.ReadAccount(accountName, account);
+  // CAccount account;
+  // walletdb.ReadAccount(accountName, account);
 
   // setaccount/changelabel logic (bcoin):
   // If address is mine - set account label
@@ -4617,9 +4617,11 @@ NAN_METHOD(WalletChangeLabel) {
     const CBitcoinAddress& address = item.first;
     const string& strName = item.second.name;
     if (strName == accountName) {
-      walletdb.WriteName(address.ToString(), accountName);
-      walletdb.WritePurpose(address.ToString(), std::string("receive"));
-      // pwalletMain->SetAddressBook(address, accountName, std::string("receive"));
+      // walletdb.WriteName(address.ToString(), accountName);
+      // walletdb.WritePurpose(address.ToString(), std::string("receive"));
+      CKeyID keyID;
+      address.GetKeyID(keyID);
+      pwalletMain->SetAddressBook(keyID, accountName, "receive");
     }
   }
 
