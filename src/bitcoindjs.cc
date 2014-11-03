@@ -214,6 +214,9 @@ extern std::string DecodeDumpString(const std::string &str);
 using namespace node;
 using namespace v8;
 
+#define EMPTY ("\\x01")
+#define IS_EMPTY(addr) ((addr) == "\\x01")
+
 /**
  * Node.js Exposed Function Templates
  */
@@ -4543,7 +4546,7 @@ NAN_METHOD(WalletChangeLabel) {
 
   Local<Object> options = Local<Object>::Cast(args[0]);
 
-  std::string accountName = std::string("\x01");
+  std::string accountName = std::string(EMPTY);
   if (options->Get(NanNew<String>("account"))->IsString()) {
     String::Utf8Value accountName_(options->Get(NanNew<String>("account"))->ToString());
     accountName = std::string(*accountName_);
@@ -4554,7 +4557,7 @@ NAN_METHOD(WalletChangeLabel) {
     accountName = std::string(*label_);
   }
 
-  std::string addr = std::string("\x01");
+  std::string addr = std::string(EMPTY);
   if (options->Get(NanNew<String>("address"))->IsString()) {
     String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
     addr = std::string(*addr_);
@@ -4577,11 +4580,11 @@ NAN_METHOD(WalletChangeLabel) {
   //   coin.createRecipient(address, label);
   // }
 
-  if (accountName == "\x01" && addr == "\x01") {
+  if (IS_EMPTY(accountName) && IS_EMPTY(addr)) {
     return NanThrowError("No address or account name entered.");
   }
 
-  if (accountName == "\x01" && addr != "\x01") {
+  if (IS_EMPTY(accountName) && !IS_EMPTY(addr)) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -4594,7 +4597,7 @@ NAN_METHOD(WalletChangeLabel) {
     // options->Set(NanNew<String>("label"), NanNew<String>(accountName));
   }
 
-  if (addr == "\x01" && accountName != "\x01") {
+  if (IS_EMPTY(addr) && !IS_EMPTY(accountName)) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
