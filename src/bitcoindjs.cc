@@ -4612,6 +4612,10 @@ NAN_METHOD(WalletChangeLabel) {
     if (!IsMine(*pwalletMain, address)) {
       pwalletMain->SetAddressBook(address, accountName, "send");
 
+      // ~/bitcoin/src/qt/walletmodel.cpp
+      // ~/bitcoin/src/qt/addresstablemodel.cpp
+      // ~/bitcoin/src/rpcwallet.cpp
+
       //walletdb.WriteName(addr, accountName);
       //walletdb.WritePurpose(addr, std::string("send"));
 
@@ -4629,11 +4633,25 @@ NAN_METHOD(WalletChangeLabel) {
       // walletdb.WriteName(address.ToString(), accountName);
       // walletdb.WritePurpose(address.ToString(), std::string("receive"));
 
-      //CKeyID keyID;
-      //address.GetKeyID(keyID);
-      //pwalletMain->SetAddressBook(keyID, accountName, "receive");
+      // CKeyID keyID;
+      // address.GetKeyID(keyID);
+      // pwalletMain->SetAddressBook(keyID, accountName, "receive");
 
-      pwalletMain->SetAddressBook(address.Get(), accountName, "receive");
+      // Generate a new key that is added to wallet
+      CPubKey newKey;
+      if (!pwalletMain->GetKeyFromPool(newKey)) {
+        if (pwalletMain->IsLocked()) {
+          return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+        }
+        pwalletMain->TopUpKeyPool(100);
+        if (pwalletMain->GetKeyPoolSize() < 100) {
+          return NanThrowError("Error refreshing keypool.");
+        }
+      }
+      CKeyID keyID = newKey.GetID();
+      pwalletMain->SetAddressBook(keyID, accountName, "receive");
+
+      // pwalletMain->SetAddressBook(address.Get(), accountName, "receive");
     }
   }
 
