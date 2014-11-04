@@ -259,6 +259,7 @@ NAN_METHOD(WalletGetBalance);
 NAN_METHOD(WalletCreateMultiSigAddress);
 NAN_METHOD(WalletGetUnconfirmedBalance);
 NAN_METHOD(WalletSendFrom);
+NAN_METHOD(WalletMove);
 NAN_METHOD(WalletListTransactions);
 NAN_METHOD(WalletReceivedByAddress);
 NAN_METHOD(WalletListAccounts);
@@ -3420,6 +3421,85 @@ async_wallet_sendfrom_after(uv_work_t *req) {
 }
 
 /**
+ * WalletMove()
+ * bitcoindjs.walletMove(options)
+ * Move BTC from one account to another
+ */
+
+NAN_METHOD(WalletMove) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletMove(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  std::string strFrom;
+  if (options->Get(NanNew<String>("from"))->IsString()) {
+    String::Utf8Value s_(options->Get(NanNew<String>("from"))->ToString());
+    strFrom = std::string(*s_);
+  }
+
+  std::string strTo;
+  if (options->Get(NanNew<String>("to"))->IsString()) {
+    String::Utf8Value s_(options->Get(NanNew<String>("to"))->ToString());
+    strTo = std::string(*s_);
+  }
+
+  CAmount nAmount;
+  if (options->Get(NanNew<String>("amount"))->IsNumber()) {
+    nAmount = (CAmount)options->Get(NanNew<String>("amount"))->IntegerValue();
+  }
+
+  // DEPRECATED
+  // int nMinDepth = 1;
+  // if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
+  //   nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
+  // }
+
+  std::string strComment;
+  if (options->Get(NanNew<String>("comment"))->IsString()) {
+    String::Utf8Value s_(options->Get(NanNew<String>("comment"))->ToString());
+    strComment = std::string(*s_);
+  }
+
+  CWalletDB walletdb(pwalletMain->strWalletFile);
+  if (!walletdb.TxnBegin()) {
+    return NanThrowError("database error");
+  }
+
+  int64_t nNow = GetAdjustedTime();
+
+  // Debit
+  CAccountingEntry debit;
+  debit.nOrderPos = pwalletMain->IncOrderPosNext(&walletdb);
+  debit.strAccount = strFrom;
+  debit.nCreditDebit = -nAmount;
+  debit.nTime = nNow;
+  debit.strOtherAccount = strTo;
+  debit.strComment = strComment;
+  walletdb.WriteAccountingEntry(debit);
+
+  // Credit
+  CAccountingEntry credit;
+  credit.nOrderPos = pwalletMain->IncOrderPosNext(&walletdb);
+  credit.strAccount = strTo;
+  credit.nCreditDebit = nAmount;
+  credit.nTime = nNow;
+  credit.strOtherAccount = strFrom;
+  credit.strComment = strComment;
+  walletdb.WriteAccountingEntry(credit);
+
+  if (!walletdb.TxnCommit()) {
+    return NanThrowError("database error");
+  }
+
+  NanReturnValue(Undefined());
+}
+
+/**
  * WalletListTransactions()
  * bitcoindjs.walletListTransactions(options)
  * List all transactions pertaining to any owned addreses. NOT YET IMPLEMENTED>
@@ -5171,6 +5251,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletCreateMultiSigAddress", WalletCreateMultiSigAddress);
   NODE_SET_METHOD(target, "walletGetUnconfirmedBalance", WalletGetUnconfirmedBalance);
   NODE_SET_METHOD(target, "walletSendFrom", WalletSendFrom);
+  NODE_SET_METHOD(target, "walletMove", WalletMove);
   NODE_SET_METHOD(target, "walletListTransactions", WalletListTransactions);
   NODE_SET_METHOD(target, "walletReceivedByAddress", WalletReceivedByAddress);
   NODE_SET_METHOD(target, "walletListAccounts", WalletListAccounts);
