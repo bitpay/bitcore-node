@@ -4701,23 +4701,16 @@ NAN_METHOD(WalletChangeLabel) {
   }
 
   // If it isn't our address, create a recipient:
-  {
-    CTxDestination address = CBitcoinAddress(addr).Get();
-    if (!IsMine(*pwalletMain, address)) {
-      pwalletMain->SetAddressBook(address, strAccount, "send");
-      pwalletMain->SetAddressBook(address, strAccount, "send");
-      NanReturnValue(True());
-    }
+  CTxDestination dest = CBitcoinAddress(addr).Get();
+
+  if (!IsMine(*pwalletMain, dest)) {
+    pwalletMain->SetAddressBook(dest, strAccount, "send");
+    pwalletMain->SetAddressBook(dest, strAccount, "send");
+    NanReturnValue(True());
   }
 
-  // Find all addresses that have the given account
-  BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
-    const CBitcoinAddress& address = item.first;
-    const string& strName = item.second.name;
-    if (strName == strAccount) {
-      pwalletMain->SetAddressBook(address.Get(), strAccount, "receive");
-    }
-  }
+  // Rename our address:
+  pwalletMain->SetAddressBook(dest, strAccount, "receive");
 
   NanReturnValue(True());
 }
