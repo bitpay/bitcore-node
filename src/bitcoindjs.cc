@@ -238,6 +238,7 @@ NAN_METHOD(GetProgress);
 NAN_METHOD(SetGenerate);
 NAN_METHOD(GetGenerate);
 NAN_METHOD(GetMiningInfo);
+NAN_METHOD(GetAddrTransactions);
 
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
@@ -318,6 +319,12 @@ async_get_tx(uv_work_t *req);
 
 static void
 async_get_tx_after(uv_work_t *req);
+
+static void
+async_get_addrtx(uv_work_t *req);
+
+static void
+async_get_addrtx_after(uv_work_t *req);
 
 static void
 async_broadcast_tx(uv_work_t *req);
@@ -427,26 +434,15 @@ struct async_node_data {
 };
 
 /**
- * async_hook_data
- * Hook into bitcoind packet reception.
- */
-
-struct async_hook_data {
-  std::string err_msg;
-  std::string result;
-  CNode result_pfrom;
-  Persistent<Function> callback;
-};
-
-/**
  * async_block_data
  */
 
 struct async_block_data {
   std::string err_msg;
   std::string hash;
-  CBlock result_block;
-  CBlockIndex* result_blockindex;
+  int64_t height;
+  CBlock cblock;
+  CBlockIndex* cblock_index;
   Persistent<Function> callback;
 };
 
@@ -459,6 +455,22 @@ struct async_tx_data {
   std::string txHash;
   std::string blockHash;
   CTransaction ctx;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_addrtx_data
+ */
+
+typedef struct _ctx_list {
+  CTransaction ctx;
+  struct _ctx_list *next;
+} ctx_list;
+
+struct async_addrtx_data {
+  std::string err_msg;
+  std::string addr;
+  ctx_list *ctxs;
   Persistent<Function> callback;
 };
 
@@ -901,7 +913,7 @@ NAN_METHOD(IsStopped) {
 
 /**
  * GetBlock()
- * bitcoind.getBlock(blockHash, callback)
+ * bitcoind.getBlock([blockHash,blockHeight], callback)
  * Read any block from disk asynchronously.
  */
 
@@ -909,20 +921,29 @@ NAN_METHOD(GetBlock) {
   NanScope();
 
   if (args.Length() < 2
-      || !args[0]->IsString()
+      || (!args[0]->IsString() || !args[0]->IsNumber())
       || !args[1]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getBlock(blockHash, callback)");
+      "Usage: bitcoindjs.getBlock([blockHash,blockHeight], callback)");
   }
 
-  String::Utf8Value hash(args[0]->ToString());
+  async_block_data *data = new async_block_data();
+
+  if (args[0]->IsNumber()) {
+    int64_t height = args[0]->IntegerValue();
+    data->err_msg = std::string("");
+    data->hash = std::string("");
+    data->height = height;
+  } else {
+    String::Utf8Value hash_(args[0]->ToString());
+    std::string hash = std::string(*hash_);
+    data->err_msg = std::string("");
+    data->hash = hash;
+    data->height = -1;
+  }
+
   Local<Function> callback = Local<Function>::Cast(args[1]);
 
-  std::string hashp = std::string(*hash);
-
-  async_block_data *data = new async_block_data();
-  data->err_msg = std::string("");
-  data->hash = hashp;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -940,13 +961,27 @@ NAN_METHOD(GetBlock) {
 static void
 async_get_block(uv_work_t *req) {
   async_block_data* data = static_cast<async_block_data*>(req->data);
+
+  if (data->height != -1) {
+    CBlockIndex* pblockindex = chainActive[data->height];
+    CBlock cblock;
+    if (ReadBlockFromDisk(cblock, pblockindex)) {
+      data->cblock = cblock;
+      data->cblock_index = pblockindex;
+    } else {
+      data->err_msg = std::string("get_block(): failed.");
+    }
+    return;
+  }
+
   std::string strHash = data->hash;
   uint256 hash(strHash);
   CBlock cblock;
   CBlockIndex* pblockindex = mapBlockIndex[hash];
+
   if (ReadBlockFromDisk(cblock, pblockindex)) {
-    data->result_block = cblock;
-    data->result_blockindex = pblockindex;
+    data->cblock = cblock;
+    data->cblock_index = pblockindex;
   } else {
     data->err_msg = std::string("get_block(): failed.");
   }
@@ -967,8 +1002,8 @@ async_get_block_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
-    const CBlock& cblock = data->result_block;
-    CBlockIndex* cblock_index = data->result_blockindex;
+    const CBlock& cblock = data->cblock;
+    CBlockIndex* cblock_index = data->cblock_index;
 
     Local<Object> jsblock = NanNew<Object>();
     cblock_to_jsblock(cblock, cblock_index, jsblock, false);
@@ -1613,8 +1648,8 @@ async_get_progress_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
-    const CBlock& cblock = data->result_block;
-    CBlockIndex* cblock_index = data->result_blockindex;
+    const CBlock& cblock = data->cblock;
+    CBlockIndex* cblock_index = data->cblock_index;
 
     Local<Object> jsblock = NanNew<Object>();
     cblock_to_jsblock(cblock, cblock_index, jsblock, false);
@@ -1798,6 +1833,180 @@ NAN_METHOD(GetMiningInfo) {
 #endif
 
   NanReturnValue(obj);
+}
+
+/**
+ * GetAddrTransactions()
+ * bitcoind.getAddrTransactions(addr, callback)
+ * Read any transaction from disk asynchronously.
+ */
+
+NAN_METHOD(GetAddrTransactions) {
+  NanScope();
+
+  if (args.Length() < 2
+      || !args[0]->IsString()
+      || !args[1]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getAddrTransactions(addr, callback)");
+  }
+
+  String::Utf8Value addr_(args[0]->ToString());
+  Local<Function> callback = Local<Function>::Cast(args[2]);
+
+  Persistent<Function> cb;
+  cb = Persistent<Function>::New(callback);
+
+  std::string addr = std::string(*addr_);
+
+  async_addrtx_data *data = new async_addrtx_data();
+  data->err_msg = std::string("");
+  data->addr = addr;
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_get_addrtx,
+    (uv_after_work_cb)async_get_addrtx_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_get_addrtx(uv_work_t *req) {
+  async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
+
+  CBitcoinAddress address = CBitcoinAddress(data->addr);
+  if (!address.IsValid()) {
+    data->err_msg = std::string("bad addr");
+    return;
+  }
+
+  CScript expected = GetScriptForDestination(address.Get());
+
+  int64_t i = 0;
+  int64_t height = chainActive.Height();
+
+  for (; i <= height; i++) {
+    CBlockIndex* pblockindex = chainActive[i];
+    CBlock cblock;
+    if (ReadBlockFromDisk(cblock, pblockindex)) {
+      BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
+        // vin
+        BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+          // prev_txid
+          // std::string prev_txid = txin.prevout.hash.GetHex();
+
+          // asm
+          // std::string input_asm = txin.scriptSig.ToString();
+
+          // hex
+          // std::string input_hex = HexStr(txin.scriptSig.begin(), txin.scriptSig.end());
+
+          // format:
+          // { sig, pubkey }
+          // pseudocode:
+          // pubkey = input_asm.split().get(1);
+          // addr = base58(dsha(pubkey));
+
+          if (txin.scriptSig == expected) {
+            ctx_list *item = new ctx_list();
+            item->ctx = ctx;
+            if (data->ctxs == NULL) {
+              data->ctxs = item;
+            } else {
+              data->ctxs->next = item;
+              data->ctxs = item;
+            }
+            goto done;
+          }
+        }
+
+        // vout
+        for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+          const CTxOut& txout = ctx.vout[vo];
+          const CScript& scriptPubKey = txout.scriptPubKey;
+          txnouttype type;
+          vector<CTxDestination> addresses;
+          int nRequired;
+          if (ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+            BOOST_FOREACH(const CTxDestination& addr, addresses) {
+              std::string str_addr = CBitcoinAddress(addr).ToString();
+              if (data->addr == str_addr) {
+                ctx_list *item = new ctx_list();
+                item->ctx = ctx;
+                if (data->ctxs == NULL) {
+                  data->ctxs = item;
+                } else {
+                  data->ctxs->next = item;
+                  data->ctxs = item;
+                }
+                goto done;
+              }
+            }
+          }
+        }
+      }
+
+done:
+      continue;
+    } else {
+      data->err_msg = std::string("get_addrtx(): failed.");
+      break;
+    }
+  }
+  return;
+}
+
+static void
+async_get_addrtx_after(uv_work_t *req) {
+  NanScope();
+  async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Object> result = NanNew<Object>();
+    Local<Array> tx = NanNew<Array>();
+    int i = 0;
+    ctx_list *next;
+    for (ctx_list *item = data->ctxs; item; item = next) {
+      Local<Object> jstx = NanNew<Object>();
+      ctx_to_jstx(item->ctx, 0, jstx);
+      tx->Set(i, jstx);
+      i++;
+      next = item->next;
+      delete item;
+    }
+    result->Set(NanNew<String>("address"), NanNew<String>(data->addr));
+    result->Set(NanNew<String>("tx"), tx);
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(result)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
 }
 
 /**
@@ -5234,6 +5443,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "setGenerate", SetGenerate);
   NODE_SET_METHOD(target, "getGenerate", GetGenerate);
   NODE_SET_METHOD(target, "getMiningInfo", GetMiningInfo);
+  NODE_SET_METHOD(target, "getAddrTransactions", GetAddrTransactions);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
