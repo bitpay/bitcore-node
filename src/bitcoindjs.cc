@@ -11,6 +11,19 @@
 #include "bitcoindjs.h"
 
 /**
+ * LevelDB
+ */
+
+#include <leveldb/cache.h>
+#include <leveldb/options.h>
+#include <leveldb/env.h>
+#include <leveldb/filter_policy.h>
+#include <memenv.h>
+#include <leveldb/db.h>
+#include <leveldb/write_batch.h>
+#include <leveldb/comparator.h>
+
+/**
  * Bitcoin headers
  */
 
@@ -464,6 +477,7 @@ struct async_tx_data {
 
 typedef struct _ctx_list {
   CTransaction ctx;
+  uint256 blockhash;
   struct _ctx_list *next;
 } ctx_list;
 
@@ -544,6 +558,13 @@ struct async_dump_wallet_data {
   std::string path;
   Persistent<Function> callback;
 };
+
+/**
+ * Read Raw DB
+ */
+
+static ctx_list *
+read_addr(const std::string addr);
 
 /**
  * Functions
@@ -1862,6 +1883,7 @@ NAN_METHOD(GetAddrTransactions) {
   async_addrtx_data *data = new async_addrtx_data();
   data->err_msg = std::string("");
   data->addr = addr;
+  data->ctxs = NULL;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -1886,6 +1908,7 @@ async_get_addrtx(uv_work_t *req) {
     return;
   }
 
+#if 0
   CScript expected = GetScriptForDestination(address.Get());
 
   int64_t i = 0;
@@ -1916,6 +1939,8 @@ async_get_addrtx(uv_work_t *req) {
           if (txin.scriptSig == expected) {
             ctx_list *item = new ctx_list();
             item->ctx = ctx;
+            uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+            item->blockhash = hash;
             if (data->ctxs == NULL) {
               data->ctxs = item;
             } else {
@@ -1939,6 +1964,8 @@ async_get_addrtx(uv_work_t *req) {
               if (data->addr == str_addr) {
                 ctx_list *item = new ctx_list();
                 item->ctx = ctx;
+                uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+                item->blockhash = hash;
                 if (data->ctxs == NULL) {
                   data->ctxs = item;
                 } else {
@@ -1960,6 +1987,12 @@ done:
     }
   }
   return;
+#endif
+  ctx_list *ctxs = read_addr(data->addr);
+  data->ctxs = ctxs;
+  if (data->ctxs == NULL) {
+    data->err_msg = std::string("Could not read database.");
+  }
 }
 
 static void
@@ -1984,7 +2017,7 @@ async_get_addrtx_after(uv_work_t *req) {
     ctx_list *next;
     for (ctx_list *item = data->ctxs; item; item = next) {
       Local<Object> jstx = NanNew<Object>();
-      ctx_to_jstx(item->ctx, 0, jstx);
+      ctx_to_jstx(item->ctx, item->blockhash, jstx);
       tx->Set(i, jstx);
       i++;
       next = item->next;
@@ -5412,6 +5445,185 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
   }
 
   ctx.nLockTime = (unsigned int)jstx->Get(NanNew<String>("locktime"))->Uint32Value();
+}
+
+static leveldb::Options
+GetOptions(size_t nCacheSize) {
+  leveldb::Options options;
+  options.block_cache = leveldb::NewLRUCache(nCacheSize / 2);
+  options.write_buffer_size = nCacheSize / 4; // up to two write buffers may be held in memory simultaneously
+  options.filter_policy = leveldb::NewBloomFilterPolicy(10);
+  options.compression = leveldb::kNoCompression;
+  options.max_open_files = 64;
+  if (leveldb::kMajorVersion > 1 || (leveldb::kMajorVersion == 1 && leveldb::kMinorVersion >= 16)) {
+    // LevelDB versions before 1.16 consider short writes to be corruption. Only trigger error
+    // on corruption in later versions.
+    options.paranoid_checks = true;
+  }
+  return options;
+}
+
+// http://leveldb.googlecode.com/svn/tags/1.17/doc/index.html
+
+class TwoPartComparator : public leveldb::Comparator {
+  public:
+    // Three-way comparison function:
+    //   if a < b: negative result
+    //   if a > b: positive result
+    //   else: zero result
+    int Compare(const leveldb::Slice& a, const leveldb::Slice& b) const {
+#if 0
+      int a1, a2, b1, b2;
+      ParseKey(a, &a1, &a2);
+      ParseKey(b, &b1, &b2);
+      if (a1 < b1) return -1;
+      if (a1 > b1) return +1;
+      if (a2 < b2) return -1;
+      if (a2 > b2) return +1;
+      return 0;
+#endif
+#if 1
+      std::string a_ = a.ToString();
+      std::string b_ = b.ToString();
+      const char *a__ = a_.c_str();
+      const char *b__ = b_.c_str();
+      int r = strcmp(a__, b__);
+      // free(a__);
+      // free(b__);
+      return r;
+#endif
+#if 0
+      std::string a_ = a.ToString();
+      std::string b_ = b.ToString();
+      const char *a__ = a_.c_str();
+      const char *b__ = b_.c_str();
+      char *sub = strstr(a__, b__);
+      // free(a__);
+      // free(b__);
+      if (sub == NULL) return 1;
+      return 0;
+#endif
+    }
+
+    // Ignore the following methods for now:
+    const char* Name() const { return "TwoPartComparator"; }
+    void FindShortestSeparator(std::string*, const leveldb::Slice&) const { }
+    void FindShortSuccessor(std::string*) const { }
+};
+
+static ctx_list *
+read_addr(const std::string addr) {
+  ctx_list *head = new ctx_list();
+  ctx_list *cur = NULL;
+
+  // custom environment this database is using (may be NULL in case of default environment)
+  leveldb::Env* penv;
+
+  // database options used
+  leveldb::Options options;
+
+  // options used when reading from the database
+  leveldb::ReadOptions readoptions;
+
+  // options used when iterating over values of the database
+  leveldb::ReadOptions iteroptions;
+
+  // options used when writing to the database
+  leveldb::WriteOptions writeoptions;
+
+  // options used when sync writing to the database
+  leveldb::WriteOptions syncoptions;
+
+  // the database itself
+  leveldb::DB* pdb;
+
+  size_t nCacheSize = 0x100000;
+  bool fMemory = false;
+
+  penv = NULL;
+  readoptions.verify_checksums = true;
+  iteroptions.verify_checksums = true;
+  iteroptions.fill_cache = false;
+  syncoptions.sync = true;
+  options = GetOptions(nCacheSize);
+  options.create_if_missing = true;
+
+  TwoPartComparator cmp;
+  options.comparator = &cmp;
+
+  unsigned int nFile = 0;
+  unsigned int tryFiles = 0xffffffff;
+
+  for (; nFile < tryFiles; nFile++) {
+    const boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", nFile);
+
+    if (fMemory) {
+      penv = leveldb::NewMemEnv(leveldb::Env::Default());
+      options.env = penv;
+    }
+
+    leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
+
+    if (!status.ok()) {
+      break;
+    }
+
+    leveldb::Slice start = "txa2-" + addr + "-";
+    leveldb::Slice end = "txa2-" + addr + "-~";
+    //leveldb::Options options;
+
+    leveldb::Iterator* it = pdb->NewIterator(leveldb::ReadOptions());
+
+    for (it->Seek(start); it->Valid(); it->Next()) {
+      leveldb::Slice key = it->key();
+      leveldb::Slice value = it->value();
+
+      if (options.comparator->Compare(key, end) > 0) {
+        break;
+      } else {
+        std::string strValue = value.ToString();
+        CTransaction ctx;
+
+        // CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        // ssKey.reserve(ssKey.GetSerializeSize(key.ToString()));
+        // ssKey << key.ToString();
+        // leveldb::Slice slKey(&ssKey[0], ssKey.size());
+        // leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
+        // // leveldb::Status status = pdb->Get(readoptions, key, &strValue);
+        // if (!status.ok()) {
+        //   if (status.IsNotFound()) continue;
+        // }
+
+        try {
+          CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK, CLIENT_VERSION);
+          ssValue >> ctx;
+        } catch (const std::exception&) {
+          // return NULL;
+          continue;
+        }
+
+        if (cur == NULL) {
+          head->ctx = ctx;
+          uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+          head->blockhash = hash;
+          head->next = NULL;
+          cur = head;
+        } else {
+          ctx_list *item = new ctx_list();
+          item->ctx = ctx;
+          uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+          item->blockhash = hash;
+          item->next = NULL;
+          cur->next = item;
+          cur = item;
+        }
+      }
+    }
+
+    delete it;
+  }
+
+  return head;
 }
 
 /**
