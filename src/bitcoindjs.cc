@@ -5255,6 +5255,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     if (ctx.IsCoinBase()) {
       in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
     }
+
     in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
     in->Set(NanNew<String>("vout"), NanNew<Number>((unsigned int)txin.prevout.n)->ToUint32());
 
