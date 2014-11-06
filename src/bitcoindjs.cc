@@ -5263,13 +5263,20 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
     o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
 
+    Local<Object> jsprev = NanNew<Object>();
     CTransaction prev_tx;
     if (GetTransaction(txin.prevout.hash, prev_tx, block_hash, true)) {
       CTxDestination from;
-      ExtractDestination(prev_tx.vout[txin.prevout.n].scriptPubKey, from);
+      CTxOut prev_out = prev_tx.vout[txin.prevout.n];
+      ExtractDestination(prev_out.scriptPubKey, from);
       CBitcoinAddress addrFrom(from);
-      o->Set(NanNew<String>("address"), NanNew<String>(addrFrom.ToString()));
+      jsprev->Set(NanNew<String>("address"), NanNew<String>(addrFrom.ToString()));
+      jsprev->Set(NanNew<String>("value"), NanNew<Number>((int64_t)prev_out.nValue)->ToInteger());
+    } else {
+      jsprev->Set(NanNew<String>("address"), NanNew<String>(std::string("Unknown")));
+      jsprev->Set(NanNew<String>("value"), NanNew<Number>(0));
     }
+    in->Set(NanNew<String>("prev"), jsprev);
 
     in->Set(NanNew<String>("scriptSig"), o);
 
