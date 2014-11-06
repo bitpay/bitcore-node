@@ -463,11 +463,22 @@ struct async_block_data {
  * async_tx_data
  */
 
+#if 0
+typedef struct _prev_list {
+  std::string addr;
+  int64_t val;
+  struct _prev_list *next;
+} prev_list;
+#endif
+
 struct async_tx_data {
   std::string err_msg;
   std::string txHash;
   std::string blockHash;
   CTransaction ctx;
+#if 0
+  prev_list *inputs;
+#endif
   Persistent<Function> callback;
 };
 
@@ -1104,6 +1115,7 @@ async_get_tx(uv_work_t *req) {
 
   if (GetTransaction(hash, ctx, block_hash, true)) {
     data->ctx = ctx;
+    goto collect_prev;
   } else {
     if (data->blockHash != "0000000000000000000000000000000000000000000000000000000000000000") {
       CBlock block;
@@ -1112,13 +1124,41 @@ async_get_tx(uv_work_t *req) {
         BOOST_FOREACH(const CTransaction &tx, block.vtx) {
           if (tx.GetHash() == hash) {
             data->ctx = tx;
-            return;
+            goto collect_prev;
           }
         }
       }
     }
     data->err_msg = std::string("get_tx(): failed.");
   }
+
+  return;
+
+collect_prev:
+  return;
+
+#if 0
+  BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+    CTransaction prev_tx;
+    if (GetTransaction(txin.prevout.hash, prev_tx, block_hash, true)) {
+      CTxDestination from;
+      CTxOut prev_out = prev_tx.vout[txin.prevout.n];
+      ExtractDestination(prev_out.scriptPubKey, from);
+      CBitcoinAddress addrFrom(from);
+      std::string addr = addrFrom.ToString();
+      int64_t val = (int64_t)prev_out.nValue;
+      prev_list *cur = new prev_list();
+      cur->addr = addr;
+      cur->val = val;
+      if (data->inputs == NULL) {
+        data->inputs = cur;
+      } else {
+        data->inputs->next = cur;
+        data->inputs = cur;
+      }
+    }
+  }
+#endif
 }
 
 static void
@@ -1145,6 +1185,22 @@ async_get_tx_after(uv_work_t *req) {
   } else {
     Local<Object> jstx = NanNew<Object>();
     ctx_to_jstx(ctx, block_hash, jstx);
+
+    // XXX Do this for GetBlock, and PacketHook
+#if 0
+    prev_list *head = data->inputs;
+    prev_list *cur = data->inputs;
+    prev_list *next;
+    for (int i = 0; i < jstx.vin.Length(); i++) {
+      next = cur->next;
+      Local<Object> jsprev = NanNew<Object>();
+      jsprev->Set(NanNew<String>("address"), NanNew<String>(cur->addr));
+      jsprev->Set(NanNew<String>("value"), NanNew<Number>(cur->val));
+      jstx->vin->Get(i)->Set(NanNew<String>("prev"), jsprev);
+      delete cur;
+      cur = next;
+    }
+#endif
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
