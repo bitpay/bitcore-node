@@ -252,6 +252,7 @@ NAN_METHOD(SetGenerate);
 NAN_METHOD(GetGenerate);
 NAN_METHOD(GetMiningInfo);
 NAN_METHOD(GetAddrTransactions);
+NAN_METHOD(GetBestBlock);
 
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
@@ -2150,6 +2151,30 @@ async_get_addrtx_after(uv_work_t *req) {
 
   delete data;
   delete req;
+}
+
+/**
+ * GetBestBlock()
+ * bitcoindjs.getBestBlock()
+ * Get the best block
+ */
+
+NAN_METHOD(GetBestBlock) {
+  NanScope();
+
+  if (args.Length() < 0) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getBestBlock()");
+  }
+
+  //static CCoinsViewDB *pcoinsdbview = NULL;
+  //pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
+  //uint256 block_hash = pcoinsdbview->GetBestBlock();
+
+  //CCoinsViewCache &viewChain = *pcoinsTip;
+  uint256 block_hash = pcoinsTip->GetBestBlock();
+
+  NanReturnValue(NanNew<String>(block_hash.GetHex()));
 }
 
 /**
@@ -5799,6 +5824,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getGenerate", GetGenerate);
   NODE_SET_METHOD(target, "getMiningInfo", GetMiningInfo);
   NODE_SET_METHOD(target, "getAddrTransactions", GetAddrTransactions);
+  NODE_SET_METHOD(target, "getBestBlock", GetBestBlock);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
