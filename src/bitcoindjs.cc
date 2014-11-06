@@ -432,6 +432,14 @@ static bool g_testnet = false;
  * Used for async functions and necessary linked lists at points.
  */
 
+#if 0
+typedef struct _prev_list {
+  std::string addr;
+  int64_t val;
+  struct _prev_list *next;
+} prev_list;
+#endif
+
 /**
  * async_node_data
  * Where the uv async request data resides.
@@ -456,20 +464,15 @@ struct async_block_data {
   int64_t height;
   CBlock cblock;
   CBlockIndex* cblock_index;
+#if 0
+  prev_list *inputs;
+#endif
   Persistent<Function> callback;
 };
 
 /**
  * async_tx_data
  */
-
-#if 0
-typedef struct _prev_list {
-  std::string addr;
-  int64_t val;
-  struct _prev_list *next;
-} prev_list;
-#endif
 
 struct async_tx_data {
   std::string err_msg;
@@ -1014,6 +1017,30 @@ async_get_block(uv_work_t *req) {
   if (ReadBlockFromDisk(cblock, pblockindex)) {
     data->cblock = cblock;
     data->cblock_index = pblockindex;
+#if 0
+    BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
+      BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+        CTransaction prev_tx;
+        if (GetTransaction(txin.prevout.hash, prev_tx, block_hash, true)) {
+          CTxDestination from;
+          CTxOut prev_out = prev_tx.vout[txin.prevout.n];
+          ExtractDestination(prev_out.scriptPubKey, from);
+          CBitcoinAddress addrFrom(from);
+          std::string addr = addrFrom.ToString();
+          int64_t val = (int64_t)prev_out.nValue;
+          prev_list *cur = new prev_list();
+          cur->addr = addr;
+          cur->val = val;
+          if (data->inputs == NULL) {
+            data->inputs = cur;
+          } else {
+            data->inputs->next = cur;
+            data->inputs = cur;
+          }
+        }
+      }
+    }
+#endif
   } else {
     data->err_msg = std::string("get_block(): failed.");
   }
@@ -1039,6 +1066,24 @@ async_get_block_after(uv_work_t *req) {
 
     Local<Object> jsblock = NanNew<Object>();
     cblock_to_jsblock(cblock, cblock_index, jsblock, false);
+
+#if 0
+    prev_list *head = data->inputs;
+    prev_list *cur = data->inputs;
+    prev_list *next;
+    for (int i = 0; i < jsblock->tx->ength(); i++) {
+      for (int j = 0; j < jstx->vin->Length(); j++) {
+        next = cur->next;
+        jsblock.
+        Local<Object> jsprev = NanNew<Object>();
+        jsprev->Set(NanNew<String>("address"), NanNew<String>(cur->addr));
+        jsprev->Set(NanNew<String>("value"), NanNew<Number>(cur->val));
+        jsblock->tx->Get(i)->vin->Get(j)->Set(NanNew<String>("prev"), jsprev);
+        delete cur;
+        cur = next;
+      }
+    }
+#endif
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
@@ -1191,7 +1236,7 @@ async_get_tx_after(uv_work_t *req) {
     prev_list *head = data->inputs;
     prev_list *cur = data->inputs;
     prev_list *next;
-    for (int i = 0; i < jstx.vin.Length(); i++) {
+    for (int i = 0; i < jstx->vin->Length(); i++) {
       next = cur->next;
       Local<Object> jsprev = NanNew<Object>();
       jsprev->Set(NanNew<String>("address"), NanNew<String>(cur->addr));
@@ -2489,6 +2534,7 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1));
       o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop.GetHex().c_str()));
     } else if (strCommand == "tx") {
+      // XXX May be able to do prev_list asynchronously
       // XXX Potentially check for "reject" in original code
       CTransaction tx;
       vRecv >> tx;
@@ -2497,6 +2543,7 @@ NAN_METHOD(HookPackets) {
       // ctx_to_jstx(tx, 0, o);
       o->Set(NanNew<String>("tx"), jstx);
     } else if (strCommand == "block" && !fImporting && !fReindex) {
+      // XXX May be able to do prev_list asynchronously
       CBlock block;
       vRecv >> block;
       Local<Object> jsblock = NanNew<Object>();
