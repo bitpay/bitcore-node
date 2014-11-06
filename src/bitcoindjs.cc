@@ -5262,6 +5262,15 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     Local<Object> o = NanNew<Object>();
     o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
     o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+
+    CTransaction prev_tx;
+    if (GetTransaction(txin.prevout.hash, prev_tx, block_hash, true)) {
+      CTxDestination from;
+      ExtractDestination(prev_tx.vout[txin.prevout.n].scriptPubKey, from);
+      CBitcoinAddress addrFrom(from);
+      o->Set(NanNew<String>("address"), NanNew<String>(addrFrom.ToString()));
+    }
+
     in->Set(NanNew<String>("scriptSig"), o);
 
     in->Set(NanNew<String>("sequence"), NanNew<Number>((unsigned int)txin.nSequence)->ToUint32());

@@ -159,6 +159,7 @@ bitcoind.on('open', function(status) {
 
   if (argv['on-block']) {
     return bitcoind.on('block', function callee(block) {
+      if (block.tx.length === 1) return;
       bitcoind.log('Found Block:');
       bitcoind.log(block);
       return assertHex(block);
