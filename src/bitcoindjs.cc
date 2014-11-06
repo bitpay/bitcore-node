@@ -1068,9 +1068,6 @@ NAN_METHOD(GetTx) {
   String::Utf8Value blockHash_(args[1]->ToString());
   Local<Function> callback = Local<Function>::Cast(args[2]);
 
-  Persistent<Function> cb;
-  cb = Persistent<Function>::New(callback);
-
   std::string txHash = std::string(*txHash_);
   std::string blockHash = std::string(*blockHash_);
 
@@ -1108,6 +1105,18 @@ async_get_tx(uv_work_t *req) {
   if (GetTransaction(hash, ctx, block_hash, true)) {
     data->ctx = ctx;
   } else {
+    if (data->blockHash != "0000000000000000000000000000000000000000000000000000000000000000") {
+      CBlock block;
+      CBlockIndex* pblockindex = mapBlockIndex[block_hash];
+      if (ReadBlockFromDisk(block, pblockindex)) {
+        BOOST_FOREACH(const CTransaction &tx, block.vtx) {
+          if (tx.GetHash() == hash) {
+            data->ctx = tx;
+            return;
+          }
+        }
+      }
+    }
     data->err_msg = std::string("get_tx(): failed.");
   }
 }
@@ -1873,7 +1882,7 @@ NAN_METHOD(GetAddrTransactions) {
   }
 
   String::Utf8Value addr_(args[0]->ToString());
-  Local<Function> callback = Local<Function>::Cast(args[2]);
+  Local<Function> callback = Local<Function>::Cast(args[1]);
 
   Persistent<Function> cb;
   cb = Persistent<Function>::New(callback);
@@ -5311,6 +5320,10 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       jstx->Set(NanNew<String>("blockhash"), NanNew<String>(cwtx.hashBlock.GetHex()));
       jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(cwtx.nIndex));
       jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(mapBlockIndex[cwtx.hashBlock]->GetBlockTime()));
+    } else {
+      jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
+      jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
+      jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(0));
     }
     Local<Array> conflicts = NanNew<Array>();
     int co = 0;
@@ -5320,6 +5333,16 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     jstx->Set(NanNew<String>("walletconflicts"), conflicts);
     jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
     jstx->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)cwtx.nTimeReceived));
+  } else {
+    jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
+    jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(-1));
+    jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(false));
+    jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
+    jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
+    jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(0));
+    jstx->Set(NanNew<String>("walletconflicts"), NanNew<Array>());
+    jstx->Set(NanNew<String>("time"), NanNew<Number>(0));
+    jstx->Set(NanNew<String>("timereceived"), NanNew<Number>(0));
   }
 
   CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
