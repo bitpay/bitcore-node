@@ -2019,7 +2019,7 @@ async_get_addrtx(uv_work_t *req) {
     return;
   }
 
-#if 0
+#if 1
   CScript expected = GetScriptForDestination(address.Get());
 
   int64_t i = 0;
@@ -2098,9 +2098,10 @@ done:
     }
   }
   return;
-#endif
+#else
   ctx_list *ctxs = read_addr(data->addr);
   data->ctxs = ctxs;
+#endif
   if (data->ctxs == NULL) {
     data->err_msg = std::string("Could not read database.");
   }
@@ -5636,41 +5637,26 @@ GetOptions(size_t nCacheSize) {
 class TwoPartComparator : public leveldb::Comparator {
   public:
     // Three-way comparison function:
-    //   if a < b: negative result
-    //   if a > b: positive result
+    //   if a < end: negative result
+    //   if a > end: positive result
     //   else: zero result
-    int Compare(const leveldb::Slice& a, const leveldb::Slice& b) const {
-#if 0
-      int a1, a2, b1, b2;
-      ParseKey(a, &a1, &a2);
-      ParseKey(b, &b1, &b2);
-      if (a1 < b1) return -1;
-      if (a1 > b1) return +1;
-      if (a2 < b2) return -1;
-      if (a2 > b2) return +1;
-      return 0;
-#endif
-#if 1
-      std::string a_ = a.ToString();
-      std::string b_ = b.ToString();
-      const char *a__ = a_.c_str();
-      const char *b__ = b_.c_str();
-      int r = strcmp(a__, b__);
-      // free(a__);
-      // free(b__);
-      return r;
-#endif
-#if 0
-      std::string a_ = a.ToString();
-      std::string b_ = b.ToString();
-      const char *a__ = a_.c_str();
-      const char *b__ = b_.c_str();
-      char *sub = strstr(a__, b__);
-      // free(a__);
-      // free(b__);
-      if (sub == NULL) return 1;
-      return 0;
-#endif
+    int Compare(const leveldb::Slice& key, const leveldb::Slice& end) const {
+      std::string key_ = key.ToString();
+      std::string end_ = end.ToString();
+
+      const char *k = key_.c_str();
+      const char *e = end_.c_str();
+
+      if (k[0] == 't'
+          && k[1] == 'x'
+          && k[2] == '-') {
+        unsigned int el = strlen(e);
+        if (k[el - 1] == '\0' || k[el - 1] == e[el - 1]) {
+          return 1;
+        }
+        return -1;
+      }
+      return 1;
     }
 
     // Ignore the following methods for now:
@@ -5736,8 +5722,8 @@ read_addr(const std::string addr) {
       break;
     }
 
-    leveldb::Slice start = "txa2-" + addr + "-";
-    leveldb::Slice end = "txa2-" + addr + "-~";
+    leveldb::Slice start = "tx-" + addr + "-";
+    leveldb::Slice end = "tx-" + addr + "-~";
     //leveldb::Options options;
 
     leveldb::Iterator* it = pdb->NewIterator(leveldb::ReadOptions());
