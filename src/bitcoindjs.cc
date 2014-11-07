@@ -2032,22 +2032,7 @@ async_get_addrtx(uv_work_t *req) {
       BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
         // vin
         BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
-          // prev_txid
-          // std::string prev_txid = txin.prevout.hash.GetHex();
-
-          // asm
-          // std::string input_asm = txin.scriptSig.ToString();
-
-          // hex
-          // std::string input_hex = HexStr(txin.scriptSig.begin(), txin.scriptSig.end());
-
-          // format:
-          // { sig, pubkey }
-          // pseudocode:
-          // pubkey = input_asm.split().get(1);
-          // addr = base58(dsha(pubkey));
-
-          if (txin.scriptSig == expected) {
+          if (txin.scriptSig.ToString() == expected.ToString()) {
             ctx_list *item = new ctx_list();
             item->ctx = ctx;
             uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
