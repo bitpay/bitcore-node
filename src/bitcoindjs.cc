@@ -5739,21 +5739,38 @@ read_addr(const std::string addr) {
           continue;
         }
 
-        if (cur == NULL) {
-          head->ctx = ctx;
-          uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-          head->blockhash = hash;
-          head->next = NULL;
-          cur = head;
-        } else {
-          ctx_list *item = new ctx_list();
-          item->ctx = ctx;
-          uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-          item->blockhash = hash;
-          item->next = NULL;
-          cur->next = item;
-          cur = item;
+        for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+          const CTxOut& txout = ctx.vout[vo];
+          const CScript& scriptPubKey = txout.scriptPubKey;
+          int nRequired;
+          txnouttype type;
+          vector<CTxDestination> addresses;
+          if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+            continue;
+          }
+          BOOST_FOREACH(const CTxDestination& address, addresses) {
+            if (CBitcoinAddress(address).ToString() != addr) {
+              continue;
+            }
+            if (cur == NULL) {
+              head->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              head->blockhash = hash;
+              head->next = NULL;
+              cur = head;
+            } else {
+              ctx_list *item = new ctx_list();
+              item->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              item->blockhash = hash;
+              item->next = NULL;
+              cur->next = item;
+              cur = item;
+            }
+            goto found;
+          }
         }
+found:
       }
     }
 
