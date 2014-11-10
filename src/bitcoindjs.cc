@@ -5688,12 +5688,15 @@ read_addr(const std::string addr) {
   TwoPartComparator cmp;
   options.comparator = &cmp;
 
+#ifdef USE_LDB_FILES
   unsigned int nFile = 0;
   unsigned int tryFiles = 0xffffffff;
-
   for (; nFile < tryFiles; nFile++) {
     const boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", nFile);
-
+#else
+  {
+    const boost::filesystem::path path = GetDataDir() / "blocks" / "index";
+#endif
     if (fMemory) {
       penv = leveldb::NewMemEnv(leveldb::Env::Default());
       options.env = penv;
@@ -5775,7 +5778,11 @@ found:
     }
 
     delete it;
+#ifdef USE_LDB_FILES
   }
+#else
+  }
+#endif
 
   return head;
 }
