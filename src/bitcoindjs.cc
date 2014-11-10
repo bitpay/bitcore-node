@@ -2019,7 +2019,7 @@ async_get_addrtx(uv_work_t *req) {
     return;
   }
 
-#if 1
+#if 0
   CScript expected = GetScriptForDestination(address.Get());
 
   int64_t i = 0;
@@ -2086,10 +2086,10 @@ done:
 #else
   ctx_list *ctxs = read_addr(data->addr);
   data->ctxs = ctxs;
-#endif
   if (data->ctxs == NULL) {
     data->err_msg = std::string("Could not read database.");
   }
+#endif
 }
 
 static void
@@ -5632,9 +5632,7 @@ class TwoPartComparator : public leveldb::Comparator {
       const char *k = key_.c_str();
       const char *e = end_.c_str();
 
-      if (k[0] == 't'
-          && k[1] == 'x'
-          && k[2] == '-') {
+      if (k[0] == 't') {
         unsigned int el = strlen(e);
         if (k[el - 1] == '\0' || k[el - 1] == e[el - 1]) {
           return 1;
@@ -5707,8 +5705,8 @@ read_addr(const std::string addr) {
       break;
     }
 
-    leveldb::Slice start = "tx-" + addr + "-";
-    leveldb::Slice end = "tx-" + addr + "-~";
+    leveldb::Slice start = "t";
+    leveldb::Slice end = "t\xFF";
     //leveldb::Options options;
 
     leveldb::Iterator* it = pdb->NewIterator(leveldb::ReadOptions());
