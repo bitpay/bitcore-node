@@ -3249,6 +3249,8 @@ NAN_METHOD(WalletSendTo) {
 
   async_wallet_sendto_data *data = new async_wallet_sendto_data();
 
+  data->err_msg = std::string("");
+
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
   data->address = addr;
@@ -3367,6 +3369,8 @@ NAN_METHOD(WalletSendFrom) {
   Local<Object> options = Local<Object>::Cast(args[0]);
 
   async_wallet_sendfrom_data *data = new async_wallet_sendfrom_data();
+
+  data->err_msg = std::string("");
 
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
@@ -4849,6 +4853,8 @@ NAN_METHOD(WalletDumpWallet) {
 
   async_dump_wallet_data *data = new async_dump_wallet_data();
 
+  data->err_msg = std::string("");
+
   Local<Object> options = Local<Object>::Cast(args[0]);
   Local<Function> callback = Local<Function>::Cast(args[1]);
 
@@ -4857,7 +4863,7 @@ NAN_METHOD(WalletDumpWallet) {
 
   // Call to: EnsureWalletIsUnlocked()
   if (pwalletMain->IsLocked()) {
-    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+    data->err_msg = std::string("Please enter the wallet passphrase with walletpassphrase first.");
   }
 
   data->path = path;
@@ -4878,6 +4884,10 @@ NAN_METHOD(WalletDumpWallet) {
 static void
 async_dump_wallet(uv_work_t *req) {
   async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
+
+  if (data->err_msg != "") {
+    return;
+  }
 
   std::string path = data->path;
 
@@ -4990,6 +5000,8 @@ NAN_METHOD(WalletImportWallet) {
 
   async_import_wallet_data *data = new async_import_wallet_data();
 
+  data->err_msg = std::string("");
+
   Local<Object> options = Local<Object>::Cast(args[0]);
   Local<Function> callback = Local<Function>::Cast(args[1]);
 
@@ -4998,7 +5010,7 @@ NAN_METHOD(WalletImportWallet) {
 
   // Call to: EnsureWalletIsUnlocked()
   if (pwalletMain->IsLocked()) {
-    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+    data->err_msg = std::string("Please enter the wallet passphrase with walletpassphrase first.");
   }
 
   data->path = path;
