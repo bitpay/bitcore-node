@@ -228,7 +228,6 @@ using namespace node;
 using namespace v8;
 
 #define EMPTY ("\\x01")
-#define IS_EMPTY(addr) ((addr) == "\\x01")
 
 /**
  * Node.js Exposed Function Templates
@@ -293,6 +292,7 @@ NAN_METHOD(WalletDumpWallet);
 NAN_METHOD(WalletImportWallet);
 NAN_METHOD(WalletChangeLabel);
 NAN_METHOD(WalletDeleteAccount);
+NAN_METHOD(WalletIsMine);
 
 /**
  * Node.js Internal Function Templates
@@ -3009,7 +3009,7 @@ NAN_METHOD(WalletSetAccount) {
   }
 
   CBitcoinAddress address;
-  if (!IS_EMPTY(strAddress)) {
+  if (strAddress != EMPTY) {
     address = CBitcoinAddress(strAddress);
     if (!address.IsValid()) {
       return NanThrowError("Invalid Bitcoin address");
@@ -3033,7 +3033,7 @@ NAN_METHOD(WalletSetAccount) {
     strAccount = std::string(*account_);
   }
 
-  if (!IS_EMPTY(strAddress)) {
+  if (strAddress != EMPTY) {
     // If it isn't our address, create a recipient:
     {
       CTxDestination dest = address.Get();
@@ -5119,11 +5119,11 @@ NAN_METHOD(WalletChangeLabel) {
     addr = std::string(*addr_);
   }
 
-  if (IS_EMPTY(strAccount) && IS_EMPTY(addr)) {
+  if (strAccount == EMPTY && addr == EMPTY) {
     return NanThrowError("No address or account name entered.");
   }
 
-  if (IS_EMPTY(strAccount) && !IS_EMPTY(addr)) {
+  if (strAccount == EMPTY && addr != EMPTY) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -5134,7 +5134,7 @@ NAN_METHOD(WalletChangeLabel) {
     }
   }
 
-  if (IS_EMPTY(addr) && !IS_EMPTY(strAccount)) {
+  if (addr == EMPTY && strAccount != EMPTY) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -5207,7 +5207,7 @@ NAN_METHOD(WalletDeleteAccount) {
   CAccount account;
   walletdb.ReadAccount(strAccount, account);
 
-  if (IS_EMPTY(strAccount)) {
+  if (strAccount == EMPTY) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -5218,8 +5218,8 @@ NAN_METHOD(WalletDeleteAccount) {
     }
   }
 
-  if (IS_EMPTY(strAccount)) {
-    if (IS_EMPTY(addr)) {
+  if (strAccount == EMPTY) {
+    if (addr == EMPTY) {
       return NanThrowError("No account name specified.");
     } else {
       return NanThrowError("No account tied to specified address.");
@@ -5237,6 +5237,52 @@ NAN_METHOD(WalletDeleteAccount) {
   }
 
   NanReturnValue(True());
+}
+
+/**
+ * WalletIsMine()
+ * bitcoindjs.walletIsMine(options)
+ * Check whether address or scriptPubKey is owned by wallet.
+ */
+
+NAN_METHOD(WalletIsMine) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletIsMine(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  std::string addr = std::string(EMPTY);
+  std::string spk = std::string(EMPTY);
+
+  if (options->Get(NanNew<String>("address"))->IsString()) {
+    String::Utf8Value s_(options->Get(NanNew<String>("address"))->ToString());
+    addr = std::string(*s_);
+  }
+
+  if (options->Get(NanNew<String>("scriptPubKey"))->IsString()) {
+    String::Utf8Value s_(options->Get(NanNew<String>("scriptPubKey"))->ToString());
+    spk = std::string(*s_);
+  }
+
+  // Bitcoin address
+  CScript scriptPubKey;
+  if (addr != EMPTY) {
+    CBitcoinAddress address = CBitcoinAddress(addr);
+    if (!address.IsValid()) {
+      return NanThrowError("Invalid Bitcoin address");
+    }
+    scriptPubKey = GetScriptForDestination(address.Get());
+  } else {
+    scriptPubKey << ParseHex(spk);
+  }
+
+  bool is_mine = IsMine(*pwalletMain, scriptPubKey);
+
+  NanReturnValue(NanNew<Boolean>(is_mine));
 }
 
 /**
@@ -5854,6 +5900,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletImportWallet", WalletImportWallet);
   NODE_SET_METHOD(target, "walletChangeLabel", WalletChangeLabel);
   NODE_SET_METHOD(target, "walletDeleteAccount", WalletDeleteAccount);
+  NODE_SET_METHOD(target, "walletIsMine", WalletIsMine);
 }
 
 NODE_MODULE(bitcoindjs, init)
