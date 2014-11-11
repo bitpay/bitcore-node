@@ -657,6 +657,9 @@ async_start_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
   if (data->datadir != "") {
     g_data_dir = (char *)data->datadir.c_str();
+  } else {
+    g_data_dir = (char *)malloc(sizeof(char) * 512);
+    snprintf(g_data_dir, sizeof(char) * 512, "%s/.bitcoind.js", getenv("HOME"));
   }
   g_rpc = (bool)data->rpc;
   g_testnet = (bool)data->testnet;
