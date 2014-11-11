@@ -2979,6 +2979,10 @@ NAN_METHOD(WalletGetAccountAddress) {
     strAccount = std::string(*account_);
   }
 
+  if (strAccount == EMPTY) {
+    return NanThrowError("No account provided.");
+  }
+
   std::string ret = GetAccountAddress(strAccount).ToString();
 
   NanReturnValue(NanNew<String>(ret.c_str()));
@@ -3187,6 +3191,10 @@ NAN_METHOD(WalletSetRecipient) {
   if (options->Get(NanNew<String>("name"))->IsString()) {
     String::Utf8Value account_(options->Get(NanNew<String>("name"))->ToString());
     strAccount = std::string(*account_);
+  }
+
+  if (strAccount == EMPTY) {
+    return NanThrowError("No account provided.");
   }
 
   CTxDestination address = CBitcoinAddress(addr).Get();
