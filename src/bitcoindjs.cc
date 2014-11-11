@@ -675,7 +675,7 @@ async_start_node_after(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -687,7 +687,7 @@ async_start_node_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(String::New(data->result))
+      Local<Value>::New(NanNew<String>(data->result))
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -896,7 +896,7 @@ async_stop_node_after(uv_work_t *req) {
   async_node_data* data = static_cast<async_node_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -908,7 +908,7 @@ async_stop_node_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(String::New(data->result))
+      Local<Value>::New(NanNew<String>(data->result))
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -1053,7 +1053,7 @@ async_get_block_after(uv_work_t *req) {
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -1220,7 +1220,7 @@ async_get_tx_after(uv_work_t *req) {
   uint256 block_hash(blockHash);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -1366,7 +1366,7 @@ async_broadcast_tx_after(uv_work_t *req) {
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -1771,7 +1771,7 @@ async_get_progress_after(uv_work_t *req) {
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -2098,7 +2098,7 @@ async_get_addrtx_after(uv_work_t *req) {
   async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -3321,7 +3321,7 @@ async_wallet_sendto_after(uv_work_t *req) {
   async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -3456,7 +3456,7 @@ async_wallet_sendfrom_after(uv_work_t *req) {
   async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -4746,7 +4746,7 @@ async_import_key_after(uv_work_t *req) {
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -4887,7 +4887,7 @@ async_dump_wallet_after(uv_work_t *req) {
   async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -5060,7 +5060,7 @@ async_import_wallet_after(uv_work_t *req) {
   async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg));
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
