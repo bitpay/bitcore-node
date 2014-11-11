@@ -4657,6 +4657,9 @@ NAN_METHOD(WalletImportKey) {
 
   async_import_key_data *data = new async_import_key_data();
 
+  data->err_msg = std::string("");
+  data->fRescan = false;
+
   Local<Object> options = Local<Object>::Cast(args[0]);
   Local<Function> callback;
 
@@ -4686,13 +4689,15 @@ NAN_METHOD(WalletImportKey) {
     strAccount = std::string(*label_);
   }
 
-  if (strAccount == EMPTY) {
-    return NanThrowError("No account name provided.");
-  }
-
-  // Call to: EnsureWalletIsUnlocked()
-  if (pwalletMain->IsLocked()) {
-    return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+rescan:
+  if (data->fRescan) {
+    uv_work_t *req = new uv_work_t();
+    req->data = data;
+    int status = uv_queue_work(uv_default_loop(),
+      req, async_import_key,
+      (uv_after_work_cb)async_import_key_after);
+    assert(status == 0);
+    NanReturnValue(Undefined());
   }
 
   // Whether to perform rescan after import
@@ -4700,16 +4705,45 @@ NAN_METHOD(WalletImportKey) {
     ? true
     : false;
 
+  if (strAccount == EMPTY) {
+    if (data->fRescan) {
+      data->err_msg = std::string("No account name provided.");
+      goto rescan;
+    } else {
+      return NanThrowError("No account name provided.");
+    }
+  }
+
+  // Call to: EnsureWalletIsUnlocked()
+  if (pwalletMain->IsLocked()) {
+    if (data->fRescan) {
+      data->err_msg = std::string("Please enter the wallet passphrase with walletpassphrase first.");
+      goto rescan;
+    } else {
+      return NanThrowError("Please enter the wallet passphrase with walletpassphrase first.");
+    }
+  }
+
   CBitcoinSecret vchSecret;
   bool fGood = vchSecret.SetString(strSecret);
 
   if (!fGood) {
-    return NanThrowError("Invalid private key encoding");
+    if (data->fRescan) {
+      data->err_msg = std::string("Invalid private key encoding");
+      goto rescan;
+    } else {
+      return NanThrowError("Invalid private key encoding");
+    }
   }
 
   CKey key = vchSecret.GetKey();
   if (!key.IsValid()) {
-    return NanThrowError("Private key outside allowed range");
+    if (data->fRescan) {
+      data->err_msg = std::string("Private key outside allowed range");
+      goto rescan;
+    } else {
+      return NanThrowError("Private key outside allowed range");
+    }
   }
 
   CPubKey pubkey = key.GetPubKey();
@@ -4728,7 +4762,12 @@ NAN_METHOD(WalletImportKey) {
     pwalletMain->mapKeyMetadata[vchAddress].nCreateTime = 1;
 
     if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
-      return NanThrowError("Error adding key to wallet");
+      if (data->fRescan) {
+        data->err_msg = std::string("Error adding key to wallet");
+        goto rescan;
+      } else {
+        return NanThrowError("Error adding key to wallet");
+      }
     }
 
     // whenever a key is imported, we need to scan the whole chain
@@ -4752,8 +4791,13 @@ NAN_METHOD(WalletImportKey) {
 static void
 async_import_key(uv_work_t *req) {
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
-  // This may take a long time, do it on the libuv thread pool:
-  pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
+  if (data->err_msg != "") {
+    return;
+  }
+  if (data->fRescan) {
+    // This may take a long time, do it on the libuv thread pool:
+    pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
+  }
 }
 
 static void
