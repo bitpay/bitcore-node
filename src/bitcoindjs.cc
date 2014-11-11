@@ -655,7 +655,7 @@ NAN_METHOD(StartBitcoind) {
 static void
 async_start_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
-  if (!data->datadir.empty()) {
+  if (data->datadir != "") {
     g_data_dir = (char *)data->datadir.c_str();
   }
   g_rpc = (bool)data->rpc;
@@ -674,7 +674,7 @@ async_start_node_after(uv_work_t *req) {
   NanScope();
   async_node_data *data = static_cast<async_node_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -895,7 +895,7 @@ async_stop_node_after(uv_work_t *req) {
   NanScope();
   async_node_data* data = static_cast<async_node_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -1052,7 +1052,7 @@ async_get_block_after(uv_work_t *req) {
   NanScope();
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -1128,7 +1128,7 @@ NAN_METHOD(GetTx) {
   std::string txHash = std::string(*txHash_);
   std::string blockHash = std::string(*blockHash_);
 
-  if (blockHash.empty()) {
+  if (blockHash == "") {
     blockHash = std::string(
       "0000000000000000000000000000000000000000000000000000000000000000");
   }
@@ -1219,7 +1219,7 @@ async_get_tx_after(uv_work_t *req) {
   uint256 hash(txHash);
   uint256 block_hash(blockHash);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -1365,7 +1365,7 @@ async_broadcast_tx_after(uv_work_t *req) {
   NanScope();
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -1770,7 +1770,7 @@ async_get_progress_after(uv_work_t *req) {
   NanScope();
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -2097,7 +2097,7 @@ async_get_addrtx_after(uv_work_t *req) {
   NanScope();
   async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -3320,7 +3320,7 @@ async_wallet_sendto_after(uv_work_t *req) {
   NanScope();
   async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -3455,7 +3455,7 @@ async_wallet_sendfrom_after(uv_work_t *req) {
   NanScope();
   async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -4745,7 +4745,7 @@ async_import_key_after(uv_work_t *req) {
   NanScope();
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -4886,7 +4886,7 @@ async_dump_wallet_after(uv_work_t *req) {
   NanScope();
   async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
@@ -5059,7 +5059,7 @@ async_import_wallet_after(uv_work_t *req) {
   NanScope();
   async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
 
-  if (!data->err_msg.empty()) {
+  if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
