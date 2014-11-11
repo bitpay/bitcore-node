@@ -3002,14 +3002,14 @@ NAN_METHOD(WalletSetAccount) {
   // Parse the account first so we don't generate a key if there's an error
   Local<Object> options = Local<Object>::Cast(args[0]);
 
-  std::string strAddress = std::string(EMPTY);
+  std::string strAddress = std::string("");
   if (options->Get(NanNew<String>("address"))->IsString()) {
     String::Utf8Value address_(options->Get(NanNew<String>("address"))->ToString());
     strAddress = std::string(*address_);
   }
 
   CBitcoinAddress address;
-  if (strAddress != EMPTY) {
+  if (strAddress != "") {
     address = CBitcoinAddress(strAddress);
     if (!address.IsValid()) {
       return NanThrowError("Invalid Bitcoin address");
@@ -3033,7 +3033,7 @@ NAN_METHOD(WalletSetAccount) {
     strAccount = std::string(*account_);
   }
 
-  if (strAddress != EMPTY) {
+  if (strAddress != "") {
     // If it isn't our address, create a recipient:
     {
       CTxDestination dest = address.Get();
@@ -5112,18 +5112,18 @@ NAN_METHOD(WalletChangeLabel) {
     strAccount = std::string(*account_);
   }
 
-  std::string addr = std::string(EMPTY);
+  std::string addr = std::string("");
 
   if (options->Get(NanNew<String>("address"))->IsString()) {
     String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
     addr = std::string(*addr_);
   }
 
-  if (strAccount == EMPTY && addr == EMPTY) {
+  if (strAccount == EMPTY && addr == "") {
     return NanThrowError("No address or account name entered.");
   }
 
-  if (strAccount == EMPTY && addr != EMPTY) {
+  if (strAccount == EMPTY && addr != "") {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -5134,7 +5134,7 @@ NAN_METHOD(WalletChangeLabel) {
     }
   }
 
-  if (addr == EMPTY && strAccount != EMPTY) {
+  if (addr == "" && strAccount != EMPTY) {
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CAddressBookData)& item, pwalletMain->mapAddressBook) {
       const CBitcoinAddress& address = item.first;
       const string& strName = item.second.name;
@@ -5193,7 +5193,7 @@ NAN_METHOD(WalletDeleteAccount) {
     strAccount = std::string(*account_);
   }
 
-  std::string addr = std::string(EMPTY);
+  std::string addr = std::string("");
 
   if (options->Get(NanNew<String>("address"))->IsString()) {
     String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
@@ -5219,7 +5219,7 @@ NAN_METHOD(WalletDeleteAccount) {
   }
 
   if (strAccount == EMPTY) {
-    if (addr == EMPTY) {
+    if (addr == "") {
       return NanThrowError("No account name specified.");
     } else {
       return NanThrowError("No account tied to specified address.");
@@ -5255,8 +5255,8 @@ NAN_METHOD(WalletIsMine) {
 
   Local<Object> options = Local<Object>::Cast(args[0]);
 
-  std::string addr = std::string(EMPTY);
-  std::string spk = std::string(EMPTY);
+  std::string addr = std::string("");
+  std::string spk = std::string("");
 
   if (options->Get(NanNew<String>("address"))->IsString()) {
     String::Utf8Value s_(options->Get(NanNew<String>("address"))->ToString());
@@ -5270,7 +5270,7 @@ NAN_METHOD(WalletIsMine) {
 
   // Bitcoin address
   CScript scriptPubKey;
-  if (addr != EMPTY) {
+  if (addr != "") {
     CBitcoinAddress address = CBitcoinAddress(addr);
     if (!address.IsValid()) {
       return NanThrowError("Invalid Bitcoin address");
