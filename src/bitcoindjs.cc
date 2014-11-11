@@ -2980,7 +2980,7 @@ NAN_METHOD(WalletGetAccountAddress) {
   }
 
   if (strAccount == EMPTY) {
-    return NanThrowError("No account provided.");
+    return NanThrowError("No account name provided.");
   }
 
   std::string ret = GetAccountAddress(strAccount).ToString();
@@ -3194,7 +3194,7 @@ NAN_METHOD(WalletSetRecipient) {
   }
 
   if (strAccount == EMPTY) {
-    return NanThrowError("No account provided.");
+    return NanThrowError("No account name provided.");
   }
 
   CTxDestination address = CBitcoinAddress(addr).Get();
@@ -3802,7 +3802,7 @@ NAN_METHOD(WalletGetBalance) {
 
   Local<Object> options = Local<Object>::Cast(args[0]);
 
-  std::string strAccount = "";
+  std::string strAccount = std::string(EMPTY);
   int nMinDepth = 1;
 
   if (options->Get(NanNew<String>("account"))->IsString()) {
@@ -3822,6 +3822,10 @@ NAN_METHOD(WalletGetBalance) {
 
   if (options->Get(NanNew<String>("nMinDepth"))->IsNumber()) {
     nMinDepth = options->Get(NanNew<String>("nMinDepth"))->IntegerValue();
+  }
+
+  if (strAccount == EMPTY) {
+    return NanThrowError("No account name provided.");
   }
 
   if (strAccount == "*") {
@@ -4662,14 +4666,28 @@ NAN_METHOD(WalletImportKey) {
   }
 
   std::string strSecret = "";
-  std::string strLabel = "";
+  std::string strAccount = std::string(EMPTY);
 
   String::Utf8Value key_(options->Get(NanNew<String>("key"))->ToString());
   strSecret = std::string(*key_);
 
+  if (options->Get(NanNew<String>("account"))->IsString()) {
+    String::Utf8Value label_(options->Get(NanNew<String>("account"))->ToString());
+    strAccount = std::string(*label_);
+  }
+
   if (options->Get(NanNew<String>("label"))->IsString()) {
     String::Utf8Value label_(options->Get(NanNew<String>("label"))->ToString());
-    strLabel = std::string(*label_);
+    strAccount = std::string(*label_);
+  }
+
+  if (options->Get(NanNew<String>("name"))->IsString()) {
+    String::Utf8Value label_(options->Get(NanNew<String>("name"))->ToString());
+    strAccount = std::string(*label_);
+  }
+
+  if (strAccount == EMPTY) {
+    return NanThrowError("No account name provided.");
   }
 
   // Call to: EnsureWalletIsUnlocked()
@@ -4700,7 +4718,7 @@ NAN_METHOD(WalletImportKey) {
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     pwalletMain->MarkDirty();
-    pwalletMain->SetAddressBook(vchAddress, strLabel, "receive");
+    pwalletMain->SetAddressBook(vchAddress, strAccount, "receive");
 
     // Don't throw error in case a key is already there
     if (pwalletMain->HaveKey(vchAddress)) {
