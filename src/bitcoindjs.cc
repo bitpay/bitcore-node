@@ -675,7 +675,7 @@ async_start_node_after(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -687,7 +687,7 @@ async_start_node_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(String::New(data->result.c_str()))
+      Local<Value>::New(String::New(data->result))
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -896,7 +896,7 @@ async_stop_node_after(uv_work_t *req) {
   async_node_data* data = static_cast<async_node_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -908,7 +908,7 @@ async_stop_node_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(String::New(data->result.c_str()))
+      Local<Value>::New(String::New(data->result))
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -1053,7 +1053,7 @@ async_get_block_after(uv_work_t *req) {
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -1220,7 +1220,7 @@ async_get_tx_after(uv_work_t *req) {
   uint256 block_hash(blockHash);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -1366,7 +1366,7 @@ async_broadcast_tx_after(uv_work_t *req) {
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -1771,7 +1771,7 @@ async_get_progress_after(uv_work_t *req) {
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -2098,7 +2098,7 @@ async_get_addrtx_after(uv_work_t *req) {
   async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -2185,7 +2185,7 @@ NAN_METHOD(GetBlockHex) {
 
   Local<Object> data = NanNew<Object>();
 
-  data->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
+  data->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex()));
 
   CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
   ssBlock << cblock;
@@ -2217,7 +2217,7 @@ NAN_METHOD(GetTxHex) {
 
   Local<Object> data = NanNew<Object>();
 
-  data->Set(NanNew<String>("hash"), NanNew<String>(ctx.GetHash().GetHex().c_str()));
+  data->Set(NanNew<String>("hash"), NanNew<String>(ctx.GetHash().GetHex()));
 
   CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
   ssTx << ctx;
@@ -2329,12 +2329,12 @@ NAN_METHOD(HookPackets) {
 
     Local<Object> o = NanNew<Object>();
 
-    o->Set(NanNew<String>("name"), NanNew<String>(strCommand.c_str()));
+    o->Set(NanNew<String>("name"), NanNew<String>(strCommand));
     o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)nTimeReceived));
     o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
     // o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
     o->Set(NanNew<String>("userAgent"),
-      NanNew<String>(pfrom->cleanSubVer.c_str()));
+      NanNew<String>(pfrom->cleanSubVer));
 
     if (strCommand == "version") {
       // Each connection can only send one version message
@@ -2472,7 +2472,7 @@ NAN_METHOD(HookPackets) {
 
         Local<Object> item = NanNew<Object>();
         //item->Set(NanNew<String>("have"), NanNew<Boolean>(fAlreadyHave));
-        item->Set(NanNew<String>("hash"), NanNew<String>(inv.hash.GetHex().c_str()));
+        item->Set(NanNew<String>("hash"), NanNew<String>(inv.hash.GetHex()));
         item->Set(NanNew<String>("type"), NanNew<String>(
           inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK
           ? "block" : "tx"));
@@ -2498,7 +2498,7 @@ NAN_METHOD(HookPackets) {
 
       o->Set(NanNew<String>("size"), NanNew<Number>(vInv.size()));
       if (vInv.size() > 0) {
-        o->Set(NanNew<String>("first"), NanNew<String>(vInv[0].ToString().c_str()));
+        o->Set(NanNew<String>("first"), NanNew<String>(vInv[0].ToString()));
       }
     } else if (strCommand == "getblocks") {
       CBlockLocator locator;
@@ -2517,7 +2517,7 @@ NAN_METHOD(HookPackets) {
 
       o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1));
       o->Set(NanNew<String>("toHash"), NanNew<String>(
-        hashStop == uint256(0) ? "end" : hashStop.GetHex().c_str()));
+        hashStop == uint256(0) ? "end" : hashStop.GetHex()));
       o->Set(NanNew<String>("limit"), NanNew<Number>(500));
     } else if (strCommand == "getheaders") {
       CBlockLocator locator;
@@ -2543,7 +2543,7 @@ NAN_METHOD(HookPackets) {
       }
 
       o->Set(NanNew<String>("fromHeight"), NanNew<Number>(pindex ? pindex->nHeight : -1));
-      o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop.GetHex().c_str()));
+      o->Set(NanNew<String>("toHash"), NanNew<String>(hashStop.GetHex()));
     } else if (strCommand == "tx") {
       // XXX May be able to do prev_list asynchronously
       // XXX Potentially check for "reject" in original code
@@ -2647,14 +2647,14 @@ NAN_METHOD(HookPackets) {
 
       uint256 alertHash = alert.GetHash();
 
-      o->Set(NanNew<String>("hash"), NanNew<String>(alertHash.GetHex().c_str()));
+      o->Set(NanNew<String>("hash"), NanNew<String>(alertHash.GetHex()));
 
       if (pfrom->setKnown.count(alertHash) == 0) {
         if (alert.ProcessAlert()) {
           std::string vchMsg(alert.vchMsg.begin(), alert.vchMsg.end());
           std::string vchSig(alert.vchSig.begin(), alert.vchSig.end());
-          o->Set(NanNew<String>("message"), NanNew<String>(vchMsg.c_str()));
-          o->Set(NanNew<String>("signature"), NanNew<String>(vchSig.c_str()));
+          o->Set(NanNew<String>("message"), NanNew<String>(vchMsg));
+          o->Set(NanNew<String>("signature"), NanNew<String>(vchSig));
           o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
         } else {
           // Small DoS penalty so peers that send us lots of
@@ -2904,7 +2904,7 @@ NAN_METHOD(WalletNewAddress) {
 
   pwalletMain->SetAddressBook(keyID, strAccount, "receive");
 
-  NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString().c_str()));
+  NanReturnValue(NanNew<String>(CBitcoinAddress(keyID).ToString()));
 }
 
 // NOTE: This function was ripped out of the bitcoin core source. It needed to
@@ -2985,7 +2985,7 @@ NAN_METHOD(WalletGetAccountAddress) {
 
   std::string ret = GetAccountAddress(strAccount).ToString();
 
-  NanReturnValue(NanNew<String>(ret.c_str()));
+  NanReturnValue(NanNew<String>(ret));
 }
 
 /**
@@ -3111,7 +3111,7 @@ NAN_METHOD(WalletGetAccount) {
     strAccount = (*mi).second.name;
   }
 
-  NanReturnValue(NanNew<String>(strAccount.c_str()));
+  NanReturnValue(NanNew<String>(strAccount));
 }
 
 /**
@@ -3321,7 +3321,7 @@ async_wallet_sendto_after(uv_work_t *req) {
   async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -3456,7 +3456,7 @@ async_wallet_sendfrom_after(uv_work_t *req) {
   async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -3614,7 +3614,7 @@ NAN_METHOD(WalletSignMessage) {
 
   std::string result = EncodeBase64(&vchSig[0], vchSig.size());
 
-  NanReturnValue(NanNew<String>(result.c_str()));
+  NanReturnValue(NanNew<String>(result));
 }
 
 /**
@@ -4746,7 +4746,7 @@ async_import_key_after(uv_work_t *req) {
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -4887,7 +4887,7 @@ async_dump_wallet_after(uv_work_t *req) {
   async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -5060,7 +5060,7 @@ async_import_wallet_after(uv_work_t *req) {
   async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
 
   if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    Local<Value> err = Exception::Error(String::New(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
@@ -5336,7 +5336,7 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
     cblock_index = find_new_block_index(cblock.GetHash(), cblock.hashPrevBlock, &is_allocated);
   }
 
-  jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex().c_str()));
+  jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex()));
   CMerkleTx txGen(cblock.vtx[0]);
   txGen.SetMerkleBranch(cblock);
   jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
