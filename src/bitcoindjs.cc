@@ -3341,6 +3341,220 @@ async_wallet_sendto_after(uv_work_t *req) {
 }
 
 /**
+ * WalletSendFrom()
+ * bitcoindjs.walletSendFrom(options)
+ * Send bitcoin to a particular address from a particular owned account name.
+ * This once again automatically creates and signs a transaction based on any
+ * unspent outputs available.
+ */
+
+NAN_METHOD(WalletSendFrom) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletSendFrom(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  async_wallet_sendfrom_data *data = new async_wallet_sendfrom_data();
+
+  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
+  std::string addr = std::string(*addr_);
+  data->address = addr;
+
+  String::Utf8Value from_(options->Get(NanNew<String>("from"))->ToString());
+  std::string from = std::string(*from_);
+  std::string strAccount = from;
+
+  int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue();
+  data->nAmount = nAmount;
+
+  int nMinDepth = 1;
+  if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
+    nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
+  }
+  data->nMinDepth = nMinDepth;
+
+  CWalletTx wtx;
+  wtx.strFromAccount = strAccount;
+  if (options->Get(NanNew<String>("comment"))->IsString()) {
+    String::Utf8Value comment_(options->Get(NanNew<String>("comment"))->ToString());
+    std::string comment = std::string(*comment_);
+    wtx.mapValue["comment"] = comment;
+  }
+  if (options->Get(NanNew<String>("to"))->IsString()) {
+    String::Utf8Value to_(options->Get(NanNew<String>("to"))->ToString());
+    std::string to = std::string(*to_);
+    wtx.mapValue["to"] = to;
+  }
+  data->wtx = wtx;
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_wallet_sendfrom,
+    (uv_after_work_cb)async_wallet_sendfrom_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_wallet_sendfrom(uv_work_t *req) {
+  async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
+
+  CBitcoinAddress address(data->address);
+
+  if (!address.IsValid()) {
+    data->err_msg = std::string("Invalid Bitcoin address");
+    return;
+  }
+
+  int64_t nAmount = data->nAmount;
+  int nMinDepth = data->nMinDepth;
+  CWalletTx wtx = data->wtx;
+  std::string strAccount = data->wtx.strFromAccount;
+
+  // Call to: EnsureWalletIsUnlocked()
+  if (pwalletMain->IsLocked()) {
+    data->err_msg = std::string("Please enter the wallet passphrase with walletpassphrase first.");
+    return;
+  }
+
+  // Check funds
+  double nBalance = (double)GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
+  if (((double)(nAmount * 1.0) / 100000000) > nBalance) {
+    data->err_msg = std::string("Account has insufficient funds");
+    return;
+  }
+
+  // Send
+  std::string strError = pwalletMain->SendMoney(address.Get(), nAmount, wtx);
+  if (strError != "") {
+    data->err_msg = strError;
+    return;
+  }
+
+  data->tx_hash = wtx.GetHash().GetHex();
+}
+
+static void
+async_wallet_sendfrom_after(uv_work_t *req) {
+  NanScope();
+  async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
+
+  if (!data->err_msg.empty()) {
+    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(NanNew<String>(data->tx_hash))
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+/**
+ * WalletMove()
+ * bitcoindjs.walletMove(options)
+ * Move BTC from one account to another
+ */
+
+NAN_METHOD(WalletMove) {
+  NanScope();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletMove(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+
+  std::string strFrom;
+  if (options->Get(NanNew<String>("from"))->IsString()) {
+    String::Utf8Value s_(options->Get(NanNew<String>("from"))->ToString());
+    strFrom = std::string(*s_);
+  }
+
+  std::string strTo;
+  if (options->Get(NanNew<String>("to"))->IsString()) {
+    String::Utf8Value s_(options->Get(NanNew<String>("to"))->ToString());
+    strTo = std::string(*s_);
+  }
+
+  CAmount nAmount;
+  if (options->Get(NanNew<String>("amount"))->IsNumber()) {
+    nAmount = (CAmount)options->Get(NanNew<String>("amount"))->IntegerValue();
+  }
+
+  // DEPRECATED
+  // int nMinDepth = 1;
+  // if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
+  //   nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
+  // }
+
+  std::string strComment;
+  if (options->Get(NanNew<String>("comment"))->IsString()) {
+    String::Utf8Value s_(options->Get(NanNew<String>("comment"))->ToString());
+    strComment = std::string(*s_);
+  }
+
+  CWalletDB walletdb(pwalletMain->strWalletFile);
+  if (!walletdb.TxnBegin()) {
+    return NanThrowError("database error");
+  }
+
+  int64_t nNow = GetAdjustedTime();
+
+  // Debit
+  CAccountingEntry debit;
+  debit.nOrderPos = pwalletMain->IncOrderPosNext(&walletdb);
+  debit.strAccount = strFrom;
+  debit.nCreditDebit = -nAmount;
+  debit.nTime = nNow;
+  debit.strOtherAccount = strTo;
+  debit.strComment = strComment;
+  walletdb.WriteAccountingEntry(debit);
+
+  // Credit
+  CAccountingEntry credit;
+  credit.nOrderPos = pwalletMain->IncOrderPosNext(&walletdb);
+  credit.strAccount = strTo;
+  credit.nCreditDebit = nAmount;
+  credit.nTime = nNow;
+  credit.strOtherAccount = strFrom;
+  credit.strComment = strComment;
+  walletdb.WriteAccountingEntry(credit);
+
+  if (!walletdb.TxnCommit()) {
+    return NanThrowError("database error");
+  }
+
+  NanReturnValue(Undefined());
+}
+
+/**
  * WalletSignMessage()
  * bitcoindjs.walletSignMessage(options)
  * Sign any piece of text using a private key tied to an address.
@@ -3648,220 +3862,6 @@ NAN_METHOD(WalletGetBalance) {
 NAN_METHOD(WalletGetUnconfirmedBalance) {
   NanScope();
   NanReturnValue(NanNew<Number>(pwalletMain->GetUnconfirmedBalance()));
-}
-
-/**
- * WalletSendFrom()
- * bitcoindjs.walletSendFrom(options)
- * Send bitcoin to a particular address from a particular owned account name.
- * This once again automatically creates and signs a transaction based on any
- * unspent outputs available.
- */
-
-NAN_METHOD(WalletSendFrom) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.walletSendFrom(options)");
-  }
-
-  Local<Object> options = Local<Object>::Cast(args[0]);
-
-  async_wallet_sendfrom_data *data = new async_wallet_sendfrom_data();
-
-  String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
-  std::string addr = std::string(*addr_);
-  data->address = addr;
-
-  String::Utf8Value from_(options->Get(NanNew<String>("from"))->ToString());
-  std::string from = std::string(*from_);
-  std::string strAccount = from;
-
-  int64_t nAmount = options->Get(NanNew<String>("amount"))->IntegerValue();
-  data->nAmount = nAmount;
-
-  int nMinDepth = 1;
-  if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
-    nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
-  }
-  data->nMinDepth = nMinDepth;
-
-  CWalletTx wtx;
-  wtx.strFromAccount = strAccount;
-  if (options->Get(NanNew<String>("comment"))->IsString()) {
-    String::Utf8Value comment_(options->Get(NanNew<String>("comment"))->ToString());
-    std::string comment = std::string(*comment_);
-    wtx.mapValue["comment"] = comment;
-  }
-  if (options->Get(NanNew<String>("to"))->IsString()) {
-    String::Utf8Value to_(options->Get(NanNew<String>("to"))->ToString());
-    std::string to = std::string(*to_);
-    wtx.mapValue["to"] = to;
-  }
-  data->wtx = wtx;
-
-  uv_work_t *req = new uv_work_t();
-  req->data = data;
-
-  int status = uv_queue_work(uv_default_loop(),
-    req, async_wallet_sendfrom,
-    (uv_after_work_cb)async_wallet_sendfrom_after);
-
-  assert(status == 0);
-
-  NanReturnValue(Undefined());
-}
-
-static void
-async_wallet_sendfrom(uv_work_t *req) {
-  async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
-
-  CBitcoinAddress address(data->address);
-
-  if (!address.IsValid()) {
-    data->err_msg = std::string("Invalid Bitcoin address");
-    return;
-  }
-
-  int64_t nAmount = data->nAmount;
-  int nMinDepth = data->nMinDepth;
-  CWalletTx wtx = data->wtx;
-  std::string strAccount = data->wtx.strFromAccount;
-
-  // Call to: EnsureWalletIsUnlocked()
-  if (pwalletMain->IsLocked()) {
-    data->err_msg = std::string("Please enter the wallet passphrase with walletpassphrase first.");
-    return;
-  }
-
-  // Check funds
-  double nBalance = (double)GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
-  if (((double)(nAmount * 1.0) / 100000000) > nBalance) {
-    data->err_msg = std::string("Account has insufficient funds");
-    return;
-  }
-
-  // Send
-  std::string strError = pwalletMain->SendMoney(address.Get(), nAmount, wtx);
-  if (strError != "") {
-    data->err_msg = strError;
-    return;
-  }
-
-  data->tx_hash = wtx.GetHash().GetHex();
-}
-
-static void
-async_wallet_sendfrom_after(uv_work_t *req) {
-  NanScope();
-  async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
-
-  if (!data->err_msg.empty()) {
-    Local<Value> err = Exception::Error(String::New(data->err_msg.c_str()));
-    const unsigned argc = 1;
-    Local<Value> argv[argc] = { err };
-    TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
-    if (try_catch.HasCaught()) {
-      node::FatalException(try_catch);
-    }
-  } else {
-    const unsigned argc = 2;
-    Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->tx_hash))
-    };
-    TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
-    if (try_catch.HasCaught()) {
-      node::FatalException(try_catch);
-    }
-  }
-
-  data->callback.Dispose();
-
-  delete data;
-  delete req;
-}
-
-/**
- * WalletMove()
- * bitcoindjs.walletMove(options)
- * Move BTC from one account to another
- */
-
-NAN_METHOD(WalletMove) {
-  NanScope();
-
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.walletMove(options)");
-  }
-
-  Local<Object> options = Local<Object>::Cast(args[0]);
-
-  std::string strFrom;
-  if (options->Get(NanNew<String>("from"))->IsString()) {
-    String::Utf8Value s_(options->Get(NanNew<String>("from"))->ToString());
-    strFrom = std::string(*s_);
-  }
-
-  std::string strTo;
-  if (options->Get(NanNew<String>("to"))->IsString()) {
-    String::Utf8Value s_(options->Get(NanNew<String>("to"))->ToString());
-    strTo = std::string(*s_);
-  }
-
-  CAmount nAmount;
-  if (options->Get(NanNew<String>("amount"))->IsNumber()) {
-    nAmount = (CAmount)options->Get(NanNew<String>("amount"))->IntegerValue();
-  }
-
-  // DEPRECATED
-  // int nMinDepth = 1;
-  // if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
-  //   nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
-  // }
-
-  std::string strComment;
-  if (options->Get(NanNew<String>("comment"))->IsString()) {
-    String::Utf8Value s_(options->Get(NanNew<String>("comment"))->ToString());
-    strComment = std::string(*s_);
-  }
-
-  CWalletDB walletdb(pwalletMain->strWalletFile);
-  if (!walletdb.TxnBegin()) {
-    return NanThrowError("database error");
-  }
-
-  int64_t nNow = GetAdjustedTime();
-
-  // Debit
-  CAccountingEntry debit;
-  debit.nOrderPos = pwalletMain->IncOrderPosNext(&walletdb);
-  debit.strAccount = strFrom;
-  debit.nCreditDebit = -nAmount;
-  debit.nTime = nNow;
-  debit.strOtherAccount = strTo;
-  debit.strComment = strComment;
-  walletdb.WriteAccountingEntry(debit);
-
-  // Credit
-  CAccountingEntry credit;
-  credit.nOrderPos = pwalletMain->IncOrderPosNext(&walletdb);
-  credit.strAccount = strTo;
-  credit.nCreditDebit = nAmount;
-  credit.nTime = nNow;
-  credit.strOtherAccount = strFrom;
-  credit.strComment = strComment;
-  walletdb.WriteAccountingEntry(credit);
-
-  if (!walletdb.TxnCommit()) {
-    return NanThrowError("database error");
-  }
-
-  NanReturnValue(Undefined());
 }
 
 /**
