@@ -5759,7 +5759,7 @@ read_addr(const std::string addr) {
     leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
 
     if (!status.ok()) {
-      break;
+      return head;
     }
 
     leveldb::Slice start = "t";
@@ -5827,7 +5827,9 @@ read_addr(const std::string addr) {
             goto found;
           }
         }
+
 found:
+        continue;
       }
     }
 
