@@ -4752,10 +4752,8 @@ NAN_METHOD(WalletImportKey) {
 static void
 async_import_key(uv_work_t *req) {
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
-  if (data->fRescan) {
-    // This may take a long time, do it on the libuv thread pool:
-    pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
-  }
+  // This may take a long time, do it on the libuv thread pool:
+  pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
 }
 
 static void
