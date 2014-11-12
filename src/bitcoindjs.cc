@@ -391,6 +391,14 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock);
 static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx);
 
+#if 0
+static void
+async_hook_packets(uv_work_t *req);
+
+static void
+async_hook_packets_after(uv_work_t *req);
+#endif
+
 static void
 hook_packets(void);
 
@@ -576,6 +584,64 @@ struct async_dump_wallet_data {
   std::string path;
   Persistent<Function> callback;
 };
+
+/**
+ * async_hook_packets_data
+ */
+
+#if 0
+struct async_hook_packets_data {
+  std::string err_msg;
+  Persistent<Function> callback;
+  // NOTE: Could use a union here
+  std::string strCommand;
+  std::string name;
+  int64_t received;
+  int64_t /*?*/ peerId;
+  std::string userAgent;
+  int64_t /*?*/ receiveVersion;
+  int64_t /*?*/ version;
+  int64_t /*?*/ height;
+  std::string us;
+  std::string address;
+  bool relay;
+  std::string services;
+  int64_t /*?*/ time;
+  int64_t /*?*/ last;
+  std::string ip;
+  int64_t /*?*/ port;
+  bool reachable;
+  packet_addresses_list addresses;
+  bool have;
+  std::string hash;
+  std::string type;
+  bool filtered;
+  packet_items_list items;
+  int64_t /*?*/ size;
+  std::string first;
+  int64_t /*?*/ fromHeight;
+  std::string toHash;
+  int64_t /*?*/ limit;
+  CTransaction tx;
+  CBlock block;
+  std::string nonce;
+  std::string expected;
+  int64_t /*?*/ bytes;
+  std::string problem;
+  bool finished;
+  std::string message;
+  std::string signature;
+  bool misbehaving;
+  std::string data;
+  bool full;
+  bool empty;
+  int64_t /*?*/ hashFuncs;
+  int64_t /*?*/ tweaks;
+  int64_t /*?*/ flags;
+  bool unknown;
+  bool connected;
+};
+#endif
 
 /**
  * Read Raw DB
@@ -2757,8 +2823,67 @@ NAN_METHOD(HookPackets) {
 
   poll_packets_mutex.unlock();
 
+#if 0
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+  async_hook_packets_data *data = new async_hook_packets_data();
+  data->err_msg = std::string("");
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_hook_packets,
+    (uv_after_work_cb)async_hook_packets_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+#endif
+
   NanReturnValue(obj);
 }
+
+#if 0
+static void
+async_hook_packets(uv_work_t *req) {
+  async_hook_packets_data* data = static_cast<async_hook_packets_data*>(req->data);
+}
+
+static void
+async_hook_packets_after(uv_work_t *req) {
+  NanScope();
+  async_hook_packets_data* data = static_cast<async_hook_packets_data*>(req->data);
+
+  if (data->err_msg != "") {
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    Local<Array> packets = NanNew<Array>();
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(packets)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+#endif
 
 static void
 hook_packets(void) {
