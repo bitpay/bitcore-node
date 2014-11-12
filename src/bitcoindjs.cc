@@ -148,6 +148,7 @@ extern CWallet *pwalletMain;
 #endif
 extern CFeeRate payTxFee;
 extern const std::string strMessageMagic;
+// extern map<uint256, COrphanBlock*> mapOrphanBlocks;
 
 // XXX May not link properly: some functions here are static (rpcdump.cpp):
 // extern std::string EncodeDumpTime(int64_t nTime);
@@ -1873,8 +1874,8 @@ async_get_progress_after(uv_work_t *req) {
     // result->Set(NanNew<String>("orphans"), NanNew<Number>(orphan_count));
     // result->Set(NanNew<String>("orphans"), NanNew<Number>(
     //   (unsigned long)mapOrphanBlocks.size())->ToInteger());
-    result->Set(NanNew<String>("orphans"),
-      NanNew<Number>(mapOrphanBlocks.size()));
+    // result->Set(NanNew<String>("orphans"),
+    //   NanNew<Number>(mapOrphanBlocks.size()));
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
