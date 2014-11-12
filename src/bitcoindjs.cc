@@ -326,6 +326,9 @@ static void
 get_genesis_block(CBlock *genesis);
 
 static void
+async_get_progress(uv_work_t *req);
+
+static void
 async_get_progress_after(uv_work_t *req);
 
 static void
@@ -1720,14 +1723,15 @@ NAN_METHOD(GetProgress) {
 
   async_block_data *data = new async_block_data();
   data->err_msg = std::string("");
-  data->hash = pindex->GetBlockHash().GetHex(); // .ToString();
+  data->hash = pcoinsTip->GetBestBlock().GetHex(); // .ToString();
+
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
 
   int status = uv_queue_work(uv_default_loop(),
-    req, async_get_block,
+    req, async_get_progress,
     (uv_after_work_cb)async_get_progress_after);
 
   assert(status == 0);
@@ -1735,37 +1739,9 @@ NAN_METHOD(GetProgress) {
   NanReturnValue(Undefined());
 }
 
-// Luckily, we never have to change this.
 static void
-get_genesis_block(CBlock *genesis) {
-  // Satoshi's first coinbase:
-  const char* pszTimestamp =
-    "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
-  CMutableTransaction txNew;
-  txNew.vin.resize(1);
-  txNew.vout.resize(1);
-  txNew.vin[0].scriptSig = CScript()
-    << 486604799
-    << CScriptNum(4)
-    << vector<unsigned char>((const unsigned char*)pszTimestamp,
-        (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-  txNew.vout[0].nValue = 50 * COIN;
-  txNew.vout[0].scriptPubKey = CScript() << ParseHex(
-    "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6"
-    "bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f"
-  ) << OP_CHECKSIG;
-  genesis->vtx.push_back(txNew);
-  genesis->hashPrevBlock = 0;
-  genesis->hashMerkleRoot = genesis->BuildMerkleTree();
-  genesis->nVersion = 1;
-  genesis->nTime = 1231006505;
-  genesis->nBits = 0x1d00ffff;
-  genesis->nNonce = 2083236893;
-  const uint256 hashGenesisBlock = genesis->GetHash();
-  assert(hashGenesisBlock == uint256(
-    "0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
-  assert(genesis->hashMerkleRoot == uint256(
-    "0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+async_get_progress(uv_work_t *req) {
+  async_get_block(req);
 }
 
 static void
@@ -1806,7 +1782,7 @@ async_get_progress_after(uv_work_t *req) {
 
     unsigned int hours_behind = left / 60 / 60;
     unsigned int days_behind = left / 60 / 60 / 24;
-    double cur = (double)left / (double)now;
+    double cur = (double)(now - left) / (double)now;
     unsigned int percent = (unsigned int)(cur * 100.0);
 
     Local<Object> result = NanNew<Object>();
@@ -5916,6 +5892,39 @@ found:
 #endif
 
   return head;
+}
+
+// Luckily, we never have to change this.
+static void
+get_genesis_block(CBlock *genesis) {
+  // Satoshi's first coinbase:
+  const char* pszTimestamp =
+    "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
+  CMutableTransaction txNew;
+  txNew.vin.resize(1);
+  txNew.vout.resize(1);
+  txNew.vin[0].scriptSig = CScript()
+    << 486604799
+    << CScriptNum(4)
+    << vector<unsigned char>((const unsigned char*)pszTimestamp,
+        (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+  txNew.vout[0].nValue = 50 * COIN;
+  txNew.vout[0].scriptPubKey = CScript() << ParseHex(
+    "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6"
+    "bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f"
+  ) << OP_CHECKSIG;
+  genesis->vtx.push_back(txNew);
+  genesis->hashPrevBlock = 0;
+  genesis->hashMerkleRoot = genesis->BuildMerkleTree();
+  genesis->nVersion = 1;
+  genesis->nTime = 1231006505;
+  genesis->nBits = 0x1d00ffff;
+  genesis->nNonce = 2083236893;
+  const uint256 hashGenesisBlock = genesis->GetHash();
+  assert(hashGenesisBlock == uint256(
+    "0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
+  assert(genesis->hashMerkleRoot == uint256(
+    "0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
 }
 
 /**
