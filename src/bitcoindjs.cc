@@ -1839,20 +1839,20 @@ async_get_progress_after(uv_work_t *req) {
     Local<Object> genesis = NanNew<Object>();
     cblock_to_jsblock(cgenesis, NULL, genesis, false);
 
-    int64_t ts_ = cblock.GetBlockTime();
+    // int64_t ts_ = cblock.GetBlockTime();
     time_t now_ = time(NULL);
 
     //int64_t now = (int64_t)(time(NULL) - (10 * 60));
-    int64_t ts = (int64_t)ts_;
+    // int64_t ts = (int64_t)ts_;
 
     // Assume last block was ten minutes ago:
     int64_t now = ((int64_t)now_ - (10 * 60));
 
-    int64_t left = (now - ts); // get left from timestamp
+    // int64_t left = (now - ts); // get left from timestamp
     // double cur = (double)(now - left) / (double)now;
 
     double cur = Checkpoints::GuessVerificationProgress(cblock_index, false);
-    // int64_t left = now - (cur * now); // get left from guess checkpoints
+    int64_t left = now - (cur * now); // get left from guess checkpoints
 
     unsigned int hours_behind = left / 60 / 60;
     unsigned int days_behind = left / 60 / 60 / 24;
