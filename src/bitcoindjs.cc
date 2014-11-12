@@ -1721,7 +1721,9 @@ NAN_METHOD(GetProgress) {
 
   async_block_data *data = new async_block_data();
   data->err_msg = std::string("");
-  data->hash = pcoinsTip->GetBestBlock().GetHex(); // .ToString();
+  CBlockIndex *pindex = chainActive.Tip();
+  data->hash = pindex->GetBlockHash().GetHex(); // .ToString();
+  //data->hash = pcoinsTip->GetBestBlock().GetHex(); // .ToString();
   data->height = -1;
 
   data->callback = Persistent<Function>::New(callback);
