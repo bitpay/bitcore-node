@@ -1780,22 +1780,35 @@ async_get_progress_after(uv_work_t *req) {
 
     // Assume last block was ten minutes ago:
     int64_t now = ((int64_t)now_ - (10 * 60));
-    int64_t left = (now - ts);
+
+    int64_t left = (now - ts); // get left from timestamp
+    // double cur = (double)(now - left) / (double)now;
+
+    double cur = Checkpoints::GuessVerificationProgress(cblock_index, false);
+    // int64_t left = now - (cur * now); // get left from guess checkpoints
 
     unsigned int hours_behind = left / 60 / 60;
     unsigned int days_behind = left / 60 / 60 / 24;
-    double cur = (double)(now - left) / (double)now;
     unsigned int percent = (unsigned int)(cur * 100.0);
 
     Local<Object> result = NanNew<Object>();
 
-    result->Set(NanNew<String>("blocks"), NanNew<Number>(cblock_index->nHeight));
-    result->Set(NanNew<String>("connections"), NanNew<Number>((int)vNodes.size())->ToInt32());
+    result->Set(NanNew<String>("blocks"),
+      NanNew<Number>(cblock_index->nHeight));
+    result->Set(NanNew<String>("connections"),
+      NanNew<Number>((int)vNodes.size())->ToInt32());
     result->Set(NanNew<String>("genesisBlock"), genesis);
     result->Set(NanNew<String>("currentBlock"), jsblock);
     result->Set(NanNew<String>("hoursBehind"), NanNew<Number>(hours_behind));
     result->Set(NanNew<String>("daysBehind"), NanNew<Number>(days_behind));
     result->Set(NanNew<String>("percent"), NanNew<Number>(percent));
+
+    // unsigned long orphan_count = (unsigned long)mapOrphanBlocks.size();
+    // result->Set(NanNew<String>("orphans"), NanNew<Number>(orphan_count));
+    // result->Set(NanNew<String>("orphans"), NanNew<Number>(
+    //   (unsigned long)mapOrphanBlocks.size())->ToInteger());
+    result->Set(NanNew<String>("orphans"),
+      NanNew<Number>(mapOrphanBlocks.size()));
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
