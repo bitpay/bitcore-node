@@ -392,10 +392,10 @@ static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx);
 
 static void
-hook_packets(CNodeSignals& nodeSignals);
+hook_packets(void);
 
 static void
-unhook_packets(CNodeSignals& nodeSignals);
+unhook_packets(void);
 
 static bool
 process_packets(CNode* pfrom);
@@ -738,7 +738,7 @@ start_node(void) {
   signal(SIGQUIT, SIG_DFL);
 
   // Hook into packet handling
-  hook_packets(GetNodeSignals());
+  (boost::thread *)new boost::thread(boost::bind(&hook_packets));
 
   return 0;
 }
@@ -886,7 +886,7 @@ NAN_METHOD(StopBitcoind) {
 static void
 async_stop_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
-  unhook_packets(GetNodeSignals());
+  unhook_packets();
   StartShutdown();
   data->result = std::string("stop_node(): bitcoind shutdown.");
 }
@@ -2748,12 +2748,14 @@ NAN_METHOD(HookPackets) {
 }
 
 static void
-hook_packets(CNodeSignals& nodeSignals) {
+hook_packets(void) {
+  CNodeSignals& nodeSignals = GetNodeSignals();
   nodeSignals.ProcessMessages.connect(&process_packets);
 }
 
 static void
-unhook_packets(CNodeSignals& nodeSignals) {
+unhook_packets(void) {
+  CNodeSignals& nodeSignals = GetNodeSignals();
   nodeSignals.ProcessMessages.disconnect(&process_packets);
 }
 
