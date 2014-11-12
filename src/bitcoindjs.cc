@@ -1719,11 +1719,10 @@ NAN_METHOD(GetProgress) {
 
   Local<Function> callback = Local<Function>::Cast(args[0]);
 
-  CBlockIndex *pindex = chainActive.Tip();
-
   async_block_data *data = new async_block_data();
   data->err_msg = std::string("");
   data->hash = pcoinsTip->GetBestBlock().GetHex(); // .ToString();
+  data->height = -1;
 
   data->callback = Persistent<Function>::New(callback);
 
