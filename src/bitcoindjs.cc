@@ -3640,6 +3640,8 @@ NAN_METHOD(WalletMove) {
   CAmount nAmount;
   if (options->Get(NanNew<String>("amount"))->IsNumber()) {
     nAmount = (CAmount)options->Get(NanNew<String>("amount"))->IntegerValue();
+  } else {
+    return NanThrowError("No amount specified.");
   }
 
   // DEPRECATED
