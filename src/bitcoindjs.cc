@@ -1774,6 +1774,7 @@ async_get_progress_after(uv_work_t *req) {
     int64_t ts_ = cblock.GetBlockTime();
     time_t now_ = time(NULL);
 
+    //int64_t now = (int64_t)(time(NULL) - (10 * 60));
     int64_t ts = (int64_t)ts_;
 
     // Assume last block was ten minutes ago:
