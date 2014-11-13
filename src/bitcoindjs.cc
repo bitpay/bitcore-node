@@ -1839,24 +1839,17 @@ async_get_progress_after(uv_work_t *req) {
     Local<Object> genesis = NanNew<Object>();
     cblock_to_jsblock(cgenesis, NULL, genesis, false);
 
-    // int64_t ts_ = cblock.GetBlockTime();
-    time_t now_ = time(NULL);
+    // Get progress:
+    double progress = Checkpoints::GuessVerificationProgress(cblock_index, false);
 
-    //int64_t now = (int64_t)(time(NULL) - (10 * 60));
-    // int64_t ts = (int64_t)ts_;
+    // Get time left (assume last block was ten minutes ago):
+    int64_t now = ((int64_t)time(NULL) - (10 * 60));
+    int64_t left = now - (progress * now);
 
-    // Assume last block was ten minutes ago:
-    int64_t now = ((int64_t)now_ - (10 * 60));
-
-    // int64_t left = (now - ts); // get left from timestamp
-    // double cur = (double)(now - left) / (double)now;
-
-    double cur = Checkpoints::GuessVerificationProgress(cblock_index, false);
-    int64_t left = now - (cur * now); // get left from guess checkpoints
-
+    // Calculate tangible progress:
     unsigned int hours_behind = left / 60 / 60;
     unsigned int days_behind = left / 60 / 60 / 24;
-    unsigned int percent = (unsigned int)(cur * 100.0);
+    unsigned int percent = (unsigned int)(progress * 100.0);
 
     Local<Object> result = NanNew<Object>();
 
@@ -1869,11 +1862,6 @@ async_get_progress_after(uv_work_t *req) {
     result->Set(NanNew<String>("hoursBehind"), NanNew<Number>(hours_behind));
     result->Set(NanNew<String>("daysBehind"), NanNew<Number>(days_behind));
     result->Set(NanNew<String>("percent"), NanNew<Number>(percent));
-
-    // unsigned long orphan_count = (unsigned long)mapOrphanBlocks.size();
-    // result->Set(NanNew<String>("orphans"), NanNew<Number>(orphan_count));
-    // result->Set(NanNew<String>("orphans"), NanNew<Number>(
-    //   (unsigned long)mapOrphanBlocks.size())->ToInteger());
     // result->Set(NanNew<String>("orphans"),
     //   NanNew<Number>(mapOrphanBlocks.size()));
 
