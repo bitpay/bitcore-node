@@ -4410,20 +4410,9 @@ NAN_METHOD(WalletGetTransaction) {
   if (options->Get(NanNew<String>("txid"))->IsString()) {
     String::Utf8Value txid_(options->Get(NanNew<String>("txid"))->ToString());
     txid = std::string(*txid_);
+  } else {
+    return NanThrowError("txid not specified.");
   }
-
-#if 0
-  // XXX - SLOW
-  Local<Array> txs = WalletListTransactions(args);
-  for (unsigned int i = 0; i < txs->Length(); ti++) {
-    String::Utf8Value id_(txs[i]->Get(NanNew<String>("txid"))->ToString());
-    std::string id = std::string(*id_);
-    if (id == txid) {
-      NanReturnValue(txs[i]);
-    }
-  }
-  NanReturnValue(Undefined());
-#endif
 
   uint256 hash;
   hash.SetHex(txid);
@@ -4446,7 +4435,8 @@ NAN_METHOD(WalletGetTransaction) {
   CAmount nNet = nCredit - nDebit;
   CAmount nFee = (wtx.IsFromMe(filter) ? wtx.GetValueOut() - nDebit : 0);
 
-  entry->Set(NanNew<String>("amount"), NanNew<Number>(SatoshiFromAmount(nNet - nFee)));
+  entry->Set(NanNew<String>("amount"),
+    NanNew<Number>(SatoshiFromAmount(nNet - nFee)));
 
   if (wtx.IsFromMe(filter)) {
     entry->Set(NanNew<String>("fee"), NanNew<Number>(SatoshiFromAmount(nFee)));
