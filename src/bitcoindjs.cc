@@ -4283,8 +4283,7 @@ NAN_METHOD(WalletReceivedByAddress) {
  * WalletListAccounts()
  * bitcoindjs.walletListAccounts(options)
  * This will list all accounts, addresses, balanced, private keys, public keys,
- * and whether these keys are in compressed format. TODO: Only output private
- * keys if wallet is decrypted.
+ * and whether these keys are in compressed format.
  */
 
 NAN_METHOD(WalletListAccounts) {
@@ -4394,8 +4393,7 @@ NAN_METHOD(WalletListAccounts) {
 /**
  * WalletGetTransaction()
  * bitcoindjs.walletGetTransaction(options)
- * Get any transaction pertaining to any owned addresses. NOT YET IMPLEMENTED.
- * XXX TODO
+ * Get any transaction pertaining to any owned addresses.
  */
 
 NAN_METHOD(WalletGetTransaction) {
@@ -4408,13 +4406,63 @@ NAN_METHOD(WalletGetTransaction) {
 
   Local<Object> options = Local<Object>::Cast(args[0]);
 
+  std::string txid;
   if (options->Get(NanNew<String>("txid"))->IsString()) {
     String::Utf8Value txid_(options->Get(NanNew<String>("txid"))->ToString());
-    std::string txid = std::string(*txid_);
-    NanReturnValue(NanNew<String>(txid));
+    txid = std::string(*txid_);
   }
 
+#if 0
+  // XXX - SLOW
+  Local<Array> txs = WalletListTransactions(args);
+  for (unsigned int i = 0; i < txs->Length(); ti++) {
+    String::Utf8Value id_(txs[i]->Get(NanNew<String>("txid"))->ToString());
+    std::string id = std::string(*id_);
+    if (id == txid) {
+      NanReturnValue(txs[i]);
+    }
+  }
   NanReturnValue(Undefined());
+#endif
+
+  uint256 hash;
+  hash.SetHex(txid);
+
+  isminefilter filter = ISMINE_SPENDABLE;
+  if (options->Get(NanNew<String>("watch"))->IsBoolean()
+      && options->Get(NanNew<String>("watch"))->IsTrue()) {
+    filter = filter | ISMINE_WATCH_ONLY;
+  }
+
+  Local<Object> entry = NanNew<Object>();
+  if (!pwalletMain->mapWallet.count(hash)) {
+    return NanThrowError("Invalid or non-wallet transaction id");
+  }
+
+  const CWalletTx& wtx = pwalletMain->mapWallet[hash];
+
+  CAmount nCredit = wtx.GetCredit(filter != 0);
+  CAmount nDebit = wtx.GetDebit(filter);
+  CAmount nNet = nCredit - nDebit;
+  CAmount nFee = (wtx.IsFromMe(filter) ? wtx.GetValueOut() - nDebit : 0);
+
+  entry->Set(NanNew<String>("amount"), NanNew<Number>(SatoshiFromAmount(nNet - nFee)));
+
+  if (wtx.IsFromMe(filter)) {
+    entry->Set(NanNew<String>("fee"), NanNew<Number>(SatoshiFromAmount(nFee)));
+  }
+
+  WalletTxToJSON_V8(wtx, entry);
+
+  Local<Array> details = NanNew<Array>();
+  int a_count = 0;
+  ListTransactions_V8(wtx, "*", 0, false, details, filter, &a_count);
+  entry->Set(NanNew<String>("details"), details);
+
+  std::string strHex = EncodeHexTx(static_cast<CTransaction>(wtx));
+  entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+
+  NanReturnValue(entry);
 }
 
 /**
