@@ -4136,6 +4136,9 @@ WalletTxToJSON_V8(const CWalletTx& wtx, Local<Object>& entry) {
   BOOST_FOREACH(const PAIRTYPE(string,string)& item, wtx.mapValue) {
     entry->Set(NanNew<String>(item.first), NanNew<String>(item.second));
   }
+
+  std::string strHex = EncodeHexTx(static_cast<CTransaction>(wtx));
+  entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 }
 
 static void
@@ -4176,6 +4179,9 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
       entry->Set(NanNew<String>("fee"), NanNew<Number>(-nFee));
       if (fLong) {
         WalletTxToJSON_V8(wtx, entry);
+      } else {
+        std::string strHex = EncodeHexTx(static_cast<CTransaction>(wtx));
+        entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
       }
       ret->Set(i, entry);
       i++;
@@ -4212,6 +4218,9 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
         // entry->Set(NanNew<String>("vout"), NanNew<Number>(r.vout));
         if (fLong) {
           WalletTxToJSON_V8(wtx, entry);
+        } else {
+          std::string strHex = EncodeHexTx(static_cast<CTransaction>(wtx));
+          entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
         }
         ret->Set(i, entry);
         i++;
@@ -4449,8 +4458,8 @@ NAN_METHOD(WalletGetTransaction) {
   ListTransactions_V8(wtx, "*", 0, false, details, filter, &a_count);
   entry->Set(NanNew<String>("details"), details);
 
-  std::string strHex = EncodeHexTx(static_cast<CTransaction>(wtx));
-  entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+  //std::string strHex = EncodeHexTx(static_cast<CTransaction>(wtx));
+  //entry->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
   NanReturnValue(entry);
 }
