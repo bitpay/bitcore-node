@@ -1851,6 +1851,11 @@ async_get_progress_after(uv_work_t *req) {
     unsigned int days_behind = left / 60 / 60 / 24;
     unsigned int percent = (unsigned int)(progress * 100.0);
 
+    if (percent == 100 || left < 0) {
+      hours_behind = 0;
+      days_behind = 0;
+    }
+
     Local<Object> result = NanNew<Object>();
 
     result->Set(NanNew<String>("blocks"),
