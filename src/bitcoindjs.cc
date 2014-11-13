@@ -427,6 +427,9 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
                   int nMinDepth, bool fLong, Local<Array> ret,
                   const isminefilter& filter);
 
+static int64_t
+SatoshiFromAmount(const CAmount& amount);
+
 extern "C" void
 init(Handle<Object>);
 
@@ -3949,40 +3952,42 @@ NAN_METHOD(WalletGetBalance) {
     return NanThrowError("No account name provided.");
   }
 
+  isminefilter filter = ISMINE_SPENDABLE;
+
   if (strAccount == "*") {
     // Calculate total balance a different way from GetBalance()
     // (GetBalance() sums up all unspent TxOuts)
     // getbalance and getbalance '*' 0 should return the same number
-    int64_t nBalance = 0;
+    CAmount nBalance = 0;
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
-        it != pwalletMain->mapWallet.end(); ++it) {
+        it != pwalletMain->mapWallet.end();
+        ++it) {
       const CWalletTx& wtx = (*it).second;
-
       if (!wtx.IsTrusted() || wtx.GetBlocksToMaturity() > 0) {
         continue;
       }
 
-      int64_t allFee;
+      CAmount allFee;
       string strSentAccount;
-      list<pair<CTxDestination, int64_t> > listReceived;
-      list<pair<CTxDestination, int64_t> > listSent;
-      // With v0.9.0
-      // wtx.GetAmounts(listReceived, listSent, allFee, strSentAccount);
+      list<COutputEntry> listReceived;
+      list<COutputEntry> listSent;
+      wtx.GetAmounts(listReceived, listSent, allFee, strSentAccount, filter);
       if (wtx.GetDepthInMainChain() >= nMinDepth) {
-        BOOST_FOREACH(const PAIRTYPE(CTxDestination,int64_t)& r, listReceived) {
-          nBalance += r.second;
+        BOOST_FOREACH(const COutputEntry& r, listReceived) {
+          nBalance += r.amount;
         }
       }
-      BOOST_FOREACH(const PAIRTYPE(CTxDestination,int64_t)& r, listSent) {
-        nBalance -= r.second;
+      BOOST_FOREACH(const COutputEntry& s, listSent) {
+        nBalance -= s.amount;
       }
       nBalance -= allFee;
     }
-    NanReturnValue(NanNew<Number>(nBalance));
+
+    NanReturnValue(NanNew<Number>(SatoshiFromAmount(nBalance)));
   }
 
-  double nBalance = (double)GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
-  NanReturnValue(NanNew<Number>((int64_t)(nBalance * 100000000)));
+  CAmount nBalance = GetAccountBalance(strAccount, nMinDepth, filter);
+  NanReturnValue(NanNew<Number>(SatoshiFromAmount(nBalance)));
 }
 
 /**
@@ -6063,6 +6068,14 @@ get_genesis_block(CBlock *genesis) {
     "0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
   assert(genesis->hashMerkleRoot == uint256(
     "0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+}
+
+static int64_t
+SatoshiFromAmount(const CAmount& amount) {
+  // ./core.h : static const int64_t COIN = 100000000;
+  // ValueFromAmount:
+  //   return (double)amount / (double)COIN;
+  return (int64_t)amount;
 }
 
 /**
