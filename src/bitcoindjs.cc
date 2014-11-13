@@ -414,7 +414,7 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
 
 static void
 AcentryToJSON_V8(const CAccountingEntry& acentry,
-                const string& strAccount, Local<Array>& ret, int a_count);
+                const string& strAccount, Local<Array>& ret, int *a_count);
 
 static void
 WalletTxToJSON_V8(const CWalletTx& wtx, Local<Object>& entry);
@@ -425,7 +425,7 @@ MaybePushAddress_V8(Local<Object>& entry, const CTxDestination &dest);
 static void
 ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
                   int nMinDepth, bool fLong, Local<Array> ret,
-                  const isminefilter& filter);
+                  const isminefilter& filter, int *a_count);
 
 static int64_t
 SatoshiFromAmount(const CAmount& amount);
@@ -4072,12 +4072,11 @@ NAN_METHOD(WalletListTransactions) {
       ++it) {
     CWalletTx *const pwtx = (*it).second.first;
     if (pwtx != 0) {
-      ListTransactions_V8(*pwtx, strAccount, 0, true, ret, filter);
+      ListTransactions_V8(*pwtx, strAccount, 0, true, ret, filter, &a_count);
     }
     CAccountingEntry *const pacentry = (*it).second.second;
     if (pacentry != 0) {
-      AcentryToJSON_V8(*pacentry, strAccount, ret, a_count);
-      a_count++;
+      AcentryToJSON_V8(*pacentry, strAccount, ret, &a_count);
     }
     if ((int)ret->Length() >= (nCount+nFrom)) {
       break;
@@ -4092,28 +4091,15 @@ NAN_METHOD(WalletListTransactions) {
     nCount = ret->Length() - nFrom;
   }
 
-  // Array::iterator first = ret.begin();
-  // std::advance(first, nFrom);
-  // Array::iterator last = ret.begin();
-  // std::advance(last, nFrom+nCount);
-  //
-  // if (last != ret.end()) {
-  //   ret.erase(last, ret.end());
-  // }
-  // if (first != ret.begin()) {
-  //   ret.erase(ret.begin(), first);
-  // }
-  //
-  // std::reverse(ret.begin(), ret.end()); // Return oldest to newest
-
   NanReturnValue(ret);
 }
 
 static void
 AcentryToJSON_V8(const CAccountingEntry& acentry,
-                const string& strAccount, Local<Array>& ret, int a_count) {
+                const string& strAccount, Local<Array>& ret, int *a_count) {
   bool fAllAccounts = (strAccount == string("*"));
 
+  int i = *a_count;
   if (fAllAccounts || acentry.strAccount == strAccount) {
     Local<Object> entry = NanNew<Object>();
     entry->Set(NanNew<String>("account"), NanNew<String>(acentry.strAccount));
@@ -4122,8 +4108,10 @@ AcentryToJSON_V8(const CAccountingEntry& acentry,
     entry->Set(NanNew<String>("amount"), NanNew<Number>(acentry.nCreditDebit));
     entry->Set(NanNew<String>("otheraccount"), NanNew<String>(acentry.strOtherAccount));
     entry->Set(NanNew<String>("comment"), NanNew<String>(acentry.strComment));
-    ret->Set(a_count, entry);
+    ret->Set(i, entry);
+    i++;
   }
+  *a_count = i;
 }
 
 static void
@@ -4165,7 +4153,7 @@ MaybePushAddress_V8(Local<Object>& entry, const CTxDestination &dest) {
 static void
 ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
                   int nMinDepth, bool fLong, Local<Array> ret,
-                  const isminefilter& filter) {
+                  const isminefilter& filter, int *a_count) {
   CAmount nFee;
   string strSentAccount;
   list<COutputEntry> listReceived;
@@ -4176,7 +4164,7 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
   bool fAllAccounts = (strAccount == string("*"));
   bool involvesWatchonly = wtx.IsFromMe(ISMINE_WATCH_ONLY);
 
-  int i = 0;
+  int i = *a_count;
   // Sent
   if ((!listSent.empty() || nFee != 0) && (fAllAccounts || strAccount == strSentAccount)) {
     BOOST_FOREACH(const COutputEntry& s, listSent) {
@@ -4198,7 +4186,6 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
     }
   }
 
-  i = 0;
   // Received
   if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= nMinDepth) {
     BOOST_FOREACH(const COutputEntry& r, listReceived) {
@@ -4235,6 +4222,8 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
       }
     }
   }
+
+  *a_count = i;
 }
 
 /**
