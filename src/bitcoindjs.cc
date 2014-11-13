@@ -3926,7 +3926,7 @@ NAN_METHOD(WalletGetBalance) {
 
   Local<Object> options = Local<Object>::Cast(args[0]);
 
-  std::string strAccount = std::string(EMPTY);
+  std::string strAccount = "*";
   int nMinDepth = 1;
 
   if (options->Get(NanNew<String>("account"))->IsString()) {
@@ -3946,10 +3946,6 @@ NAN_METHOD(WalletGetBalance) {
 
   if (options->Get(NanNew<String>("confirmations"))->IsNumber()) {
     nMinDepth = options->Get(NanNew<String>("confirmations"))->IntegerValue();
-  }
-
-  if (strAccount == EMPTY) {
-    return NanThrowError("No account name provided.");
   }
 
   isminefilter filter = ISMINE_SPENDABLE;
