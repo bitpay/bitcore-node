@@ -3499,8 +3499,8 @@ NAN_METHOD(WalletSendFrom) {
   data->nAmount = nAmount;
 
   int nMinDepth = 1;
-  if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
-    nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
+  if (options->Get(NanNew<String>("confirmations"))->IsNumber()) {
+    nMinDepth = options->Get(NanNew<String>("confirmations"))->IntegerValue();
   }
   data->nMinDepth = nMinDepth;
 
@@ -3639,8 +3639,8 @@ NAN_METHOD(WalletMove) {
 
   // DEPRECATED
   // int nMinDepth = 1;
-  // if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
-  //   nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
+  // if (options->Get(NanNew<String>("confirmations"))->IsNumber()) {
+  //   nMinDepth = options->Get(NanNew<String>("confirmations"))->IntegerValue();
   // }
 
   std::string strComment;
@@ -3941,8 +3941,8 @@ NAN_METHOD(WalletGetBalance) {
     strAccount = std::string(*account_);
   }
 
-  if (options->Get(NanNew<String>("nMinDepth"))->IsNumber()) {
-    nMinDepth = options->Get(NanNew<String>("nMinDepth"))->IntegerValue();
+  if (options->Get(NanNew<String>("confirmations"))->IsNumber()) {
+    nMinDepth = options->Get(NanNew<String>("confirmations"))->IntegerValue();
   }
 
   if (strAccount == EMPTY) {
@@ -4308,8 +4308,8 @@ NAN_METHOD(WalletListAccounts) {
   Local<Object> options = Local<Object>::Cast(args[0]);
 
   int nMinDepth = 1;
-  if (options->Get(NanNew<String>("minDepth"))->IsNumber()) {
-    nMinDepth = options->Get(NanNew<String>("minDepth"))->IntegerValue();
+  if (options->Get(NanNew<String>("confirmations"))->IsNumber()) {
+    nMinDepth = options->Get(NanNew<String>("confirmations"))->IntegerValue();
   }
 
   isminefilter includeWatchonly = ISMINE_SPENDABLE;
