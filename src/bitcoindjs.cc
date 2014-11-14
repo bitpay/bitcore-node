@@ -4455,7 +4455,8 @@ NAN_METHOD(WalletGetTransaction) {
 
   Local<Array> details = NanNew<Array>();
   int a_count = 0;
-  ListTransactions_V8(wtx, "*", 0, false, details, filter, &a_count);
+  // NOTE: fLong is set to false in rpcwallet.cpp
+  ListTransactions_V8(wtx, "*", 0, /*fLong=*/ true, details, filter, &a_count);
   entry->Set(NanNew<String>("details"), details);
 
   //std::string strHex = EncodeHexTx(static_cast<CTransaction>(wtx));
