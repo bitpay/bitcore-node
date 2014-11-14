@@ -5642,6 +5642,9 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   jstx->Set(NanNew<String>("version"), NanNew<Number>((int)ctx.nVersion)->ToInt32());
   jstx->Set(NanNew<String>("locktime"), NanNew<Number>((unsigned int)ctx.nLockTime)->ToUint32());
 
+  jstx->Set(NanNew<String>("size"),
+    NanNew<Number>((int)::GetSerializeSize(ctx, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
+
   Local<Array> vin = NanNew<Array>();
   int vi = 0;
   BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
