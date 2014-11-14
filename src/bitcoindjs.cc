@@ -1580,7 +1580,7 @@ NAN_METHOD(FillTransaction) {
   // int64_t nFeeRet = CFeeRate(nAmount, 1000);
 
   if (pwalletMain->IsLocked()) {
-    return NanThrowError("Error: Wallet locked, unable to create transaction!");
+    return NanThrowError("Wallet locked, unable to create transaction!");
   }
 
   CCoinControl* coinControl = new CCoinControl();
@@ -2072,7 +2072,7 @@ async_get_addrtx(uv_work_t *req) {
 
   CBitcoinAddress address = CBitcoinAddress(data->addr);
   if (!address.IsValid()) {
-    data->err_msg = std::string("bad addr");
+    data->err_msg = std::string("Invalid address.");
     return;
   }
 
@@ -2210,14 +2210,9 @@ NAN_METHOD(GetBestBlock) {
       "Usage: bitcoindjs.getBestBlock()");
   }
 
-  //static CCoinsViewDB *pcoinsdbview = NULL;
-  //pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
-  //uint256 block_hash = pcoinsdbview->GetBestBlock();
+  uint256 hash = pcoinsTip->GetBestBlock();
 
-  //CCoinsViewCache &viewChain = *pcoinsTip;
-  uint256 block_hash = pcoinsTip->GetBestBlock();
-
-  NanReturnValue(NanNew<String>(block_hash.GetHex()));
+  NanReturnValue(NanNew<String>(hash.GetHex()));
 }
 
 /**
@@ -2306,7 +2301,7 @@ NAN_METHOD(BlockFromHex) {
   try {
     ssData >> cblock;
   } catch (std::exception &e) {
-    NanThrowError("Bad Block decode");
+    return NanThrowError("Bad Block decode");
   }
 
   Local<Object> jsblock = NanNew<Object>();
@@ -2338,7 +2333,7 @@ NAN_METHOD(TxFromHex) {
   try {
     ssData >> ctx;
   } catch (std::exception &e) {
-    NanThrowError("Bad Block decode");
+    return NanThrowError("Bad Block decode");
   }
 
   Local<Object> jstx = NanNew<Object>();
@@ -4485,7 +4480,7 @@ NAN_METHOD(WalletBackup) {
   std::string strDest = std::string(*path_);
 
   if (!BackupWallet(*pwalletMain, strDest)) {
-    return NanThrowError("Error: Wallet backup failed!");
+    return NanThrowError("Wallet backup failed!");
   }
 
   NanReturnValue(Undefined());
@@ -4511,7 +4506,7 @@ NAN_METHOD(WalletPassphrase) {
   std::string strPassphrase = std::string(*passphrase_);
 
   if (!pwalletMain->IsCrypted()) {
-    return NanThrowError("Error: running with an unencrypted wallet, but walletpassphrase was called.");
+    return NanThrowError("Running with an unencrypted wallet, but walletpassphrase was called.");
   }
 
   SecureString strWalletPass;
@@ -4520,12 +4515,10 @@ NAN_METHOD(WalletPassphrase) {
 
   if (strWalletPass.length() > 0) {
     if (!pwalletMain->Unlock(strWalletPass)) {
-      return NanThrowError("Error: The wallet passphrase entered was incorrect.");
+      return NanThrowError("The wallet passphrase entered was incorrect.");
     }
   } else {
-    return NanThrowError(
-      "walletpassphrase <passphrase> <timeout>\n"
-      "Stores the wallet decryption key in memory for <timeout> seconds.");
+    return NanThrowError("No wallet passphrase provided.");
   }
 
   // XXX Do this asynchronously
@@ -4557,7 +4550,7 @@ NAN_METHOD(WalletPassphraseChange) {
   std::string newPass = std::string(*newPass_);
 
   if (!pwalletMain->IsCrypted()) {
-    return NanThrowError("Error: running with an unencrypted wallet, but walletpassphrasechange was called.");
+    return NanThrowError("Running with an unencrypted wallet, but walletpassphrasechange was called.");
   }
 
   SecureString strOldWalletPass;
@@ -4569,13 +4562,11 @@ NAN_METHOD(WalletPassphraseChange) {
   strNewWalletPass = newPass.c_str();
 
   if (strOldWalletPass.length() < 1 || strNewWalletPass.length() < 1) {
-    return NanThrowError(
-      "walletpassphrasechange <oldpassphrase> <newpassphrase>\n"
-      "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
+    return NanThrowError("Passphrases not provided.");
   }
 
   if (!pwalletMain->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass)) {
-    return NanThrowError("Error: The wallet passphrase entered was incorrect.");
+    return NanThrowError("The wallet passphrase entered was incorrect.");
   }
 
   NanReturnValue(Undefined());
@@ -4596,7 +4587,7 @@ NAN_METHOD(WalletLock) {
   }
 
   if (!pwalletMain->IsCrypted()) {
-    return NanThrowError("Error: running with an unencrypted wallet, but walletlock was called.");
+    return NanThrowError("Running with an unencrypted wallet, but walletlock was called.");
   }
 
   pwalletMain->Lock();
@@ -4625,7 +4616,7 @@ NAN_METHOD(WalletEncrypt) {
   std::string strPass = std::string(*passphrase_);
 
   if (pwalletMain->IsCrypted()) {
-    return NanThrowError("Error: running with an encrypted wallet, but encryptwallet was called.");
+    return NanThrowError("Running with an encrypted wallet, but encryptwallet was called.");
   }
 
   SecureString strWalletPass;
@@ -4633,13 +4624,11 @@ NAN_METHOD(WalletEncrypt) {
   strWalletPass = strPass.c_str();
 
   if (strWalletPass.length() < 1) {
-    return NanThrowError(
-      "encryptwallet <passphrase>\n"
-      "Encrypts the wallet with <passphrase>.");
+    return NanThrowError("No wallet passphrase provided.");
   }
 
   if (!pwalletMain->EncryptWallet(strWalletPass)) {
-    return NanThrowError("Error: Failed to encrypt the wallet.");
+    return NanThrowError("Failed to encrypt the wallet.");
   }
 
   // BDB seems to have a bad habit of writing old data into
@@ -5816,7 +5805,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
   try {
     ssData >> ctx_;
   } catch (std::exception &e) {
-    NanThrowError("Bad TX decode");
+    return NanThrowError("Bad TX decode");
   }
 
   return;
