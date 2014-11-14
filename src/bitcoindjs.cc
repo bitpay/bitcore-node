@@ -5738,10 +5738,14 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx, boo
     jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
     jstx->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)cwtx.nTimeReceived));
     if (!parent) {
-      CBlock cblock = mapBlockIndex[cwtx.hashBlock];
-      Local<Object> jsblock = NanNew<Object>();
-      cblock_to_jsblock(cblock, block_index, jsblock, false);
-      jstx->Set(NanNew<String>("_block"), jsblock);
+      CBlock cblock;
+      //CBlockIndex *cblock_index = mapBlockIndex[cwtx.hashBlock];
+      CBlockIndex *cblock_index = mapBlockIndex[block_hash];
+      if (ReadBlockFromDisk(cblock, cblock_index)) {
+        Local<Object> jsblock = NanNew<Object>();
+        cblock_to_jsblock(cblock, cblock_index, jsblock, false);
+        jstx->Set(NanNew<String>("_block"), jsblock);
+      }
     }
   } else {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
@@ -5811,7 +5815,8 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
   try {
     ssData >> ctx_;
   } catch (std::exception &e) {
-    return NanThrowError("Bad TX decode");
+    NanThrowError("Bad TX decode");
+    return;
   }
 
   return;
