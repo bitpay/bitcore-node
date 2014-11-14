@@ -384,7 +384,7 @@ static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
 
 static inline void
-ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx, bool parent=false);
+ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx /*, bool parent=false*/ );
 
 static inline void
 jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock);
@@ -5602,7 +5602,7 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
     Local<Object> jstx = NanNew<Object>();
     const uint256 block_hash = cblock.GetHash();
-    ctx_to_jstx(ctx, block_hash, jstx, true);
+    ctx_to_jstx(ctx, block_hash, jstx /*, true*/ );
     txs->Set(ti, jstx);
     ti++;
   }
@@ -5621,7 +5621,7 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
 }
 
 static inline void
-ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx, bool parent=false) {
+ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx /*, bool parent=false*/ ) {
   // With v0.9.0
   // jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
   // jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
@@ -5737,16 +5737,16 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx, boo
     jstx->Set(NanNew<String>("walletconflicts"), conflicts);
     jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
     jstx->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)cwtx.nTimeReceived));
-    if (!parent) {
-      CBlock cblock;
-      //CBlockIndex *cblock_index = mapBlockIndex[cwtx.hashBlock];
-      CBlockIndex *cblock_index = mapBlockIndex[block_hash];
-      if (ReadBlockFromDisk(cblock, cblock_index)) {
-        Local<Object> jsblock = NanNew<Object>();
-        cblock_to_jsblock(cblock, cblock_index, jsblock, false);
-        jstx->Set(NanNew<String>("_block"), jsblock);
-      }
-    }
+    // if (!parent) {
+    //   CBlock cblock;
+    //   //CBlockIndex *cblock_index = mapBlockIndex[cwtx.hashBlock];
+    //   CBlockIndex *cblock_index = mapBlockIndex[block_hash];
+    //   if (ReadBlockFromDisk(cblock, cblock_index)) {
+    //     Local<Object> jsblock = NanNew<Object>();
+    //     cblock_to_jsblock(cblock, cblock_index, jsblock, false);
+    //     jstx->Set(NanNew<String>("_block"), jsblock);
+    //   }
+    // }
   } else {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
     jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(-1));
