@@ -4841,10 +4841,13 @@ rescan:
   if (data->fRescan) {
     uv_work_t *req = new uv_work_t();
     req->data = data;
+
     int status = uv_queue_work(uv_default_loop(),
       req, async_import_key,
       (uv_after_work_cb)async_import_key_after);
+
     assert(status == 0);
+
     NanReturnValue(Undefined());
   }
 
@@ -4923,14 +4926,7 @@ rescan:
   }
 
   if (data->fRescan) {
-    uv_work_t *req = new uv_work_t();
-    req->data = data;
-
-    int status = uv_queue_work(uv_default_loop(),
-      req, async_import_key,
-      (uv_after_work_cb)async_import_key_after);
-
-    assert(status == 0);
+    goto rescan;
   }
 
   NanReturnValue(Undefined());
