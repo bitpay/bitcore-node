@@ -652,7 +652,7 @@ NAN_METHOD(StartBitcoind) {
 
   assert(status == 0);
 
-  NanReturnValue(NanNew<Number>(-1));
+  NanReturnValue(Undefined());
 }
 
 /**
