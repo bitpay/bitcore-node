@@ -325,7 +325,7 @@ static void
 async_get_block_after(uv_work_t *req);
 
 static void
-get_genesis_block(CBlock *genesis);
+get_genesis_block(CBlock& genesis);
 
 static void
 async_get_progress(uv_work_t *req);
@@ -4300,7 +4300,7 @@ NAN_METHOD(WalletGetTransaction) {
 
   isminefilter filter = ISMINE_SPENDABLE;
   if (options->Get(NanNew<String>("watch"))->IsBoolean()
-      && options->Get(NanNew<String>("watch"))->ToBoolean->IsTrue()) {
+      && options->Get(NanNew<String>("watch"))->ToBoolean()->IsTrue()) {
     filter = filter | ISMINE_WATCH_ONLY;
   }
 
