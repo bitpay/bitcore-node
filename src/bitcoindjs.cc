@@ -1773,7 +1773,7 @@ async_get_progress_after(uv_work_t *req) {
     cblock_to_jsblock(cblock, cblock_index, jsblock, false);
 
     CBlock cgenesis;
-    get_genesis_block(&cgenesis);
+    get_genesis_block(cgenesis);
 
     Local<Object> genesis = NanNew<Object>();
     cblock_to_jsblock(cgenesis, NULL, genesis, false);
@@ -5948,7 +5948,7 @@ found:
 
 // Luckily, we never have to change this.
 static void
-get_genesis_block(CBlock *genesis) {
+get_genesis_block(CBlock& genesis) {
   // Satoshi's first coinbase:
   const char* pszTimestamp =
     "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
@@ -5965,17 +5965,17 @@ get_genesis_block(CBlock *genesis) {
     "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6"
     "bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f"
   ) << OP_CHECKSIG;
-  genesis->vtx.push_back(txNew);
-  genesis->hashPrevBlock = 0;
-  genesis->hashMerkleRoot = genesis->BuildMerkleTree();
-  genesis->nVersion = 1;
-  genesis->nTime = 1231006505;
-  genesis->nBits = 0x1d00ffff;
-  genesis->nNonce = 2083236893;
-  const uint256 hashGenesisBlock = genesis->GetHash();
+  genesis.vtx.push_back(txNew);
+  genesis.hashPrevBlock = 0;
+  genesis.hashMerkleRoot = genesis.BuildMerkleTree();
+  genesis.nVersion = 1;
+  genesis.nTime = 1231006505;
+  genesis.nBits = 0x1d00ffff;
+  genesis.nNonce = 2083236893;
+  const uint256 hashGenesisBlock = genesis.GetHash();
   assert(hashGenesisBlock == uint256(
     "0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
-  assert(genesis->hashMerkleRoot == uint256(
+  assert(genesis.hashMerkleRoot == uint256(
     "0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
 }
 
