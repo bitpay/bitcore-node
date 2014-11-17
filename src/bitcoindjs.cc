@@ -1482,7 +1482,6 @@ NAN_METHOD(FillTransaction) {
   }
 
   Local<Object> jstx = Local<Object>::Cast(args[0]);
-  // Local<Object> options = Local<Object>::Cast(args[1]);
 
   String::Utf8Value tx_hex_(jstx->Get(NanNew<String>("hex"))->ToString());
   std::string tx_hex = std::string(*tx_hex_);
@@ -1500,14 +1499,17 @@ NAN_METHOD(FillTransaction) {
     nValue += value;
   }
 
-  if (nValue <= 0)
+  if (nValue <= 0) {
     return NanThrowError("Invalid amount");
+  }
+
   // With v0.9.0:
   // if (nValue + nTransactionFee > pwalletMain->GetBalance())
   // if (nValue + payTxFee > pwalletMain->GetBalance())
   //   return NanThrowError("Insufficient funds");
-  if (nValue > pwalletMain->GetBalance())
+  if (nValue > pwalletMain->GetBalance()) {
     return NanThrowError("Insufficient funds");
+  }
 
   // With v0.9.0:
   // int64_t nFeeRet = nTransactionFee;
@@ -1540,8 +1542,8 @@ NAN_METHOD(FillTransaction) {
       (const CKeyStore&)*pwalletMain,
       (const CTransaction&)*coin.first,
       (CMutableTransaction&)ctx,
-      nIn++)
-    ) {
+      nIn++
+    )) {
       return NanThrowError("Signing transaction failed");
     }
   }
@@ -1727,8 +1729,7 @@ NAN_METHOD(GetProgress) {
   async_block_data *data = new async_block_data();
   data->err_msg = std::string("");
   CBlockIndex *pindex = chainActive.Tip();
-  data->hash = pindex->GetBlockHash().GetHex(); // .ToString();
-  //data->hash = pcoinsTip->GetBestBlock().GetHex(); // .ToString();
+  data->hash = pindex->GetBlockHash().GetHex();
   data->height = -1;
 
   data->callback = Persistent<Function>::New(callback);
@@ -1885,7 +1886,7 @@ NAN_METHOD(SetGenerate) {
     }
   } else { // Not -regtest: start generate thread, return immediately
     mapArgs["-gen"] = (fGenerate ? "1" : "0");
-    mapArgs ["-genproclimit"] = itostr(nGenProcLimit);
+    mapArgs["-genproclimit"] = itostr(nGenProcLimit);
     GenerateBitcoins(fGenerate, pwalletMain, nGenProcLimit);
   }
 
@@ -4299,7 +4300,7 @@ NAN_METHOD(WalletGetTransaction) {
 
   isminefilter filter = ISMINE_SPENDABLE;
   if (options->Get(NanNew<String>("watch"))->IsBoolean()
-      && options->Get(NanNew<String>("watch"))->IsTrue()) {
+      && options->Get(NanNew<String>("watch"))->ToBoolean->IsTrue()) {
     filter = filter | ISMINE_WATCH_ONLY;
   }
 
