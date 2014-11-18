@@ -295,6 +295,7 @@ NAN_METHOD(WalletImportWallet);
 NAN_METHOD(WalletChangeLabel);
 NAN_METHOD(WalletDeleteAccount);
 NAN_METHOD(WalletIsMine);
+NAN_METHOD(WalletRescan);
 
 /**
  * Node.js Internal Function Templates
@@ -579,6 +580,15 @@ struct async_import_wallet_data {
 struct async_dump_wallet_data {
   std::string err_msg;
   std::string path;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_rescan_data
+ */
+
+struct async_rescan_data {
+  std::string err_msg;
   Persistent<Function> callback;
 };
 
@@ -5387,6 +5397,80 @@ NAN_METHOD(WalletIsMine) {
 }
 
 /**
+ * WalletRescan()
+ * bitcoindjs.walletRescan(options, callback)
+ * Rescan blockchain
+ */
+
+NAN_METHOD(WalletRescan) {
+  NanScope();
+
+  if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.walletRescan(options, callback)");
+  }
+
+  async_rescan_data *data = new async_rescan_data();
+
+  //Local<Object> options = Local<Object>::Cast(args[0]);
+  Local<Function> callback = Local<Function>::Cast(args[1]);
+
+  data->err_msg = std::string("");
+  data->callback = Persistent<Function>::New(callback);
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_rescan,
+    (uv_after_work_cb)async_rescan_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_rescan(uv_work_t *req) {
+  async_rescan_data* data = static_cast<async_rescan_data*>(req->data);
+  // This may take a long time, do it on the libuv thread pool:
+  pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
+}
+
+static void
+async_rescan_after(uv_work_t *req) {
+  NanScope();
+  async_rescan_data* data = static_cast<async_rescan_data*>(req->data);
+
+  if (data->err_msg != "") {
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(True())
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+/**
  * Conversions
  *   cblock_to_jsblock(cblock, cblock_index, jsblock, is_new)
  *   ctx_to_jstx(ctx, block_hash, jstx)
@@ -6059,6 +6143,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "walletChangeLabel", WalletChangeLabel);
   NODE_SET_METHOD(target, "walletDeleteAccount", WalletDeleteAccount);
   NODE_SET_METHOD(target, "walletIsMine", WalletIsMine);
+  NODE_SET_METHOD(target, "walletRescan", WalletRescan);
 }
 
 NODE_MODULE(bitcoindjs, init)
