@@ -5688,18 +5688,30 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
 
   if (block_hash != 0) {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
-    jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
     if (ctx.IsCoinBase()) {
       jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(true));
     }
-    jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(mapBlockIndex[block_hash]->nHeight));
-    jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(mapBlockIndex[block_hash]->GetBlockTime()));
+    CBlockIndex* pindex = mapBlockIndex[block_hash];
+    if (pindex) {
+      jstx->Set(NanNew<String>("confirmations"),
+        NanNew<Number>(pindex->nHeight));
+      jstx->Set(NanNew<String>("blockindex"),
+        NanNew<Number>(pindex->nHeight));
+      jstx->Set(NanNew<String>("blocktime"),
+        NanNew<Number>(pindex->GetBlockTime()));
+      jstx->Set(NanNew<String>("time"),
+        NanNew<Number>((uint32_t)pindex->GetBlockTime())->ToUint32());
+      jstx->Set(NanNew<String>("timereceived"),
+        NanNew<Number>((uint32_t)pindex->GetBlockTime())->ToUint32());
+    } else {
+      jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
+      jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
+      jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(0));
+      jstx->Set(NanNew<String>("time"), NanNew<Number>(0));
+      jstx->Set(NanNew<String>("timereceived"), NanNew<Number>(0));
+    }
     Local<Array> conflicts = NanNew<Array>();
     jstx->Set(NanNew<String>("walletconflicts"), conflicts);
-    jstx->Set(NanNew<String>("time"),
-      NanNew<Number>((uint32_t)mapBlockIndex[block_hash]->GetBlockTime())->ToUint32());
-    jstx->Set(NanNew<String>("timereceived"),
-      NanNew<Number>((uint32_t)mapBlockIndex[block_hash]->GetBlockTime())->ToUint32());
 #if 0
     if (is_mine) {
       jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
