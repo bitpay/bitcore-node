@@ -3222,7 +3222,7 @@ NAN_METHOD(WalletRemoveRecipient) {
 
 /**
  * WalletSendTo()
- * bitcoindjs.walletSendTo(options)
+ * bitcoindjs.walletSendTo(options, callback)
  * Send bitcoin to an address, automatically creating the transaction based on
  * availing unspent outputs.
  */
@@ -3230,16 +3230,18 @@ NAN_METHOD(WalletRemoveRecipient) {
 NAN_METHOD(WalletSendTo) {
   NanScope();
 
-  if (args.Length() < 1 || !args[0]->IsObject()) {
+  if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.walletSendTo(options)");
+      "Usage: bitcoindjs.walletSendTo(options, callback)");
   }
 
   Local<Object> options = Local<Object>::Cast(args[0]);
+  Local<Function> callback = Local<Function>::Cast(args[1]);
 
   async_wallet_sendto_data *data = new async_wallet_sendto_data();
 
   data->err_msg = std::string("");
+  data->callback = Persistent<Function>::New(callback);
 
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
@@ -3342,7 +3344,7 @@ async_wallet_sendto_after(uv_work_t *req) {
 
 /**
  * WalletSendFrom()
- * bitcoindjs.walletSendFrom(options)
+ * bitcoindjs.walletSendFrom(options, callback)
  * Send bitcoin to a particular address from a particular owned account name.
  * This once again automatically creates and signs a transaction based on any
  * unspent outputs available.
@@ -3351,16 +3353,18 @@ async_wallet_sendto_after(uv_work_t *req) {
 NAN_METHOD(WalletSendFrom) {
   NanScope();
 
-  if (args.Length() < 1 || !args[0]->IsObject()) {
+  if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.walletSendFrom(options)");
+      "Usage: bitcoindjs.walletSendFrom(options, callback)");
   }
 
   Local<Object> options = Local<Object>::Cast(args[0]);
+  Local<Function> callback = Local<Function>::Cast(args[1]);
 
   async_wallet_sendfrom_data *data = new async_wallet_sendfrom_data();
 
   data->err_msg = std::string("");
+  data->callback = Persistent<Function>::New(callback);
 
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
