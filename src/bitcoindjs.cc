@@ -382,6 +382,12 @@ async_import_wallet(uv_work_t *req);
 static void
 async_import_wallet_after(uv_work_t *req);
 
+static void
+async_rescan(uv_work_t *req);
+
+static void
+async_rescan_after(uv_work_t *req);
+
 static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
 
@@ -5432,7 +5438,7 @@ NAN_METHOD(WalletRescan) {
 
 static void
 async_rescan(uv_work_t *req) {
-  async_rescan_data* data = static_cast<async_rescan_data*>(req->data);
+  // async_rescan_data* data = static_cast<async_rescan_data*>(req->data);
   // This may take a long time, do it on the libuv thread pool:
   pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
 }
