@@ -858,7 +858,8 @@ start_node_thread(void) {
   }
   Shutdown();
 
-  // bitcoind is shutdown, notify the main thread.
+  // bitcoind is shutdown. Notify the main thread
+  // which is polling this variable:
   shutdown_complete = true;
 }
 
