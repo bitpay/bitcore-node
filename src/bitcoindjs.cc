@@ -5699,30 +5699,41 @@ ctx_to_jstx(const CTransaction& ctx, uint256& block_hash, Local<Object> jstx) {
     jstx->Set(NanNew<String>("timereceived"),
       NanNew<Number>((uint32_t)mapBlockIndex[block_hash]->GetBlockTime())->ToUint32());
 #if 0
-    jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
-    CWalletTx cwtx(pwalletMain, ctx);
-    int confirms = cwtx.GetDepthInMainChain();
-    jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(confirms));
-    if (ctx.IsCoinBase()) {
-      jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(true));
+    bool is_mine = false;
+    for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+      const CTxOut& txout = ctx.vout[vo];
+      const CScript& scriptPubKey = txout.scriptPubKey;
+      if (IsMine(*pwalletMain, scriptPubKey)) {
+        is_mine = true;
+        break;
+      }
     }
-    if (confirms > 0) {
-      jstx->Set(NanNew<String>("blockhash"), NanNew<String>(cwtx.hashBlock.GetHex()));
-      jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(cwtx.nIndex));
-      jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(mapBlockIndex[cwtx.hashBlock]->GetBlockTime()));
-    } else {
-      jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
-      jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
-      jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(0));
+    if (is_mine) {
+      jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
+      CWalletTx cwtx(pwalletMain, ctx);
+      int confirms = cwtx.GetDepthInMainChain();
+      jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(confirms));
+      if (ctx.IsCoinBase()) {
+        jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(true));
+      }
+      if (confirms > 0) {
+        jstx->Set(NanNew<String>("blockhash"), NanNew<String>(cwtx.hashBlock.GetHex()));
+        jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(cwtx.nIndex));
+        jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(mapBlockIndex[cwtx.hashBlock]->GetBlockTime()));
+      } else {
+        jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
+        jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
+        jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(0));
+      }
+      Local<Array> conflicts = NanNew<Array>();
+      int co = 0;
+      BOOST_FOREACH(const uint256& conflict, cwtx.GetConflicts()) {
+        conflicts->Set(co++, NanNew<String>(conflict.GetHex()));
+      }
+      jstx->Set(NanNew<String>("walletconflicts"), conflicts);
+      jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
+      jstx->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)cwtx.nTimeReceived));
     }
-    Local<Array> conflicts = NanNew<Array>();
-    int co = 0;
-    BOOST_FOREACH(const uint256& conflict, cwtx.GetConflicts()) {
-      conflicts->Set(co++, NanNew<String>(conflict.GetHex()));
-    }
-    jstx->Set(NanNew<String>("walletconflicts"), conflicts);
-    jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
-    jstx->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)cwtx.nTimeReceived));
 #endif
   } else {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
