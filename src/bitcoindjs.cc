@@ -392,7 +392,7 @@ static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
 
 static inline void
-ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx /*, bool parent=false*/ );
+ctx_to_jstx(const CTransaction& ctx, uint256& block_hash, Local<Object> jstx);
 
 static inline void
 jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock);
@@ -1567,7 +1567,8 @@ NAN_METHOD(FillTransaction) {
 
   // Turn our CTransaction into a javascript Transaction
   Local<Object> new_jstx = NanNew<Object>();
-  ctx_to_jstx(ctx, 0, new_jstx);
+  uint256 block_hash = uint256(0);
+  ctx_to_jstx(ctx, block_hash, new_jstx);
 
   NanReturnValue(new_jstx);
 }
@@ -2290,7 +2291,8 @@ NAN_METHOD(TxFromHex) {
   }
 
   Local<Object> jstx = NanNew<Object>();
-  ctx_to_jstx(ctx, 0, jstx);
+  uint256 block_hash = uint256(0);
+  ctx_to_jstx(ctx, block_hash, jstx);
 
   NanReturnValue(jstx);
 }
@@ -2555,8 +2557,8 @@ NAN_METHOD(HookPackets) {
       CTransaction tx;
       vRecv >> tx;
       Local<Object> jstx = NanNew<Object>();
-      ctx_to_jstx(tx, 0, jstx);
-      // ctx_to_jstx(tx, 0, o);
+      uint256 block_hash = uint256(0);
+      ctx_to_jstx(tx, block_hash, jstx);
       o->Set(NanNew<String>("tx"), jstx);
     } else if (strCommand == "block" && !fImporting && !fReindex) {
       // XXX May be able to do prev_list asynchronously
@@ -2565,6 +2567,7 @@ NAN_METHOD(HookPackets) {
       Local<Object> jsblock = NanNew<Object>();
       cblock_to_jsblock(block, NULL, jsblock, true);
       // cblock_to_jsblock(block, NULL, o, true);
+      // last_block_hash = block.GetHash();
       o->Set(NanNew<String>("block"), jsblock);
     } else if (strCommand == "getaddr") {
       ; // not much other information in getaddr as long as we know we got a getaddr
@@ -5520,7 +5523,9 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
     cblock_index = find_new_block_index(cblock.GetHash(), cblock.hashPrevBlock, &is_allocated);
   }
 
-  jsblock->Set(NanNew<String>("hash"), NanNew<String>(cblock.GetHash().GetHex()));
+  uint256 block_hash = cblock.GetHash();
+
+  jsblock->Set(NanNew<String>("hash"), NanNew<String>(block_hash.GetHex()));
   CMerkleTx txGen(cblock.vtx[0]);
   txGen.SetMerkleBranch(cblock);
   jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
@@ -5569,8 +5574,7 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   int ti = 0;
   BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
     Local<Object> jstx = NanNew<Object>();
-    const uint256 block_hash = cblock.GetHash();
-    ctx_to_jstx(ctx, block_hash, jstx /*, true*/ );
+    ctx_to_jstx(ctx, block_hash, jstx);
     txs->Set(ti, jstx);
     ti++;
   }
@@ -5589,7 +5593,7 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
 }
 
 static inline void
-ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx /*, bool parent=false*/ ) {
+ctx_to_jstx(const CTransaction& ctx, uint256& block_hash, Local<Object> jstx) {
   // With v0.9.0
   // jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
   // jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
@@ -5680,7 +5684,21 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx /*, 
   }
   jstx->Set(NanNew<String>("vout"), vout);
 
-  if (block_hash != 0) {
+  if (block_hash != uint256(0)) {
+    jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
+    jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
+    if (ctx.IsCoinBase()) {
+      jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(true));
+    }
+    jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(mapBlockIndex[block_hash]->nHeight));
+    jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(mapBlockIndex[block_hash]->GetBlockTime()));
+    Local<Array> conflicts = NanNew<Array>();
+    jstx->Set(NanNew<String>("walletconflicts"), conflicts);
+    jstx->Set(NanNew<String>("time"),
+      NanNew<Number>((uint32_t)mapBlockIndex[block_hash]->GetBlockTime())->ToUint32());
+    jstx->Set(NanNew<String>("timereceived"),
+      NanNew<Number>((uint32_t)mapBlockIndex[block_hash]->GetBlockTime())->ToUint32());
+#if 0
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
     CWalletTx cwtx(pwalletMain, ctx);
     int confirms = cwtx.GetDepthInMainChain();
@@ -5705,16 +5723,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx /*, 
     jstx->Set(NanNew<String>("walletconflicts"), conflicts);
     jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
     jstx->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)cwtx.nTimeReceived));
-    // if (!parent) {
-    //   CBlock cblock;
-    //   //CBlockIndex *cblock_index = mapBlockIndex[cwtx.hashBlock];
-    //   CBlockIndex *cblock_index = mapBlockIndex[block_hash];
-    //   if (ReadBlockFromDisk(cblock, cblock_index)) {
-    //     Local<Object> jsblock = NanNew<Object>();
-    //     cblock_to_jsblock(cblock, cblock_index, jsblock, false);
-    //     jstx->Set(NanNew<String>("_block"), jsblock);
-    //   }
-    // }
+#endif
   } else {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
     jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(-1));
