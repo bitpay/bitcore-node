@@ -392,7 +392,7 @@ static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
 
 static inline void
-ctx_to_jstx(const CTransaction& ctx, uint256& block_hash, Local<Object> jstx);
+ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx);
 
 static inline void
 jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock);
@@ -1567,8 +1567,7 @@ NAN_METHOD(FillTransaction) {
 
   // Turn our CTransaction into a javascript Transaction
   Local<Object> new_jstx = NanNew<Object>();
-  uint256 block_hash = uint256(0);
-  ctx_to_jstx(ctx, block_hash, new_jstx);
+  ctx_to_jstx(ctx, 0, new_jstx);
 
   NanReturnValue(new_jstx);
 }
@@ -2291,8 +2290,7 @@ NAN_METHOD(TxFromHex) {
   }
 
   Local<Object> jstx = NanNew<Object>();
-  uint256 block_hash = uint256(0);
-  ctx_to_jstx(ctx, block_hash, jstx);
+  ctx_to_jstx(ctx, 0, jstx);
 
   NanReturnValue(jstx);
 }
@@ -2557,8 +2555,7 @@ NAN_METHOD(HookPackets) {
       CTransaction tx;
       vRecv >> tx;
       Local<Object> jstx = NanNew<Object>();
-      uint256 block_hash = uint256(0);
-      ctx_to_jstx(tx, block_hash, jstx);
+      ctx_to_jstx(tx, 0, jstx);
       o->Set(NanNew<String>("tx"), jstx);
     } else if (strCommand == "block" && !fImporting && !fReindex) {
       // XXX May be able to do prev_list asynchronously
@@ -5593,7 +5590,7 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
 }
 
 static inline void
-ctx_to_jstx(const CTransaction& ctx, uint256& block_hash, Local<Object> jstx) {
+ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   // With v0.9.0
   // jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
   // jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
@@ -5646,6 +5643,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256& block_hash, Local<Object> jstx) {
   }
   jstx->Set(NanNew<String>("vin"), vin);
 
+  //bool is_mine = false;
   Local<Array> vout = NanNew<Array>();
   for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
     const CTxOut& txout = ctx.vout[vo];
@@ -5658,6 +5656,10 @@ ctx_to_jstx(const CTransaction& ctx, uint256& block_hash, Local<Object> jstx) {
     {
       const CScript& scriptPubKey = txout.scriptPubKey;
       Local<Object> out = o;
+
+      //if (IsMine(*pwalletMain, scriptPubKey)) {
+      //  is_mine = true;
+      //}
 
       txnouttype type;
       vector<CTxDestination> addresses;
@@ -5684,7 +5686,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256& block_hash, Local<Object> jstx) {
   }
   jstx->Set(NanNew<String>("vout"), vout);
 
-  if (block_hash != uint256(0)) {
+  if (block_hash != 0) {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
     jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
     if (ctx.IsCoinBase()) {
@@ -5699,15 +5701,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256& block_hash, Local<Object> jstx) {
     jstx->Set(NanNew<String>("timereceived"),
       NanNew<Number>((uint32_t)mapBlockIndex[block_hash]->GetBlockTime())->ToUint32());
 #if 0
-    bool is_mine = false;
-    for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
-      const CTxOut& txout = ctx.vout[vo];
-      const CScript& scriptPubKey = txout.scriptPubKey;
-      if (IsMine(*pwalletMain, scriptPubKey)) {
-        is_mine = true;
-        break;
-      }
-    }
     if (is_mine) {
       jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
       CWalletTx cwtx(pwalletMain, ctx);
