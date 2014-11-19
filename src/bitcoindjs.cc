@@ -602,8 +602,10 @@ struct async_rescan_data {
  * Read Raw DB
  */
 
+#ifdef USE_LEVELDB_ADDR
 static ctx_list *
 read_addr(const std::string addr);
+#endif
 
 /**
  * Functions
@@ -2029,7 +2031,7 @@ async_get_addrtx(uv_work_t *req) {
     return;
   }
 
-#if 1
+#ifndef USE_LEVELDB_ADDR
   CScript expected = GetScriptForDestination(address.Get());
 
   int64_t i = 0;
@@ -5885,6 +5887,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
   ctx.nLockTime = (unsigned int)jstx->Get(NanNew<String>("locktime"))->Uint32Value();
 }
 
+#ifdef USE_LEVELDB_ADDR
 static leveldb::Options
 GetOptions(size_t nCacheSize) {
   leveldb::Options options;
@@ -6072,6 +6075,7 @@ found:
 
   return head;
 }
+#endif
 
 // Luckily, we never have to change this.
 static void
