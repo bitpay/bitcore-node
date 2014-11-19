@@ -231,7 +231,8 @@ using namespace v8;
 // Need this because account names can be an empty string.
 #define EMPTY ("\\x01")
 
-#define USE_LDB_ADDR 1
+// LevelDB options
+#define USE_LDB_ADDR 0
 #define USE_LDB_FILES 1
 #define USE_LDB_BLOCK 1
 
