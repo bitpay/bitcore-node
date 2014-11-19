@@ -231,9 +231,9 @@ using namespace v8;
 // Need this because account names can be an empty string.
 #define EMPTY ("\\x01")
 
-#define USE_LDB_ADDR
-#define USE_LDB_FILES
-#define USE_LDB_BLOCK
+#define USE_LDB_ADDR 1
+#define USE_LDB_FILES 1
+#define USE_LDB_BLOCK 1
 
 
 /**
@@ -607,7 +607,7 @@ struct async_rescan_data {
  * Read Raw DB
  */
 
-#ifdef USE_LDB_ADDR
+#if USE_LDB_ADDR
 static ctx_list *
 read_addr(const std::string addr);
 #endif
@@ -2036,7 +2036,7 @@ async_get_addrtx(uv_work_t *req) {
     return;
   }
 
-#ifndef USE_LDB_ADDR
+#if !USE_LDB_ADDR
   CScript expected = GetScriptForDestination(address.Get());
 
   int64_t i = 0;
@@ -5878,7 +5878,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
   ctx.nLockTime = (unsigned int)jstx->Get(NanNew<String>("locktime"))->Uint32Value();
 }
 
-#ifdef USE_LDB_ADDR
+#if USE_LDB_ADDR
 static leveldb::Options
 GetOptions(size_t nCacheSize) {
   leveldb::Options options;
@@ -5903,7 +5903,7 @@ class TwoPartComparator : public leveldb::Comparator {
     int Compare(const leveldb::Slice& key, const leveldb::Slice& end) const {
       std::string key_ = key.ToString();
       const char *k = key_.c_str();
-#ifdef USE_LDB_BLOCK
+#if USE_LDB_BLOCK
       if (k[0] == 'b') return -1;
 #else
       if (k[0] == 't') return -1;
@@ -5944,6 +5944,10 @@ read_addr(const std::string addr) {
 
   size_t nCacheSize = 0x100000;
   bool fMemory = false;
+  bool fWipe = false;
+
+  // Options:
+  // https://code.google.com/p/leveldb/source/browse/include/leveldb/options.h
 
   penv = NULL;
   readoptions.verify_checksums = true;
@@ -5951,7 +5955,8 @@ read_addr(const std::string addr) {
   iteroptions.fill_cache = false;
   syncoptions.sync = true;
   options = GetOptions(nCacheSize);
-  options.create_if_missing = true;
+  //options.create_if_missing = true;
+  options.create_if_missing = false;
 
 #if 0
   TwoPartComparator cmp;
@@ -5960,9 +5965,9 @@ read_addr(const std::string addr) {
 
   CScript expectedScriptSig = GetScriptForDestination(CBitcoinAddress(addr).Get());
 
-#ifdef USE_LDB_FILES
+#if USE_LDB_FILES
   unsigned int nFile = 0;
-  unsigned int tryFiles = 0xffffffff;
+  unsigned int tryFiles = chainActive.Height() - 1;
   for (; nFile < tryFiles; nFile++) {
     const boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", nFile);
 #else
@@ -5970,6 +5975,7 @@ read_addr(const std::string addr) {
     const boost::filesystem::path path = GetDataDir() / "blocks" / "index";
 #endif
 
+#if 1
     if (fMemory) {
       penv = leveldb::NewMemEnv(leveldb::Env::Default());
       options.env = penv;
@@ -5978,13 +5984,21 @@ read_addr(const std::string addr) {
     leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
 
     if (!status.ok()) {
-      break;
+      continue;
+      //break;
     }
 
     //leveldb::Iterator* it = pdb->NewIterator(leveldb::ReadOptions());
     leveldb::Iterator* it = pdb->NewIterator(iteroptions);
+#else
+    // ~/bitcoin/src/txdb.cpp
+    CLevelDBWrapper db(path, nCacheSize, fMemory, fWipe);
+    leveldb::Iterator *it = const_cast<CLevelDBWrapper*>(&db)->NewIterator();
+#endif
+
     for (it->SeekToFirst(); it->Valid(); it->Next()) {
-#ifdef USE_LDB_BLOCK
+      boost::this_thread::interruption_point();
+#if USE_LDB_BLOCK
       // if (it->key().ToString().c_str()[0] != 'b') continue;
       CBlock cblock;
 #else
@@ -5996,7 +6010,7 @@ read_addr(const std::string addr) {
 
       try {
         CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK, CLIENT_VERSION);
-#ifdef USE_LDB_BLOCK
+#if USE_LDB_BLOCK
         ssValue >> cblock;
 #else
         ssValue >> ctx;
@@ -6007,7 +6021,7 @@ read_addr(const std::string addr) {
         continue;
       }
 
-#ifdef USE_LDB_BLOCK
+#if USE_LDB_BLOCK
       BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
 #endif
         // vin
@@ -6065,7 +6079,7 @@ read_addr(const std::string addr) {
             goto found;
           }
         }
-#ifdef USE_LDB_BLOCK
+#if USE_LDB_BLOCK
       }
 #endif
 
@@ -6076,7 +6090,7 @@ found:
     assert(it->status().ok());
 
     delete it;
-#ifdef USE_LDB_FILES
+#if USE_LDB_FILES
   }
 #else
   } while (0);
@@ -6084,9 +6098,9 @@ found:
 
 #if 0
 
-#ifdef USE_LDB_FILES
+#if USE_LDB_FILES
   unsigned int nFile = 0;
-  unsigned int tryFiles = 0xffffffff;
+  unsigned int tryFiles = chainActive.Height() - 1;
   for (; nFile < tryFiles; nFile++) {
     const boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", nFile);
 #else
@@ -6118,7 +6132,7 @@ found:
       if (options.comparator->Compare(key, end) > 0) {
         break;
       } else {
-#ifdef USE_LDB_BLOCK
+#if USE_LDB_BLOCK
         CBlock cblock;
 #else
         CTransaction ctx;
@@ -6128,7 +6142,7 @@ found:
 
         try {
           CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK, CLIENT_VERSION);
-#ifdef USE_LDB_BLOCK
+#if USE_LDB_BLOCK
           ssValue >> cblock;
 #else
           ssValue >> ctx;
@@ -6139,7 +6153,7 @@ found:
           continue;
         }
 
-#ifdef USE_LDB_BLOCK
+#if USE_LDB_BLOCK
         BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
 #endif
           // vin
@@ -6197,7 +6211,7 @@ found:
               goto found;
             }
           }
-#ifdef USE_LDB_BLOCK
+#if USE_LDB_BLOCK
         }
 #endif
 
@@ -6207,7 +6221,7 @@ found:
     }
 
     delete it;
-#ifdef USE_LDB_FILES
+#if USE_LDB_FILES
   }
 #else
   } while (0);
