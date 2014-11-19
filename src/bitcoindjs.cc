@@ -5607,6 +5607,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   jstx->Set(NanNew<String>("size"),
     NanNew<Number>((int)::GetSerializeSize(ctx, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
 
+  bool is_mine = false;
   Local<Array> vin = NanNew<Array>();
   int vi = 0;
   BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
@@ -5630,6 +5631,13 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       CTxOut prev_out = prev_tx.vout[txin.prevout.n];
       ExtractDestination(prev_out.scriptPubKey, from);
       CBitcoinAddress addrFrom(from);
+
+      // XXX Determine wether this is our transaction
+      CTxDestination dest = addrFrom.Get();
+      if (IsMine(*pwalletMain, dest)) {
+        is_mine = true;
+      }
+
       jsprev->Set(NanNew<String>("address"), NanNew<String>(addrFrom.ToString()));
       jsprev->Set(NanNew<String>("value"), NanNew<Number>((int64_t)prev_out.nValue)->ToInteger());
     } else {
@@ -5647,7 +5655,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   }
   jstx->Set(NanNew<String>("vin"), vin);
 
-  //bool is_mine = false;
   Local<Array> vout = NanNew<Array>();
   for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
     const CTxOut& txout = ctx.vout[vo];
@@ -5661,9 +5668,10 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       const CScript& scriptPubKey = txout.scriptPubKey;
       Local<Object> out = o;
 
-      //if (IsMine(*pwalletMain, scriptPubKey)) {
-      //  is_mine = true;
-      //}
+      // XXX Determine wether this is our transaction
+      if (IsMine(*pwalletMain, scriptPubKey)) {
+        is_mine = true;
+      }
 
       txnouttype type;
       vector<CTxDestination> addresses;
@@ -5690,6 +5698,11 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   }
   jstx->Set(NanNew<String>("vout"), vout);
 
+  //CWalletTx cwtx(pwalletMain, ctx);
+  //bool is_mine = cwtx.hashBlock != uint256(0);
+  //bool is_mine = cwtx.hashBlock != 0;
+  //jstx->Set(NanNew<String>("ismine"), NanNew<Boolean>(is_mine));
+
   if (block_hash != 0) {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
     if (ctx.IsCoinBase()) {
@@ -5707,12 +5720,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
         NanNew<Number>((int64_t)pindex->GetBlockTime())->ToInteger());
       jstx->Set(NanNew<String>("timereceived"),
         NanNew<Number>((int64_t)pindex->GetBlockTime())->ToInteger());
-      //jstx->Set(NanNew<String>("blocktime"),
-      //  NanNew<Number>(pindex->GetBlockTime()));
-      //jstx->Set(NanNew<String>("time"),
-      //  NanNew<Number>(pindex->GetBlockTime()));
-      //jstx->Set(NanNew<String>("timereceived"),
-      //  NanNew<Number>(pindex->GetBlockTime()));
     } else {
       jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
       jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
@@ -5720,25 +5727,12 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       jstx->Set(NanNew<String>("time"), NanNew<Number>(0));
       jstx->Set(NanNew<String>("timereceived"), NanNew<Number>(0));
     }
-    jstx->Set(NanNew<String>("walletconflicts"), NanNew<Array>());
-#if 0
-    if (is_mine) {
-      jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
-      CWalletTx cwtx(pwalletMain, ctx);
+    if (!is_mine) {
+      jstx->Set(NanNew<String>("walletconflicts"), NanNew<Array>());
+    } else {
+      // XXX If the tx is ours
       int confirms = cwtx.GetDepthInMainChain();
       jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(confirms));
-      if (ctx.IsCoinBase()) {
-        jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(true));
-      }
-      if (confirms > 0) {
-        jstx->Set(NanNew<String>("blockhash"), NanNew<String>(cwtx.hashBlock.GetHex()));
-        jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(cwtx.nIndex));
-        jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(mapBlockIndex[cwtx.hashBlock]->GetBlockTime()));
-      } else {
-        jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
-        jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
-        jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(0));
-      }
       Local<Array> conflicts = NanNew<Array>();
       int co = 0;
       BOOST_FOREACH(const uint256& conflict, cwtx.GetConflicts()) {
@@ -5748,7 +5742,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
       jstx->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)cwtx.nTimeReceived));
     }
-#endif
   } else {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
     jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(-1));
