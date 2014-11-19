@@ -231,7 +231,7 @@ using namespace v8;
 // Need this because account names can be an empty string.
 #define EMPTY ("\\x01")
 
-// #define USE_LEVELDB_ADDR
+#define USE_LEVELDB_ADDR
 
 /**
  * Node.js Exposed Function Templates
@@ -5901,13 +5901,14 @@ class TwoPartComparator : public leveldb::Comparator {
     //   if a > end: positive result
     //   else: zero result
     int Compare(const leveldb::Slice& key, const leveldb::Slice& end) const {
-      std::string key_ = key.ToString();
+      return -1;
+      //std::string key_ = key.ToString();
 
-      const char *k = key_.c_str();
+      //const char *k = key_.c_str();
 
-      if (k[0] == 't') return -1;
+      //if (k[0] == 't') return -1;
 
-      return 1;
+      //return 1;
     }
 
     // Ignore the following methods for now:
@@ -5956,6 +5957,82 @@ read_addr(const std::string addr) {
   TwoPartComparator cmp;
   options.comparator = &cmp;
 
+
+
+
+
+
+
+  const boost::filesystem::path path = GetDataDir() / "blocks" / "index";
+  if (fMemory) {
+    penv = leveldb::NewMemEnv(leveldb::Env::Default());
+    options.env = penv;
+  }
+  leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
+  if (!status.ok()) {
+    return head;
+  }
+
+  leveldb::Iterator* it = pdb->NewIterator(options);
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    std::string strValue = it->value().ToString();
+    CTransaction ctx;
+
+    if (it->key().ToString().c_str()[0] != 't') {
+      continue;
+    }
+
+    try {
+      CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK, CLIENT_VERSION);
+      ssValue >> ctx;
+    } catch (const std::exception&) {
+      // return NULL;
+      continue;
+    }
+
+    for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+      const CTxOut& txout = ctx.vout[vo];
+      const CScript& scriptPubKey = txout.scriptPubKey;
+      int nRequired;
+      txnouttype type;
+      vector<CTxDestination> addresses;
+      if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+        continue;
+      }
+      BOOST_FOREACH(const CTxDestination& address, addresses) {
+        if (CBitcoinAddress(address).ToString() != addr) {
+          continue;
+        }
+        if (cur == NULL) {
+          head->ctx = ctx;
+          uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+          head->blockhash = hash;
+          head->next = NULL;
+          cur = head;
+        } else {
+          ctx_list *item = new ctx_list();
+          item->ctx = ctx;
+          uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+          item->blockhash = hash;
+          item->next = NULL;
+          cur->next = item;
+          cur = item;
+        }
+        goto found;
+      }
+    }
+
+found:
+    continue;
+  }
+  assert(it->status().ok());
+  delete it;
+
+
+
+
+#if 0
+
 #ifdef USE_LDB_FILES
   unsigned int nFile = 0;
   unsigned int tryFiles = 0xffffffff;
@@ -5991,16 +6068,6 @@ read_addr(const std::string addr) {
       } else {
         std::string strValue = value.ToString();
         CTransaction ctx;
-
-        // CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        // ssKey.reserve(ssKey.GetSerializeSize(key.ToString()));
-        // ssKey << key.ToString();
-        // leveldb::Slice slKey(&ssKey[0], ssKey.size());
-        // leveldb::Status status = pdb->Get(readoptions, slKey, &strValue);
-        // // leveldb::Status status = pdb->Get(readoptions, key, &strValue);
-        // if (!status.ok()) {
-        //   if (status.IsNotFound()) continue;
-        // }
 
         try {
           CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK, CLIENT_VERSION);
@@ -6052,6 +6119,8 @@ found:
   }
 #else
   }
+#endif
+
 #endif
 
   return head;
