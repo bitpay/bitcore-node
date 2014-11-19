@@ -231,7 +231,10 @@ using namespace v8;
 // Need this because account names can be an empty string.
 #define EMPTY ("\\x01")
 
-#define USE_LEVELDB_ADDR
+#define USE_LDB_ADDR
+#define USE_LDB_FILES
+#define USE_LDB_BLOCK
+
 
 /**
  * Node.js Exposed Function Templates
@@ -604,7 +607,7 @@ struct async_rescan_data {
  * Read Raw DB
  */
 
-#ifdef USE_LEVELDB_ADDR
+#ifdef USE_LDB_ADDR
 static ctx_list *
 read_addr(const std::string addr);
 #endif
@@ -2033,7 +2036,7 @@ async_get_addrtx(uv_work_t *req) {
     return;
   }
 
-#ifndef USE_LEVELDB_ADDR
+#ifndef USE_LDB_ADDR
   CScript expected = GetScriptForDestination(address.Get());
 
   int64_t i = 0;
@@ -5875,7 +5878,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
   ctx.nLockTime = (unsigned int)jstx->Get(NanNew<String>("locktime"))->Uint32Value();
 }
 
-#ifdef USE_LEVELDB_ADDR
+#ifdef USE_LDB_ADDR
 static leveldb::Options
 GetOptions(size_t nCacheSize) {
   leveldb::Options options;
@@ -5894,28 +5897,24 @@ GetOptions(size_t nCacheSize) {
 
 // http://leveldb.googlecode.com/svn/tags/1.17/doc/index.html
 
+#if 0
 class TwoPartComparator : public leveldb::Comparator {
   public:
-    // Three-way comparison function:
-    //   if a < end: negative result
-    //   if a > end: positive result
-    //   else: zero result
     int Compare(const leveldb::Slice& key, const leveldb::Slice& end) const {
-      return -1;
-      //std::string key_ = key.ToString();
-
-      //const char *k = key_.c_str();
-
-      //if (k[0] == 't') return -1;
-
-      //return 1;
+      std::string key_ = key.ToString();
+      const char *k = key_.c_str();
+#ifdef USE_LDB_BLOCK
+      if (k[0] == 'b') return -1;
+#else
+      if (k[0] == 't') return -1;
+#endif
+      return 1;
     }
-
-    // Ignore the following methods for now:
     const char* Name() const { return "TwoPartComparator"; }
     void FindShortestSeparator(std::string*, const leveldb::Slice&) const { }
     void FindShortSuccessor(std::string*) const { }
 };
+#endif
 
 static ctx_list *
 read_addr(const std::string addr) {
@@ -5954,84 +5953,12 @@ read_addr(const std::string addr) {
   options = GetOptions(nCacheSize);
   options.create_if_missing = true;
 
+#if 0
   TwoPartComparator cmp;
   options.comparator = &cmp;
+#endif
 
-
-
-
-
-
-
-  const boost::filesystem::path path = GetDataDir() / "blocks" / "index";
-  if (fMemory) {
-    penv = leveldb::NewMemEnv(leveldb::Env::Default());
-    options.env = penv;
-  }
-  leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
-  if (!status.ok()) {
-    return head;
-  }
-
-  leveldb::Iterator* it = pdb->NewIterator(options);
-  for (it->SeekToFirst(); it->Valid(); it->Next()) {
-    std::string strValue = it->value().ToString();
-    CTransaction ctx;
-
-    if (it->key().ToString().c_str()[0] != 't') {
-      continue;
-    }
-
-    try {
-      CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK, CLIENT_VERSION);
-      ssValue >> ctx;
-    } catch (const std::exception&) {
-      // return NULL;
-      continue;
-    }
-
-    for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
-      const CTxOut& txout = ctx.vout[vo];
-      const CScript& scriptPubKey = txout.scriptPubKey;
-      int nRequired;
-      txnouttype type;
-      vector<CTxDestination> addresses;
-      if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
-        continue;
-      }
-      BOOST_FOREACH(const CTxDestination& address, addresses) {
-        if (CBitcoinAddress(address).ToString() != addr) {
-          continue;
-        }
-        if (cur == NULL) {
-          head->ctx = ctx;
-          uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-          head->blockhash = hash;
-          head->next = NULL;
-          cur = head;
-        } else {
-          ctx_list *item = new ctx_list();
-          item->ctx = ctx;
-          uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-          item->blockhash = hash;
-          item->next = NULL;
-          cur->next = item;
-          cur = item;
-        }
-        goto found;
-      }
-    }
-
-found:
-    continue;
-  }
-  assert(it->status().ok());
-  delete it;
-
-
-
-
-#if 0
+  CScript expectedScriptSig = GetScriptForDestination(CBitcoinAddress(addr).Get());
 
 #ifdef USE_LDB_FILES
   unsigned int nFile = 0;
@@ -6039,9 +5966,10 @@ found:
   for (; nFile < tryFiles; nFile++) {
     const boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", nFile);
 #else
-  {
+  do {
     const boost::filesystem::path path = GetDataDir() / "blocks" / "index";
 #endif
+
     if (fMemory) {
       penv = leveldb::NewMemEnv(leveldb::Env::Default());
       options.env = penv;
@@ -6050,33 +5978,62 @@ found:
     leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
 
     if (!status.ok()) {
-      return head;
+      break;
     }
 
-    leveldb::Slice start = "t";
-    leveldb::Slice end = "t\xFF";
-    //leveldb::Options options;
+    //leveldb::Iterator* it = pdb->NewIterator(leveldb::ReadOptions());
+    leveldb::Iterator* it = pdb->NewIterator(iteroptions);
+    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+#ifdef USE_LDB_BLOCK
+      // if (it->key().ToString().c_str()[0] != 'b') continue;
+      CBlock cblock;
+#else
+      // if (it->key().ToString().c_str()[0] != 't') continue;
+      CTransaction ctx;
+#endif
 
-    leveldb::Iterator* it = pdb->NewIterator(leveldb::ReadOptions());
+      std::string strValue = it->value().ToString();
 
-    for (it->Seek(start); it->Valid(); it->Next()) {
-      leveldb::Slice key = it->key();
-      leveldb::Slice value = it->value();
+      try {
+        CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK, CLIENT_VERSION);
+#ifdef USE_LDB_BLOCK
+        ssValue >> cblock;
+#else
+        ssValue >> ctx;
+#endif
+      } catch (const std::exception&) {
+        // delete it;
+        // return NULL;
+        continue;
+      }
 
-      if (options.comparator->Compare(key, end) > 0) {
-        break;
-      } else {
-        std::string strValue = value.ToString();
-        CTransaction ctx;
-
-        try {
-          CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK, CLIENT_VERSION);
-          ssValue >> ctx;
-        } catch (const std::exception&) {
-          // return NULL;
-          continue;
+#ifdef USE_LDB_BLOCK
+      BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
+#endif
+        // vin
+        BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+          if (txin.scriptSig.ToString() != expectedScriptSig.ToString()) {
+            continue;
+          }
+          if (cur == NULL) {
+            head->ctx = ctx;
+            uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+            head->blockhash = hash;
+            head->next = NULL;
+            cur = head;
+          } else {
+            ctx_list *item = new ctx_list();
+            item->ctx = ctx;
+            uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+            item->blockhash = hash;
+            item->next = NULL;
+            cur->next = item;
+            cur = item;
+          }
+          goto found;
         }
 
+        // vout
         for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
           const CTxOut& txout = ctx.vout[vo];
           const CScript& scriptPubKey = txout.scriptPubKey;
@@ -6108,6 +6065,141 @@ found:
             goto found;
           }
         }
+#ifdef USE_LDB_BLOCK
+      }
+#endif
+
+found:
+      continue;
+    }
+
+    assert(it->status().ok());
+
+    delete it;
+#ifdef USE_LDB_FILES
+  }
+#else
+  } while (0);
+#endif
+
+#if 0
+
+#ifdef USE_LDB_FILES
+  unsigned int nFile = 0;
+  unsigned int tryFiles = 0xffffffff;
+  for (; nFile < tryFiles; nFile++) {
+    const boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", nFile);
+#else
+  do {
+    const boost::filesystem::path path = GetDataDir() / "blocks" / "index";
+#endif
+
+    if (fMemory) {
+      penv = leveldb::NewMemEnv(leveldb::Env::Default());
+      options.env = penv;
+    }
+
+    leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
+
+    if (!status.ok()) {
+      break;
+    }
+
+    leveldb::Slice start = "t";
+    leveldb::Slice end = "t\xFF";
+    //leveldb::Options options;
+
+    leveldb::Iterator* it = pdb->NewIterator(leveldb::ReadOptions());
+
+    for (it->Seek(start); it->Valid(); it->Next()) {
+      leveldb::Slice key = it->key();
+      leveldb::Slice value = it->value();
+
+      if (options.comparator->Compare(key, end) > 0) {
+        break;
+      } else {
+#ifdef USE_LDB_BLOCK
+        CBlock cblock;
+#else
+        CTransaction ctx;
+#endif
+
+        std::string strValue = value.ToString();
+
+        try {
+          CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK, CLIENT_VERSION);
+#ifdef USE_LDB_BLOCK
+          ssValue >> cblock;
+#else
+          ssValue >> ctx;
+#endif
+        } catch (const std::exception&) {
+          // delete it;
+          // return NULL;
+          continue;
+        }
+
+#ifdef USE_LDB_BLOCK
+        BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
+#endif
+          // vin
+          BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+            if (txin.scriptSig.ToString() != expectedScriptSig.ToString()) {
+              continue;
+            }
+            if (cur == NULL) {
+              head->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              head->blockhash = hash;
+              head->next = NULL;
+              cur = head;
+            } else {
+              ctx_list *item = new ctx_list();
+              item->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              item->blockhash = hash;
+              item->next = NULL;
+              cur->next = item;
+              cur = item;
+            }
+            goto found;
+          }
+
+          // vout
+          for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+            const CTxOut& txout = ctx.vout[vo];
+            const CScript& scriptPubKey = txout.scriptPubKey;
+            int nRequired;
+            txnouttype type;
+            vector<CTxDestination> addresses;
+            if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+              continue;
+            }
+            BOOST_FOREACH(const CTxDestination& address, addresses) {
+              if (CBitcoinAddress(address).ToString() != addr) {
+                continue;
+              }
+              if (cur == NULL) {
+                head->ctx = ctx;
+                uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+                head->blockhash = hash;
+                head->next = NULL;
+                cur = head;
+              } else {
+                ctx_list *item = new ctx_list();
+                item->ctx = ctx;
+                uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+                item->blockhash = hash;
+                item->next = NULL;
+                cur->next = item;
+                cur = item;
+              }
+              goto found;
+            }
+          }
+#ifdef USE_LDB_BLOCK
+        }
+#endif
 
 found:
         continue;
@@ -6118,7 +6210,7 @@ found:
 #ifdef USE_LDB_FILES
   }
 #else
-  }
+  } while (0);
 #endif
 
 #endif
