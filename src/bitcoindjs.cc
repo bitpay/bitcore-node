@@ -231,6 +231,8 @@ using namespace v8;
 // Need this because account names can be an empty string.
 #define EMPTY ("\\x01")
 
+// #define USE_LEVELDB_ADDR
+
 /**
  * Node.js Exposed Function Templates
  */
@@ -5698,10 +5700,10 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   }
   jstx->Set(NanNew<String>("vout"), vout);
 
-  //CWalletTx cwtx(pwalletMain, ctx);
+  CWalletTx cwtx(pwalletMain, ctx);
   //bool is_mine = cwtx.hashBlock != uint256(0);
   //bool is_mine = cwtx.hashBlock != 0;
-  //jstx->Set(NanNew<String>("ismine"), NanNew<Boolean>(is_mine));
+  jstx->Set(NanNew<String>("ismine"), NanNew<Boolean>(is_mine));
 
   if (block_hash != 0) {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
@@ -5907,18 +5909,11 @@ class TwoPartComparator : public leveldb::Comparator {
     //   else: zero result
     int Compare(const leveldb::Slice& key, const leveldb::Slice& end) const {
       std::string key_ = key.ToString();
-      std::string end_ = end.ToString();
 
       const char *k = key_.c_str();
-      const char *e = end_.c_str();
 
-      if (k[0] == 't') {
-        unsigned int el = strlen(e);
-        if (k[el - 1] == '\0' || k[el - 1] == e[el - 1]) {
-          return 1;
-        }
-        return -1;
-      }
+      if (k[0] == 't') return -1;
+
       return 1;
     }
 
