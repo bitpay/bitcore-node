@@ -2048,8 +2048,6 @@ async_get_addrtx(uv_work_t *req) {
           if (txin.scriptSig.ToString() == expected.ToString()) {
             ctx_list *item = new ctx_list();
             item->ctx = ctx;
-            //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-            //item->blockhash = hash;
             item->blockhash = cblock.GetHash();
             if (data->ctxs == NULL) {
               data->ctxs = item;
@@ -2074,8 +2072,6 @@ async_get_addrtx(uv_work_t *req) {
               if (data->addr == str_addr) {
                 ctx_list *item = new ctx_list();
                 item->ctx = ctx;
-                //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-                //item->blockhash = hash;
                 item->blockhash = cblock.GetHash();
                 if (data->ctxs == NULL) {
                   data->ctxs = item;
