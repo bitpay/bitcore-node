@@ -5691,18 +5691,24 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     if (ctx.IsCoinBase()) {
       jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(true));
     }
-    CBlockIndex* pindex = mapBlockIndex[block_hash];
-    if (pindex) {
+    if (mapBlockIndex.count(block_hash) > 0) {
+      CBlockIndex* pindex = mapBlockIndex[block_hash];
       jstx->Set(NanNew<String>("confirmations"),
         NanNew<Number>(pindex->nHeight));
       jstx->Set(NanNew<String>("blockindex"),
         NanNew<Number>(pindex->nHeight));
       jstx->Set(NanNew<String>("blocktime"),
-        NanNew<Number>(pindex->GetBlockTime()));
+        NanNew<Number>((int64_t)pindex->GetBlockTime())->ToInteger());
       jstx->Set(NanNew<String>("time"),
-        NanNew<Number>((uint32_t)pindex->GetBlockTime())->ToUint32());
+        NanNew<Number>((int64_t)pindex->GetBlockTime())->ToInteger());
       jstx->Set(NanNew<String>("timereceived"),
-        NanNew<Number>((uint32_t)pindex->GetBlockTime())->ToUint32());
+        NanNew<Number>((int64_t)pindex->GetBlockTime())->ToInteger());
+      //jstx->Set(NanNew<String>("blocktime"),
+      //  NanNew<Number>(pindex->GetBlockTime()));
+      //jstx->Set(NanNew<String>("time"),
+      //  NanNew<Number>(pindex->GetBlockTime()));
+      //jstx->Set(NanNew<String>("timereceived"),
+      //  NanNew<Number>(pindex->GetBlockTime()));
     } else {
       jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
       jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
@@ -5710,8 +5716,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       jstx->Set(NanNew<String>("time"), NanNew<Number>(0));
       jstx->Set(NanNew<String>("timereceived"), NanNew<Number>(0));
     }
-    Local<Array> conflicts = NanNew<Array>();
-    jstx->Set(NanNew<String>("walletconflicts"), conflicts);
+    jstx->Set(NanNew<String>("walletconflicts"), NanNew<Array>());
 #if 0
     if (is_mine) {
       jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
