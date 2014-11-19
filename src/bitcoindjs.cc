@@ -236,7 +236,6 @@ using namespace v8;
 #define USE_LDB_FILES 1
 #define USE_LDB_BLOCK 1
 
-
 /**
  * Node.js Exposed Function Templates
  */
@@ -330,9 +329,6 @@ async_get_block(uv_work_t *req);
 
 static void
 async_get_block_after(uv_work_t *req);
-
-static void
-get_genesis_block(CBlock& genesis);
 
 static void
 async_get_progress(uv_work_t *req);
@@ -1797,8 +1793,7 @@ async_get_progress_after(uv_work_t *req) {
     Local<Object> jsblock = NanNew<Object>();
     cblock_to_jsblock(cblock, cblock_index, jsblock, false);
 
-    CBlock cgenesis;
-    get_genesis_block(cgenesis);
+    const CBlock& cgenesis = Params().GenesisBlock();
 
     Local<Object> genesis = NanNew<Object>();
     cblock_to_jsblock(cgenesis, NULL, genesis, false);
@@ -5922,6 +5917,31 @@ read_addr(const std::string addr) {
   ctx_list *head = new ctx_list();
   ctx_list *cur = NULL;
 
+#if 0
+  // XXX TEST
+  const CBlock& cblock = Params().GenesisBlock();
+  CTransaction ctx = cblock.vtx[0];
+  if (cur == NULL) {
+    head->ctx = ctx;
+    //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+    //head->blockhash = hash;
+    head->blockhash = cblock.GetHash();
+    head->next = NULL;
+    cur = head;
+  } else {
+    ctx_list *item = new ctx_list();
+    item->ctx = ctx;
+    //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+    //item->blockhash = hash;
+    item->blockhash = cblock.GetHash();
+    item->next = NULL;
+    cur->next = item;
+    cur = item;
+  }
+  return head;
+#endif
+
+
   // custom environment this database is using (may be NULL in case of default environment)
   leveldb::Env* penv;
 
@@ -5963,6 +5983,191 @@ read_addr(const std::string addr) {
   TwoPartComparator cmp;
   options.comparator = &cmp;
 #endif
+
+
+
+
+
+#if 0
+  int64_t nMaxDbCache = sizeof(void*) > 4 ? 4096 : 1024;
+  size_t nTotalCache = (100 << 20);
+  if (nTotalCache < (4 << 20)) {
+    nTotalCache = (4 << 20);
+  } else if (nTotalCache > (nMaxDbCache << 20)) {
+    nTotalCache = (nMaxDbCache << 20);
+  }
+  size_t nBlockTreeDBCache = nTotalCache / 8;
+  if (nBlockTreeDBCache > (1 << 21)) {
+    nBlockTreeDBCache = (1 << 21);
+  }
+  UnloadBlockIndex();
+  pblocktree->Flush();
+  delete pblocktree;
+  // after:
+  pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
+#endif
+
+  do {
+    // ~/bitcoin/src/txdb.cpp
+    // pblocktree = 'CBlockTreeDB'
+    // ~/bitcoin/src/init.cpp
+    // ~/bitcoin/src/main.cpp
+
+    // const boost::filesystem::path path = GetDataDir() / "chainstate";
+    // CLevelDBWrapper db(path, nCacheSize, fMemory, fWipe);
+    // leveldb::Iterator *pcursor = const_cast<CLevelDBWrapper*>(&db)->NewIterator();
+
+    const boost::filesystem::path path = GetDataDir() / "chainstate";
+    leveldb::Status status = leveldb::DB::Open(options, path.string(), &pdb);
+    if (!status.ok()) break;
+    leveldb::Iterator* pcursor = pdb->NewIterator(iteroptions);
+
+    pcursor->SeekToFirst();
+
+    while (pcursor->Valid()) {
+      boost::this_thread::interruption_point();
+      try {
+        leveldb::Slice slKey = pcursor->key();
+        CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
+        char chType;
+        ssKey >> chType;
+        if (chType == 'c') {
+          leveldb::Slice slValue = pcursor->value();
+          CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+          CCoins coins;
+          ssValue >> coins;
+          uint256 txhash;
+          ssKey >> txhash;
+
+#if 0
+          // XXX TEST
+          const CBlock& cblock = Params().GenesisBlock();
+          CTransaction ctx = cblock.vtx[0];
+          if (cur == NULL) {
+            head->ctx = ctx;
+            //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+            //head->blockhash = hash;
+            head->blockhash = cblock.GetHash();
+            head->next = NULL;
+            cur = head;
+          } else {
+            ctx_list *item = new ctx_list();
+            item->ctx = ctx;
+            //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+            //item->blockhash = hash;
+            item->blockhash = cblock.GetHash();
+            item->next = NULL;
+            cur->next = item;
+            cur = item;
+          }
+          goto done;
+#endif
+
+#if 0
+          // XXX TEST
+          CTransaction ctx;
+          CBlock cblock;
+          uint256 blockhash = 0;
+          if (GetTransaction(txhash, ctx, blockhash, true)) {
+            if (cur == NULL) {
+              head->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              head->blockhash = hash;
+              head->next = NULL;
+              cur = head;
+            } else {
+              ctx_list *item = new ctx_list();
+              item->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              item->blockhash = hash;
+              item->next = NULL;
+              cur->next = item;
+              cur = item;
+            }
+          }
+          goto done;
+#endif
+
+          for (unsigned int i = 0; i < coins.vout.size(); i++) {
+            const CTxOut &out = coins.vout[i];
+            if (out.IsNull()) {
+              continue;
+            }
+            const CScript& scriptPubKey = out.scriptPubKey;
+            int nRequired;
+            txnouttype type;
+            vector<CTxDestination> addresses;
+            if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+              continue;
+            }
+            CTransaction ctx;
+            CBlock cblock;
+            BOOST_FOREACH(const CTxDestination& address, addresses) {
+              if (CBitcoinAddress(address).ToString() != addr) {
+                continue;
+              }
+              uint256 blockhash = 0;
+              if (GetTransaction(txhash, ctx, blockhash, true)) {
+                goto found_tx;
+              } else {
+                int64_t i = 0;
+                int64_t height = chainActive.Height();
+                for (; i <= height; i++) {
+                  CBlockIndex* pblockindex = chainActive[i];
+                  if (ReadBlockFromDisk(cblock, pblockindex)) {
+                    BOOST_FOREACH(const CTransaction& tx, cblock.vtx) {
+                      if (tx.GetHash() == txhash) {
+                        ctx = tx;
+                        goto found_tx;
+                      }
+                    }
+                  }
+                }
+                continue;
+              }
+found_tx:
+              if (cur == NULL) {
+                head->ctx = ctx;
+                uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+                head->blockhash = hash;
+                head->next = NULL;
+                cur = head;
+              } else {
+                ctx_list *item = new ctx_list();
+                item->ctx = ctx;
+                uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+                item->blockhash = hash;
+                item->next = NULL;
+                cur->next = item;
+                cur = item;
+              }
+              goto found;
+            }
+          }
+        }
+found:
+        pcursor->Next();
+      } catch (std::exception &e) {
+        //return error("%s : Deserialize or I/O error - %s", __func__, e.what());
+        delete pcursor;
+        return head;
+      }
+    }
+
+//found:
+done:
+    // XXX Maybe put delete it before continue below too:
+    //assert(pcursor->status().ok());
+    delete pcursor;
+    continue;
+  } while (0);
+
+  return head;
+
+
+
+
+#if 0
 
   CScript expectedScriptSig = GetScriptForDestination(CBitcoinAddress(addr).Get());
 
@@ -6231,41 +6436,11 @@ found:
 #endif
 
   return head;
-}
+
 #endif
 
-// Luckily, we never have to change this.
-static void
-get_genesis_block(CBlock& genesis) {
-  // Satoshi's first coinbase:
-  const char* pszTimestamp =
-    "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
-  CMutableTransaction txNew;
-  txNew.vin.resize(1);
-  txNew.vout.resize(1);
-  txNew.vin[0].scriptSig = CScript()
-    << 486604799
-    << CScriptNum(4)
-    << vector<unsigned char>((const unsigned char*)pszTimestamp,
-        (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-  txNew.vout[0].nValue = 50 * COIN;
-  txNew.vout[0].scriptPubKey = CScript() << ParseHex(
-    "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6"
-    "bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f"
-  ) << OP_CHECKSIG;
-  genesis.vtx.push_back(txNew);
-  genesis.hashPrevBlock = 0;
-  genesis.hashMerkleRoot = genesis.BuildMerkleTree();
-  genesis.nVersion = 1;
-  genesis.nTime = 1231006505;
-  genesis.nBits = 0x1d00ffff;
-  genesis.nNonce = 2083236893;
-  const uint256 hashGenesisBlock = genesis.GetHash();
-  assert(hashGenesisBlock == uint256(
-    "0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
-  assert(genesis.hashMerkleRoot == uint256(
-    "0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
 }
+#endif
 
 static int64_t
 SatoshiFromAmount(const CAmount& amount) {
