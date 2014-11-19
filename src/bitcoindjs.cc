@@ -5609,7 +5609,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   jstx->Set(NanNew<String>("size"),
     NanNew<Number>((int)::GetSerializeSize(ctx, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
 
-  bool is_mine = false;
   Local<Array> vin = NanNew<Array>();
   int vi = 0;
   BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
@@ -5633,12 +5632,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       CTxOut prev_out = prev_tx.vout[txin.prevout.n];
       ExtractDestination(prev_out.scriptPubKey, from);
       CBitcoinAddress addrFrom(from);
-
-      // XXX Determine wether this is our transaction
-      CTxDestination dest = addrFrom.Get();
-      if (IsMine(*pwalletMain, dest)) {
-        is_mine = true;
-      }
 
       jsprev->Set(NanNew<String>("address"), NanNew<String>(addrFrom.ToString()));
       jsprev->Set(NanNew<String>("value"), NanNew<Number>((int64_t)prev_out.nValue)->ToInteger());
@@ -5670,11 +5663,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       const CScript& scriptPubKey = txout.scriptPubKey;
       Local<Object> out = o;
 
-      // XXX Determine wether this is our transaction
-      if (IsMine(*pwalletMain, scriptPubKey)) {
-        is_mine = true;
-      }
-
       txnouttype type;
       vector<CTxDestination> addresses;
       int nRequired;
@@ -5701,9 +5689,14 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   jstx->Set(NanNew<String>("vout"), vout);
 
   CWalletTx cwtx(pwalletMain, ctx);
-  //bool is_mine = cwtx.hashBlock != uint256(0);
-  //bool is_mine = cwtx.hashBlock != 0;
+  // XXX Determine wether this is our transaction
+  bool is_mine = cwtx.hashBlock != 0;
   jstx->Set(NanNew<String>("ismine"), NanNew<Boolean>(is_mine));
+
+  // Find block hash if it's in our wallet
+  if (block_hash == 0 && is_mine) {
+    block_hash = cwtx.hashBlock;
+  }
 
   if (block_hash != 0) {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
