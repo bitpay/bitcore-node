@@ -2029,7 +2029,7 @@ async_get_addrtx(uv_work_t *req) {
     return;
   }
 
-#if 0
+#if 1
   CScript expected = GetScriptForDestination(address.Get());
 
   int64_t i = 0;
@@ -2045,8 +2045,9 @@ async_get_addrtx(uv_work_t *req) {
           if (txin.scriptSig.ToString() == expected.ToString()) {
             ctx_list *item = new ctx_list();
             item->ctx = ctx;
-            uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-            item->blockhash = hash;
+            //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+            //item->blockhash = hash;
+            item->blockhash = cblock.GetHash();
             if (data->ctxs == NULL) {
               data->ctxs = item;
             } else {
@@ -2070,8 +2071,9 @@ async_get_addrtx(uv_work_t *req) {
               if (data->addr == str_addr) {
                 ctx_list *item = new ctx_list();
                 item->ctx = ctx;
-                uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-                item->blockhash = hash;
+                //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+                //item->blockhash = hash;
+                item->blockhash = cblock.GetHash();
                 if (data->ctxs == NULL) {
                   data->ctxs = item;
                 } else {
