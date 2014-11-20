@@ -989,7 +989,7 @@ NAN_METHOD(GetBlock) {
   NanScope();
 
   if (args.Length() < 2
-      || (!args[0]->IsString() || !args[0]->IsNumber())
+      || (!args[0]->IsString() && !args[0]->IsNumber())
       || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.getBlock([blockHash,blockHeight], callback)");
