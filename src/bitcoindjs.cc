@@ -2035,7 +2035,10 @@ async_get_addrtx(uv_work_t *req) {
 #if !USE_LDB_ADDR
   CScript expected = GetScriptForDestination(address.Get());
 
-  int64_t i = 0;
+  // int64_t i = 0;
+  // Check the last 20,000 blocks
+  int64_t i = chainActive.Height() - 20000;
+  if (i < 0) i = 0;
   int64_t height = chainActive.Height();
 
   for (; i <= height; i++) {
@@ -6169,8 +6172,8 @@ done:
 
 #if USE_LDB_FILES
   unsigned int nFile = 0;
-  unsigned int tryFiles = chainActive.Height() - 1;
-  for (; nFile < tryFiles; nFile++) {
+  unsigned int tryFiles = chainActive.Height();
+  for (; nFile <= tryFiles; nFile++) {
     const boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", nFile);
 #else
   do {
@@ -6302,8 +6305,8 @@ found:
 
 #if USE_LDB_FILES
   unsigned int nFile = 0;
-  unsigned int tryFiles = chainActive.Height() - 1;
-  for (; nFile < tryFiles; nFile++) {
+  unsigned int tryFiles = chainActive.Height();
+  for (; nFile <= tryFiles; nFile++) {
     const boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", nFile);
 #else
   do {
