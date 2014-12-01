@@ -38,6 +38,8 @@
       '-lboost_program_options',
       '-lboost_thread',
       '-lboost_chrono',
+      # XXX NEW
+      '-lsecp256k1',
       '<(LIBBITCOIND)',
     ]
   }]

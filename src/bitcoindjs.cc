@@ -24,6 +24,13 @@
 #include <leveldb/comparator.h>
 
 /**
+ * secp256k1
+ */
+
+// XXX NEW
+#include <secp256k1.h>
+
+/**
  * Bitcoin headers
  */
 
@@ -45,7 +52,14 @@
 #include "coincontrol.h"
 #include "coins.h"
 #include "compat.h"
-#include "core.h"
+
+// XXX OLD
+// #include "core.h"
+
+// XXX NEW
+#include "core/block.h"
+#include "core/transaction.h"
+
 #include "core_io.h"
 #include "crypter.h"
 #include "db.h"
@@ -68,12 +82,19 @@
 #include "rpcprotocol.h"
 #include "rpcserver.h"
 #include "rpcwallet.h"
-#include "script/compressor.h"
+
+// XXX OLD
+// #include "script/compressor.h"
+
 #include "script/interpreter.h"
 #include "script/script.h"
 #include "script/sigcache.h"
 #include "script/sign.h"
 #include "script/standard.h"
+
+// XXX NEW
+#include "script/script_error.h"
+
 #include "serialize.h"
 #include "sync.h"
 #include "threadsafety.h"
@@ -103,9 +124,18 @@
 #include "json/json_spirit_writer.h"
 #include "json/json_spirit_writer_template.h"
 
+// XXX OLD
+// #include "crypto/common.h"
+// #include "crypto/sha2.h"
+// #include "crypto/sha1.h"
+// #include "crypto/ripemd160.h"
+
+// XXX NEW
 #include "crypto/common.h"
-#include "crypto/sha2.h"
+#include "crypto/hmac_sha512.h"
 #include "crypto/sha1.h"
+#include "crypto/sha256.h"
+#include "crypto/sha512.h"
 #include "crypto/ripemd160.h"
 
 #include "univalue/univalue_escapes.h"
@@ -1608,7 +1638,13 @@ NAN_METHOD(GetInfo) {
   obj->Set(NanNew<String>("connections"), NanNew<Number>((int)vNodes.size())->ToInt32());
   obj->Set(NanNew<String>("proxy"), NanNew<String>(proxy.IsValid() ? proxy.ToStringIPPort() : std::string("")));
   obj->Set(NanNew<String>("difficulty"), NanNew<Number>((double)GetDifficulty()));
-  obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
+
+  // XXX OLD
+  // obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
+
+  // XXX NEW
+  obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkIDString() == "test"));
+
 #ifdef ENABLE_WALLET
   if (pwalletMain) {
     obj->Set(NanNew<String>("keypoololdest"), NanNew<Number>(pwalletMain->GetOldestKeyPoolTime()));
@@ -1679,8 +1715,22 @@ NAN_METHOD(GetPeerInfo) {
     if (fStateStats) {
       obj->Set(NanNew<String>("banscore"), NanNew<Number>(statestats.nMisbehavior));
       obj->Set(NanNew<String>("syncheight"), NanNew<Number>(statestats.nSyncHeight)->ToInt32());
+
+      // XXX NEW
+      obj->Set(NanNew<String>("synced_headers"), NanNew<Number>(statestats.nSyncHeight)->ToInt32());
+      obj->Set(NanNew<String>("synced_blocks"), NanNew<Number>(statestats.nCommonHeight)->ToInt32());
+      Local<Array> heights = NanNew<Array>();
+      int hi = 0;
+      BOOST_FOREACH(int height, statestats.vHeightInFlight) {
+        heights->Set(hi, NanNew<Number>(height));
+        hi++;
+      }
+      obj->Set(NanNew<String>("inflight"), heights);
     }
-    obj->Set(NanNew<String>("syncnode"), NanNew<Boolean>(stats.fSyncNode));
+
+    // XXX OLD
+    // obj->Set(NanNew<String>("syncnode"), NanNew<Boolean>(stats.fSyncNode));
+
     obj->Set(NanNew<String>("whitelisted"), NanNew<Boolean>(stats.fWhitelisted));
     // obj->Set(NanNew<String>("relaytxes"), NanNew<Boolean>(stats.fRelayTxes));
 
@@ -1968,7 +2018,13 @@ NAN_METHOD(GetMiningInfo) {
   obj->Set(NanNew<String>("networkhashps"), NanNew<Number>(
     (int64_t)getnetworkhashps(empty_params, false).get_int64()));
   obj->Set(NanNew<String>("pooledtx"), NanNew<Number>((uint64_t)mempool.size()));
-  obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
+
+  // XXX OLD
+  // obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
+
+  // XXX NEW
+  obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkIDString() == "test"));
+
   obj->Set(NanNew<String>("chain"), NanNew<String>(Params().NetworkIDString()));
 #ifdef ENABLE_WALLET
   obj->Set(NanNew<String>("generate"), NanNew<Boolean>(
@@ -3792,10 +3848,32 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
     NanReturnValue(Undefined());
   }
 
-  CScript inner = _createmultisig_redeemScript(nRequired, keys);
+  // XXX NEW
+  std::string strAccount = "";
+  if (options->Get(NanNew<String>("account"))->IsString()) {
+    String::Utf8Value account_(options->Get(NanNew<String>("account"))->ToString());
+    strAccount = std::string(*account_);
+  }
+  if (options->Get(NanNew<String>("label"))->IsString()) {
+    String::Utf8Value account_(options->Get(NanNew<String>("label"))->ToString());
+    strAccount = std::string(*account_);
+  }
+  if (options->Get(NanNew<String>("name"))->IsString()) {
+    String::Utf8Value account_(options->Get(NanNew<String>("name"))->ToString());
+    strAccount = std::string(*account_);
+  }
 
   // Construct using pay-to-script-hash:
-  CScriptID innerID = inner.GetID();
+  CScript inner = _createmultisig_redeemScript(nRequired, keys);
+
+  // XXX OLD
+  // CScriptID innerID = inner.GetID();
+
+  // XXX NEW
+  CScriptID innerID(inner);
+  pwalletMain->AddCScript(inner);
+  pwalletMain->SetAddressBook(innerID, strAccount, "send");
+
   CBitcoinAddress address(innerID);
 
   Local<Object> result = NanNew<Object>();
@@ -5841,8 +5919,14 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
     Local<Object> script_obj = Local<Object>::Cast(in->Get(NanNew<String>("scriptSig")));
     String::AsciiValue shash__(script_obj->Get(NanNew<String>("hex"))->ToString());
     shash_ = *shash__;
-    uint256 shash(shash_);
-    CScript scriptSig(shash);
+
+    // XXX OLD
+    // uint256 shash(shash_);
+    // CScript scriptSig(shash);
+
+    // XXX NEW
+    std::vector<unsigned char> shash(shash_.begin(), shash_.end());
+    CScript scriptSig(shash.begin(), shash.end());
 
     txin.scriptSig = scriptSig;
     txin.nSequence = (unsigned int)in->Get(NanNew<String>("sequence"))->Uint32Value();
@@ -5862,8 +5946,14 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
     Local<Object> script_obj = Local<Object>::Cast(out->Get(NanNew<String>("scriptPubKey")));
     String::AsciiValue phash__(script_obj->Get(NanNew<String>("hex")));
     std::string phash_ = *phash__;
-    uint256 phash(phash_);
-    CScript scriptPubKey(phash);
+
+    // XXX OLD
+    // uint256 phash(phash_);
+    // CScript scriptPubKey(phash);
+
+    // XXX NEW
+    std::vector<unsigned char> phash(phash_.begin(), phash_.end());
+    CScript scriptPubKey(phash.begin(), phash.end());
 
     txout.scriptPubKey = scriptPubKey;
 
