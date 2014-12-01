@@ -5885,13 +5885,20 @@ read_addr(const std::string addr) {
 
   while (pcursor->Valid()) {
     boost::this_thread::interruption_point();
+    char *k_debug = NULL;
     try {
       leveldb::Slice slKey = pcursor->key();
-      const char *k = slKey.ToString().c_str();
-      if (k[0] == 'b') {
-        char *blockhash_ = strdup(k);
+      CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
+      std::string key;
+      // XXX ERRORS HERE:
+      ssKey >> key;
+      char type = key.c_str()[0];
+      k_debug = (char *)key.c_str();
+      if (type == 'b') {
+        char *blockhash_ = strdup(key.c_str());
         blockhash_++;
         std::string sblockhash = std::string(blockhash_);
+        free(blockhash_);
         uint256 blockhash(sblockhash);
         leveldb::Slice slValue = pcursor->value();
         CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
@@ -5951,11 +5958,13 @@ read_addr(const std::string addr) {
 found:
       pcursor->Next();
     } catch (std::exception &e) {
-      // throw runtime_error(e.what() + std::string(" : Deserialize or I/O error - %s"));
-      // head->err_msg = std::string(e.what() + std::string(" : Deserialize or I/O error - %s"));
-      // delete pcursor;
-      // return head;
-      ;
+      head->err_msg = std::string(
+        e.what()
+        + std::string(" : Deserialize or I/O error. Key: ")
+        + (k_debug != NULL ? std::string(k_debug) : std::string("NULL"))
+      );
+      delete pcursor;
+      return head;
     }
   }
 
