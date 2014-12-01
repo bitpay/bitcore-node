@@ -187,7 +187,7 @@ using namespace v8;
 #define EMPTY ("\\x01")
 
 // LevelDB options
-#define USE_LDB_ADDR 0
+#define USE_LDB_ADDR 1
 
 /**
  * Node.js Exposed Function Templates
