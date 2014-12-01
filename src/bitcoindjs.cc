@@ -27,7 +27,6 @@
  * secp256k1
  */
 
-// XXX NEW
 #include <secp256k1.h>
 
 /**
@@ -52,14 +51,8 @@
 #include "coincontrol.h"
 #include "coins.h"
 #include "compat.h"
-
-// XXX OLD
-// #include "core.h"
-
-// XXX NEW
 #include "core/block.h"
 #include "core/transaction.h"
-
 #include "core_io.h"
 #include "crypter.h"
 #include "db.h"
@@ -82,19 +75,12 @@
 #include "rpcprotocol.h"
 #include "rpcserver.h"
 #include "rpcwallet.h"
-
-// XXX OLD
-// #include "script/compressor.h"
-
 #include "script/interpreter.h"
 #include "script/script.h"
 #include "script/sigcache.h"
 #include "script/sign.h"
 #include "script/standard.h"
-
-// XXX NEW
 #include "script/script_error.h"
-
 #include "serialize.h"
 #include "sync.h"
 #include "threadsafety.h"
@@ -124,13 +110,6 @@
 #include "json/json_spirit_writer.h"
 #include "json/json_spirit_writer_template.h"
 
-// XXX OLD
-// #include "crypto/common.h"
-// #include "crypto/sha2.h"
-// #include "crypto/sha1.h"
-// #include "crypto/ripemd160.h"
-
-// XXX NEW
 #include "crypto/common.h"
 #include "crypto/hmac_sha512.h"
 #include "crypto/sha1.h"
@@ -1638,13 +1617,7 @@ NAN_METHOD(GetInfo) {
   obj->Set(NanNew<String>("connections"), NanNew<Number>((int)vNodes.size())->ToInt32());
   obj->Set(NanNew<String>("proxy"), NanNew<String>(proxy.IsValid() ? proxy.ToStringIPPort() : std::string("")));
   obj->Set(NanNew<String>("difficulty"), NanNew<Number>((double)GetDifficulty()));
-
-  // XXX OLD
-  // obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
-
-  // XXX NEW
   obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkIDString() == "test"));
-
 #ifdef ENABLE_WALLET
   if (pwalletMain) {
     obj->Set(NanNew<String>("keypoololdest"), NanNew<Number>(pwalletMain->GetOldestKeyPoolTime()));
@@ -1715,8 +1688,6 @@ NAN_METHOD(GetPeerInfo) {
     if (fStateStats) {
       obj->Set(NanNew<String>("banscore"), NanNew<Number>(statestats.nMisbehavior));
       obj->Set(NanNew<String>("syncheight"), NanNew<Number>(statestats.nSyncHeight)->ToInt32());
-
-      // XXX NEW
       obj->Set(NanNew<String>("synced_headers"), NanNew<Number>(statestats.nSyncHeight)->ToInt32());
       obj->Set(NanNew<String>("synced_blocks"), NanNew<Number>(statestats.nCommonHeight)->ToInt32());
       Local<Array> heights = NanNew<Array>();
@@ -1727,9 +1698,6 @@ NAN_METHOD(GetPeerInfo) {
       }
       obj->Set(NanNew<String>("inflight"), heights);
     }
-
-    // XXX OLD
-    // obj->Set(NanNew<String>("syncnode"), NanNew<Boolean>(stats.fSyncNode));
 
     obj->Set(NanNew<String>("whitelisted"), NanNew<Boolean>(stats.fWhitelisted));
     // obj->Set(NanNew<String>("relaytxes"), NanNew<Boolean>(stats.fRelayTxes));
@@ -2018,13 +1986,7 @@ NAN_METHOD(GetMiningInfo) {
   obj->Set(NanNew<String>("networkhashps"), NanNew<Number>(
     (int64_t)getnetworkhashps(empty_params, false).get_int64()));
   obj->Set(NanNew<String>("pooledtx"), NanNew<Number>((uint64_t)mempool.size()));
-
-  // XXX OLD
-  // obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkID() == CBaseChainParams::TESTNET));
-
-  // XXX NEW
   obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkIDString() == "test"));
-
   obj->Set(NanNew<String>("chain"), NanNew<String>(Params().NetworkIDString()));
 #ifdef ENABLE_WALLET
   obj->Set(NanNew<String>("generate"), NanNew<Boolean>(
@@ -3848,16 +3810,18 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
     NanReturnValue(Undefined());
   }
 
-  // XXX NEW
   std::string strAccount = "";
+
   if (options->Get(NanNew<String>("account"))->IsString()) {
     String::Utf8Value account_(options->Get(NanNew<String>("account"))->ToString());
     strAccount = std::string(*account_);
   }
+
   if (options->Get(NanNew<String>("label"))->IsString()) {
     String::Utf8Value account_(options->Get(NanNew<String>("label"))->ToString());
     strAccount = std::string(*account_);
   }
+
   if (options->Get(NanNew<String>("name"))->IsString()) {
     String::Utf8Value account_(options->Get(NanNew<String>("name"))->ToString());
     strAccount = std::string(*account_);
@@ -3866,10 +3830,6 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
   // Construct using pay-to-script-hash:
   CScript inner = _createmultisig_redeemScript(nRequired, keys);
 
-  // XXX OLD
-  // CScriptID innerID = inner.GetID();
-
-  // XXX NEW
   CScriptID innerID(inner);
   pwalletMain->AddCScript(inner);
   pwalletMain->SetAddressBook(innerID, strAccount, "send");
@@ -5920,11 +5880,6 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
     String::AsciiValue shash__(script_obj->Get(NanNew<String>("hex"))->ToString());
     shash_ = *shash__;
 
-    // XXX OLD
-    // uint256 shash(shash_);
-    // CScript scriptSig(shash);
-
-    // XXX NEW
     std::vector<unsigned char> shash(shash_.begin(), shash_.end());
     CScript scriptSig(shash.begin(), shash.end());
 
@@ -5947,11 +5902,6 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
     String::AsciiValue phash__(script_obj->Get(NanNew<String>("hex")));
     std::string phash_ = *phash__;
 
-    // XXX OLD
-    // uint256 phash(phash_);
-    // CScript scriptPubKey(phash);
-
-    // XXX NEW
     std::vector<unsigned char> phash(phash_.begin(), phash_.end());
     CScript scriptPubKey(phash.begin(), phash.end());
 
