@@ -464,6 +464,7 @@ typedef struct _ctx_list {
   CTransaction ctx;
   uint256 blockhash;
   struct _ctx_list *next;
+  std::string err;
 } ctx_list;
 
 struct async_addrtx_data {
@@ -2061,6 +2062,10 @@ done:
   return;
 #else
   ctx_list *ctxs = read_addr(data->addr);
+  if (!ctxs->err.empty()) {
+    data->err_msg = ctxs->err;
+    return;
+  }
   data->ctxs = ctxs;
   if (data->ctxs == NULL) {
     data->err_msg = std::string("Could not read database.");
@@ -5870,6 +5875,8 @@ read_addr(const std::string addr) {
   ctx_list *head = new ctx_list();
   ctx_list *cur = NULL;
 
+  head->err = std::string("");
+
   CScript expectedScriptSig = GetScriptForDestination(CBitcoinAddress(addr).Get());
 
   leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
@@ -5944,9 +5951,10 @@ read_addr(const std::string addr) {
 found:
       pcursor->Next();
     } catch (std::exception &e) {
-      // error("%s : Deserialize or I/O error - %s", __func__, e.what());
-      delete pcursor;
-      return head;
+      throw error("%s : Deserialize or I/O error - %s", __func__, e.what());
+      // head->err = std::string("LevelDB Error");
+      // delete pcursor;
+      // return head;
     }
   }
 
