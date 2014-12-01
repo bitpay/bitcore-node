@@ -5919,19 +5919,70 @@ read_addr(const std::string addr) {
       leveldb::Slice slKey = pcursor->key();
       const char *k = slKey.ToString().c_str();
       if (k[0] == 'b') {
-        continue;
+        char *blockhash_ = strdup(k);
+        blockhash_++;
+        std::string sblockhash = std::string(blockhash_);
+        uint256 blockhash(stxhash);
+        leveldb::Slice slValue = pcursor->value();
+        CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+        CBlock cblock;
+        ssValue >> cblock;
+        BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
+          BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+            if (txin.scriptSig.ToString() != expectedScriptSig.ToString()) {
+              continue;
+            }
+            if (cur == NULL) {
+              head->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              head->blockhash = hash;
+              head->next = NULL;
+              cur = head;
+            } else {
+              ctx_list *item = new ctx_list();
+              item->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              item->blockhash = hash;
+              item->next = NULL;
+              cur->next = item;
+              cur = item;
+            }
+            goto found;
+          }
+          for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+            const CTxOut& txout = ctx.vout[vo];
+            const CScript& scriptPubKey = txout.scriptPubKey;
+            int nRequired;
+            txnouttype type;
+            vector<CTxDestination> addresses;
+            if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+              continue;
+            }
+            BOOST_FOREACH(const CTxDestination& address, addresses) {
+              if (CBitcoinAddress(address).ToString() != addr) {
+                continue;
+              }
+              if (cur == NULL) {
+                head->ctx = ctx;
+                //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+                head->blockhash = blockhash;
+                head->next = NULL;
+                cur = head;
+              } else {
+                ctx_list *item = new ctx_list();
+                item->ctx = ctx;
+                //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+                item->blockhash = blockhash;
+                item->next = NULL;
+                cur->next = item;
+                cur = item;
+              }
+              goto found;
+            }
+          }
+        }
       }
-      // XXX Might be better to iterate over blocks - gets block hash and gets all txes for sure.
-      // if (k[0] == 'b') {
-      //   char *blockhash_ = strdup(k);
-      //   blockhash_++;
-      //   std::string sblockhash = std::string(blockhash_);
-      //   uint256 blockhash(stxhash);
-      //   leveldb::Slice slValue = pcursor->value();
-      //   CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
-      //   CBlock block;
-      //   ssValue >> block;
-      // }
+#if 0
       if (k[0] == 't') {
         char *txhash_ = strdup(k);
         txhash_++;
@@ -5994,6 +6045,7 @@ read_addr(const std::string addr) {
           }
         }
       }
+#endif
 found:
       pcursor->Next();
     }
