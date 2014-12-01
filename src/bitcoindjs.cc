@@ -159,64 +159,10 @@ extern CFeeRate payTxFee;
 extern const std::string strMessageMagic;
 // extern map<uint256, COrphanBlock*> mapOrphanBlocks;
 
-// XXX May not link properly: some functions here are static (rpcdump.cpp):
-// extern std::string EncodeDumpTime(int64_t nTime);
-// extern int64_t DecodeDumpTime(const std::string &str);
-// extern std::string EncodeDumpString(const std::string &str);
-// extern std::string DecodeDumpString(const std::string &str);
-
-static std::string
-EncodeDumpTime(int64_t nTime) {
-  return DateTimeStrFormat("%Y-%m-%dT%H:%M:%SZ", nTime);
-}
-
-static int64_t
-DecodeDumpTime(const std::string &str) {
-  static const boost::posix_time::ptime epoch = boost::posix_time::from_time_t(0);
-  static const std::locale loc(std::locale::classic(),
-    new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ"));
-  std::istringstream iss(str);
-  iss.imbue(loc);
-  boost::posix_time::ptime ptime(boost::date_time::not_a_date_time);
-  iss >> ptime;
-  if (ptime.is_not_a_date_time()) {
-    return 0;
-  }
-  return (ptime - epoch).total_seconds();
-}
-
-static std::string
-EncodeDumpString(const std::string &str) {
-  std::stringstream ret;
-  BOOST_FOREACH(unsigned char c, str) {
-    if (c <= 32 || c >= 128 || c == '%') {
-      ret << '%' << HexStr(&c, &c + 1);
-    } else {
-      ret << c;
-    }
-  }
-  return ret.str();
-}
-
-// May not need this - not static:
-#if 0
-static std::string
-DecodeDumpString(const std::string &str) {
-  std::stringstream ret;
-  for (unsigned int pos = 0; pos < str.length(); pos++) {
-      unsigned char c = str[pos];
-    if (c == '%' && pos+2 < str.length()) {
-      c = (((str[pos+1]>>6)*9+((str[pos+1]-'0')&15)) << 4) |
-          ((str[pos+2]>>6)*9+((str[pos+2]-'0')&15));
-      pos += 2;
-    }
-    ret << c;
-  }
-  return ret.str();
-}
-#else
+extern std::string EncodeDumpTime(int64_t nTime);
+extern int64_t DecodeDumpTime(const std::string &str);
+extern std::string EncodeDumpString(const std::string &str);
 extern std::string DecodeDumpString(const std::string &str);
-#endif
 
 /**
  * Node.js System
@@ -2588,6 +2534,13 @@ NAN_METHOD(HookPackets) {
       // cblock_to_jsblock(block, NULL, o, true);
       // last_block_hash = block.GetHash();
       o->Set(NanNew<String>("block"), jsblock);
+      // XXX Can now directly access the DB:
+#if 0
+      leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
+      pcursor->SeekToFirst();
+      while (pcursor->Valid());
+#endif
+
     } else if (strCommand == "getaddr") {
       ; // not much other information in getaddr as long as we know we got a getaddr
     } else if (strCommand == "mempool") {
@@ -5956,6 +5909,105 @@ read_addr(const std::string addr) {
   ctx_list *head = new ctx_list();
   ctx_list *cur = NULL;
 
+  leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
+
+  pcursor->SeekToFirst();
+
+  while (pcursor->Valid()) {
+    boost::this_thread::interruption_point();
+    try {
+      leveldb::Slice slKey = pcursor->key();
+      const char *k = slKey.ToString().c_str();
+      if (k[0] == 'b') {
+        continue;
+      }
+      // XXX Might be better to iterate over blocks - gets block hash and gets all txes for sure.
+      // if (k[0] == 'b') {
+      //   char *blockhash_ = strdup(k);
+      //   blockhash_++;
+      //   std::string sblockhash = std::string(blockhash_);
+      //   uint256 blockhash(stxhash);
+      //   leveldb::Slice slValue = pcursor->value();
+      //   CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+      //   CBlock block;
+      //   ssValue >> block;
+      // }
+      if (k[0] == 't') {
+        char *txhash_ = strdup(k);
+        txhash_++;
+        std::string stxhash = std::string(txhash_);
+        uint256 txhash(stxhash);
+        leveldb::Slice slValue = pcursor->value();
+        CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+        CTransaction ctx;
+        ssValue >> ctx;
+        BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+          if (txin.scriptSig.ToString() != expectedScriptSig.ToString()) {
+            continue;
+          }
+          if (cur == NULL) {
+            head->ctx = ctx;
+            uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+            head->blockhash = hash;
+            head->next = NULL;
+            cur = head;
+          } else {
+            ctx_list *item = new ctx_list();
+            item->ctx = ctx;
+            uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+            item->blockhash = hash;
+            item->next = NULL;
+            cur->next = item;
+            cur = item;
+          }
+          goto found;
+        }
+        for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+          const CTxOut& txout = ctx.vout[vo];
+          const CScript& scriptPubKey = txout.scriptPubKey;
+          int nRequired;
+          txnouttype type;
+          vector<CTxDestination> addresses;
+          if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+            continue;
+          }
+          BOOST_FOREACH(const CTxDestination& address, addresses) {
+            if (CBitcoinAddress(address).ToString() != addr) {
+              continue;
+            }
+            if (cur == NULL) {
+              head->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              head->blockhash = hash;
+              head->next = NULL;
+              cur = head;
+            } else {
+              ctx_list *item = new ctx_list();
+              item->ctx = ctx;
+              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
+              item->blockhash = hash;
+              item->next = NULL;
+              cur->next = item;
+              cur = item;
+            }
+            goto found;
+          }
+        }
+      }
+found:
+      pcursor->Next();
+    }
+  }
+
+  return head;
+}
+
+#if 0
+static ctx_list *
+read_addr(const std::string addr) {
+  ctx_list *head = new ctx_list();
+  ctx_list *cur = NULL;
+
 #if 0
   // XXX TEST
   const CBlock& cblock = Params().GenesisBlock();
@@ -6479,6 +6531,7 @@ found:
 #endif
 
 }
+#endif
 #endif
 
 static int64_t
