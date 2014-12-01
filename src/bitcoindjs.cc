@@ -5870,6 +5870,8 @@ read_addr(const std::string addr) {
   ctx_list *head = new ctx_list();
   ctx_list *cur = NULL;
 
+  CScript expectedScriptSig = GetScriptForDestination(CBitcoinAddress(addr).Get());
+
   leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
 
   pcursor->SeekToFirst();
@@ -5883,7 +5885,7 @@ read_addr(const std::string addr) {
         char *blockhash_ = strdup(k);
         blockhash_++;
         std::string sblockhash = std::string(blockhash_);
-        uint256 blockhash(stxhash);
+        uint256 blockhash(sblockhash);
         leveldb::Slice slValue = pcursor->value();
         CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
         CBlock cblock;
@@ -5895,15 +5897,13 @@ read_addr(const std::string addr) {
             }
             if (cur == NULL) {
               head->ctx = ctx;
-              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-              head->blockhash = hash;
+              head->blockhash = blockhash;
               head->next = NULL;
               cur = head;
             } else {
               ctx_list *item = new ctx_list();
               item->ctx = ctx;
-              uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
-              item->blockhash = hash;
+              item->blockhash = blockhash;
               item->next = NULL;
               cur->next = item;
               cur = item;
@@ -5925,14 +5925,12 @@ read_addr(const std::string addr) {
               }
               if (cur == NULL) {
                 head->ctx = ctx;
-                //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
                 head->blockhash = blockhash;
                 head->next = NULL;
                 cur = head;
               } else {
                 ctx_list *item = new ctx_list();
                 item->ctx = ctx;
-                //uint256 hash(((CMerkleTx)ctx).hashBlock.GetHex());
                 item->blockhash = blockhash;
                 item->next = NULL;
                 cur->next = item;
@@ -5945,8 +5943,14 @@ read_addr(const std::string addr) {
       }
 found:
       pcursor->Next();
+    } catch (std::exception &e) {
+      // error("%s : Deserialize or I/O error - %s", __func__, e.what());
+      delete pcursor;
+      return head;
     }
   }
+
+  delete pcursor;
 
   return head;
 }
