@@ -187,7 +187,7 @@ using namespace v8;
 #define EMPTY ("\\x01")
 
 // LevelDB options
-#define USE_LDB_ADDR 0
+#define USE_LDB_ADDR 1
 
 /**
  * Node.js Exposed Function Templates
@@ -5888,22 +5888,13 @@ read_addr(const std::string addr) {
     char *k_debug = NULL;
     try {
       leveldb::Slice slKey = pcursor->key();
-      CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
-      std::string key;
-      // XXX ERRORS HERE:
-      ssKey >> key;
-      char type = key.c_str()[0];
-      k_debug = (char *)key.c_str();
-      if (type == 'b') {
-        char *blockhash_ = strdup(key.c_str());
-        blockhash_++;
-        std::string sblockhash = std::string(blockhash_);
-        free(blockhash_);
-        uint256 blockhash(sblockhash);
+      if (slKey.ToString().c_str()[0] == 'b') {
         leveldb::Slice slValue = pcursor->value();
         CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
         CBlock cblock;
         ssValue >> cblock;
+        uint256 blockhash = cblock.GetHash();
+        k_debug = strdup(blockhash.GetHex().c_str());
         BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
           BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
             if (txin.scriptSig.ToString() != expectedScriptSig.ToString()) {
@@ -5956,15 +5947,28 @@ read_addr(const std::string addr) {
         }
       }
 found:
+      if (k_debug != NULL) {
+        free(k_debug);
+      }
+      k_debug = NULL;
       pcursor->Next();
     } catch (std::exception &e) {
-      head->err_msg = std::string(
-        e.what()
-        + std::string(" : Deserialize or I/O error. Key: ")
-        + (k_debug != NULL ? std::string(k_debug) : std::string("NULL"))
-      );
-      delete pcursor;
-      return head;
+      //head->err_msg = std::string(
+      //  e.what()
+      //  + std::string(" : Deserialize or I/O error. Key: ")
+      //  + (k_debug != NULL ? std::string(k_debug) : std::string("NULL"))
+      //);
+
+      if (k_debug != NULL) {
+        free(k_debug);
+      }
+      k_debug = NULL;
+
+      //delete pcursor;
+      //return head;
+
+      pcursor->Next();
+      continue;
     }
   }
 
