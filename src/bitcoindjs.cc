@@ -405,14 +405,6 @@ static bool g_txindex = false;
  * Used for async functions and necessary linked lists at points.
  */
 
-#if 0
-typedef struct _prev_list {
-  std::string addr;
-  int64_t val;
-  struct _prev_list *next;
-} prev_list;
-#endif
-
 /**
  * async_node_data
  * Where the uv async request data resides.
@@ -438,9 +430,6 @@ struct async_block_data {
   int64_t height;
   CBlock cblock;
   CBlockIndex* cblock_index;
-#if 0
-  prev_list *inputs;
-#endif
   Persistent<Function> callback;
 };
 
@@ -453,9 +442,6 @@ struct async_tx_data {
   std::string txHash;
   std::string blockHash;
   CTransaction ctx;
-#if 0
-  prev_list *inputs;
-#endif
   Persistent<Function> callback;
 };
 
@@ -1019,30 +1005,6 @@ async_get_block(uv_work_t *req) {
   if (ReadBlockFromDisk(cblock, pblockindex)) {
     data->cblock = cblock;
     data->cblock_index = pblockindex;
-#if 0
-    BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
-      BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
-        CTransaction prev_tx;
-        if (GetTransaction(txin.prevout.hash, prev_tx, block_hash, true)) {
-          CTxDestination from;
-          CTxOut prev_out = prev_tx.vout[txin.prevout.n];
-          ExtractDestination(prev_out.scriptPubKey, from);
-          CBitcoinAddress addrFrom(from);
-          std::string addr = addrFrom.ToString();
-          int64_t val = (int64_t)prev_out.nValue;
-          prev_list *cur = new prev_list();
-          cur->addr = addr;
-          cur->val = val;
-          if (data->inputs == NULL) {
-            data->inputs = cur;
-          } else {
-            data->inputs->next = cur;
-            data->inputs = cur;
-          }
-        }
-      }
-    }
-#endif
   } else {
     data->err_msg = std::string("get_block(): failed.");
   }
@@ -1068,24 +1030,6 @@ async_get_block_after(uv_work_t *req) {
 
     Local<Object> jsblock = NanNew<Object>();
     cblock_to_jsblock(cblock, cblock_index, jsblock, false);
-
-#if 0
-    prev_list *head = data->inputs;
-    prev_list *cur = data->inputs;
-    prev_list *next;
-    for (int i = 0; i < jsblock->tx->ength(); i++) {
-      for (int j = 0; j < jstx->vin->Length(); j++) {
-        next = cur->next;
-        jsblock.
-        Local<Object> jsprev = NanNew<Object>();
-        jsprev->Set(NanNew<String>("address"), NanNew<String>(cur->addr));
-        jsprev->Set(NanNew<String>("value"), NanNew<Number>(cur->val));
-        jsblock->tx->Get(i)->vin->Get(j)->Set(NanNew<String>("prev"), jsprev);
-        delete cur;
-        cur = next;
-      }
-    }
-#endif
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
@@ -1184,28 +1128,6 @@ async_get_tx(uv_work_t *req) {
 collect_prev:
   return;
 
-#if 0
-  BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
-    CTransaction prev_tx;
-    if (GetTransaction(txin.prevout.hash, prev_tx, block_hash, true)) {
-      CTxDestination from;
-      CTxOut prev_out = prev_tx.vout[txin.prevout.n];
-      ExtractDestination(prev_out.scriptPubKey, from);
-      CBitcoinAddress addrFrom(from);
-      std::string addr = addrFrom.ToString();
-      int64_t val = (int64_t)prev_out.nValue;
-      prev_list *cur = new prev_list();
-      cur->addr = addr;
-      cur->val = val;
-      if (data->inputs == NULL) {
-        data->inputs = cur;
-      } else {
-        data->inputs->next = cur;
-        data->inputs = cur;
-      }
-    }
-  }
-#endif
 }
 
 static void
@@ -1232,22 +1154,6 @@ async_get_tx_after(uv_work_t *req) {
   } else {
     Local<Object> jstx = NanNew<Object>();
     ctx_to_jstx(ctx, block_hash, jstx);
-
-    // XXX Do this for GetBlock, and PacketHook
-#if 0
-    prev_list *head = data->inputs;
-    prev_list *cur = data->inputs;
-    prev_list *next;
-    for (int i = 0; i < jstx->vin->Length(); i++) {
-      next = cur->next;
-      Local<Object> jsprev = NanNew<Object>();
-      jsprev->Set(NanNew<String>("address"), NanNew<String>(cur->addr));
-      jsprev->Set(NanNew<String>("value"), NanNew<Number>(cur->val));
-      jstx->vin->Get(i)->Set(NanNew<String>("prev"), jsprev);
-      delete cur;
-      cur = next;
-    }
-#endif
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
@@ -1916,23 +1822,6 @@ NAN_METHOD(GetMiningInfo) {
 
   json_spirit::Array empty_params;
 
-  // (json_spirit::Value)GetNetworkHashPS(120 /* blocks=-1 */, -1 /* height=x */);
-  // (int64_t)GetNetworkHashPS(120 /* blocks=-1 */, -1 /* height=x */).get_int64();
-  // (int64_t)getnetworkhashps(empty_params, false).get_int64();
-
-  // (json_spirit::Value)getgenerate(empty_params, false);
-  // (bool)getgenerate(empty_params, false).get_bool();
-  // (bool)GetBoolArg("-gen", false);
-
-  // (json_spirit::Value)gethashespersec(empty_params, false);
-  // (int64_t)gethashespersec(empty_params, false).get_int64();
-  // int64_t hashespersec = 0;
-  // if (GetTimeMillis() - nHPSTimerStart > 8000) {
-  //   hashespersec = (int64_t)0;
-  // } else {
-  //   hashespersec = (int64_t)dHashesPerSec;
-  // }
-
   obj->Set(NanNew<String>("blocks"), NanNew<Number>((int)chainActive.Height()));
   obj->Set(NanNew<String>("currentblocksize"), NanNew<Number>((uint64_t)nLastBlockSize));
   obj->Set(NanNew<String>("currentblocktx"), NanNew<Number>((uint64_t)nLastBlockTx));
@@ -2041,10 +1930,6 @@ async_get_addrtx(uv_work_t *req) {
   CScript expected = GetScriptForDestination(address.Get());
 
   int64_t i = 0;
-
-  // Check the last 20,000 blocks
-  // int64_t i = chainActive.Height() - 20000;
-  // if (i < 0) i = 0;
 
   if (data->blockindex != -1) {
     i = data->blockindex;
@@ -2599,16 +2484,7 @@ NAN_METHOD(HookPackets) {
       vRecv >> block;
       Local<Object> jsblock = NanNew<Object>();
       cblock_to_jsblock(block, NULL, jsblock, true);
-      // cblock_to_jsblock(block, NULL, o, true);
-      // last_block_hash = block.GetHash();
       o->Set(NanNew<String>("block"), jsblock);
-      // XXX Can now directly access the DB:
-#if 0
-      leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
-      pcursor->SeekToFirst();
-      while (pcursor->Valid());
-#endif
-
     } else if (strCommand == "getaddr") {
       ; // not much other information in getaddr as long as we know we got a getaddr
     } else if (strCommand == "mempool") {
@@ -5884,17 +5760,12 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 
     Local<Object> in = Local<Object>::Cast(vin->Get(vi));
 
-    //if (ctx.IsCoinBase()) {
-    //  txin.prevout.hash = uint256(0);
-    //  txin.prevout.n = (unsigned int)0;
-    //} else {
-      String::AsciiValue phash__(in->Get(NanNew<String>("txid"))->ToString());
-      std::string phash_ = *phash__;
-      uint256 phash(phash_);
+    String::AsciiValue phash__(in->Get(NanNew<String>("txid"))->ToString());
+    std::string phash_ = *phash__;
+    uint256 phash(phash_);
 
-      txin.prevout.hash = phash;
-      txin.prevout.n = (unsigned int)in->Get(NanNew<String>("vout"))->Uint32Value();
-    //}
+    txin.prevout.hash = phash;
+    txin.prevout.n = (unsigned int)in->Get(NanNew<String>("vout"))->Uint32Value();
 
     std::string shash_;
     Local<Object> script_obj = Local<Object>::Cast(in->Get(NanNew<String>("scriptSig")));
@@ -6194,9 +6065,6 @@ error:
 
 static int64_t
 SatoshiFromAmount(const CAmount& amount) {
-  // ./core.h : static const int64_t COIN = 100000000;
-  // ValueFromAmount:
-  //   return (double)amount / (double)COIN;
   return (int64_t)amount;
 }
 
