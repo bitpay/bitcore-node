@@ -187,7 +187,7 @@ using namespace v8;
 #define EMPTY ("\\x01")
 
 // LevelDB options
-#define USE_LDB_ADDR 1
+#define USE_LDB_ADDR 0
 
 /**
  * Node.js Exposed Function Templates
@@ -5885,15 +5885,49 @@ read_addr(const std::string addr) {
 
   while (pcursor->Valid()) {
     boost::this_thread::interruption_point();
-    char *k_debug = NULL;
-    leveldb::Slice lastKey = pcursor->key();
-    leveldb::Slice lastVal = pcursor->value();
     try {
       leveldb::Slice slKey = pcursor->key();
+
       CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
+
       char type;
       ssKey >> type;
 
+      // Blockchain Index Structure:
+      // http://bitcoin.stackexchange.com/questions/28168
+
+      // File info record structure (Key: 4-byte file number)
+      //   Number of blocks stored in block file
+      //   Size of block file: blocks/blkXXXXX.dat
+      //   Size of undo file: blocks/revXXXXX.dat
+      //   Low and high heights of blocks stored in file
+      //   Low and high timestamps of blocks stored in file
+      if (type == 'f') {
+        goto found;
+      }
+
+      // Last block file number used structure (Key: no key)
+      //   4-byte file number
+      if (type == 'l') {
+        goto found;
+      }
+
+      // Reindexing structure (Key: no key)
+      //   1-byte Boolean (1 if reindexing)
+      if (type == 'R') {
+        goto found;
+      }
+
+      // Flags structure (Key: 1-byte flag name + flag name string)
+      //   1-byte Boolean (key may be `txindex` if transaction index is enabled)
+      if (type == 'F') {
+        goto found;
+      }
+
+      // Block Structure:
+      //   CBlockHeader - headers
+      //   CDiskBlockPos - block file and pos
+      //   CDiskBlockPos - undo file and pos
       if (type == 'b') {
         leveldb::Slice slValue = pcursor->value();
 
@@ -5905,19 +5939,51 @@ read_addr(const std::string addr) {
         CBlockHeader header;
         ssValue >> header;
 
+        // XXX This is not being parsed right. Check math/logic.
         CDiskBlockPos blockPos;
         ssValue >> blockPos;
 
-        CDiskBlockPos undoPos;
-        ssValue >> undoPos;
+        // CDiskBlockPos undoPos;
+        // ssValue >> undoPos;
 
         CBlock cblock;
-        if (ReadBlockFromDisk(cblock, blockPos)) {
-          k_debug = strdup(blockhash.GetHex().c_str());
 
-          BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
-            BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
-              if (txin.scriptSig.ToString() != expectedScriptSig.ToString()) {
+        if (!ReadBlockFromDisk(cblock, blockPos)) {
+          goto found;
+        }
+
+        BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
+          BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+            if (txin.scriptSig.ToString() != expectedScriptSig.ToString()) {
+              continue;
+            }
+            if (cur == NULL) {
+              head->ctx = ctx;
+              head->blockhash = blockhash;
+              head->next = NULL;
+              cur = head;
+            } else {
+              ctx_list *item = new ctx_list();
+              item->ctx = ctx;
+              item->blockhash = blockhash;
+              item->next = NULL;
+              cur->next = item;
+              cur = item;
+            }
+            goto found;
+          }
+
+          for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+            const CTxOut& txout = ctx.vout[vo];
+            const CScript& scriptPubKey = txout.scriptPubKey;
+            int nRequired;
+            txnouttype type;
+            vector<CTxDestination> addresses;
+            if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+              continue;
+            }
+            BOOST_FOREACH(const CTxDestination& address, addresses) {
+              if (CBitcoinAddress(address).ToString() != addr) {
                 continue;
               }
               if (cur == NULL) {
@@ -5935,39 +6001,14 @@ read_addr(const std::string addr) {
               }
               goto found;
             }
-            for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
-              const CTxOut& txout = ctx.vout[vo];
-              const CScript& scriptPubKey = txout.scriptPubKey;
-              int nRequired;
-              txnouttype type;
-              vector<CTxDestination> addresses;
-              if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
-                continue;
-              }
-              BOOST_FOREACH(const CTxDestination& address, addresses) {
-                if (CBitcoinAddress(address).ToString() != addr) {
-                  continue;
-                }
-                if (cur == NULL) {
-                  head->ctx = ctx;
-                  head->blockhash = blockhash;
-                  head->next = NULL;
-                  cur = head;
-                } else {
-                  ctx_list *item = new ctx_list();
-                  item->ctx = ctx;
-                  item->blockhash = blockhash;
-                  item->next = NULL;
-                  cur->next = item;
-                  cur = item;
-                }
-                goto found;
-              }
-            }
           }
         }
       }
 
+      // Transaction Structure:
+      //   CDiskBlockPos.nFile - block file
+      //   CDiskBlockPos.nPos - block pos
+      //   CDiskTxPos.nTxOffset - offset from top of block
       if (type == 't') {
         leveldb::Slice slValue = pcursor->value();
 
@@ -5976,58 +6017,109 @@ read_addr(const std::string addr) {
         uint256 txhash;
         ssKey >> txhash;
 
-        k_debug = strdup(txhash.GetHex().c_str());
-
         CDiskBlockPos blockPos;
         ssValue >> blockPos.nFile;
         ssValue >> blockPos.nPos;
 
         CDiskTxPos txPos;
-        //ssValue >> txPos.nFile;
-        //ssValue >> txPos.nPos;
+        // ssValue >> txPos.nFile;
+        // ssValue >> txPos.nPos;
         txPos.nFile = blockPos.nFile;
         txPos.nPos = blockPos.nPos;
-
         ssValue >> txPos.nTxOffset;
-      }
 
-found:
-      if (k_debug != NULL) {
-        free(k_debug);
+        CTransaction ctx;
+        uint256 blockhash;
+
+        if (!pblocktree->ReadTxIndex(txhash, txPos)) {
+          goto found;
+        }
+
+        CAutoFile file(OpenBlockFile(txPos, true), SER_DISK, CLIENT_VERSION);
+        CBlockHeader header;
+        try {
+          file >> header;
+          fseek(file.Get(), txPos.nTxOffset, SEEK_CUR);
+          file >> ctx;
+        } catch (std::exception &e) {
+          goto error;
+        }
+        if (ctx.GetHash() != txhash) {
+          goto error;
+        }
+        blockhash = header.GetHash();
+
+        BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
+          if (txin.scriptSig.ToString() != expectedScriptSig.ToString()) {
+            continue;
+          }
+          if (cur == NULL) {
+            head->ctx = ctx;
+            head->blockhash = blockhash;
+            head->next = NULL;
+            cur = head;
+          } else {
+            ctx_list *item = new ctx_list();
+            item->ctx = ctx;
+            item->blockhash = blockhash;
+            item->next = NULL;
+            cur->next = item;
+            cur = item;
+          }
+          goto found;
+        }
+
+        for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+          const CTxOut& txout = ctx.vout[vo];
+          const CScript& scriptPubKey = txout.scriptPubKey;
+          int nRequired;
+          txnouttype type;
+          vector<CTxDestination> addresses;
+          if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+            continue;
+          }
+          BOOST_FOREACH(const CTxDestination& address, addresses) {
+            if (CBitcoinAddress(address).ToString() != addr) {
+              continue;
+            }
+            if (cur == NULL) {
+              head->ctx = ctx;
+              head->blockhash = blockhash;
+              head->next = NULL;
+              cur = head;
+            } else {
+              ctx_list *item = new ctx_list();
+              item->ctx = ctx;
+              item->blockhash = blockhash;
+              item->next = NULL;
+              cur->next = item;
+              cur = item;
+            }
+            goto found;
+          }
+        }
       }
-      k_debug = NULL;
+found:
       pcursor->Next();
     } catch (std::exception &e) {
-      //CDataStream ssk(SER_NETWORK, PROTOCOL_VERSION);
-      //ssk << lastKey.ToString();
-      //std::string lastKeyHex = HexStr(ssk.begin(), ssk.end());
+      pcursor->Next();
+      continue;
+      leveldb::Slice lastKey = pcursor->key();
       std::string lastKeyHex = HexStr(lastKey.ToString());
-
-      //CDataStream ssv(SER_NETWORK, PROTOCOL_VERSION);
-      //ssv << lastVal.ToString();
-      //std::string lastValHex = HexStr(ssv.begin(), ssv.end());
-      std::string lastValHex = HexStr(lastVal.ToString());
-
-      head->err_msg = std::string(lastKeyHex + std::string(": ") + lastValHex);
-
-      //head->err_msg = std::string(
-      //  e.what()
-      //  + std::string(" : Deserialize or I/O error. Key: ")
-      //  + (k_debug != NULL ? std::string(k_debug) : std::string("NULL"))
-      //);
-
-      if (k_debug != NULL) {
-        free(k_debug);
-      }
-      k_debug = NULL;
-
+      head->err_msg = std::string(e.what()
+        + std::string(" : Deserialize error. Key: ")
+        + lastKeyHex);
       delete pcursor;
       return head;
-
-      //pcursor->Next();
-      //continue;
     }
   }
+
+  delete pcursor;
+
+  return head;
+
+error:
+  head->err_msg = std::string("Deserialize Error.");
 
   delete pcursor;
 
