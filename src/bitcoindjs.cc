@@ -1990,10 +1990,10 @@ NAN_METHOD(GetAddrTransactions) {
       String::Utf8Value s_(options->Get(NanNew<String>("addr"))->ToString());
       addr = std::string(*s_);
     }
-    if (options->Get(NanNew<String>("index"))->IsString()) {
+    if (options->Get(NanNew<String>("index"))->IsNumber()) {
       blockindex = options->Get(NanNew<String>("index"))->IntegerValue();
     }
-    if (options->Get(NanNew<String>("blockindex"))->IsString()) {
+    if (options->Get(NanNew<String>("blockindex"))->IsNumber()) {
       blockindex = options->Get(NanNew<String>("blockindex"))->IntegerValue();
     }
   }
