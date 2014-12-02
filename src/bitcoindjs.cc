@@ -5888,12 +5888,21 @@ read_addr(const std::string addr) {
     char *k_debug = NULL;
     try {
       leveldb::Slice slKey = pcursor->key();
-      if (slKey.ToString().c_str()[0] == 'b') {
+      CDataStream ssKey(slKey.data(), slKey.data()+slKey.size(), SER_DISK, CLIENT_VERSION);
+      char type;
+      ssKey >> type;
+      if (type == 'b') {
+      //if (slKey.ToString().c_str()[0] == 'b') {
         leveldb::Slice slValue = pcursor->value();
+        //CDataStream ssValue(ParseHex(slValue.ToString()), SER_DISK, CLIENT_VERSION);
+        //CDataStream ssValue(ParseHex(slValue.ToString()), SER_NETWORK, PROTOCOL_VERSION);
         CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+        //CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_NETWORK, PROTOCOL_VERSION);
+        uint256 blockhash;
+        ssKey >> blockhash;
         CBlock cblock;
         ssValue >> cblock;
-        uint256 blockhash = cblock.GetHash();
+        //uint256 blockhash = cblock.GetHash();
         k_debug = strdup(blockhash.GetHex().c_str());
         BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
           BOOST_FOREACH(const CTxIn& txin, ctx.vin) {
