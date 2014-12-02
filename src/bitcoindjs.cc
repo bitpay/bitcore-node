@@ -397,6 +397,7 @@ static volatile bool shutdown_complete = false;
 static char *g_data_dir = NULL;
 static bool g_rpc = false;
 static bool g_testnet = false;
+static bool g_txindex = false;
 
 /**
  * Private Structs
@@ -422,6 +423,7 @@ struct async_node_data {
   std::string datadir;
   bool rpc;
   bool testnet;
+  bool txindex;
   Persistent<Function> callback;
 };
 
@@ -580,6 +582,7 @@ NAN_METHOD(StartBitcoind) {
   std::string datadir = std::string("");
   bool rpc = false;
   bool testnet = false;
+  bool txindex = false;
 
   if (args.Length() >= 2 && args[0]->IsObject() && args[1]->IsFunction()) {
     Local<Object> options = Local<Object>::Cast(args[0]);
@@ -592,6 +595,9 @@ NAN_METHOD(StartBitcoind) {
     }
     if (options->Get(NanNew<String>("testnet"))->IsBoolean()) {
       testnet = options->Get(NanNew<String>("testnet"))->ToBoolean()->IsTrue();
+    }
+    if (options->Get(NanNew<String>("txindex"))->IsBoolean()) {
+      txindex = options->Get(NanNew<String>("txindex"))->ToBoolean()->IsTrue();
     }
     callback = Local<Function>::Cast(args[1]);
   } else if (args.Length() >= 2
@@ -613,8 +619,9 @@ NAN_METHOD(StartBitcoind) {
   data->err_msg = std::string("");
   data->result = std::string("");
   data->datadir = datadir;
-  data->testnet = testnet;
   data->rpc = rpc;
+  data->testnet = testnet;
+  data->txindex = txindex;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -645,6 +652,7 @@ async_start_node(uv_work_t *req) {
   }
   g_rpc = (bool)data->rpc;
   g_testnet = (bool)data->testnet;
+  g_txindex = (bool)data->txindex;
   start_node();
   data->result = std::string("start_node(): bitcoind opened.");
 }
@@ -729,7 +737,7 @@ start_node_thread(void) {
 
   // Workaround for AppInit2() arg parsing. Not ideal, but it works.
   int argc = 0;
-  char **argv = (char **)malloc((3 + 1) * sizeof(char **));
+  char **argv = (char **)malloc((4 + 1) * sizeof(char **));
 
   argv[argc] = (char *)"bitcoind";
   argc++;
@@ -754,6 +762,11 @@ start_node_thread(void) {
 
   if (g_testnet) {
     argv[argc] = (char *)"-testnet";
+    argc++;
+  }
+
+  if (g_txindex) {
+    argv[argc] = (char *)"-txindex";
     argc++;
   }
 
