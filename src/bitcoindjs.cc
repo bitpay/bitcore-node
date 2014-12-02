@@ -212,6 +212,7 @@ NAN_METHOD(GetGenerate);
 NAN_METHOD(GetMiningInfo);
 NAN_METHOD(GetAddrTransactions);
 NAN_METHOD(GetBestBlock);
+NAN_METHOD(GetChainHeight);
 
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
@@ -473,6 +474,7 @@ struct async_addrtx_data {
   std::string err_msg;
   std::string addr;
   ctx_list *ctxs;
+  int64_t blockindex;
   Persistent<Function> callback;
 };
 
@@ -1966,24 +1968,46 @@ NAN_METHOD(GetAddrTransactions) {
   NanScope();
 
   if (args.Length() < 2
-      || !args[0]->IsString()
+      || (!args[0]->IsString() && !args[0]->IsObject())
       || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.getAddrTransactions(addr, callback)");
   }
 
-  String::Utf8Value addr_(args[0]->ToString());
+  std::string addr = "";
+  int64_t blockindex = -1;
+
+  if (args[0]->IsString()) {
+    String::Utf8Value addr_(args[0]->ToString());
+    addr = std::string(*addr_);
+  } else if (args[0]->IsObject()) {
+    Local<Object> options = Local<Object>::Cast(args[0]);
+    if (options->Get(NanNew<String>("address"))->IsString()) {
+      String::Utf8Value s_(options->Get(NanNew<String>("address"))->ToString());
+      addr = std::string(*s_);
+    }
+    if (options->Get(NanNew<String>("addr"))->IsString()) {
+      String::Utf8Value s_(options->Get(NanNew<String>("addr"))->ToString());
+      addr = std::string(*s_);
+    }
+    if (options->Get(NanNew<String>("index"))->IsString()) {
+      blockindex = options->Get(NanNew<String>("index"))->IntegerValue();
+    }
+    if (options->Get(NanNew<String>("blockindex"))->IsString()) {
+      blockindex = options->Get(NanNew<String>("blockindex"))->IntegerValue();
+    }
+  }
+
   Local<Function> callback = Local<Function>::Cast(args[1]);
 
   Persistent<Function> cb;
   cb = Persistent<Function>::New(callback);
 
-  std::string addr = std::string(*addr_);
-
   async_addrtx_data *data = new async_addrtx_data();
   data->err_msg = std::string("");
   data->addr = addr;
   data->ctxs = NULL;
+  data->blockindex = blockindex;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -2002,6 +2026,11 @@ static void
 async_get_addrtx(uv_work_t *req) {
   async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
 
+  if (data->addr.empty()) {
+    data->err_msg = std::string("Invalid address.");
+    return;
+  }
+
   CBitcoinAddress address = CBitcoinAddress(data->addr);
   if (!address.IsValid()) {
     data->err_msg = std::string("Invalid address.");
@@ -2011,10 +2040,16 @@ async_get_addrtx(uv_work_t *req) {
 #if !USE_LDB_ADDR
   CScript expected = GetScriptForDestination(address.Get());
 
-  // int64_t i = 0;
+  int64_t i = 0;
+
   // Check the last 20,000 blocks
-  int64_t i = chainActive.Height() - 20000;
-  if (i < 0) i = 0;
+  // int64_t i = chainActive.Height() - 20000;
+  // if (i < 0) i = 0;
+
+  if (data->blockindex != -1) {
+    i = data->blockindex;
+  }
+
   int64_t height = chainActive.Height();
 
   for (; i <= height; i++) {
@@ -2150,6 +2185,23 @@ NAN_METHOD(GetBestBlock) {
   uint256 hash = pcoinsTip->GetBestBlock();
 
   NanReturnValue(NanNew<String>(hash.GetHex()));
+}
+
+/**
+ * GetChainHeight()
+ * bitcoindjs.getChainHeight()
+ * Get miscellaneous information
+ */
+
+NAN_METHOD(GetChainHeight) {
+  NanScope();
+
+  if (args.Length() > 0) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getChainHeight()");
+  }
+
+  NanReturnValue(NanNew<Number>((int)chainActive.Height())->ToInt32());
 }
 
 /**
@@ -6179,6 +6231,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getMiningInfo", GetMiningInfo);
   NODE_SET_METHOD(target, "getAddrTransactions", GetAddrTransactions);
   NODE_SET_METHOD(target, "getBestBlock", GetBestBlock);
+  NODE_SET_METHOD(target, "getChainHeight", GetChainHeight);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
