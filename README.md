@@ -4,6 +4,25 @@ __bitcoind.js__ as a node.js module which dynamically loads a node.js C++
 modules which links to libbitcoind.so (bitcoind compiled as a shared library),
 making all useful bitcoind functions asynchronous.
 
+## Operating Systems to be bundled with libbitcoind.so
+
+You will not have to compile libbitcoind.so if you run one of these operating
+systems, but may need some of the runtime libraries such as boost.
+
+Arch Linux is the only OS currently supported. If you would like to be a
+maintainer of a certain OS, please contact me, although I'm not quite open to
+letting people I don't know maintain this library due to its importance.
+
+- Arch Linux
+- CentOS _(currently unsupported)_
+- Debian _(currently unsupported)_
+- Fedora _(currently unsupported)_
+- Linux Mint _(currently unsupported)_
+- Mac OSX _(currently unsupported)_
+- RHEL _(currently unsupported)_
+- openSUSE _(currently unsupported)_
+- Ubuntu _(currently unsupported)_
+
 ## Building
 
 ### bitcoind
@@ -12,8 +31,8 @@ Cloning libbitcoind:
 
 ``` bash
 $ cd ~
-$ git clone git@github.com:bitpay/libbitcoind.git bitcoin
-$ cd bitcoin
+$ git clone git://github.com/bitpay/bitcoin.git libbitcoind
+$ cd libbitcoind
 ```
 
 This is a fork of bitcoin v0.9.0 right now, but it has the ability to compile
@@ -32,6 +51,10 @@ bitcoind as a shared object. This may not be ideal yet.
 - LevelDB Header Files (included in bitcoin source repo, leveldb itself
   unnecessary, libbitcoind.so is already linked to them)
   - NOTE: These also are now included in the repo if they're not present.
+
+- Protobuf
+
+- secp256k1
 
 
 ``` bash
@@ -68,8 +91,8 @@ Without `--enable-daemonlib`, the Makefile with compile bitcoind with -fPIE
 ### bitcoind.js:
 
 ``` bash
-$ cd ~/work/node_modules/bitcoind.js
-$ BITCOIN_DIR=~/bitcoin BOOST_INCLUDE=/usr/include/boost PYTHON=/usr/bin/python2.7 make
+$ cd ~/node_modules/bitcoind.js
+$ BITCOIN_DIR=~/libbitcoind BOOST_INCLUDE=/usr/include/boost PYTHON=/usr/bin/python2.7 make
 ```
 
 #### Running bitcoind.js
