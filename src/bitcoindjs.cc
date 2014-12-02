@@ -187,7 +187,7 @@ using namespace v8;
 #define EMPTY ("\\x01")
 
 // LevelDB options
-#define USE_LDB_ADDR 1
+#define USE_LDB_ADDR 0
 
 /**
  * Node.js Exposed Function Templates
@@ -5891,13 +5891,18 @@ read_addr(const std::string addr) {
       CDataStream ssKey(slKey.data(), slKey.data()+slKey.size(), SER_DISK, CLIENT_VERSION);
       char type;
       ssKey >> type;
-      if (type == 'b') {
       //if (slKey.ToString().c_str()[0] == 'b') {
+      if (type == 'b') {
         leveldb::Slice slValue = pcursor->value();
-        //CDataStream ssValue(ParseHex(slValue.ToString()), SER_DISK, CLIENT_VERSION);
-        //CDataStream ssValue(ParseHex(slValue.ToString()), SER_NETWORK, PROTOCOL_VERSION);
+
+        // correct:
         CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
         //CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_NETWORK, PROTOCOL_VERSION);
+
+        //std::vector<unsigned char> blockData(ParseHex(slValue.ToString()));
+        //CDataStream ssValue(blockData, SER_DISK, CLIENT_VERSION);
+        //CDataStream ssValue(blockData, SER_NETWORK, PROTOCOL_VERSION);
+
         uint256 blockhash;
         ssKey >> blockhash;
         CBlock cblock;
