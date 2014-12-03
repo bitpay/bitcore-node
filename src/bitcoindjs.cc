@@ -2259,6 +2259,9 @@ NAN_METHOD(GetBlockByTime) {
 
   async_block_time_data *data = new async_block_time_data();
 
+  data->gte = 0;
+  data->lte = 0;
+
   uv_work_t *req = new uv_work_t();
   req->data = data;
 
@@ -2286,6 +2289,10 @@ NAN_METHOD(GetBlockByTime) {
 static void
 async_block_time(uv_work_t *req) {
   async_block_time_data* data = static_cast<async_block_time_data*>(req->data);
+  if (!data->gte && !data->lte) {
+    data->err_msg = std::string("gte and lte not found.");
+    return;
+  }
   int64_t i = 0;
   // XXX Slow: figure out how to ballpark the height based on gte and lte.
   int64_t height = chainActive.Height();
