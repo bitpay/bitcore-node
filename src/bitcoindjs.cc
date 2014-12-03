@@ -6167,6 +6167,7 @@ read_addr(const std::string addr) {
           }
         }
       }
+
 found:
       pcursor->Next();
     } catch (std::exception &e) {
@@ -6195,8 +6196,6 @@ error:
 
 static bool
 get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index) {
-  bool found = false;
-
   leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
 
   pcursor->SeekToFirst();
@@ -6211,13 +6210,6 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
       char type;
       ssKey >> type;
 
-      // Blockchain Index Structure:
-      // http://bitcoin.stackexchange.com/questions/28168
-
-      // Transaction Structure:
-      //   CDiskBlockPos.nFile - block file
-      //   CDiskBlockPos.nPos - block pos
-      //   CDiskTxPos.nTxOffset - offset from top of block
       if (type == 't') {
         uint256 txhash;
         ssKey >> txhash;
@@ -6241,7 +6233,7 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
           uint256 blockhash;
 
           if (!pblocktree->ReadTxIndex(txhash, txPos)) {
-            goto found;
+            goto error;
           }
 
           CAutoFile file(OpenBlockFile(txPos, true), SER_DISK, CLIENT_VERSION);
@@ -6251,10 +6243,10 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
             fseek(file.Get(), txPos.nTxOffset, SEEK_CUR);
             file >> ctx;
           } catch (std::exception &e) {
-            goto ret;
+            goto error;
           }
           if (ctx.GetHash() != txhash) {
-            goto ret;
+            goto error;
           }
           blockhash = header.GetHash();
 
@@ -6262,28 +6254,24 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
 
           if (ReadBlockFromDisk(rcblock, pblockindex)) {
             *rcblock_index = pblockindex;
-            found = true;
+            delete pcursor;
+            return true;
           }
 
-          goto ret;
+          goto error;
         }
       }
-found:
+
       pcursor->Next();
     } catch (std::exception &e) {
-      leveldb::Slice lastKey = pcursor->key();
-      std::string lastKeyHex = HexStr(lastKey.ToString());
-      head->err_msg = std::string(e.what()
-        + std::string(" : Not found. Key: ")
-        + lastKeyHex);
       delete pcursor;
-      return found;
+      return false;
     }
   }
 
-ret:
+error:
   delete pcursor;
-  return found;
+  return false;
 }
 
 static int64_t
