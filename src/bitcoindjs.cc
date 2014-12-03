@@ -2114,7 +2114,7 @@ NAN_METHOD(GetChainHeight) {
 /**
  * GetBlockByTx()
  * bitcoindjs.getBlockByTx()
- * Get block by tx hash (requires -txindex)
+ * Get block by tx hash (requires -txindex or it's very slow)
  */
 
 NAN_METHOD(GetBlockByTx) {
@@ -2132,10 +2132,10 @@ NAN_METHOD(GetBlockByTx) {
   uv_work_t *req = new uv_work_t();
   req->data = data;
 
-  String::Utf8Value hash_(args[0]->ToString());
-  std::string hash = std::string(*hash_);
+  String::Utf8Value txid_(args[0]->ToString());
+  std::string txid = std::string(*txid_);
   data->err_msg = std::string("");
-  data->txid = hash;
+  data->txid = txid;
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
   data->callback = Persistent<Function>::New(callback);
