@@ -198,7 +198,7 @@ NAN_METHOD(IsStopping);
 NAN_METHOD(IsStopped);
 NAN_METHOD(StopBitcoind);
 NAN_METHOD(GetBlock);
-NAN_METHOD(GetTx);
+NAN_METHOD(GetTransaction);
 NAN_METHOD(BroadcastTx);
 NAN_METHOD(VerifyBlock);
 NAN_METHOD(VerifyTransaction);
@@ -1050,12 +1050,12 @@ async_get_block_after(uv_work_t *req) {
 }
 
 /**
- * GetTx()
+ * GetTransaction()
  * bitcoind.getTx(txHash, [blockHash], callback)
  * Read any transaction from disk asynchronously.
  */
 
-NAN_METHOD(GetTx) {
+NAN_METHOD(GetTransaction) {
   NanScope();
 
   if (args.Length() < 3
@@ -6082,7 +6082,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "stopping", IsStopping);
   NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
-  NODE_SET_METHOD(target, "getTx", GetTx);
+  NODE_SET_METHOD(target, "getTx", GetTransaction);
   NODE_SET_METHOD(target, "broadcastTx", BroadcastTx);
   NODE_SET_METHOD(target, "verifyBlock", VerifyBlock);
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
