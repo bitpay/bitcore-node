@@ -1051,7 +1051,7 @@ async_get_block_after(uv_work_t *req) {
 
 /**
  * GetTransaction()
- * bitcoind.getTx(txHash, [blockHash], callback)
+ * bitcoind.getTransaction(txHash, [blockHash], callback)
  * Read any transaction from disk asynchronously.
  */
 
@@ -1063,7 +1063,7 @@ NAN_METHOD(GetTransaction) {
       || !args[1]->IsString()
       || !args[2]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getTx(txHash, [blockHash], callback)");
+      "Usage: bitcoindjs.getTransaction(txHash, [blockHash], callback)");
   }
 
   String::Utf8Value txHash_(args[0]->ToString());
@@ -6082,7 +6082,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "stopping", IsStopping);
   NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
-  NODE_SET_METHOD(target, "getTx", GetTransaction);
+  NODE_SET_METHOD(target, "getTransaction", GetTransaction);
   NODE_SET_METHOD(target, "broadcastTx", BroadcastTx);
   NODE_SET_METHOD(target, "verifyBlock", VerifyBlock);
   NODE_SET_METHOD(target, "verifyTransaction", VerifyTransaction);
