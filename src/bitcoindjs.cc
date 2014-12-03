@@ -187,7 +187,7 @@ using namespace v8;
 #define EMPTY ("\\x01")
 
 // LevelDB options
-#define USE_LDB_ADDR 0
+#define USE_LDB_ADDR 1
 
 /**
  * Node.js Exposed Function Templates
@@ -6123,6 +6123,9 @@ read_addr(const std::string addr) {
 
       // Block Structure:
       //   CBlockHeader - headers
+      //   nHeight
+      //   nTx
+      //   validation state
       //   CDiskBlockPos - block file and pos
       //   CDiskBlockPos - undo file and pos
       if (type == 'b') {
@@ -6136,12 +6139,33 @@ read_addr(const std::string addr) {
         CBlockHeader header;
         ssValue >> header;
 
-        // XXX This is not being parsed right. Check math/logic.
+        int nHeight;
+        ssValue >> nHeight;
+
+        unsigned int nTx;
+        ssValue >> nTx;
+
+        /*
+        class CValidationState {
+          enum mode_state {
+            MODE_VALID,   // everything ok
+            MODE_INVALID, // network rule violation (DoS value may be set)
+            MODE_ERROR,   // run-time error
+          } mode;
+          int nDoS;
+          std::string strRejectReason;
+          unsigned char chRejectCode;
+          bool corruptionPossible;
+        }
+        */
+        CValidationState valid;
+        ssValue >> valid;
+
         CDiskBlockPos blockPos;
         ssValue >> blockPos;
 
-        // CDiskBlockPos undoPos;
-        // ssValue >> undoPos;
+        CDiskBlockPos undoPos;
+        ssValue >> undoPos;
 
         CBlock cblock;
 
