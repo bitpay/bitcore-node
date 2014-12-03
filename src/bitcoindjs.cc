@@ -6214,16 +6214,19 @@ read_addr(const std::string addr) {
         uint256 txhash;
         ssKey >> txhash;
 
-        CDiskBlockPos blockPos;
-        ssValue >> blockPos.nFile;
-        ssValue >> blockPos.nPos;
+        // CDiskBlockPos blockPos;
+        // ssValue >> blockPos.nFile;
+        // ssValue >> blockPos.nPos;
+
+        // CDiskTxPos txPos;
+        // // ssValue >> txPos.nFile;
+        // // ssValue >> txPos.nPos;
+        // txPos.nFile = blockPos.nFile;
+        // txPos.nPos = blockPos.nPos;
+        // ssValue >> txPos.nTxOffset;
 
         CDiskTxPos txPos;
-        // ssValue >> txPos.nFile;
-        // ssValue >> txPos.nPos;
-        txPos.nFile = blockPos.nFile;
-        txPos.nPos = blockPos.nPos;
-        ssValue >> txPos.nTxOffset;
+        ssValue >> txPos;
 
         CTransaction ctx;
         uint256 blockhash;
