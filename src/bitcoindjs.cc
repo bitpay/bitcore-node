@@ -2264,10 +2264,10 @@ NAN_METHOD(GetBlockByTime) {
 
   Local<Object> options = Local<Object>::Cast(args[0]);
   if (options->Get(NanNew<String>("gte"))->IsNumber()) {
-    data->gte = options->Get(NanNew<String>("gte"))->ToUint32();
+    data->gte = options->Get(NanNew<String>("gte"))->IntegerValue();
   }
   if (options->Get(NanNew<String>("lte"))->IsNumber()) {
-    data->lte = options->Get(NanNew<String>("lte"))->ToUint32();
+    data->lte = options->Get(NanNew<String>("lte"))->IntegerValue();
   }
   data->err_msg = std::string("");
 
@@ -2286,8 +2286,6 @@ NAN_METHOD(GetBlockByTime) {
 static void
 async_block_time(uv_work_t *req) {
   async_block_time_data* data = static_cast<async_block_time_data*>(req->data);
-  CBlock cblock;
-  CBlockIndex *cblock_index;
   int64_t i = 0;
   // XXX Slow: figure out how to ballpark the height based on gte and lte.
   int64_t height = chainActive.Height();
