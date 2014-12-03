@@ -213,6 +213,7 @@ NAN_METHOD(GetMiningInfo);
 NAN_METHOD(GetAddrTransactions);
 NAN_METHOD(GetBestBlock);
 NAN_METHOD(GetChainHeight);
+NAN_METHOD(GetBlockByTx);
 
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
@@ -344,6 +345,12 @@ async_rescan(uv_work_t *req);
 static void
 async_rescan_after(uv_work_t *req);
 
+static void
+async_block_tx(uv_work_t *req);
+
+static void
+async_block_tx_after(uv_work_t *req);
+
 static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
 
@@ -442,6 +449,18 @@ struct async_tx_data {
   std::string txHash;
   std::string blockHash;
   CTransaction ctx;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_block_tx_data
+ */
+
+struct async_block_tx_data {
+  std::string err_msg;
+  std::string txid;
+  CBlock cblock;
+  CBlockIndex* cblock_index;
   Persistent<Function> callback;
 };
 
@@ -552,6 +571,9 @@ struct async_rescan_data {
 static ctx_list *
 read_addr(const std::string addr);
 #endif
+
+static bool
+get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index);
 
 /**
  * Functions
@@ -2087,6 +2109,116 @@ NAN_METHOD(GetChainHeight) {
   }
 
   NanReturnValue(NanNew<Number>((int)chainActive.Height())->ToInt32());
+}
+
+/**
+ * GetBlockByTx()
+ * bitcoindjs.getBlockByTx()
+ * Get block by tx hash (requires -txindex)
+ */
+
+NAN_METHOD(GetBlockByTx) {
+  NanScope();
+
+  if (args.Length() < 2
+      || !args[0]->IsString()
+      || !args[1]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getBlockByTx(txid, callback)");
+  }
+
+  async_block_tx_data *data = new async_block_tx_data();
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  String::Utf8Value hash_(args[0]->ToString());
+  std::string hash = std::string(*hash_);
+  data->err_msg = std::string("");
+  data->txid = hash;
+
+  Local<Function> callback = Local<Function>::Cast(args[1]);
+  data->callback = Persistent<Function>::New(callback);
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_block_tx,
+    (uv_after_work_cb)async_block_tx_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_block_tx(uv_work_t *req) {
+  async_block_tx_data* data = static_cast<async_block_tx_data*>(req->data);
+  CBlock cblock;
+  CBlockIndex *cblock_index;
+  if (!g_txindex) {
+parse:
+    int64_t i = 0;
+    int64_t height = chainActive.Height();
+    for (; i <= height; i++) {
+      CBlockIndex* pblockindex = chainActive[i];
+      CBlock cblock;
+      if (ReadBlockFromDisk(cblock, pblockindex)) {
+        BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
+          if (ctx.GetHash().GetHex() == data->txid) {
+            data->cblock = cblock;
+            data->cblock_index = pblockindex;
+            return;
+          }
+        }
+      }
+    }
+    data->err_msg = std::string("Block not found.");
+    return;
+  }
+  if (get_block_by_tx(data->txid, cblock, &cblock_index)) {
+    data->cblock = cblock;
+    data->cblock_index = cblock_index;
+  } else {
+    goto parse;
+  }
+}
+
+static void
+async_block_tx_after(uv_work_t *req) {
+  NanScope();
+  async_block_tx_data* data = static_cast<async_block_tx_data*>(req->data);
+
+  if (data->err_msg != "") {
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const CBlock& cblock = data->cblock;
+    CBlockIndex* cblock_index = data->cblock_index;
+
+    Local<Object> jsblock = NanNew<Object>();
+    cblock_to_jsblock(cblock, cblock_index, jsblock, false);
+
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(jsblock)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
 }
 
 /**
@@ -6051,17 +6183,108 @@ found:
   }
 
   delete pcursor;
-
   return head;
 
 error:
   head->err_msg = std::string("Deserialize Error.");
 
   delete pcursor;
-
   return head;
 }
 #endif
+
+static bool
+get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index) {
+  bool found = false;
+
+  leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
+
+  pcursor->SeekToFirst();
+
+  while (pcursor->Valid()) {
+    boost::this_thread::interruption_point();
+    try {
+      leveldb::Slice slKey = pcursor->key();
+
+      CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
+
+      char type;
+      ssKey >> type;
+
+      // Blockchain Index Structure:
+      // http://bitcoin.stackexchange.com/questions/28168
+
+      // Transaction Structure:
+      //   CDiskBlockPos.nFile - block file
+      //   CDiskBlockPos.nPos - block pos
+      //   CDiskTxPos.nTxOffset - offset from top of block
+      if (type == 't') {
+        uint256 txhash;
+        ssKey >> txhash;
+        if (txhash.GetHex() == itxhash) {
+          leveldb::Slice slValue = pcursor->value();
+
+          CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+
+          CDiskBlockPos blockPos;
+          ssValue >> blockPos.nFile;
+          ssValue >> blockPos.nPos;
+
+          CDiskTxPos txPos;
+          // ssValue >> txPos.nFile;
+          // ssValue >> txPos.nPos;
+          txPos.nFile = blockPos.nFile;
+          txPos.nPos = blockPos.nPos;
+          ssValue >> txPos.nTxOffset;
+
+          CTransaction ctx;
+          uint256 blockhash;
+
+          if (!pblocktree->ReadTxIndex(txhash, txPos)) {
+            goto found;
+          }
+
+          CAutoFile file(OpenBlockFile(txPos, true), SER_DISK, CLIENT_VERSION);
+          CBlockHeader header;
+          try {
+            file >> header;
+            fseek(file.Get(), txPos.nTxOffset, SEEK_CUR);
+            file >> ctx;
+          } catch (std::exception &e) {
+            goto ret;
+          }
+          if (ctx.GetHash() != txhash) {
+            goto ret;
+          }
+          blockhash = header.GetHash();
+
+          CBlockIndex* pblockindex = mapBlockIndex[blockhash];
+
+          if (ReadBlockFromDisk(rcblock, pblockindex)) {
+            *rcblock_index = pblockindex;
+            found = true;
+          }
+
+          goto ret;
+        }
+      }
+found:
+      pcursor->Next();
+    } catch (std::exception &e) {
+      leveldb::Slice lastKey = pcursor->key();
+      std::string lastKeyHex = HexStr(lastKey.ToString());
+      head->err_msg = std::string(e.what()
+        + std::string(" : Not found. Key: ")
+        + lastKeyHex);
+      delete pcursor;
+      return found;
+    }
+  }
+
+ret:
+  delete pcursor;
+  return found;
+}
 
 static int64_t
 SatoshiFromAmount(const CAmount& amount) {
@@ -6100,6 +6323,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getAddrTransactions", GetAddrTransactions);
   NODE_SET_METHOD(target, "getBestBlock", GetBestBlock);
   NODE_SET_METHOD(target, "getChainHeight", GetChainHeight);
+  NODE_SET_METHOD(target, "getBlockByTx", GetBlockByTx);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
