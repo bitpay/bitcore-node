@@ -589,7 +589,7 @@ struct async_rescan_data {
 
 #if USE_LDB_ADDR
 static ctx_list *
-read_addr(const std::string addr);
+read_addr(const std::string addr, const int64_t blockindex);
 #endif
 
 static bool
@@ -2036,7 +2036,7 @@ done:
   }
   return;
 #else
-  ctx_list *ctxs = read_addr(data->addr);
+  ctx_list *ctxs = read_addr(data->addr, data->blockindex);
   if (!ctxs->err_msg.empty()) {
     data->err_msg = ctxs->err_msg;
     return;
@@ -6068,9 +6068,12 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 
 #if USE_LDB_ADDR
 static ctx_list *
-read_addr(const std::string addr) {
+read_addr(const std::string addr, const int64_t blockindex) {
   ctx_list *head = new ctx_list();
   ctx_list *cur = NULL;
+
+  // XXX Do something with this:
+  // blockindex
 
   head->err_msg = std::string("");
 
@@ -6078,6 +6081,7 @@ read_addr(const std::string addr) {
 
   leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
 
+  // Seek to blockindex:
   pcursor->SeekToFirst();
 
   while (pcursor->Valid()) {
@@ -6142,9 +6146,15 @@ read_addr(const std::string addr) {
         CBlockHeader header;
         ssValue >> header;
 
+        // XXX nHeight is incorrect:
         int nHeight;
+        //unsigned int nHeight;
         //int64_t nHeight;
         ssValue >> nHeight;
+        //printf("%u\n", nHeight);
+        //if (nHeight != blockindex) {
+        //  goto found;
+        //}
 
         unsigned int nTx;
         ssValue >> nTx;
