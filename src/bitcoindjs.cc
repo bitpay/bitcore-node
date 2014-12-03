@@ -6347,16 +6347,19 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
 
           CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
 
-          CDiskBlockPos blockPos;
-          ssValue >> blockPos.nFile;
-          ssValue >> blockPos.nPos;
+          // CDiskBlockPos blockPos;
+          // ssValue >> blockPos.nFile;
+          // ssValue >> blockPos.nPos;
+
+          // CDiskTxPos txPos;
+          // // ssValue >> txPos.nFile;
+          // // ssValue >> txPos.nPos;
+          // txPos.nFile = blockPos.nFile;
+          // txPos.nPos = blockPos.nPos;
+          // ssValue >> txPos.nTxOffset;
 
           CDiskTxPos txPos;
-          // ssValue >> txPos.nFile;
-          // ssValue >> txPos.nPos;
-          txPos.nFile = blockPos.nFile;
-          txPos.nPos = blockPos.nPos;
-          ssValue >> txPos.nTxOffset;
+          ssValue >> txPos;
 
           CTransaction ctx;
           uint256 blockhash;
