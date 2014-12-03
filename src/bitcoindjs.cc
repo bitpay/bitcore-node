@@ -6140,6 +6140,7 @@ read_addr(const std::string addr) {
         ssValue >> header;
 
         int nHeight;
+        //int64_t nHeight;
         ssValue >> nHeight;
 
         unsigned int nTx;
@@ -6158,8 +6159,26 @@ read_addr(const std::string addr) {
           bool corruptionPossible;
         }
         */
-        CValidationState valid;
-        ssValue >> valid;
+        // CValidationState valid;
+        // ssValue >> valid;
+
+        //int nDoS;
+        //ssValue >> nDoS;
+
+        //unsigned char chRejectCode;
+        //ssValue >> chRejectCode;
+
+        enum foo { a, b };
+        if (sizeof(a) == sizeof(int)) {
+          int valid;
+          ssValue >> valid;
+        } else if (sizeof(a) == sizeof(char)) {
+          char valid;
+          ssValue >> valid;
+        }
+
+        // bool isValid;
+        // ssValue >> isValid;
 
         CDiskBlockPos blockPos;
         ssValue >> blockPos;
