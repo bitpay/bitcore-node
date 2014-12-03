@@ -6136,6 +6136,9 @@ read_addr(const std::string addr) {
         uint256 blockhash;
         ssKey >> blockhash;
 
+        //CMerkleBlock b;
+        //ssValue >> b;
+
         CBlockHeader header;
         ssValue >> header;
 
@@ -6146,19 +6149,17 @@ read_addr(const std::string addr) {
         unsigned int nTx;
         ssValue >> nTx;
 
-        /*
-        class CValidationState {
-          enum mode_state {
-            MODE_VALID,   // everything ok
-            MODE_INVALID, // network rule violation (DoS value may be set)
-            MODE_ERROR,   // run-time error
-          } mode;
-          int nDoS;
-          std::string strRejectReason;
-          unsigned char chRejectCode;
-          bool corruptionPossible;
-        }
-        */
+        //class CValidationState {
+        //  enum mode_state {
+        //    MODE_VALID,   // everything ok
+        //    MODE_INVALID, // network rule violation (DoS value may be set)
+        //    MODE_ERROR,   // run-time error
+        //  } mode;
+        //  int nDoS;
+        //  std::string strRejectReason;
+        //  unsigned char chRejectCode;
+        //  bool corruptionPossible;
+        //}
         // CValidationState valid;
         // ssValue >> valid;
 
