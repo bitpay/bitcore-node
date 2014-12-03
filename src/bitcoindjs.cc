@@ -214,6 +214,7 @@ NAN_METHOD(GetAddrTransactions);
 NAN_METHOD(GetBestBlock);
 NAN_METHOD(GetChainHeight);
 NAN_METHOD(GetBlockByTx);
+NAN_METHOD(GetBlockByTime);
 
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
@@ -351,6 +352,12 @@ async_block_tx(uv_work_t *req);
 static void
 async_block_tx_after(uv_work_t *req);
 
+static void
+async_block_time(uv_work_t *req);
+
+static void
+async_block_time_after(uv_work_t *req);
+
 static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
 
@@ -459,6 +466,19 @@ struct async_tx_data {
 struct async_block_tx_data {
   std::string err_msg;
   std::string txid;
+  CBlock cblock;
+  CBlockIndex* cblock_index;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_block_time_data
+ */
+
+struct async_block_time_data {
+  std::string err_msg;
+  uint32_t gte;
+  uint32_t lte;
   CBlock cblock;
   CBlockIndex* cblock_index;
   Persistent<Function> callback;
@@ -2186,6 +2206,110 @@ static void
 async_block_tx_after(uv_work_t *req) {
   NanScope();
   async_block_tx_data* data = static_cast<async_block_tx_data*>(req->data);
+
+  if (data->err_msg != "") {
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const CBlock& cblock = data->cblock;
+    CBlockIndex* cblock_index = data->cblock_index;
+
+    Local<Object> jsblock = NanNew<Object>();
+    cblock_to_jsblock(cblock, cblock_index, jsblock, false);
+
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(jsblock)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+/**
+ * GetBlockByTime()
+ * bitcoindjs.getBlockByTime()
+ * Get block by tx hash (requires -txindex or it's very slow)
+ */
+
+NAN_METHOD(GetBlockByTime) {
+  NanScope();
+
+  if (args.Length() < 2
+      || !args[0]->IsString()
+      || !args[1]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getBlockByTime(options, callback)");
+  }
+
+  async_block_time_data *data = new async_block_time_data();
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  if (options->Get(NanNew<String>("gte"))->IsNumber()) {
+    data->gte = options->Get(NanNew<String>("gte"))->ToUint32();
+  }
+  if (options->Get(NanNew<String>("lte"))->IsNumber()) {
+    data->lte = options->Get(NanNew<String>("lte"))->ToUint32();
+  }
+  data->err_msg = std::string("");
+
+  Local<Function> callback = Local<Function>::Cast(args[1]);
+  data->callback = Persistent<Function>::New(callback);
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_block_time,
+    (uv_after_work_cb)async_block_time_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_block_time(uv_work_t *req) {
+  async_block_time_data* data = static_cast<async_block_time_data*>(req->data);
+  CBlock cblock;
+  CBlockIndex *cblock_index;
+  int64_t i = 0;
+  // XXX Slow: figure out how to ballpark the height based on gte and lte.
+  int64_t height = chainActive.Height();
+  for (; i <= height; i++) {
+    CBlockIndex* pblockindex = chainActive[i];
+    CBlock cblock;
+    if (ReadBlockFromDisk(cblock, pblockindex)) {
+      uint32_t blocktime = cblock.GetBlockTime();
+      if (blocktime >= data->gte && blocktime <= data->lte) {
+        data->cblock = cblock;
+        data->cblock_index = pblockindex;
+        return;
+      }
+    }
+  }
+  data->err_msg = std::string("Block not found.");
+}
+
+static void
+async_block_time_after(uv_work_t *req) {
+  NanScope();
+  async_block_time_data* data = static_cast<async_block_time_data*>(req->data);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -6312,6 +6436,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getBestBlock", GetBestBlock);
   NODE_SET_METHOD(target, "getChainHeight", GetChainHeight);
   NODE_SET_METHOD(target, "getBlockByTx", GetBlockByTx);
+  NODE_SET_METHOD(target, "getBlockByTime", GetBlockByTime);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
