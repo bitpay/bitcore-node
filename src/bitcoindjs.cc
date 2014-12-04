@@ -215,6 +215,7 @@ NAN_METHOD(GetBestBlock);
 NAN_METHOD(GetChainHeight);
 NAN_METHOD(GetBlockByTx);
 NAN_METHOD(GetBlocksByTime);
+NAN_METHOD(GetLastFileIndex);
 
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
@@ -2379,6 +2380,26 @@ async_block_time_after(uv_work_t *req) {
 
   delete data;
   delete req;
+}
+
+/**
+ * GetLastFileIndex()
+ * bitcoindjs.getLastFileIndex()
+ * Get last file index
+ */
+
+NAN_METHOD(GetLastFileIndex) {
+  NanScope();
+
+  if (args.Length() > 0) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getLastFileIndex(callback)");
+  }
+
+  CBlockIndex *pindex = chainActive.Tip();
+  CDiskBlockPos blockPos = pindex->GetBlockPos();
+
+  NanReturnValue(NanNew<Number>(blockPos.nFile));
 }
 
 /**
@@ -6494,6 +6515,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getChainHeight", GetChainHeight);
   NODE_SET_METHOD(target, "getBlockByTx", GetBlockByTx);
   NODE_SET_METHOD(target, "getBlocksByTime", GetBlocksByTime);
+  NODE_SET_METHOD(target, "getLastFileIndex", GetLastFileIndex);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
