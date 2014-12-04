@@ -6104,25 +6104,25 @@ read_addr(const std::string addr, const int64_t blockindex) {
       //   Low and high heights of blocks stored in file
       //   Low and high timestamps of blocks stored in file
       if (type == 'f') {
-        goto found;
+        goto next;
       }
 
       // Last block file number used structure (Key: no key)
       //   4-byte file number
       if (type == 'l') {
-        goto found;
+        goto next;
       }
 
       // Reindexing structure (Key: no key)
       //   1-byte Boolean (1 if reindexing)
       if (type == 'R') {
-        goto found;
+        goto next;
       }
 
       // Flags structure (Key: 1-byte flag name + flag name string)
       //   1-byte Boolean (key may be `txindex` if transaction index is enabled)
       if (type == 'F') {
-        goto found;
+        goto next;
       }
 
       // Block Structure:
@@ -6147,14 +6147,14 @@ read_addr(const std::string addr, const int64_t blockindex) {
         blockPos.nFile = index.nFile;
         blockPos.nPos = index.nDataPos;
 
-        if (index.nHeight != blockindex) {
-          goto found;
+        if (index.nHeight < blockindex) {
+          goto next;
         }
 
         CBlock cblock;
 
         if (!ReadBlockFromDisk(cblock, blockPos)) {
-          goto found;
+          goto next;
         }
 
         BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
@@ -6175,7 +6175,7 @@ read_addr(const std::string addr, const int64_t blockindex) {
               cur->next = item;
               cur = item;
             }
-            goto found;
+            goto next;
           }
 
           for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
@@ -6204,7 +6204,7 @@ read_addr(const std::string addr, const int64_t blockindex) {
                 cur->next = item;
                 cur = item;
               }
-              goto found;
+              goto next;
             }
           }
         }
@@ -6240,7 +6240,7 @@ read_addr(const std::string addr, const int64_t blockindex) {
         uint256 blockhash;
 
         if (!pblocktree->ReadTxIndex(txhash, txPos)) {
-          goto found;
+          goto next;
         }
 
         CAutoFile file(OpenBlockFile(txPos, true), SER_DISK, CLIENT_VERSION);
@@ -6274,7 +6274,7 @@ read_addr(const std::string addr, const int64_t blockindex) {
             cur->next = item;
             cur = item;
           }
-          goto found;
+          goto next;
         }
 
         for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
@@ -6303,12 +6303,12 @@ read_addr(const std::string addr, const int64_t blockindex) {
               cur->next = item;
               cur = item;
             }
-            goto found;
+            goto next;
           }
         }
       }
 
-found:
+next:
       pcursor->Next();
     } catch (std::exception &e) {
       pcursor->Next();
