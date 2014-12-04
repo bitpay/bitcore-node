@@ -6143,29 +6143,13 @@ read_addr(const std::string addr, const int64_t blockindex) {
         CDiskBlockIndex index;
         ssValue >> index;
 
-        CBlockHeader header;
-        header.nVersion = index.nVersion;
-        header.hashPrevBlock = index.hashPrev;
-        header.hashMerkleRoot = index.hashMerkleRoot;
-        header.nTime = index.nTime;
-        header.nBits = index.nBits;
-        header.nNonce = index.nNonce;
-
-        printf("hash: %s\n", header.GetHash().GetHex().c_str());
-        printf("rhash: %s\n", blockhash.GetHex().c_str());
-
         CDiskBlockPos blockPos;
         blockPos.nFile = index.nFile;
         blockPos.nPos = index.nDataPos;
 
-        CDiskBlockPos undoPos;
-        blockPos.nFile = index.nFile;
-        blockPos.nPos = index.nUndoPos;
-
-        printf("nHeight: %u\n", index.nHeight);
-        //if (nHeight != blockindex) {
-        //  goto found;
-        //}
+        if (index.nHeight != blockindex) {
+          goto found;
+        }
 
         CBlock cblock;
 
