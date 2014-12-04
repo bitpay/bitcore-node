@@ -822,19 +822,12 @@ start_node_thread(void) {
       return;
     }
 
-    // mapArgs["-datadir"] = g_data_dir;
-    // mapArgs["-server"] = g_rpc ? "1" : "0";
-    // mapArgs["-testnet"] = g_testnet ? "1" : "0";
-
     if (!SelectParamsFromCommandLine()) {
       fprintf(stderr,
         "bitcoind.js: Invalid combination of -regtest and -testnet.\n");
       return;
     }
 
-    // XXX Potentially add an option for this.
-    // This is probably a good idea if people try to start bitcoind while
-    // running a program which links to libbitcoind.so, but disable it for now.
     CreatePidFile(GetPidFile(), getpid());
 
     detectShutdownThread = new boost::thread(
