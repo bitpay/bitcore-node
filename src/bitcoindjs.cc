@@ -6140,22 +6140,60 @@ read_addr(const std::string addr, const int64_t blockindex) {
         uint256 blockhash;
         ssKey >> blockhash;
 
-        //CMerkleBlock b;
-        //ssValue >> b;
+        CDiskBlockIndex index;
+        ssValue >> index;
 
         CBlockHeader header;
-        ssValue >> header;
+        header.nVersion = index.nVersion;
+        header.hashPrevBlock = index.hashPrev;
+        header.hashMerkleRoot = index.hashMerkleRoot;
+        header.nTime = index.nTime;
+        header.nBits = index.nBits;
+        header.nNonce = index.nNonce;
 
-        // XXX nHeight is incorrect:
-        int nHeight;
-        //unsigned int nHeight;
-        //int64_t nHeight;
-        ssValue >> nHeight;
-        //printf("%u\n", nHeight);
+        printf("hash: %s\n", header.GetHash().GetHex().c_str());
+        printf("rhash: %s\n", blockhash.GetHex().c_str());
+
+        CDiskBlockPos blockPos;
+        blockPos.nFile = index.nFile;
+        blockPos.nPos = index.nDataPos;
+
+        CDiskBlockPos undoPos;
+        blockPos.nFile = index.nFile;
+        blockPos.nPos = index.nUndoPos;
+
+        printf("nHeight: %u\n", index.nHeight);
         //if (nHeight != blockindex) {
         //  goto found;
         //}
 
+#if 0
+        //string strHex = HexStr(ssValue.begin(), ssValue.end());
+        //printf("%lu\n", strHex.length() / 2);
+        //printf("%s\n", strHex.c_str());
+
+        // total is 97
+        // first 17 bytes are before header version
+        // header is 80 bytes, 84 with constant
+        CBlockHeader header;
+        ssValue >> header;
+        printf("hash: %s\n", header.GetHash().GetHex().c_str());
+        //printf("nVersion: %u\n", header.nVersion);
+        //printf("hashPrevBlock: %s\n", header.hashPrevBlock.GetHex().c_str());
+        //printf("hashMerkleRoot: %s\n", header.hashMerkleRoot.GetHex().c_str()t);
+        //printf("nTime: %u\n", header.nTime);
+        //printf("nBits: %u\n", header.nBits);
+        //printf("nNonce: %u\n", header.nNonce);
+
+        // 84
+        unsigned int nHeight;
+        ssValue >> nHeight;
+        //printf("nHeight: %u\n", nHeight);
+        //if (nHeight != blockindex) {
+        //  goto found;
+        //}
+
+        // 88
         unsigned int nTx;
         ssValue >> nTx;
 
@@ -6179,23 +6217,29 @@ read_addr(const std::string addr, const int64_t blockindex) {
         //unsigned char chRejectCode;
         //ssValue >> chRejectCode;
 
-        enum foo { a, b };
-        if (sizeof(a) == sizeof(int)) {
-          int valid;
-          ssValue >> valid;
-        } else if (sizeof(a) == sizeof(char)) {
-          char valid;
-          ssValue >> valid;
-        }
+        // 92/89
+        unsigned char valid;
+        ssValue >> valid;
+        // enum foo { a, b };
+        // if (sizeof(a) == sizeof(int)) {
+        //   int valid;
+        //   ssValue >> valid;
+        // } else if (sizeof(a) == sizeof(char)) {
+        //   char valid;
+        //   ssValue >> valid;
+        // }
 
         // bool isValid;
         // ssValue >> isValid;
 
+        // 100/97
         CDiskBlockPos blockPos;
         ssValue >> blockPos;
 
-        CDiskBlockPos undoPos;
-        ssValue >> undoPos;
+        // 108/114
+        // CDiskBlockPos undoPos;
+        // ssValue >> undoPos;
+#endif
 
         CBlock cblock;
 
