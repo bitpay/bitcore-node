@@ -401,6 +401,9 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
 static int64_t
 SatoshiFromAmount(const CAmount& amount);
 
+static int
+get_tx(uint256 txid, uint256 blockhash, CTransaction& ctx);
+
 extern "C" void
 init(Handle<Object>);
 
@@ -1118,8 +1121,7 @@ NAN_METHOD(GetTransaction) {
   std::string blockHash = std::string(*blockHash_);
 
   if (blockHash == "") {
-    blockHash = std::string(
-      "0000000000000000000000000000000000000000000000000000000000000000");
+    blockHash = uint256(0).GetHex();
   }
 
   async_tx_data *data = new async_tx_data();
@@ -1148,30 +1150,29 @@ async_get_tx(uv_work_t *req) {
   uint256 block_hash(data->blockHash);
   CTransaction ctx;
 
-  if (GetTransaction(hash, ctx, block_hash, true)) {
+  if (get_tx(hash, block_hash, ctx)) {
     data->ctx = ctx;
-    goto collect_prev;
   } else {
-    if (data->blockHash != "0000000000000000000000000000000000000000000000000000000000000000") {
-      CBlock block;
-      CBlockIndex* pblockindex = mapBlockIndex[block_hash];
-      if (ReadBlockFromDisk(block, pblockindex)) {
-        BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-          if (tx.GetHash() == hash) {
-            data->ctx = tx;
-            goto collect_prev;
-          }
-        }
-      }
-    }
     data->err_msg = std::string("get_tx(): failed.");
   }
 
-  return;
-
-collect_prev:
-  return;
-
+#if 0
+  if (GetTransaction(hash, ctx, block_hash, true)) {
+    data->ctx = ctx;
+  } else if (block_hash != 0) {
+    CBlock block;
+    CBlockIndex* pblockindex = mapBlockIndex[block_hash];
+    if (ReadBlockFromDisk(block, pblockindex)) {
+      BOOST_FOREACH(const CTransaction &tx, block.vtx) {
+        if (tx.GetHash() == hash) {
+          data->ctx = tx;
+          return;
+        }
+      }
+    }
+    data->err_msg = std::string("GetTransaction(): failed.");
+  }
+#endif
 }
 
 static void
@@ -5841,6 +5842,25 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   }
 }
 
+static int
+get_tx(uint256 txid, uint256 blockhash, CTransaction& ctx) {
+  if (GetTransaction(txid, ctx, blockhash, true)) {
+    return 1;
+  } else if (blockhash != 0) {
+    CBlock block;
+    CBlockIndex* pblockindex = mapBlockIndex[blockhash];
+    if (ReadBlockFromDisk(block, pblockindex)) {
+      BOOST_FOREACH(const CTransaction& tx, block.vtx) {
+        if (tx.GetHash() == txid) {
+          ctx = tx;
+          return -1;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 static inline void
 ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   // With v0.9.0
@@ -5873,17 +5893,30 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
 
     Local<Object> jsprev = NanNew<Object>();
     CTransaction prev_tx;
+    //if (get_tx(txin.prevout.hash, block_hash, prev_tx)) {
     if (GetTransaction(txin.prevout.hash, prev_tx, block_hash, true)) {
       CTxDestination from;
       CTxOut prev_out = prev_tx.vout[txin.prevout.n];
       ExtractDestination(prev_out.scriptPubKey, from);
       CBitcoinAddress addrFrom(from);
-
       jsprev->Set(NanNew<String>("address"), NanNew<String>(addrFrom.ToString()));
       jsprev->Set(NanNew<String>("value"), NanNew<Number>((int64_t)prev_out.nValue)->ToInteger());
     } else {
-      jsprev->Set(NanNew<String>("address"), NanNew<String>(std::string("Unknown")));
-      jsprev->Set(NanNew<String>("value"), NanNew<Number>(0));
+      const CTxOut& txout = ctx.vout[0];
+      const CScript& scriptPubKey = txout.scriptPubKey;
+      txnouttype type;
+      vector<CTxDestination> addresses;
+      int nRequired;
+      if (ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+        // Unknowns usually have the same first addr as the first output:
+        // https://blockexplorer.com/testnet/block/
+        const CTxDestination& addr = addresses[0];
+        jsprev->Set(NanNew<String>("address"), NanNew<String>(CBitcoinAddress(addr).ToString()));
+        jsprev->Set(NanNew<String>("value"), NanNew<Number>((int64_t)txout.nValue)->ToInteger());
+      } else {
+        jsprev->Set(NanNew<String>("address"), NanNew<String>(std::string("Unknown")));
+        jsprev->Set(NanNew<String>("value"), NanNew<Number>(0));
+      }
     }
     in->Set(NanNew<String>("prev"), jsprev);
 
@@ -5933,6 +5966,39 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     vout->Set(vo, out);
   }
   jstx->Set(NanNew<String>("vout"), vout);
+
+#if 0
+  int jvi = 0;
+  Local<Object> jsvin = Local<Object>::Cast(jstx->Get(NanNew<String>("vin")));
+  for (; jvi < jsvin->Length(); jvi++) {
+    Local<Object> jsprev = Local<Object>::Cast(jsvin->Get(NanNew<String>("prev")));
+    Utf8Value jsaddr_(jsprev->Get(NanNew<String>("address"))->ToString());
+    std::string jsaddr = std::string(*jsaddr_);
+    if (jsaddr == "Unknown") {
+      Local<Object> jsvout = Local<Object>::Cast(jstx->Get(NanNew<String>("vout")));
+      Local<Object> jsspk = Local<Object>::Cast(jsvout->Get(NanNew<String>("scriptPubKey")));
+      Local<Array> jsaddrs = Local<Array>::Cast(jsvout->Get(NanNew<String>("addresses")));
+      Utf8Value jsa_(jsaddrs->Get(0)->ToString());
+      std::string jsa = std::string(*jsa_);
+      jsprev->Set(NanNew<String>("address"), NanNew<String>(std::string(jsa + std::string("-fixed"))));
+    }
+  }
+
+  const CTxOut& txout = ctx.vout[txin.prevout.n];
+  for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
+    const CTxOut& txout = ctx.vout[vo];
+    out->Set(NanNew<String>("n"), NanNew<Number>((unsigned int)vo)->ToUint32());
+    const CScript& scriptPubKey = txout.scriptPubKey;
+    txnouttype type;
+    vector<CTxDestination> addresses;
+    int nRequired;
+    if (ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+      BOOST_FOREACH(const CTxDestination& addr, addresses) {
+        std::string addr = CBitcoinAddress(addr).ToString();
+      }
+    }
+  }
+#endif
 
   CWalletTx cwtx(pwalletMain, ctx);
   // XXX Determine wether this is our transaction
