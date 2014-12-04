@@ -214,7 +214,7 @@ NAN_METHOD(GetAddrTransactions);
 NAN_METHOD(GetBestBlock);
 NAN_METHOD(GetChainHeight);
 NAN_METHOD(GetBlockByTx);
-NAN_METHOD(GetBlockByTime);
+NAN_METHOD(GetBlocksByTime);
 
 NAN_METHOD(GetBlockHex);
 NAN_METHOD(GetTxHex);
@@ -475,12 +475,19 @@ struct async_block_tx_data {
  * async_block_time_data
  */
 
+typedef struct _cblocks_list {
+  CBlock cblock;
+  CBlockIndex* cblock_index;
+  struct _cblocks_list *next;
+  std::string err_msg;
+} cblocks_list;
+
 struct async_block_time_data {
   std::string err_msg;
   uint32_t gte;
   uint32_t lte;
-  CBlock cblock;
-  CBlockIndex* cblock_index;
+  int64_t limit;
+  cblocks_list *cblocks;
   Persistent<Function> callback;
 };
 
@@ -2244,19 +2251,19 @@ async_block_tx_after(uv_work_t *req) {
 }
 
 /**
- * GetBlockByTime()
- * bitcoindjs.getBlockByTime()
+ * GetBlocksByTime()
+ * bitcoindjs.getBlocksByTime()
  * Get block by tx hash (requires -txindex or it's very slow)
  */
 
-NAN_METHOD(GetBlockByTime) {
+NAN_METHOD(GetBlocksByTime) {
   NanScope();
 
   if (args.Length() < 2
       || !args[0]->IsString()
       || !args[1]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getBlockByTime(options, callback)");
+      "Usage: bitcoindjs.getBlocksByTime(options, callback)");
   }
 
   async_block_time_data *data = new async_block_time_data();
@@ -2274,7 +2281,11 @@ NAN_METHOD(GetBlockByTime) {
   if (options->Get(NanNew<String>("lte"))->IsNumber()) {
     data->lte = options->Get(NanNew<String>("lte"))->IntegerValue();
   }
+  if (options->Get(NanNew<String>("limit"))->IsNumber()) {
+    data->limit = options->Get(NanNew<String>("limit"))->IntegerValue();
+  }
   data->err_msg = std::string("");
+  data->cblocks = NULL;
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
   data->callback = Persistent<Function>::New(callback);
@@ -2298,15 +2309,28 @@ async_block_time(uv_work_t *req) {
   int64_t i = 0;
   // XXX Slow: figure out how to ballpark the height based on gte and lte.
   int64_t height = chainActive.Height();
+  bool found_range = false;
+  int64_t found = 0;
   for (; i <= height; i++) {
     CBlockIndex* pblockindex = chainActive[i];
     CBlock cblock;
     if (ReadBlockFromDisk(cblock, pblockindex)) {
       uint32_t blocktime = cblock.GetBlockTime();
       if (blocktime >= data->gte && blocktime <= data->lte) {
-        data->cblock = cblock;
-        data->cblock_index = pblockindex;
-        return;
+        found_range = true;
+        cblocks_list *item = new cblocks_list();
+        item->cblock = cblock;
+        item->cblock_index = pblockindex;
+        if (data->cblocks == NULL) {
+          data->cblocks = item;
+        } else {
+          data->cblocks->next = item;
+          data->cblocks = item;
+        }
+        found++;
+        if (found >= data->limit) return;
+      } else {
+        if (found_range) return;
       }
     }
   }
@@ -2328,16 +2352,21 @@ async_block_time_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
-    const CBlock& cblock = data->cblock;
-    CBlockIndex* cblock_index = data->cblock_index;
-
-    Local<Object> jsblock = NanNew<Object>();
-    cblock_to_jsblock(cblock, cblock_index, jsblock, false);
-
+    Local<Array> jsblocks = NanNew<Array>();
+    int i = 0;
+    cblocks_list *next;
+    for (cblocks_list *item = data->cblocks; item; item = next) {
+      Local<Object> jsblock = NanNew<Object>();
+      cblock_to_jsblock(item->cblock, item->cblock_index, jsblock, false);
+      jsblocks->Set(i, jsblock);
+      i++;
+      next = item->next;
+      delete item;
+    }
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(jsblock)
+      Local<Value>::New(jsblocks)
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -6464,7 +6493,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getBestBlock", GetBestBlock);
   NODE_SET_METHOD(target, "getChainHeight", GetChainHeight);
   NODE_SET_METHOD(target, "getBlockByTx", GetBlockByTx);
-  NODE_SET_METHOD(target, "getBlockByTime", GetBlockByTime);
+  NODE_SET_METHOD(target, "getBlocksByTime", GetBlocksByTime);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
   NODE_SET_METHOD(target, "blockFromHex", BlockFromHex);
