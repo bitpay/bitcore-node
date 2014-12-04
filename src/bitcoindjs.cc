@@ -6168,6 +6168,140 @@ read_addr(const std::string addr, const int64_t blockindex) {
         //}
 
 #if 0
+
+858b3c8df81b1d05079eb8983a83acc029020000003a72570996625591f7e24198c72228915db1cfd2b5131756b3be0100000000007916335c2c1b59d9cad75ec537b59003fe5648edd69c36d4d45f94fa0a57d978f2d07f53ffff001d00469055
+858b3c8af3321d0102bbc3f91287e5ad1f02000000e6c59766aefbec0524e048c5bdee666a8f7c2b2dba6f3aa5ce034d0c000000002c33e2726f0d5f1d690ff2888948527e3e5a6caf02bc8c01d890e1f20e9cf8f378291053ce2a601c0070c6dd
+858b3c88f74d1d0102a6a6dd2984d8af4102000000120f39284ad6054e1d11bf3778e46f303e7059ad6bd8b21d083b2d01000000006dfc6ce98d4f7de6def41d8d6a1a94c8ec3000ef9b7ea24871eeffaa803564a0e95bcc52fcff031c19f581d1
+858b3c86f74d1d0101aaabab6285b6ad1002000000690b39dd274c142457c247cfc7cd0827fac51c867a7d76dd2557d8f1000000000b8b8b94ab0a668f376330883b7042b8601e41212691a6f0e1e4533ad5353b9825c87f52ffff001d08c2e1d9
+858b3c8bef251d0106b2f9e80e8683e85802000000f51c58375f1174d06a17640d5578ef228b33263555d1a1486bb2ee0700000000c9a27c66d40bcfde662f733382fe91278b2e71e38e121c060f05a7b2baa13a71287f4453ffff001d01433c2d
+858b3c919c4e1d0709b180a56a85fad271020000005c45fd4ed6c5688c4bdeababe1909ce6fb97b25ac064bd416d2a596b00000000f361f77c6b107a2e82ddb4aac79d5c54e09f9184786521a05489af674887a5d8d1983354ffff001d8022d7c4
+858b3c8bcf5f1d04048e9c960180b787100200000012b49e754fca72c07a8553ac74501b93513fd156a87df3bdcca40d000000000025812bdfe33f36450c928f9c6e986c8dff748ac110a139f7dcd7d4deeaa256d770e12d534bbc181b799ab79f
+858b3c859d331d010192bbb40b81f1d55102000000bfaf0eb24d369f3d9fd09793c2b46df6a41903929b0748750925290000000000d67ffd6201cfdcd7356bf0fe772e3eeebe7627b2e118225a4abeff5ee9bd4b637d27165207d9001c0b9cc80e
+858b3c8c8d781d0106b3d286558695c84802000000db509d908262fd79a8a9db5e843f5442fd685411fd66f6db6345890300000000ae1d8597a679cf9b485fe8a8fa16f7bb2b5d69b541ee0828a770ac3d8e22ccf758524653f0ff0f1c0da43412
+
+858b3c
+8af332
+1d0102
+bbc3f9
+1287e5
+ad1f02
+
+858b3c
+8df81b
+1d0507
+9eb898
+3a83ac
+c02902
+
+
+        //int j = -1;
+        //ssValue >> VARINT(j);
+
+        long long unsigned int nHeight = 0;
+        {
+          // varint for headers
+          uint8_t bytes = 1;
+          uint8_t c1;
+          uint8_t c2;
+          uint8_t c3;
+          uint64_t vi = 0;
+          ssValue >> c1;
+          vi = c1;
+          if (vi < 0xfd) {
+            bytes = 1;
+          } else {
+            ssValue >> c2;
+            vi = (vi << 8) | c2;
+            if (vi <= 0xffff) {
+              bytes = 3;
+            } else {
+              ssValue >> c3;
+              vi = (vi << 8) | c3;
+              if (vi <= 0xffffffff) {
+                bytes = 5;
+              } else {
+                bytes = 9;
+              }
+            }
+          }
+          printf("bytes: %u\n", bytes);
+
+          if (bytes == 1) {
+            uint8_t c;
+            ssValue >> c;
+            nHeight = c;
+          } else if (bytes == 3) {
+            uint8_t c1;
+            ssValue >> c1;
+            uint16_t c2;
+            ssValue >> c2;
+            nHeight = (c1 << 16) | c2;
+          } else if (bytes == 5) {
+            uint32_t c1;
+            ssValue >> c1;
+            uint8_t c2;
+            ssValue >> c2;
+            nHeight = (c1 << 8) | c2;
+          } else if (bytes == 9) {
+            uint64_t c1;
+            ssValue >> c1;
+            uint8_t c2;
+            ssValue >> c2;
+            nHeight = (c1 << 8) | c2;
+          }
+        }
+
+        //int nHeight;
+        //ssValue >> nHeight;
+        printf("nHeight: %llu\n", nHeight);
+        //if (nHeight != blockindex) {
+        //  goto found;
+        //}
+
+
+/*
+        CBlockHeader header;
+        int j = ::GetSerializeSize(VARINT(header), SER_DISK, CLIENT_VERSION);
+        if (j >= 4)
+          ssValue >> header.nVersion;
+        if (j >= 4 + 32)
+          ssValue >> header.hashPrevBlock;
+        if (j >= 4 + 32 + 32)
+          ssValue >> header.hashMerkleRoot;
+        if (j >= 4 + 32 + 32 + 4)
+          ssValue >> header.nTime;
+        if (j >= 4 + 32 + 32 + 4 + 4)
+          ssValue >> header.nBits;
+        if (j >= 4 + 32 + 32 + 4 + 4 + 4)
+          ssValue >> header.nNonce;
+*/
+
+
+        //CBlockHeader header;
+        //if (vi >= 4) ssValue >> header.nVersion;
+        //if (vi >= 36) ssValue >> header.hashPrevBlock;
+        //if (vi >= 68) ssValue >> header.hashMerkleRoot;
+        //if (vi >= 72) ssValue >> header.nTime;
+        //if (vi >= 76) ssValue >> header.nBits;
+        //if (vi >= 80) ssValue >> header.nNonce;
+
+
+
+> 133..toString(16)
+'85'
+
+main chain leveldbmemtable
+coins
+txbd
+
+./test/serialize_tests.cpp:        ss << VARINT(i);
+./test/serialize_tests.cpp:        size += ::GetSerializeSize(VARINT(i), 0, 0);
+./test/serialize_tests.cpp:        ss << VARINT(i);
+./test/serialize_tests.cpp:        size += ::GetSerializeSize(VARINT(i), 0, 0);
+./test/serialize_tests.cpp:        ss >> VARINT(j);
+./test/serialize_tests.cpp:        ss >> VARINT(j);
+
+
         //string strHex = HexStr(ssValue.begin(), ssValue.end());
         //printf("%lu\n", strHex.length() / 2);
         //printf("%s\n", strHex.c_str());
