@@ -500,6 +500,7 @@ struct async_addrtx_data {
   std::string addr;
   ctx_list *ctxs;
   int64_t blockheight;
+  int64_t blocktime;
   Persistent<Function> callback;
 };
 
@@ -589,7 +590,7 @@ struct async_rescan_data {
 
 #if USE_LDB_ADDR
 static ctx_list *
-read_addr(const std::string addr, const int64_t blockheight);
+read_addr(const std::string addr, const int64_t blockheight, const int64_t blocktime);
 #endif
 
 static bool
@@ -1907,6 +1908,7 @@ NAN_METHOD(GetAddrTransactions) {
 
   std::string addr = "";
   int64_t blockheight = -1;
+  int64_t blocktime = -1;
 
   if (args[0]->IsString()) {
     String::Utf8Value addr_(args[0]->ToString());
@@ -1927,6 +1929,12 @@ NAN_METHOD(GetAddrTransactions) {
     if (options->Get(NanNew<String>("blockheight"))->IsNumber()) {
       blockheight = options->Get(NanNew<String>("blockheight"))->IntegerValue();
     }
+    if (options->Get(NanNew<String>("time"))->IsNumber()) {
+      blocktime = options->Get(NanNew<String>("time"))->IntegerValue();
+    }
+    if (options->Get(NanNew<String>("blocktime"))->IsNumber()) {
+      blocktime = options->Get(NanNew<String>("blocktime"))->IntegerValue();
+    }
   }
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
@@ -1939,6 +1947,7 @@ NAN_METHOD(GetAddrTransactions) {
   data->addr = addr;
   data->ctxs = NULL;
   data->blockheight = blockheight;
+  data->blocktime = blocktime;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -2036,7 +2045,7 @@ done:
   }
   return;
 #else
-  ctx_list *ctxs = read_addr(data->addr, data->blockheight);
+  ctx_list *ctxs = read_addr(data->addr, data->blockheight, data->blocktime);
   if (!ctxs->err_msg.empty()) {
     data->err_msg = ctxs->err_msg;
     return;
@@ -6075,7 +6084,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 
 #if USE_LDB_ADDR
 static ctx_list *
-read_addr(const std::string addr, const int64_t blockheight) {
+read_addr(const std::string addr, const int64_t blockheight, const int64_t blocktime) {
   ctx_list *head = new ctx_list();
   ctx_list *cur = NULL;
 
@@ -6149,6 +6158,10 @@ read_addr(const std::string addr, const int64_t blockheight) {
         //if (blockheight != -1 && index.nHeight < blockheight) {
         //  goto next;
         //}
+
+        if (blocktime != -1 && index.GetBlockTime() < blocktime) {
+          goto next;
+        }
 
         CDiskBlockPos blockPos;
         blockPos.nFile = index.nFile;
@@ -6314,8 +6327,8 @@ read_addr(const std::string addr, const int64_t blockheight) {
 next:
       pcursor->Next();
     } catch (std::exception &e) {
-      pcursor->Next();
-      continue;
+      //pcursor->Next();
+      //continue;
       leveldb::Slice lastKey = pcursor->key();
       std::string lastKeyHex = HexStr(lastKey.ToString());
       head->err_msg = std::string(e.what()
