@@ -499,7 +499,7 @@ struct async_addrtx_data {
   std::string err_msg;
   std::string addr;
   ctx_list *ctxs;
-  int64_t blockindex;
+  int64_t blockheight;
   Persistent<Function> callback;
 };
 
@@ -589,7 +589,7 @@ struct async_rescan_data {
 
 #if USE_LDB_ADDR
 static ctx_list *
-read_addr(const std::string addr, const int64_t blockindex);
+read_addr(const std::string addr, const int64_t blockheight);
 #endif
 
 static bool
@@ -1906,7 +1906,7 @@ NAN_METHOD(GetAddrTransactions) {
   }
 
   std::string addr = "";
-  int64_t blockindex = -1;
+  int64_t blockheight = -1;
 
   if (args[0]->IsString()) {
     String::Utf8Value addr_(args[0]->ToString());
@@ -1921,11 +1921,11 @@ NAN_METHOD(GetAddrTransactions) {
       String::Utf8Value s_(options->Get(NanNew<String>("addr"))->ToString());
       addr = std::string(*s_);
     }
-    if (options->Get(NanNew<String>("index"))->IsNumber()) {
-      blockindex = options->Get(NanNew<String>("index"))->IntegerValue();
+    if (options->Get(NanNew<String>("height"))->IsNumber()) {
+      blockheight = options->Get(NanNew<String>("height"))->IntegerValue();
     }
-    if (options->Get(NanNew<String>("blockindex"))->IsNumber()) {
-      blockindex = options->Get(NanNew<String>("blockindex"))->IntegerValue();
+    if (options->Get(NanNew<String>("blockheight"))->IsNumber()) {
+      blockheight = options->Get(NanNew<String>("blockheight"))->IntegerValue();
     }
   }
 
@@ -1938,7 +1938,7 @@ NAN_METHOD(GetAddrTransactions) {
   data->err_msg = std::string("");
   data->addr = addr;
   data->ctxs = NULL;
-  data->blockindex = blockindex;
+  data->blockheight = blockheight;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -1973,8 +1973,8 @@ async_get_addrtx(uv_work_t *req) {
 
   int64_t i = 0;
 
-  if (data->blockindex != -1) {
-    i = data->blockindex;
+  if (data->blockheight != -1) {
+    i = data->blockheight;
   }
 
   int64_t height = chainActive.Height();
@@ -2036,7 +2036,7 @@ done:
   }
   return;
 #else
-  ctx_list *ctxs = read_addr(data->addr, data->blockindex);
+  ctx_list *ctxs = read_addr(data->addr, data->blockheight);
   if (!ctxs->err_msg.empty()) {
     data->err_msg = ctxs->err_msg;
     return;
@@ -5901,7 +5901,10 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       CBlockIndex* pindex = mapBlockIndex[block_hash];
       jstx->Set(NanNew<String>("confirmations"),
         NanNew<Number>(pindex->nHeight));
+      // XXX Not really index:
       jstx->Set(NanNew<String>("blockindex"),
+        NanNew<Number>(pindex->nHeight));
+      jstx->Set(NanNew<String>("blockheight"),
         NanNew<Number>(pindex->nHeight));
       jstx->Set(NanNew<String>("blocktime"),
         NanNew<Number>((int64_t)pindex->GetBlockTime())->ToInteger());
@@ -5911,7 +5914,9 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
         NanNew<Number>((int64_t)pindex->GetBlockTime())->ToInteger());
     } else {
       jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(0));
+      // XXX Not really index:
       jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
+      jstx->Set(NanNew<String>("blockheight"), NanNew<Number>(-1));
       jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(0));
       jstx->Set(NanNew<String>("time"), NanNew<Number>(0));
       jstx->Set(NanNew<String>("timereceived"), NanNew<Number>(0));
@@ -5936,7 +5941,9 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(-1));
     jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(false));
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
+    // XXX Not really index:
     jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
+    jstx->Set(NanNew<String>("blockheight"), NanNew<Number>(-1));
     jstx->Set(NanNew<String>("blocktime"), NanNew<Number>(0));
     jstx->Set(NanNew<String>("walletconflicts"), NanNew<Array>());
     jstx->Set(NanNew<String>("time"), NanNew<Number>(0));
@@ -6068,12 +6075,9 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 
 #if USE_LDB_ADDR
 static ctx_list *
-read_addr(const std::string addr, const int64_t blockindex) {
+read_addr(const std::string addr, const int64_t blockheight) {
   ctx_list *head = new ctx_list();
   ctx_list *cur = NULL;
-
-  // XXX Do something with this:
-  // blockindex
 
   head->err_msg = std::string("");
 
@@ -6081,7 +6085,6 @@ read_addr(const std::string addr, const int64_t blockindex) {
 
   leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
 
-  // Seek to blockindex:
   pcursor->SeekToFirst();
 
   while (pcursor->Valid()) {
@@ -6143,13 +6146,13 @@ read_addr(const std::string addr, const int64_t blockindex) {
         CDiskBlockIndex index;
         ssValue >> index;
 
+        //if (blockheight != -1 && index.nHeight < blockheight) {
+        //  goto next;
+        //}
+
         CDiskBlockPos blockPos;
         blockPos.nFile = index.nFile;
         blockPos.nPos = index.nDataPos;
-
-        if (index.nHeight < blockindex) {
-          goto next;
-        }
 
         CBlock cblock;
 
