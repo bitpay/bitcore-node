@@ -5866,11 +5866,14 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   // With v0.9.0
   // jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
   // jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
-  jstx->Set(NanNew<String>("current_version"), NanNew<Number>((int)ctx.CURRENT_VERSION)->ToInt32());
+  jstx->Set(NanNew<String>("current_version"),
+    NanNew<Number>((int)ctx.CURRENT_VERSION)->ToInt32());
 
   jstx->Set(NanNew<String>("txid"), NanNew<String>(ctx.GetHash().GetHex()));
-  jstx->Set(NanNew<String>("version"), NanNew<Number>((int)ctx.nVersion)->ToInt32());
-  jstx->Set(NanNew<String>("locktime"), NanNew<Number>((unsigned int)ctx.nLockTime)->ToUint32());
+  jstx->Set(NanNew<String>("version"),
+    NanNew<Number>((int)ctx.nVersion)->ToInt32());
+  jstx->Set(NanNew<String>("locktime"),
+    NanNew<Number>((unsigned int)ctx.nLockTime)->ToUint32());
 
   jstx->Set(NanNew<String>("size"),
     NanNew<Number>((int)::GetSerializeSize(ctx, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
@@ -5881,15 +5884,19 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
     Local<Object> in = NanNew<Object>();
 
     if (ctx.IsCoinBase()) {
-      in->Set(NanNew<String>("coinbase"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+      in->Set(NanNew<String>("coinbase"),
+        NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
     }
 
     in->Set(NanNew<String>("txid"), NanNew<String>(txin.prevout.hash.GetHex()));
-    in->Set(NanNew<String>("vout"), NanNew<Number>((unsigned int)txin.prevout.n)->ToUint32());
+    in->Set(NanNew<String>("vout"),
+      NanNew<Number>((unsigned int)txin.prevout.n)->ToUint32());
 
     Local<Object> o = NanNew<Object>();
-    o->Set(NanNew<String>("asm"), NanNew<String>(txin.scriptSig.ToString()));
-    o->Set(NanNew<String>("hex"), NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+    o->Set(NanNew<String>("asm"),
+      NanNew<String>(txin.scriptSig.ToString()));
+    o->Set(NanNew<String>("hex"),
+      NanNew<String>(HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
 
     Local<Object> jsprev = NanNew<Object>();
     CTransaction prev_tx;
@@ -5899,8 +5906,10 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       CTxOut prev_out = prev_tx.vout[txin.prevout.n];
       ExtractDestination(prev_out.scriptPubKey, from);
       CBitcoinAddress addrFrom(from);
-      jsprev->Set(NanNew<String>("address"), NanNew<String>(addrFrom.ToString()));
-      jsprev->Set(NanNew<String>("value"), NanNew<Number>((int64_t)prev_out.nValue)->ToInteger());
+      jsprev->Set(NanNew<String>("address"),
+        NanNew<String>(addrFrom.ToString()));
+      jsprev->Set(NanNew<String>("value"),
+        NanNew<Number>((int64_t)prev_out.nValue)->ToInteger());
     } else {
       const CTxOut& txout = ctx.vout[0];
       const CScript& scriptPubKey = txout.scriptPubKey;
@@ -5911,10 +5920,13 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
         // Unknowns usually have the same first addr as the first output:
         // https://blockexplorer.com/testnet/block/
         const CTxDestination& addr = addresses[0];
-        jsprev->Set(NanNew<String>("address"), NanNew<String>(CBitcoinAddress(addr).ToString()));
-        jsprev->Set(NanNew<String>("value"), NanNew<Number>((int64_t)txout.nValue)->ToInteger());
+        jsprev->Set(NanNew<String>("address"),
+          NanNew<String>(CBitcoinAddress(addr).ToString() + std::string("?")));
+        jsprev->Set(NanNew<String>("value"),
+          NanNew<Number>((int64_t)txout.nValue)->ToInteger());
       } else {
-        jsprev->Set(NanNew<String>("address"), NanNew<String>(std::string("Unknown")));
+        jsprev->Set(NanNew<String>("address"),
+          NanNew<String>(std::string("Unknown")));
         jsprev->Set(NanNew<String>("value"), NanNew<Number>(0));
       }
     }
@@ -5946,12 +5958,16 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       vector<CTxDestination> addresses;
       int nRequired;
       out->Set(NanNew<String>("asm"), NanNew<String>(scriptPubKey.ToString()));
-      out->Set(NanNew<String>("hex"), NanNew<String>(HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+      out->Set(NanNew<String>("hex"),
+        NanNew<String>(HexStr(scriptPubKey.begin(), scriptPubKey.end())));
       if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
-        out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+        out->Set(NanNew<String>("type"),
+          NanNew<String>(GetTxnOutputType(type)));
       } else {
-        out->Set(NanNew<String>("reqSigs"), NanNew<Number>((int)nRequired)->ToInt32());
-        out->Set(NanNew<String>("type"), NanNew<String>(GetTxnOutputType(type)));
+        out->Set(NanNew<String>("reqSigs"),
+          NanNew<Number>((int)nRequired)->ToInt32());
+        out->Set(NanNew<String>("type"),
+          NanNew<String>(GetTxnOutputType(type)));
         Local<Array> a = NanNew<Array>();
         int ai = 0;
         BOOST_FOREACH(const CTxDestination& addr, addresses) {
@@ -6052,7 +6068,8 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
       }
       jstx->Set(NanNew<String>("walletconflicts"), conflicts);
       jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
-      jstx->Set(NanNew<String>("timereceived"), NanNew<Number>((int64_t)cwtx.nTimeReceived));
+      jstx->Set(NanNew<String>("timereceived"),
+        NanNew<Number>((int64_t)cwtx.nTimeReceived));
     }
   } else {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
