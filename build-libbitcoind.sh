@@ -5,7 +5,7 @@ os_dir=$(dirname "$(./platform/os.sh)")
 
 if test -e "${os_dir}/libbitcoind.so"; then
   read -r -p 'libbitcoind.so already built. Rebuild? (Y/n): ' choice
-  if test x"$choice" != x'n' -a x"$choice" != x'N'; then
+  if test x"$choice" != x'y' -a x"$choice" != x'Y'; then
     echo 'libbitcoind.so ready.'
     exit 0
   fi
