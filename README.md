@@ -25,20 +25,9 @@ letting people I don't know maintain this library due to its importance.
 
 ## Building
 
-### bitcoind
+### libbitcoind.so
 
-Cloning libbitcoind:
-
-``` bash
-$ cd ~
-$ git clone git://github.com/bitpay/bitcoin.git libbitcoind
-$ cd libbitcoind
-```
-
-This is a fork of bitcoin v0.9.0 right now, but it has the ability to compile
-bitcoind as a shared object. This may not be ideal yet.
-
-#### Compiling bticoind as a library
+#### Compiling bitcoind as a library
 
 ##### Dependencies
 
@@ -56,27 +45,24 @@ bitcoind as a shared object. This may not be ideal yet.
 
 - secp256k1
 
+##### Building
 
 ``` bash
-# ensure clean up
-$ make clean
-$ git clean -xdf
-
-# create configure file
-$ ./autogen.sh
-
-# configure as a library with -fPIC on all object files
-# use --with-incompatible-bdb if necessary
-# use --prefix=/usr if necessary
-# osx users may have to specify a boost path
-$ ./configure --enable-daemonlib --with-incompatible-bdb
-
-# build libbitcoind.so
-$ time make
-real    31m33.128s
-user    16m23.930s
-sys     2m52.310s
+$ cd ~/node_modules/bitcoind.js
+$ ./build-libbitcoind.sh remote
 ```
+
+`remote` will clone the latest bitcoin upstream, apply a patch to it, compile
+libbitcoind.so, and place it in the appropriate directory. The first argument
+can also be a bitcoin repo directory you already have on your disk, otherwise
+it will check for ~/bitcoin by default.
+
+NOTE: libbitcoind.so is currently unsupported on OSX due to OSX's mess of
+header files and libraries. Special magic is required to make this work that
+has not been implemented yet. This will only compile on a real unix (linux is
+recommended).
+
+###### In the build-libbitcoind.sh script:
 
 `--enable-daemonlib` will compile all object files with `-fPIC` (Position
 Independent Code - needed to create a shared object).
@@ -88,7 +74,7 @@ compiling tests and the QT object files.
 Without `--enable-daemonlib`, the Makefile with compile bitcoind with -fPIE
 (Position Independent for Executable), this allows compiling of bitcoind.
 
-### bitcoind.js:
+### bitcoind.js
 
 ``` bash
 $ cd ~/node_modules/bitcoind.js
@@ -106,10 +92,10 @@ bitcoind: status="start_node(): bitcoind opened."
 [should see full javascript blocks here]
 ```
 
-However, if you look at the bitcoind log files:
+You can also look at the blocks come in through the bitcoind log file:
 
 ``` bash
-$ tail -f ~/.bitcoin/debug.log
+$ tail -f ~/.libbitcoind-example/debug.log
 ```
 
 ^C (SIGINT) will call `StartShutdown()` in bitcoind on the node thread pool.
@@ -120,19 +106,34 @@ bitcoind.js has direct access to the global wallet:
 
 ``` js
 var bitcoind = require('bitcoind.js')({
-  directory: '~/.libbitcoin-test',
-  testnet: false
+  directory: '~/.libbitcoind-example',
+  testnet: false,
+  rpc: false
 });
+
+bitcoind.on('block', function(block) {
+  console.log('Found Block:');
+  console.log(block);
+});
+
+bitcoind.on('addr', function(addr) {
+  console.log('Found more peers to connect to:');
+  console.log(addr);
+});
+
 bitcoind.on('open', function() {
-  console.log(bitcoind.wallet.listAccounts());
+  console.log('Your Wallet:');
+  console.log(bitcoind.wallet.getAccounts());
 });
-...
+
+bitcoind.start();
 ```
 
 ``` bash
 $ node ./my-example.js
 bitcoind.js: status="start_node(): bitcoind opened."
-{ '': // Account Name - '' is default
+Your Wallet:
+{ '':
    { balance: 0,
      addresses:
       [ { address: '16PvEk4NggaCyfR2keZaP9nPufJvDb2ATZ',
@@ -152,420 +153,21 @@ bitcoind.js: shut down.
 **bitcoind.js** is a node.js module which links to libbitcoind.so (bitcoind
 complied as a shared library).
 
-
-### C++ API Structs
-
-#### `async_node_data`
-
-Where the uv async request data resides.
-
-``` c
-struct async_node_data {
-  std::string err_msg;
-  std::string result;
-  Persistent<Function> callback;
-};
-```
-
-#### `async_block_data`
-
-``` c
-struct async_block_data {
-  std::string err_msg;
-  std::string hash;
-  CBlock result_block;
-  CBlockIndex* result_blockindex;
-  Persistent<Function> callback;
-};
-```
-
-#### `async_tx_data`
-
-``` c
-struct async_tx_data {
-  std::string err_msg;
-  std::string txHash;
-  std::string blockHash;
-  CTransaction ctx;
-  Persistent<Function> callback;
-};
-```
-
-#### `async_poll_blocks_data`
-
-``` c
-struct async_poll_blocks_data {
-  std::string err_msg;
-  poll_blocks_list *head;
-  Persistent<Array> result_array;
-  Persistent<Function> callback;
-};
-```
-
-#### `poll_blocks_list`
-
-A singly linked list containing any polled CBlocks and CBlockIndexes.
-Contained by `async_poll_blocks_data` struct.
-
-``` c
-typedef struct _poll_blocks_list {
-  CBlock cblock;
-  CBlockIndex *cblock_index;
-  struct _poll_blocks_list *next;
-} poll_blocks_list;
-```
-
-#### `async_poll_mempool_data`
-
-``` c
-struct async_poll_mempool_data {
-  std::string err_msg;
-  Persistent<Array> result_array;
-  Persistent<Function> callback;
-};
-```
-
-#### `async_broadcast_tx_data`
-
-``` c
-struct async_broadcast_tx_data {
-  std::string err_msg;
-  Persistent<Object> jstx;
-  CTransaction ctx;
-  std::string tx_hash;
-  bool override_fees;
-  bool own_only;
-  Persistent<Function> callback;
-};
-```
-
-#### `async_wallet_sendto_data`
-
-``` c
-struct async_wallet_sendto_data {
-  std::string err_msg;
-  std::string tx_hash;
-  std::string address;
-  int64_t nAmount;
-  CWalletTx wtx;
-  Persistent<Function> callback;
-};
-```
-
-#### `async_wallet_sendfrom_data`
-
-``` c
-struct async_wallet_sendfrom_data {
-  std::string err_msg;
-  std::string tx_hash;
-  std::string address;
-  int64_t nAmount;
-  int nMinDepth;
-  CWalletTx wtx;
-  Persistent<Function> callback;
-};
-```
-
-#### `async_import_key_data`
-
-``` c
-struct async_import_key_data {
-  std::string err_msg;
-  bool fRescan;
-  Persistent<Function> callback;
-};
-```
-
-
-### C++ API Functions
-
-#### `StartBitcoind()`
-
-- `bitcoind.start(callback)`
-  - Start the bitcoind node with AppInit2() on a separate thread.
-
-#### `async_start_node()`
-
-- Call start_node() and start all our boost threads.
-
-#### `async_start_node_after()`
-
-- Execute our callback.
-
-#### `start_node(void)`
-
-- Start AppInit2() on a separate thread, wait for
-  pwalletMain instantiation (and signal() calls).
-  Unfortunately, we need to wait for the initialization
-  to unhook the signal handlers so we can use them
-  from node.js in javascript.
-
-#### `StopBitcoind()`
-
-- bitcoind.stop(callback)
-
-#### `async_stop_node()`
-
-- Call StartShutdown() to join the boost threads, which will call Shutdown()
-  and set shutdownComplete to true to notify the main node.js thread.
-
-#### `async_stop_node_after()`
-
-- Execute our callback.
-
-#### `IsStopping()`
-
-- `bitcoind.stopping()`
-  - Check whether bitcoind is in the process of shutting down. This is polled
-    from javascript.
-
-#### `IsStopped()`
-
-- `bitcoind.stopped()`
-  - Check whether bitcoind has shutdown completely. This will be polled by
-    javascript to check whether the libuv event loop is safe to stop.
-
-#### `GetBlock()`
-
-- `bitcoind.getBlock(blockHash, callback)`
-  - Read any block from disk asynchronously.
-
-#### `GetTx()`
-
-- `bitcoind.getTx(txHash, [blockHash], callback)`
-  - Read any transaction from disk asynchronously.
-
-#### `PollBlocks()`
-
-- `bitcoind.pollBlocks(callback)`
-  - Poll for new blocks on the chain. This is necessary since we have no way of
-    hooking in to AcceptBlock(). Instead, we constant check for new blocks using
-    a SetTimeout() within node.js.
-  - Creating a linked list of all blocks within the work function is necessary
-    due to doing v8 things within the libuv thread pool will cause a segfault.
-    Since this reads full blocks, obviously it will poll for transactions which
-    have already been included in blocks as well.
-
-#### `PollMempool()`
-
-- `bitcoind.pollMempool(callback)`
-  - This will poll for any transactions in the mempool. i.e. Transactions which
-    have not been included in blocks yet. This is not technically necessary to
-    be done asynchronously since there are no real blocking calls done here, but
-    we will leave the async function here as a placeholder in case we're wrong.
-
-#### `BroadcastTx()`
-- `bitcoind.broadcastTx(tx, override_fees, own_only, callback)`
-  - Broadcast a raw transaction. This can be used to relay transaction received
-    or to broadcast one's own transaction.
-
-#### `VerifyBlock()`
-- `bitcoindjs.verifyBlock(block)`
-  - This will verify the authenticity of a block (merkleRoot, etc)
-    using the internal bitcoind functions.
-
-#### `VerifyTransaction()`
-
-- `bitcoindjs.verifyTransaction(tx)`
-  - This will verify a transaction, ensuring it is signed properly using the
-    internal bitcoind functions.
-
-#### `FillTransaction()`
-
-- `bitcoindjs.fillTransaction(tx, options)`
-  - This will fill a javascript transaction object with the proper available
-    unpsent outputs as inputs and sign them using internal bitcoind functions.
-
-#### `GetBlockHex()`
-- `bitcoindjs.getBlockHex(callback)`
-  - This will return the hex value as well as hash of a javascript block object
-    (after being converted to a CBlock).
-
-#### `GetTxHex()`
-
-- `bitcoindjs.getTxHex(tx)`
-  - This will return the hex value and hash for any tx, converting a js tx
-    object to a CTransaction.
-
-#### `BlockFromHex()`
-
-- `bitcoindjs.blockFromHex(hex)`
-  - Create a javascript block from a hex string.
-
-#### `TxFromHex()`
-
-- `bitcoindjs.txFromHex(hex)`
-  - Create a javascript tx from a hex string.
-
-#### `WalletNewAddress()`
-
-- `bitcoindjs.walletNewAddress(options)`
-  - Create a new address in the global pwalletMain.
-
-#### `GetAccountAddress(strAccount, bForceNew)`
-
-- `CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew)`
-  - NOTE: This function was ripped out of the bitcoin core source. It needed to
-    be modified to fit v8's error handling.
-
-#### `WalletGetAccountAddress()`
-
-- `bitcoindjs.walletGetAccountAddress(options)`
-  - Return the address tied to a specific account name.
-
-#### `WalletSetAccount()`
-
-- `bitcoindjs.walletSetAccount(options)`
-  - Return a new address if the account does not exist, or tie an account to an
-    address.
-
-#### `WalletGetAccount()`
-
-- `bitcoindjs.walletGetAccount(options)`
-  - Get an account name based on address.
-
-#### `WalletSendTo()`
-
-- `bitcoindjs.walletSendTo(options)`
-  - Send bitcoin to an address, automatically creating the transaction based on
-    availing unspent outputs.
-
-#### `WalletSignMessage()`
-
-- `bitcoindjs.walletSignMessage(options)`
-  - Sign any piece of text using a private key tied to an address.
-
-#### `WalletVerifyMessage()`
-
-- `bitcoindjs.walletVerifyMessage(options)`
-  - Verify a signed message using any address' public key.
-
-#### `WalletCreateMultiSigAddress()`
-
-- `bitcoindjs.walletCreateMultiSigAddress(options)`
-  - Create a multisig address for the global wallet.
-
-#### `WalletGetBalance()`
-
-- `bitcoindjs.walletGetBalance(options)`
-  - Get total balance of global wallet in satoshies in a javascript Number (up
-    to 64 bits, only 32 if bitwise ops or floating point are used unfortunately.
-    Obviously floating point is not necessary for satoshies).
-
-#### `WalletGetUnconfirmedBalance()`
-
-- `bitcoindjs.walletGetUnconfirmedBalance(options)`
-  - Returns the unconfirmed balance in satoshies (including the transactions
-    that have not yet been included in any block).
-
-#### `WalletSendFrom()`
-
-- `bitcoindjs.walletSendFrom(options)`
-  - Send bitcoin to a particular address from a particular owned account name.
-    This once again automatically creates and signs a transaction based on any
-    unspent outputs available.
-
-#### `WalletListTransactions()`
-
-- `bitcoindjs.walletListTransactions(options)`
-  - List all transactions pertaining to any owned addreses. NOT YET IMPLEMENTED>
-
-#### `WalletListAccounts()`
-
-- `bitcoindjs.walletListAccounts(options)`
-  - This will list all accounts, addresses, balanced, private keys, public keys,
-    and whether these keys are in compressed format. TODO: Only output private
-    keys if wallet is decrypted.
-
-#### `WalletGetTransaction()`
-
-- `bitcoindjs.walletGetTransaction(options)`
-  - Get any transaction pertaining to any owned addresses. NOT YET IMPLEMENTED.
-
-#### `WalletBackup()`
-
-- `bitcoindjs.walletBackup(options)`
-  - Backup the bdb wallet.dat to a particular location on filesystem.
-
-#### `WalletPassphrase()`
-
-- `bitcoindjs.walletPassphrase(options)`
-  - Unlock wallet if encrypted already.
-
-#### `WalletPassphraseChange()`
-
-- `bitcoindjs.walletPassphraseChange(options)`
-  - Change the current passphrase for the encrypted wallet.
-
-#### `WalletLock()`
-
-- `bitcoindjs.walletLock(options)`
-  - Forget the encrypted wallet passphrase and lock the wallet once again.
-
-#### `WalletEncrypt()`
-
-- `bitcoindjs.walletEncrypt(options)`
-  - Encrypt the global wallet with a particular passphrase. Requires restarted
-    because Berkeley DB is bad.
-
-#### `WalletSetTxFee()`
-
-- `bitcoindjs.walletSetTxFee(options)`
-  - Set default global wallet transaction fee internally.
-
-#### `WalletImportKey()`
-
-- `bitcoindjs.walletImportKey(options)`
-  - Import private key into global wallet using standard compressed bitcoind
-    format.
-
-#### Conversions
-
-- `cblock_to_jsblock(cblock, cblock_index, jsblock)`
-- `ctx_to_jstx(ctx, block_hash, jstx)`
-- `jsblock_to_cblock(jsblock, cblock)`
-- `jstx_to_ctx(jstx, ctx)`
-
-These functions, only callable from C++, are used to convert javascript blocks
-and tx objects to bitcoin block and tx objects (CBlocks and CTransactions), and
-vice versa.
-
-NOTE: For whatever reason when converting a jstx to a CTransaction via setting
-CTransaction properties, the binary output of a jstx is not the same as what
-went in. It is unknow why this occurs. For now we are are using a workaround by
-carrying the original hex value on the object which is changed when the tx is
-changed.
-
-#### `Init()`
-
-Initialize the singleton object known as bitcoindjs. Required by every node.js
-C++ module.
-
-
 ### Javascript API
 
 #### Bitcoin Object/Class
 
 Bitcoind in javascript. Right now, only one object can be instantiated.
 
-##### `Bitcoin::start(callback)`
+##### `Bitcoin::start([options], [callback])`
 
 Start the javascript bitcoin node.
-
-##### `Bitcoin::_pollBlocks()`
-
-Internally poll for blocks using setTimeout. Private.
-
-##### `Bitcoin::_pollMempool()`
-
-Internally poll for mempool txs that have not been included in blocks yet.
-Private.
 
 ##### `Bitcoin::getBlock(blockHash, callback)`
 
 Get any block asynchronously by reading it from disk.
 
-##### `Bitcoin::getTx(txHash, blockHash, callback)`
+##### `Bitcoin::getTransaction(txid, blockhash, callback)`
 
 Get any tx asynchronously by reading it from disk.
 
