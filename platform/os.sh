@@ -43,11 +43,4 @@ if test -z "$os"; then
   fi
 fi
 
-if test ! -e platform/${os}/libbitcoind.so; then
-  # Should be doing something like this:
-  # curl -s "https://bitpay.com/lib/libbitcoind-${os}.so" > platform/${os}/libbitcoind.so
-  cat platform/${os}/{xaa,xab} > platform/${os}/libbitcoind.so
-  chmod 0755 platform/${os}/libbitcoind.so
-fi
-
 echo -n "$(pwd)/platform/${os}/libbitcoind.so"

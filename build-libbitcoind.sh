@@ -39,10 +39,6 @@ cp src/libbitcoind.so "${os_dir}/libbitcoind.so" || exit 1
 
 cd "$os_dir" || exit 1
 
-rm -f xaa xab
-
-split libbitcoind.so -n 2 || exit 1
-
 cd "$cur_dir"
 rm -rf libbitcoind
 
