@@ -7,6 +7,11 @@ cd "$dir" || exit 1
 
 if test -e .git; then
   git checkout 4383319e4e0cb96818d2be734f7280181daac9fa
+  if test $? -ne 0; then
+    echo 'Unable to checkout necessary commit.'
+    echo 'Please pull the latest HEAD from the upstream bitcoin repo.'
+    exit 1
+  fi
   git checkout -b "libbitcoind-$(date '+%Y.%m.%d')" || exit 1
 fi
 

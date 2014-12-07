@@ -5,14 +5,22 @@ os_dir=$(dirname "$(./platform/os.sh)")
 
 if test -n "$1"; then
   if test "$1" = 'remote'; then
-    git clone git://github.com/bitcoin/bitcoin.git || exit 1
-    btc_dir="${cur_dir}/bitcoin"
+    git clone git://github.com/bitcoin/bitcoin.git libbitcoind || exit 1
+    btc_dir="${cur_dir}/libbitcoind"
   else
     btc_dir=$1
+    if ! test -d "$btc_dir"; then
+      "$0" remote
+      exit 0
+    fi
   fi
   shift
 else
   btc_dir="${HOME}/bitcoin"
+  if ! test -d "$btc_dir"; then
+    "$0" remote
+    exit 0
+  fi
 fi
 
 ./patch-bitcoin.sh "$btc_dir" || exit 1
