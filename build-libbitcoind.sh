@@ -3,6 +3,14 @@
 cur_dir="$(pwd)"
 os_dir=$(dirname "$(./platform/os.sh)")
 
+if test -e "${os_dir}/libbitcoind.so"; then
+  read -r -p 'libbitcoind.so already built. Rebuild? (Y/n): ' choice
+  if test x"$choice" != x'n' -a x"$choice" != x'N'; then
+    echo 'libbitcoind.so ready.'
+    exit 0
+  fi
+fi
+
 if test -n "$1"; then
   if test "$1" = 'remote'; then
     git clone git://github.com/bitcoin/bitcoin.git libbitcoind || exit 1
