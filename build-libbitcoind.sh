@@ -35,6 +35,11 @@ fi
 
 cd "$btc_dir" || exit 1
 
+if ! test -d .git; then
+  echo 'Please point this script to an upstream bitcoin git repo.'
+  exit 1
+fi
+
 ./autogen.sh || exit 1
 if test -n "$1"; then
   ./configure --enable-daemonlib --with-incompatible-bdb "$@" || exit 1
