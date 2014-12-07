@@ -10,7 +10,8 @@
     "url": "https://github.com/chjj/bitcoind.js/issues"
   },
   "scripts": {
-    "test": "NODE_ENV=test mocha -R spec"
+    "install": "./build-libbitcoind.sh remote",
+    "start": "node example"
   },
   "tags": [
     "bitcoin",
