@@ -9,10 +9,12 @@ if test -e "${os_dir}/libbitcoind.so"; then
     echo 'libbitcoind.so ready.'
     exit 0
   fi
+  rm -f "${os_dir}/libbitcoind.so"
 fi
 
 if test -n "$1"; then
   if test "$1" = 'remote'; then
+    echo 'git clone'
     git clone git://github.com/bitcoin/bitcoin.git libbitcoind || exit 1
     btc_dir="${cur_dir}/libbitcoind"
   else
@@ -31,6 +33,9 @@ else
   fi
 fi
 
+echo "Found BTC directory: $btc_dir"
+
+echo './patch-bitcoin.sh' "$btc_dir"
 ./patch-bitcoin.sh "$btc_dir" || exit 1
 
 cd "$btc_dir" || exit 1
@@ -50,14 +55,19 @@ if test $bdb_compat -eq 0; then
   set -- "--with-incompatible-bdb" "$@"
 fi
 
+echo './autogen.sh'
 ./autogen.sh || exit 1
 if test -n "$1"; then
+  echo './configure --enable-daemonlib' "$@"
   ./configure --enable-daemonlib "$@" || exit 1
 else
+  echo './configure --enable-daemonlib'
   ./configure --enable-daemonlib || exit 1
 fi
+echo 'make'
 make || exit 1
 
+echo 'Copying libbitcoind.so to its appropriate location.'
 cp src/libbitcoind.so "${os_dir}/libbitcoind.so" || exit 1
 
 cd "$cur_dir"
