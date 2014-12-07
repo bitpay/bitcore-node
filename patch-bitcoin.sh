@@ -1,6 +1,7 @@
 #!/bin/sh
 
 dir=$(test -n "$1" && echo "$1" || echo "${HOME}/bitcoin")
+patch_file="$(pwd)/libbitcoind.patch"
 
 cd "$dir" || exit 1
 
@@ -8,7 +9,7 @@ if test -e .git; then
   git checkout -b libbitcoind || exit 1
 fi
 
-patch -p1 < libbitcoind.patch || exit 1
+patch -p1 < "$patch_file" || exit 1
 
 if test -e .git; then
   git add --all || exit 1
