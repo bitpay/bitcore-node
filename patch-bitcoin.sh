@@ -6,7 +6,7 @@ patch_file="$(pwd)/libbitcoind.patch"
 cd "$dir" || exit 1
 
 if test -e .git; then
-  git checkout -b libbitcoind || exit 1
+  git checkout -b "libbitcoind-$(date '+%Y.%m.%d')" || exit 1
 fi
 
 patch -p1 < "$patch_file" || exit 1
