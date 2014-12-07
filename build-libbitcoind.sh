@@ -68,10 +68,7 @@ echo 'make'
 make || exit 1
 
 echo 'Copying libbitcoind.so to its appropriate location.'
-cp src/libbitcoind.so "${os_dir}/libbitcoind.so" || exit 1
-
-cd "$cur_dir"
-rm -rf libbitcoind
+mv src/libbitcoind.so "${os_dir}/libbitcoind.so" || exit 1
 
 echo 'Build finished successfully.'
 exit 0
