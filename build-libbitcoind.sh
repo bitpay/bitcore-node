@@ -1,7 +1,7 @@
 #!/bin/sh
 
 cur_dir="$(pwd)"
-os_dir=$(dirname "$(./platform/os.sh)")
+os_dir=$(./platform/os.sh osdir)
 
 if test -e "${os_dir}/libbitcoind.so"; then
   read -r -p 'libbitcoind.so already built. Rebuild? (Y/n): ' choice

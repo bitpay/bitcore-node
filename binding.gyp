@@ -10,10 +10,8 @@
       ' && echo "$LEVELDB_INCLUDE"'\
       ' || test "$BITCOIN_DIR" && echo "${BITCOIN_DIR}/src/leveldb/include"' \
       ' || echo ./include)',
-      'BITCOIN_DIR': '<!(test -n "$BITCOIN_DIR"'\
-        ' && echo "$BITCOIN_DIR"'\
-        ' || echo "${HOME}/bitcoin")',
-      'LIBBITCOIND': '<!(./platform/os.sh)',
+      'BITCOIN_DIR': '<!(./platform/os.sh btcdir)',
+      'LIBBITCOIND': '<!(./platform/os.sh lib)',
     },
     'defines': [
       'ENABLE_WALLET=1',

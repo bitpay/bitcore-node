@@ -1,7 +1,13 @@
 #!/bin/bash
 
-if test -n "$BITCOIN_DIR" -a -e "${BITCOIN_DIR}/src/libbitcoind.so"; then
-  echo -n "${BITCOIN_DIR}/src/libbitcoind.so"
+if test x"$1" = x'btcdir'; then
+  if test -n "$BITCOIN_DIR"; then
+    echo "$BITCOIND_DIR"
+  elif test -d "$(pwd)/libbitcoind"; then
+    echo "$(pwd)/libbitcoind"
+  elif test -d "${HOME}/bitcoin"; then
+    echo "${HOME}/bitcoin"
+  fi
   exit 0
 fi
 
@@ -43,4 +49,16 @@ if test -z "$os"; then
   fi
 fi
 
-echo -n "$(pwd)/platform/${os}/libbitcoind.so"
+if test x"$1" = x'osdir'; then
+  echo -n "$(pwd)/platform/${os}"
+  exit 0
+fi
+
+if test -z "$1" -o x"$1" = x'lib'; then
+  if test -n "$BITCOIN_DIR" -a -e "${BITCOIN_DIR}/src/libbitcoind.so"; then
+    echo -n "${BITCOIN_DIR}/src/libbitcoind.so"
+  else
+    echo -n "$(pwd)/platform/${os}/libbitcoind.so"
+  fi
+  exit 0
+fi
