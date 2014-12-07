@@ -50,8 +50,6 @@ make || exit 1
 
 cp src/libbitcoind.so "${os_dir}/libbitcoind.so" || exit 1
 
-cd "$os_dir" || exit 1
-
 cd "$cur_dir"
 rm -rf libbitcoind
 
