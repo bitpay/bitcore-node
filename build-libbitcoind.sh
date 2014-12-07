@@ -40,11 +40,21 @@ if ! test -d .git; then
   exit 1
 fi
 
+bdb_compat=0
+if cat /usr/include/db.h | grep -i DB_VERSION_STRING | grep -q 'DB 4.8' \
+  || test -e /usr/include/db4.8 \
+  || test -e /usr/include/db4.8.h; then
+  bdb_compat=1
+fi
+if test $bdb_compat -eq 0; then
+  set -- "--with-incompatible-bdb" "$@"
+fi
+
 ./autogen.sh || exit 1
 if test -n "$1"; then
-  ./configure --enable-daemonlib --with-incompatible-bdb "$@" || exit 1
+  ./configure --enable-daemonlib "$@" || exit 1
 else
-  ./configure --enable-daemonlib --with-incompatible-bdb || exit 1
+  ./configure --enable-daemonlib || exit 1
 fi
 make || exit 1
 
