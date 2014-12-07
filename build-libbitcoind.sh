@@ -44,7 +44,7 @@ rm -f xaa xab
 split libbitcoind.so -n 2 || exit 1
 
 cd "$cur_dir"
-rm -rf bitcoin
+rm -rf libbitcoind
 
 echo 'Build finished successfully.'
 exit 0
