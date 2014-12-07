@@ -4,25 +4,6 @@ __bitcoind.js__ as a node.js module which dynamically loads a node.js C++
 modules which links to libbitcoind.so (bitcoind compiled as a shared library),
 making all useful bitcoind functions asynchronous.
 
-## Operating Systems to be bundled with libbitcoind.so
-
-You will not have to compile libbitcoind.so if you run one of these operating
-systems, but may need some of the runtime libraries such as boost.
-
-Arch Linux is the only OS currently supported. If you would like to be a
-maintainer of a certain OS, please contact me, although I'm not quite open to
-letting people I don't know maintain this library due to its importance.
-
-- Arch Linux
-- CentOS _(currently unsupported)_
-- Debian _(currently unsupported)_
-- Fedora _(currently unsupported)_
-- Linux Mint _(currently unsupported)_
-- Mac OSX _(currently unsupported)_
-- RHEL _(currently unsupported)_
-- openSUSE _(currently unsupported)_
-- Ubuntu _(currently unsupported)_
-
 ## Building
 
 ### libbitcoind.so
