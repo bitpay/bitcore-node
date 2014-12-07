@@ -9,6 +9,7 @@ if test -e "${os_dir}/libbitcoind.so"; then
     echo 'libbitcoind.so ready.'
     exit 0
   fi
+  rm -rf libbitcoind
   rm -f "${os_dir}/libbitcoind.so"
 fi
 
