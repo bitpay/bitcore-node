@@ -188,7 +188,7 @@ using namespace v8;
 
 // LevelDB options
 #define USE_LDB_ADDR 0
-#define USE_LDB_TX 1
+#define USE_LDB_TX 0
 
 /**
  * Node.js Exposed Function Templates
@@ -605,8 +605,10 @@ static ctx_list *
 read_addr(const std::string addr, const int64_t blockheight, const int64_t blocktime);
 #endif
 
+#if USE_LDB_TX
 static bool
 get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index);
+#endif
 
 #if 0
 static bool
@@ -6520,6 +6522,7 @@ error:
  DB: blocks/blk/revXXXXX.dat
  */
 
+#if USE_LDB_TX
 static bool
 get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index) {
   leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
@@ -6607,6 +6610,7 @@ error:
   delete pcursor;
   return false;
 }
+#endif
 
 #if 0
 /**
