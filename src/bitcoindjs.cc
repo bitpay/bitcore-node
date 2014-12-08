@@ -364,7 +364,7 @@ static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
 
 static inline void
-ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx);
+ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx);
 
 static inline void
 jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock);
@@ -458,8 +458,8 @@ struct async_block_data {
 
 struct async_tx_data {
   std::string err_msg;
-  std::string txHash;
-  std::string blockHash;
+  std::string txid;
+  std::string blockhash;
   CTransaction ctx;
   Persistent<Function> callback;
 };
@@ -524,7 +524,7 @@ struct async_broadcast_tx_data {
   std::string err_msg;
   Persistent<Object> jstx;
   CTransaction ctx;
-  std::string tx_hash;
+  std::string txid;
   bool override_fees;
   bool own_only;
   Persistent<Function> callback;
@@ -536,7 +536,7 @@ struct async_broadcast_tx_data {
 
 struct async_wallet_sendto_data {
   std::string err_msg;
-  std::string tx_hash;
+  std::string txid;
   std::string address;
   int64_t nAmount;
   CWalletTx wtx;
@@ -549,7 +549,7 @@ struct async_wallet_sendto_data {
 
 struct async_wallet_sendfrom_data {
   std::string err_msg;
-  std::string tx_hash;
+  std::string txid;
   std::string address;
   int64_t nAmount;
   int nMinDepth;
@@ -607,12 +607,12 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
 
 #if USE_LDB_TX
 static bool
-get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index);
+get_block_by_tx(const std::string itxid, CBlock& rcblock, CBlockIndex **rcblock_index);
 #endif
 
 #if 0
 static bool
-get_block_by_tx_unspent(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index);
+get_block_by_tx_unspent(const std::string itxid, CBlock& rcblock, CBlockIndex **rcblock_index);
 #endif
 
 /**
@@ -991,7 +991,7 @@ NAN_METHOD(IsStopped) {
 
 /**
  * GetBlock()
- * bitcoind.getBlock([blockHash,blockHeight], callback)
+ * bitcoind.getBlock([blockhash,blockheight], callback)
  * Read any block from disk asynchronously.
  */
 
@@ -1002,7 +1002,7 @@ NAN_METHOD(GetBlock) {
       || (!args[0]->IsString() && !args[0]->IsNumber())
       || !args[1]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getBlock([blockHash,blockHeight], callback)");
+      "Usage: bitcoindjs.getBlock([blockhash,blockheight], callback)");
   }
 
   async_block_data *data = new async_block_data();
@@ -1106,7 +1106,7 @@ async_get_block_after(uv_work_t *req) {
 
 /**
  * GetTransaction()
- * bitcoind.getTransaction(txHash, [blockHash], callback)
+ * bitcoind.getTransaction(txid, [blockhash], callback)
  * Read any transaction from disk asynchronously.
  */
 
@@ -1118,24 +1118,24 @@ NAN_METHOD(GetTransaction) {
       || !args[1]->IsString()
       || !args[2]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getTransaction(txHash, [blockHash], callback)");
+      "Usage: bitcoindjs.getTransaction(txid, [blockhash], callback)");
   }
 
-  String::Utf8Value txHash_(args[0]->ToString());
-  String::Utf8Value blockHash_(args[1]->ToString());
+  String::Utf8Value txid_(args[0]->ToString());
+  String::Utf8Value blockhash_(args[1]->ToString());
   Local<Function> callback = Local<Function>::Cast(args[2]);
 
-  std::string txHash = std::string(*txHash_);
-  std::string blockHash = std::string(*blockHash_);
+  std::string txid = std::string(*txid_);
+  std::string blockhash = std::string(*blockhash_);
 
-  if (blockHash == "") {
-    blockHash = uint256(0).GetHex();
+  if (blockhash == "") {
+    blockhash = uint256(0).GetHex();
   }
 
   async_tx_data *data = new async_tx_data();
   data->err_msg = std::string("");
-  data->txHash = txHash;
-  data->blockHash = blockHash;
+  data->txid = txid;
+  data->blockhash = blockhash;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -1154,23 +1154,23 @@ static void
 async_get_tx(uv_work_t *req) {
   async_tx_data* data = static_cast<async_tx_data*>(req->data);
 
-  uint256 hash(data->txHash);
-  uint256 block_hash(data->blockHash);
+  uint256 hash(data->txid);
+  uint256 blockhash(data->blockhash);
   CTransaction ctx;
 
-  if (get_tx(hash, block_hash, ctx)) {
+  if (get_tx(hash, blockhash, ctx)) {
     data->ctx = ctx;
-    data->blockHash = block_hash;
+    data->blockhash = blockhash;
   } else {
     data->err_msg = std::string("get_tx(): failed.");
   }
 
 #if 0
-  if (GetTransaction(hash, ctx, block_hash, true)) {
+  if (GetTransaction(hash, ctx, blockhash, true)) {
     data->ctx = ctx;
-  } else if (block_hash != 0) {
+  } else if (blockhash != 0) {
     CBlock block;
-    CBlockIndex* pblockindex = mapBlockIndex[block_hash];
+    CBlockIndex* pblockindex = mapBlockIndex[blockhash];
     if (ReadBlockFromDisk(block, pblockindex)) {
       BOOST_FOREACH(const CTransaction &tx, block.vtx) {
         if (tx.GetHash() == hash) {
@@ -1189,12 +1189,8 @@ async_get_tx_after(uv_work_t *req) {
   NanScope();
   async_tx_data* data = static_cast<async_tx_data*>(req->data);
 
-  std::string txHash = data->txHash;
-  std::string blockHash = data->blockHash;
   CTransaction ctx = data->ctx;
-
-  uint256 hash(txHash);
-  uint256 block_hash(blockHash);
+  uint256 blockhash(data->blockhash);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -1207,7 +1203,7 @@ async_get_tx_after(uv_work_t *req) {
     }
   } else {
     Local<Object> jstx = NanNew<Object>();
-    ctx_to_jstx(ctx, block_hash, jstx);
+    ctx_to_jstx(ctx, blockhash, jstx);
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
@@ -1318,7 +1314,7 @@ async_broadcast_tx(uv_work_t *req) {
 
   RelayTransaction(ctx);
 
-  data->tx_hash = hashTx.GetHex();
+  data->txid = hashTx.GetHex();
 }
 
 static void
@@ -1339,7 +1335,7 @@ async_broadcast_tx_after(uv_work_t *req) {
     const unsigned argc = 3;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->tx_hash)),
+      Local<Value>::New(NanNew<String>(data->txid)),
       Local<Value>::New(data->jstx)
     };
     TryCatch try_catch;
@@ -3569,7 +3565,7 @@ async_wallet_sendto(uv_work_t *req) {
     return;
   }
 
-  data->tx_hash = wtx.GetHash().GetHex();
+  data->txid = wtx.GetHash().GetHex();
 }
 
 static void
@@ -3590,7 +3586,7 @@ async_wallet_sendto_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->tx_hash))
+      Local<Value>::New(NanNew<String>(data->txid))
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -3708,7 +3704,7 @@ async_wallet_sendfrom(uv_work_t *req) {
     return;
   }
 
-  data->tx_hash = wtx.GetHash().GetHex();
+  data->txid = wtx.GetHash().GetHex();
 }
 
 static void
@@ -3729,7 +3725,7 @@ async_wallet_sendfrom_after(uv_work_t *req) {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->tx_hash))
+      Local<Value>::New(NanNew<String>(data->txid))
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -5746,7 +5742,7 @@ async_rescan_after(uv_work_t *req) {
 /**
  * Conversions
  *   cblock_to_jsblock(cblock, cblock_index, jsblock, is_new)
- *   ctx_to_jstx(ctx, block_hash, jstx)
+ *   ctx_to_jstx(ctx, blockhash, jstx)
  *   jsblock_to_cblock(jsblock, cblock)
  *   jstx_to_ctx(jstx, ctx)
  * These functions, only callable from C++, are used to convert javascript
@@ -5786,9 +5782,9 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
     cblock_index = find_new_block_index(cblock.GetHash(), cblock.hashPrevBlock, &is_allocated);
   }
 
-  uint256 block_hash = cblock.GetHash();
+  uint256 blockhash = cblock.GetHash();
 
-  jsblock->Set(NanNew<String>("hash"), NanNew<String>(block_hash.GetHex()));
+  jsblock->Set(NanNew<String>("hash"), NanNew<String>(blockhash.GetHex()));
   CMerkleTx txGen(cblock.vtx[0]);
   txGen.SetMerkleBranch(cblock);
   jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
@@ -5837,7 +5833,7 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   int ti = 0;
   BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
     Local<Object> jstx = NanNew<Object>();
-    ctx_to_jstx(ctx, block_hash, jstx);
+    ctx_to_jstx(ctx, blockhash, jstx);
     txs->Set(ti, jstx);
     ti++;
   }
@@ -5876,7 +5872,7 @@ get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx) {
 }
 
 static inline void
-ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
+ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
   // With v0.9.0
   // jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
   // jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
@@ -5914,8 +5910,8 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
 
     Local<Object> jsprev = NanNew<Object>();
     CTransaction prev_tx;
-    //if (get_tx(txin.prevout.hash, block_hash, prev_tx)) {
-    if (GetTransaction(txin.prevout.hash, prev_tx, block_hash, true)) {
+    //if (get_tx(txin.prevout.hash, blockhash, prev_tx)) {
+    if (GetTransaction(txin.prevout.hash, prev_tx, blockhash, true)) {
       CTxDestination from;
       CTxOut prev_out = prev_tx.vout[txin.prevout.n];
       ExtractDestination(prev_out.scriptPubKey, from);
@@ -6036,17 +6032,17 @@ ctx_to_jstx(const CTransaction& ctx, uint256 block_hash, Local<Object> jstx) {
   jstx->Set(NanNew<String>("ismine"), NanNew<Boolean>(is_mine));
 
   // Find block hash if it's in our wallet
-  if (block_hash == 0 && is_mine) {
-    block_hash = cwtx.hashBlock;
+  if (blockhash == 0 && is_mine) {
+    blockhash = cwtx.hashBlock;
   }
 
-  if (block_hash != 0) {
-    jstx->Set(NanNew<String>("blockhash"), NanNew<String>(block_hash.GetHex()));
+  if (blockhash != 0) {
+    jstx->Set(NanNew<String>("blockhash"), NanNew<String>(blockhash.GetHex()));
     if (ctx.IsCoinBase()) {
       jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(true));
     }
-    if (mapBlockIndex.count(block_hash) > 0) {
-      CBlockIndex* pindex = mapBlockIndex[block_hash];
+    if (mapBlockIndex.count(blockhash) > 0) {
+      CBlockIndex* pindex = mapBlockIndex[blockhash];
       jstx->Set(NanNew<String>("confirmations"),
         NanNew<Number>(pindex->nHeight));
       // XXX Not really index:
@@ -6411,8 +6407,8 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
 
         CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
 
-        uint256 txhash;
-        ssKey >> txhash;
+        uint256 txid;
+        ssKey >> txid;
 
         // struct CDiskBlockPos {
         //   int nFile;
@@ -6428,7 +6424,7 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
         CTransaction ctx;
         uint256 blockhash;
 
-        if (!pblocktree->ReadTxIndex(txhash, txPos)) {
+        if (!pblocktree->ReadTxIndex(txid, txPos)) {
           goto next;
         }
 
@@ -6441,7 +6437,7 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
         } catch (std::exception &e) {
           goto error;
         }
-        if (ctx.GetHash() != txhash) {
+        if (ctx.GetHash() != txid) {
           goto error;
         }
         blockhash = header.GetHash();
@@ -6526,7 +6522,7 @@ error:
 
 #if USE_LDB_TX
 static bool
-get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index) {
+get_block_by_tx(const std::string itxid, CBlock& rcblock, CBlockIndex **rcblock_index) {
   leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
 
   pcursor->SeekToFirst();
@@ -6550,9 +6546,9 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
       //   Which offset in the block file the tx resides
       //   The offset from the top of the block containing the tx
       if (type == 't') {
-        uint256 txhash;
-        ssKey >> txhash;
-        if (txhash.GetHex() == itxhash) {
+        uint256 txid;
+        ssKey >> txid;
+        if (txid.GetHex() == itxid) {
           leveldb::Slice slValue = pcursor->value();
 
           CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
@@ -6571,7 +6567,7 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
           CTransaction ctx;
           uint256 blockhash;
 
-          if (!pblocktree->ReadTxIndex(txhash, txPos)) {
+          if (!pblocktree->ReadTxIndex(txid, txPos)) {
             goto error;
           }
 
@@ -6584,7 +6580,7 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
           } catch (std::exception &e) {
             goto error;
           }
-          if (ctx.GetHash() != txhash) {
+          if (ctx.GetHash() != txid) {
             goto error;
           }
           blockhash = header.GetHash();
@@ -6624,7 +6620,7 @@ error:
 // extern CCoinsViewDB *pcoinsdbview;
 
 static bool
-get_block_by_tx_unspent(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index) {
+get_block_by_tx_unspent(const std::string itxid, CBlock& rcblock, CBlockIndex **rcblock_index) {
   // XXX Will not work - db is protected property:
   CCoinsViewDB *pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
   bool fReindex = GetBoolArg("-reindex", false);
@@ -6655,9 +6651,9 @@ get_block_by_tx_unspent(const std::string itxhash, CBlock& rcblock, CBlockIndex 
       //   Which outputs of the tx are unspent
       //   The scriptPubKey and amount for these unspent outputs
       if (type == 'c') {
-        uint256 txhash;
-        ssKey >> txhash;
-        if (txhash.GetHex() == itxhash) {
+        uint256 txid;
+        ssKey >> txid;
+        if (txid.GetHex() == itxid) {
           leveldb::Slice slValue = pcursor->value();
           CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
 
