@@ -6013,15 +6013,15 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
   }
 #endif
 
-  CWalletTx cwtx(pwalletMain, ctx);
-  // XXX Determine wether this is our transaction
-  bool is_mine = cwtx.hashBlock != 0;
-  jstx->Set(NanNew<String>("ismine"), NanNew<Boolean>(is_mine));
-
   // Find block hash if it's in our wallet
-  if (blockhash == 0 && is_mine) {
-    blockhash = cwtx.hashBlock;
+  bool is_mine = false;
+  CWalletTx cwtx;
+  if (pwalletMain->mapWallet.count(ctx.GetHash())) {
+    cwtx = pwalletMain->mapWallet[ctx.GetHash()];
+    blockhash.SetHex(cwtx.hashBlock.GetHex());
+    is_mine = true;
   }
+  jstx->Set(NanNew<String>("ismine"), NanNew<Boolean>(is_mine));
 
   if (blockhash != 0) {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(blockhash.GetHex()));
