@@ -189,8 +189,6 @@ using namespace v8;
 // LevelDB options
 #define USE_LDB_ADDR 0
 #define USE_LDB_TX 0
-#define USE_LDB_GETTX 1
-#define USE_LDB_GETTX_MAIN 0
 
 /**
  * Node.js Exposed Function Templates
@@ -606,11 +604,6 @@ struct async_rescan_data {
 #if USE_LDB_ADDR
 static ctx_list *
 read_addr(const std::string addr, const int64_t blockheight, const int64_t blocktime);
-#endif
-
-#if defined(USE_LDB_GETTX) || defined(USE_LDB_GETTX_MAIN)
-static bool
-get_tx_ldb(const uint256 itxid, CTransaction& rctx, uint256& rblockhash);
 #endif
 
 #if USE_LDB_TX
@@ -1176,21 +1169,12 @@ async_get_tx(uv_work_t *req) {
   uint256 blockhash(data->blockhash);
   CTransaction ctx;
 
-#if USE_LDB_GETTX_MAIN
-  if (get_tx_ldb(hash, ctx, blockhash)) {
-    data->ctx = ctx;
-    data->blockhash = blockhash.GetHex();
-  } else {
-    data->err_msg = std::string("get_tx(): failed.");
-  }
-#else
   if (get_tx(hash, blockhash, data->traverse, ctx)) {
     data->ctx = ctx;
     data->blockhash = blockhash.GetHex();
   } else {
     data->err_msg = std::string("get_tx(): failed.");
   }
-#endif
 }
 
 static void
@@ -5865,9 +5849,6 @@ get_tx(uint256 txid, uint256& blockhash, const bool traverse, CTransaction& ctx)
   if (GetTransaction(txid, ctx, blockhash, true)) {
     return 1;
   } else if (traverse && blockhash != 0) {
-#if USE_LDB_GETTX
-    get_tx_ldb(txid, ctx, blockhash);
-#else
     CBlock block;
     CBlockIndex* pblockindex = mapBlockIndex[blockhash];
     if (ReadBlockFromDisk(block, pblockindex)) {
@@ -5879,7 +5860,6 @@ get_tx(uint256 txid, uint256& blockhash, const bool traverse, CTransaction& ctx)
         }
       }
     }
-#endif
   }
   return 0;
 }
@@ -5923,7 +5903,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
 
     Local<Object> jsprev = NanNew<Object>();
     CTransaction prev_tx;
-    //if (get_tx(txin.prevout.hash, blockhash, false, prev_tx)) {
+    //if (get_tx(txin.prevout.hash, blockhash, true, prev_tx)) {
     if (GetTransaction(txin.prevout.hash, prev_tx, blockhash, true)) {
       CTxDestination from;
       CTxOut prev_out = prev_tx.vout[txin.prevout.n];
@@ -6525,107 +6505,6 @@ error:
 
   delete pcursor;
   return head;
-}
-#endif
-
-#if defined(USE_LDB_GETTX) || defined(USE_LDB_GETTX_MAIN)
-/**
- LevelDB Parser
- DB: blocks/blk/revXXXXX.dat
- */
-
-static bool
-get_tx_ldb(const uint256 itxid, CTransaction& rctx, uint256& rblockhash) {
-  leveldb::Iterator* pcursor = pblocktree->pdb->NewIterator(pblocktree->iteroptions);
-
-  pcursor->SeekToFirst();
-
-  while (pcursor->Valid()) {
-    boost::this_thread::interruption_point();
-    try {
-      leveldb::Slice slKey = pcursor->key();
-
-      CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
-
-      char type;
-      ssKey >> type;
-
-      // Blockchain Index Structure:
-      // http://bitcoin.stackexchange.com/questions/28168
-
-      // Transaction Structure:
-      // 't' + 32-byte tx hash
-      //   Which block file the tx is stored in
-      //   Which offset in the block file the tx resides
-      //   The offset from the top of the block containing the tx
-      if (type == 't') {
-        uint256 txid;
-        ssKey >> txid;
-        if (txid == itxid) {
-          leveldb::Slice slValue = pcursor->value();
-
-          CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
-
-          // struct CDiskBlockPos {
-          //   int nFile;
-          //   unsigned int nPos;
-          // };
-          // struct CDiskTxPos : public CDiskBlockPos {
-          //   unsigned int nTxOffset;
-          // };
-
-          CDiskTxPos txPos;
-          ssValue >> txPos;
-
-          CTransaction ctx;
-          uint256 blockhash;
-
-          if (!pblocktree->ReadTxIndex(txid, txPos)) {
-            goto error;
-          }
-
-          CAutoFile file(OpenBlockFile(txPos, true), SER_DISK, CLIENT_VERSION);
-          CBlockHeader header;
-          try {
-            file >> header;
-            fseek(file.Get(), txPos.nTxOffset, SEEK_CUR);
-            file >> ctx;
-          } catch (std::exception &e) {
-            goto error;
-          }
-          if (ctx.GetHash() != txid) {
-            goto error;
-          }
-          blockhash = header.GetHash();
-
-          CBlock cblock;
-          CBlockIndex* pblockindex = mapBlockIndex[blockhash];
-          if (ReadBlockFromDisk(cblock, pblockindex)) {
-            BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
-              if (ctx.GetHash() == itxid) {
-                rblockhash = blockhash;
-                rctx = ctx;
-                delete pcursor;
-                return true;
-              }
-            }
-            goto error;
-          }
-
-          goto error;
-        }
-      }
-
-      pcursor->Next();
-    } catch (std::exception &e) {
-      delete pcursor;
-      return false;
-    }
-  }
-
-error:
-  delete pcursor;
-  return false;
 }
 #endif
 
