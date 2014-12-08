@@ -1169,7 +1169,8 @@ async_get_tx(uv_work_t *req) {
   uint256 blockhash(data->blockhash);
   CTransaction ctx;
 
-  if (get_tx(hash, blockhash, data->traverse, ctx)) {
+  //if (get_tx(hash, blockhash, data->traverse, ctx)) {
+  if (get_tx(hash, blockhash, true, ctx)) {
     data->ctx = ctx;
     data->blockhash = blockhash.GetHex();
   } else {
