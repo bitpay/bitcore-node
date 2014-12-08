@@ -403,7 +403,7 @@ static int64_t
 SatoshiFromAmount(const CAmount& amount);
 
 static int
-get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx);
+get_tx(uint256 txid, uint256& blockhash, const bool traverse, CTransaction& ctx);
 
 extern "C" void
 init(Handle<Object>);
@@ -460,6 +460,7 @@ struct async_tx_data {
   std::string err_msg;
   std::string txid;
   std::string blockhash;
+  bool traverse;
   CTransaction ctx;
   Persistent<Function> callback;
 };
@@ -1116,14 +1117,23 @@ NAN_METHOD(GetTransaction) {
   if (args.Length() < 3
       || !args[0]->IsString()
       || !args[1]->IsString()
-      || !args[2]->IsFunction()) {
+      || (!args[2]->IsFunction() && !(args[2]->IsBoolean() && args[3]->IsFunction())) {
     return NanThrowError(
-      "Usage: bitcoindjs.getTransaction(txid, [blockhash], callback)");
+      "Usage: bitcoindjs.getTransaction(txid, [blockhash], [traverse], callback)");
   }
 
   String::Utf8Value txid_(args[0]->ToString());
   String::Utf8Value blockhash_(args[1]->ToString());
-  Local<Function> callback = Local<Function>::Cast(args[2]);
+
+  bool traverse = true;
+  Local<Function> callback;
+
+  if (args[2]->IsBoolean()) {
+    traverse = args[2]->ToBoolean()->IsTrue();
+    callback = Local<Function>::Cast(args[3]);
+  } else {
+    callback = Local<Function>::Cast(args[2]);
+  }
 
   std::string txid = std::string(*txid_);
   std::string blockhash = std::string(*blockhash_);
@@ -1136,6 +1146,7 @@ NAN_METHOD(GetTransaction) {
   data->err_msg = std::string("");
   data->txid = txid;
   data->blockhash = blockhash;
+  data->traverse = traverse;
   data->callback = Persistent<Function>::New(callback);
 
   uv_work_t *req = new uv_work_t();
@@ -1158,7 +1169,7 @@ async_get_tx(uv_work_t *req) {
   uint256 blockhash(data->blockhash);
   CTransaction ctx;
 
-  if (get_tx(hash, blockhash, ctx)) {
+  if (get_tx(hash, blockhash, data->traverse, ctx)) {
     data->ctx = ctx;
     data->blockhash = blockhash.GetHex();
   } else {
@@ -5834,10 +5845,10 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
 }
 
 static int
-get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx) {
+get_tx(uint256 txid, uint256& blockhash, const bool traverse, CTransaction& ctx) {
   if (GetTransaction(txid, ctx, blockhash, true)) {
     return 1;
-  } else if (blockhash != 0) {
+  } else if (traverse && blockhash != 0) {
     CBlock block;
     CBlockIndex* pblockindex = mapBlockIndex[blockhash];
     if (ReadBlockFromDisk(block, pblockindex)) {
@@ -5892,7 +5903,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
 
     Local<Object> jsprev = NanNew<Object>();
     CTransaction prev_tx;
-    //if (get_tx(txin.prevout.hash, blockhash, prev_tx)) {
+    //if (get_tx(txin.prevout.hash, blockhash, false, prev_tx)) {
     if (GetTransaction(txin.prevout.hash, prev_tx, blockhash, true)) {
       CTxDestination from;
       CTxOut prev_out = prev_tx.vout[txin.prevout.n];
