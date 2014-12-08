@@ -607,6 +607,11 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
 static bool
 get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index);
 
+#if 0
+static bool
+get_block_by_tx_unspent(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index);
+#endif
+
 /**
  * Functions
  */
@@ -6209,6 +6214,12 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 }
 
 #if USE_LDB_ADDR
+
+/**
+ LevelDB Parser
+ DB: blocks/blk/revXXXXX.dat
+ */
+
 static ctx_list *
 read_addr(const std::string addr, const int64_t blockheight, const int64_t blocktime) {
   ctx_list *head = new ctx_list();
@@ -6235,7 +6246,8 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
       // Blockchain Index Structure:
       // http://bitcoin.stackexchange.com/questions/28168
 
-      // File info record structure (Key: 4-byte file number)
+      // File info record structure
+      // 'f' + 4-byte file number
       //   Number of blocks stored in block file
       //   Size of block file: blocks/blkXXXXX.dat
       //   Size of undo file: blocks/revXXXXX.dat
@@ -6245,31 +6257,35 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
         goto next;
       }
 
-      // Last block file number used structure (Key: no key)
+      // Last block file number used structure
+      // 'l'
       //   4-byte file number
       if (type == 'l') {
         goto next;
       }
 
-      // Reindexing structure (Key: no key)
+      // Reindexing structure
+      // 'R'
       //   1-byte Boolean (1 if reindexing)
       if (type == 'R') {
         goto next;
       }
 
-      // Flags structure (Key: 1-byte flag name + flag name string)
+      // Flags structure
+      // 'F' + 1-byte flag name + flag name string
       //   1-byte Boolean (key may be `txindex` if transaction index is enabled)
       if (type == 'F') {
         goto next;
       }
 
       // Block Structure:
-      //   CBlockHeader - headers
-      //   nHeight
-      //   nTx
-      //   validation state
-      //   CDiskBlockPos - block file and pos
-      //   CDiskBlockPos - undo file and pos
+      // 'b' + 32-byte block hash
+      //   The block header
+      //   The block height
+      //   The number of transactions
+      //   The block validation state
+      //   The block file and pos
+      //   The undo file and pos
       if (type == 'b') {
         leveldb::Slice slValue = pcursor->value();
 
@@ -6278,16 +6294,40 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
         uint256 blockhash;
         ssKey >> blockhash;
 
+        // class CBlockIndex {
+        //   const uint256* phashBlock;
+        //   CBlockIndex* pprev;
+        //   CBlockIndex* pskip;
+        //   int nHeight;
+        //   int nFile;
+        //   unsigned int nDataPos;
+        //   unsigned int nUndoPos;
+        //   uint256 nChainWork;
+        //   unsigned int nTx;
+        //   unsigned int nChainTx;
+        //   unsigned int nStatus;
+        //   int nVersion;
+        //   uint256 hashMerkleRoot;
+        //   unsigned int nTime;
+        //   unsigned int nBits;
+        //   unsigned int nNonce;
+        //   uint32_t nSequenceId;
+        // };
+        // class CDiskBlockIndex : public CBlockIndex {
+        //   uint256 hashPrev;
+        // };
+
         CDiskBlockIndex index;
         ssValue >> index;
-
-        //if (blockheight != -1 && index.nHeight < blockheight) {
-        //  goto next;
-        //}
 
         if (blocktime != -1 && index.GetBlockTime() < blocktime) {
           goto next;
         }
+
+        // struct CDiskBlockPos {
+        //   int nFile;
+        //   unsigned int nPos;
+        // };
 
         CDiskBlockPos blockPos;
         blockPos.nFile = index.nFile;
@@ -6353,9 +6393,10 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
       }
 
       // Transaction Structure:
-      //   CDiskBlockPos.nFile - block file
-      //   CDiskBlockPos.nPos - block pos
-      //   CDiskTxPos.nTxOffset - offset from top of block
+      // 't' + 32-byte tx hash
+      //   Which block file the tx is stored in
+      //   Which offset in the block file the tx resides
+      //   The offset from the top of the block containing the tx
       if (type == 't') {
         leveldb::Slice slValue = pcursor->value();
 
@@ -6364,16 +6405,13 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
         uint256 txhash;
         ssKey >> txhash;
 
-        // CDiskBlockPos blockPos;
-        // ssValue >> blockPos.nFile;
-        // ssValue >> blockPos.nPos;
-
-        // CDiskTxPos txPos;
-        // // ssValue >> txPos.nFile;
-        // // ssValue >> txPos.nPos;
-        // txPos.nFile = blockPos.nFile;
-        // txPos.nPos = blockPos.nPos;
-        // ssValue >> txPos.nTxOffset;
+        // struct CDiskBlockPos {
+        //   int nFile;
+        //   unsigned int nPos;
+        // };
+        // struct CDiskTxPos : public CDiskBlockPos {
+        //   unsigned int nTxOffset;
+        // };
 
         CDiskTxPos txPos;
         ssValue >> txPos;
@@ -6453,13 +6491,9 @@ read_addr(const std::string addr, const int64_t blockheight, const int64_t block
 next:
       pcursor->Next();
     } catch (std::exception &e) {
-      //pcursor->Next();
-      //continue;
-      leveldb::Slice lastKey = pcursor->key();
-      std::string lastKeyHex = HexStr(lastKey.ToString());
       head->err_msg = std::string(e.what()
         + std::string(" : Deserialize error. Key: ")
-        + lastKeyHex);
+        + pcursor->key().ToString());
       delete pcursor;
       return head;
     }
@@ -6475,6 +6509,11 @@ error:
   return head;
 }
 #endif
+
+/**
+ LevelDB Parser
+ DB: blocks/blk/revXXXXX.dat
+ */
 
 static bool
 get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index) {
@@ -6492,6 +6531,14 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
       char type;
       ssKey >> type;
 
+      // Blockchain Index Structure:
+      // http://bitcoin.stackexchange.com/questions/28168
+
+      // Transaction Structure:
+      // 't' + 32-byte tx hash
+      //   Which block file the tx is stored in
+      //   Which offset in the block file the tx resides
+      //   The offset from the top of the block containing the tx
       if (type == 't') {
         uint256 txhash;
         ssKey >> txhash;
@@ -6500,16 +6547,13 @@ get_block_by_tx(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcbloc
 
           CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
 
-          // CDiskBlockPos blockPos;
-          // ssValue >> blockPos.nFile;
-          // ssValue >> blockPos.nPos;
-
-          // CDiskTxPos txPos;
-          // // ssValue >> txPos.nFile;
-          // // ssValue >> txPos.nPos;
-          // txPos.nFile = blockPos.nFile;
-          // txPos.nPos = blockPos.nPos;
-          // ssValue >> txPos.nTxOffset;
+          // struct CDiskBlockPos {
+          //   int nFile;
+          //   unsigned int nPos;
+          // };
+          // struct CDiskTxPos : public CDiskBlockPos {
+          //   unsigned int nTxOffset;
+          // };
 
           CDiskTxPos txPos;
           ssValue >> txPos;
@@ -6558,6 +6602,96 @@ error:
   delete pcursor;
   return false;
 }
+
+#if 0
+/**
+ LevelDB Parser
+ DB: chainstate*
+ */
+
+// XXX static - will not work:
+// extern CCoinsViewDB *pcoinsdbview;
+
+static bool
+get_block_by_tx_unspent(const std::string itxhash, CBlock& rcblock, CBlockIndex **rcblock_index) {
+  // XXX Will not work - db is protected property:
+  CCoinsViewDB *pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
+  bool fReindex = GetBoolArg("-reindex", false);
+  size_t nCoinDBCache = (GetArg("-dbcache", nDefaultDbCache) << 20) / 2;
+  nCoinCacheSize = nCoinDBCache / 300;
+  boost::scoped_ptr<leveldb::Iterator> pcursor(const_cast<CLevelDBWrapper*>(&pcoinsdbview->db)->NewIterator());
+
+  pcursor->SeekToFirst();
+
+  while (pcursor->Valid()) {
+    boost::this_thread::interruption_point();
+    try {
+      leveldb::Slice slKey = pcursor->key();
+
+      CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
+
+      char type;
+      ssKey >> type;
+
+      // Blockchain Index Structure:
+      // http://bitcoin.stackexchange.com/questions/28168
+
+      // Unspent Output Transaction Structure:
+      //   'c' + 32-byte tx hash
+      //   Version of the tx
+      //   Whether transaction was a coinbase
+      //   Which height block contains the tx
+      //   Which outputs of the tx are unspent
+      //   The scriptPubKey and amount for these unspent outputs
+      if (type == 'c') {
+        uint256 txhash;
+        ssKey >> txhash;
+        if (txhash.GetHex() == itxhash) {
+          leveldb::Slice slValue = pcursor->value();
+          CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+
+          // class CCoins {
+          //   bool fCoinBase;
+          //   std::vector<CTxOut> vout;
+          //   int nHeight;
+          //   int nVersion;
+          // }
+
+          CCoins coins;
+          ssValue >> coins;
+
+          CBlockIndex* pblockindex = chainActive[coins.nHeight];
+          CBlock cblock;
+          if (ReadBlockFromDisk(cblock, pblockindex)) {
+            *rcblock_index = pblockindex;
+            return true;
+          }
+
+          goto error;
+        }
+      }
+
+      // Unspent Output Block Hash Structure
+      // 'B' + 32-byte block hash: The block hash up to which the db represents
+      // the unspent tx outputs
+      if (type == 'B') {
+        uint256 blockhash;
+        ssKey >> blockhash;
+        // CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
+        // uint256 blockhash;
+        // ssValue >> blockhash;
+      }
+
+      pcursor->Next();
+    } catch (std::exception &e) {
+      return false;
+    }
+  }
+
+error:
+  return false;
+}
+#endif
 
 static int64_t
 SatoshiFromAmount(const CAmount& amount) {
