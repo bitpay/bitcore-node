@@ -1117,7 +1117,7 @@ NAN_METHOD(GetTransaction) {
   if (args.Length() < 3
       || !args[0]->IsString()
       || !args[1]->IsString()
-      || (!args[2]->IsFunction() && !(args[2]->IsBoolean() && args[3]->IsFunction())) {
+      || (!args[2]->IsFunction() && !(args[2]->IsBoolean() && args[3]->IsFunction()))) {
     return NanThrowError(
       "Usage: bitcoindjs.getTransaction(txid, [blockhash], [traverse], callback)");
   }
