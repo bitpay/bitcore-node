@@ -188,6 +188,7 @@ using namespace v8;
 
 // LevelDB options
 #define USE_LDB_ADDR 0
+#define USE_LDB_TX 1
 
 /**
  * Node.js Exposed Function Templates
@@ -2188,10 +2189,10 @@ NAN_METHOD(GetBlockByTx) {
 static void
 async_block_tx(uv_work_t *req) {
   async_block_tx_data* data = static_cast<async_block_tx_data*>(req->data);
-  CBlock cblock;
-  CBlockIndex *cblock_index;
+#if USE_LDB_TX
   if (!g_txindex) {
 parse:
+#endif
     int64_t i = 0;
     int64_t height = chainActive.Height();
     for (; i <= height; i++) {
@@ -2209,13 +2210,17 @@ parse:
     }
     data->err_msg = std::string("Block not found.");
     return;
+#if USE_LDB_TX
   }
+  CBlock cblock;
+  CBlockIndex *cblock_index;
   if (get_block_by_tx(data->txid, cblock, &cblock_index)) {
     data->cblock = cblock;
     data->cblock_index = cblock_index;
   } else {
     goto parse;
   }
+#endif
 }
 
 static void
