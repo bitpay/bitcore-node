@@ -403,7 +403,7 @@ static int64_t
 SatoshiFromAmount(const CAmount& amount);
 
 static int
-get_tx(uint256 txid, uint256 blockhash, CTransaction& ctx);
+get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx);
 
 extern "C" void
 init(Handle<Object>);
@@ -1160,28 +1160,10 @@ async_get_tx(uv_work_t *req) {
 
   if (get_tx(hash, blockhash, ctx)) {
     data->ctx = ctx;
-    data->blockhash = blockhash;
+    data->blockhash = blockhash.GetHex();
   } else {
     data->err_msg = std::string("get_tx(): failed.");
   }
-
-#if 0
-  if (GetTransaction(hash, ctx, blockhash, true)) {
-    data->ctx = ctx;
-  } else if (blockhash != 0) {
-    CBlock block;
-    CBlockIndex* pblockindex = mapBlockIndex[blockhash];
-    if (ReadBlockFromDisk(block, pblockindex)) {
-      BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-        if (tx.GetHash() == hash) {
-          data->ctx = tx;
-          return;
-        }
-      }
-    }
-    data->err_msg = std::string("GetTransaction(): failed.");
-  }
-#endif
 }
 
 static void
