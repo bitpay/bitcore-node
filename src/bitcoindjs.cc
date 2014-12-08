@@ -1160,6 +1160,7 @@ async_get_tx(uv_work_t *req) {
 
   if (get_tx(hash, block_hash, ctx)) {
     data->ctx = ctx;
+    data->blockHash = block_hash;
   } else {
     data->err_msg = std::string("get_tx(): failed.");
   }
@@ -5855,7 +5856,7 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
 }
 
 static int
-get_tx(uint256 txid, uint256 blockhash, CTransaction& ctx) {
+get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx) {
   if (GetTransaction(txid, ctx, blockhash, true)) {
     return 1;
   } else if (blockhash != 0) {
@@ -5865,6 +5866,7 @@ get_tx(uint256 txid, uint256 blockhash, CTransaction& ctx) {
       BOOST_FOREACH(const CTransaction& tx, block.vtx) {
         if (tx.GetHash() == txid) {
           ctx = tx;
+          blockhash = block.GetHash();
           return -1;
         }
       }
