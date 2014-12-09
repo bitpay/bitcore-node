@@ -1,7 +1,7 @@
 #!/bin/sh
 
 dir=$(test -n "$1" && echo "$1" || echo "${HOME}/bitcoin")
-patch_file="$(pwd)/libbitcoind.patch"
+patch_file="$(pwd)/bitcoin.patch"
 
 cd "$dir" || exit 1
 
