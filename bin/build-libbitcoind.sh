@@ -1,6 +1,7 @@
 #!/bin/sh
 
-cur_dir="$(pwd)"
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
+cd "$root_dir"
 os_dir=$(./platform/os.sh osdir)
 
 if test -e "${os_dir}/libbitcoind.so"; then
@@ -17,7 +18,7 @@ if test -n "$1"; then
   if test "$1" = 'remote'; then
     echo 'git clone'
     git clone git://github.com/bitcoin/bitcoin.git libbitcoind || exit 1
-    btc_dir="${cur_dir}/libbitcoind"
+    btc_dir="${root_dir}/libbitcoind"
   else
     btc_dir=$1
     if ! test -d "$btc_dir"; then
@@ -37,7 +38,7 @@ fi
 echo "Found BTC directory: $btc_dir"
 
 echo './patch-bitcoin.sh' "$btc_dir"
-./patch-bitcoin.sh "$btc_dir" || exit 1
+./bin/patch-bitcoin "$btc_dir" || exit 1
 
 cd "$btc_dir" || exit 1
 

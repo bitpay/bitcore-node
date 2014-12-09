@@ -1,5 +1,7 @@
 #!/bin/sh
 
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
+cd "$root_dir"
 dir=$(test -n "$1" && echo "$1" || echo "${HOME}/bitcoin")
 patch_file="$(pwd)/bitcoin.patch"
 
