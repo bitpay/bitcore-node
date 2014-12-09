@@ -10,7 +10,7 @@ if ! test -d .git; then
   exit 1
 fi
 
-git checkout 4383319e4e0cb96818d2be734f7280181daac9fa
+git checkout 0a1d03ca5265293e6419b0ffb68d277da6b1d9a0
 if test $? -ne 0; then
   echo 'Unable to checkout necessary commit.'
   echo 'Please pull the latest HEAD from the upstream bitcoin repo.'
