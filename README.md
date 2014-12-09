@@ -30,8 +30,11 @@ making all useful bitcoind functions asynchronous.
 
 ``` bash
 $ cd ~/node_modules/bitcoind.js
-$ ./build-libbitcoind.sh remote
+$ ./bin/build-libbitcoind remote
 ```
+
+NOTE: This script will run automatically on an `npm install`, along with the
+compilation below.
 
 `remote` will clone the latest bitcoin upstream, apply a patch to it, compile
 libbitcoind.so, and place it in the appropriate directory. The first argument
