@@ -6038,9 +6038,8 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
     }
   } else {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
-    jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(-1));
     jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(false));
-    jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
+    jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(-1));
     // XXX Not really index:
     jstx->Set(NanNew<String>("blockindex"), NanNew<Number>(-1));
     jstx->Set(NanNew<String>("blockheight"), NanNew<Number>(-1));
