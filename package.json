@@ -10,7 +10,7 @@
     "url": "https://github.com/chjj/bitcoind.js/issues"
   },
   "scripts": {
-    "preinstall": "./build-libbitcoind.sh remote",
+    "preinstall": "./bin/build-libbitcoind remote",
     "start": "node example"
   },
   "tags": [
