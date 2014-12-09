@@ -5860,9 +5860,19 @@ get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx) {
 
 static inline void
 ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
+  // Find block hash if it's in our wallet
+  bool is_mine = false;
+  CWalletTx cwtx;
+  if (pwalletMain->mapWallet.count(ctx.GetHash())) {
+    cwtx = pwalletMain->mapWallet[ctx.GetHash()];
+    blockhash.SetHex(cwtx.hashBlock.GetHex());
+    is_mine = true;
+  }
+
   // With v0.9.0
   // jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
   // jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
+
   jstx->Set(NanNew<String>("current_version"),
     NanNew<Number>((int)ctx.CURRENT_VERSION)->ToInt32());
 
@@ -5980,14 +5990,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
   }
   jstx->Set(NanNew<String>("vout"), vout);
 
-  // Find block hash if it's in our wallet
-  bool is_mine = false;
-  CWalletTx cwtx;
-  if (pwalletMain->mapWallet.count(ctx.GetHash())) {
-    cwtx = pwalletMain->mapWallet[ctx.GetHash()];
-    blockhash.SetHex(cwtx.hashBlock.GetHex());
-    is_mine = true;
-  }
   jstx->Set(NanNew<String>("ismine"), NanNew<Boolean>(is_mine));
 
   if (blockhash != 0) {
