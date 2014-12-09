@@ -5897,8 +5897,8 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
 
     Local<Object> jsprev = NanNew<Object>();
     CTransaction prev_tx;
-    //if (get_tx(txin.prevout.hash, blockhash, prev_tx)) {
-    if (GetTransaction(txin.prevout.hash, prev_tx, blockhash, true)) {
+    if (get_tx(txin.prevout.hash, blockhash, prev_tx)) {
+    //if (GetTransaction(txin.prevout.hash, prev_tx, blockhash, true)) {
       CTxDestination from;
       CTxOut prev_out = prev_tx.vout[txin.prevout.n];
       ExtractDestination(prev_out.scriptPubKey, from);
