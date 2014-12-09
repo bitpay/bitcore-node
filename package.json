@@ -2,7 +2,7 @@
   "name": "bitcoind.js",
   "description": "Node binding for bitcoind",
   "author": "Christopher Jeffrey",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "main": "./index.js",
   "repository": "git://github.com/chjj/bitcoind.js.git",
   "homepage": "https://github.com/chjj/bitcoind.js",
