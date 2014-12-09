@@ -5980,39 +5980,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
   }
   jstx->Set(NanNew<String>("vout"), vout);
 
-#if 0
-  int jvi = 0;
-  Local<Object> jsvin = Local<Object>::Cast(jstx->Get(NanNew<String>("vin")));
-  for (; jvi < jsvin->Length(); jvi++) {
-    Local<Object> jsprev = Local<Object>::Cast(jsvin->Get(NanNew<String>("prev")));
-    Utf8Value jsaddr_(jsprev->Get(NanNew<String>("address"))->ToString());
-    std::string jsaddr = std::string(*jsaddr_);
-    if (jsaddr == "Unknown") {
-      Local<Object> jsvout = Local<Object>::Cast(jstx->Get(NanNew<String>("vout")));
-      Local<Object> jsspk = Local<Object>::Cast(jsvout->Get(NanNew<String>("scriptPubKey")));
-      Local<Array> jsaddrs = Local<Array>::Cast(jsvout->Get(NanNew<String>("addresses")));
-      Utf8Value jsa_(jsaddrs->Get(0)->ToString());
-      std::string jsa = std::string(*jsa_);
-      jsprev->Set(NanNew<String>("address"), NanNew<String>(std::string(jsa + std::string("-fixed"))));
-    }
-  }
-
-  const CTxOut& txout = ctx.vout[txin.prevout.n];
-  for (unsigned int vo = 0; vo < ctx.vout.size(); vo++) {
-    const CTxOut& txout = ctx.vout[vo];
-    out->Set(NanNew<String>("n"), NanNew<Number>((unsigned int)vo)->ToUint32());
-    const CScript& scriptPubKey = txout.scriptPubKey;
-    txnouttype type;
-    vector<CTxDestination> addresses;
-    int nRequired;
-    if (ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
-      BOOST_FOREACH(const CTxDestination& addr, addresses) {
-        std::string addr = CBitcoinAddress(addr).ToString();
-      }
-    }
-  }
-#endif
-
   // Find block hash if it's in our wallet
   bool is_mine = false;
   CWalletTx cwtx;
