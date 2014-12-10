@@ -876,14 +876,14 @@ start_node_thread(void) {
     }
 
     // Check for changed -txindex state
-    if (fTxIndex != GetBoolArg("-txindex", false)) {
-      if (set_cooked()) {
-        fprintf(stderr, "You need to rebuild the database using -reindex to change -txindex\n");
-      }
-      shutdown_complete = true;
-      _exit(1);
-      return;
-    }
+    // if (fTxIndex != GetBoolArg("-txindex", false)) {
+    //   if (set_cooked()) {
+    //     fprintf(stderr, "You need to rebuild the database using -reindex to change -txindex\n");
+    //   }
+    //   shutdown_complete = true;
+    //   _exit(1);
+    //   return;
+    // }
 
     CreatePidFile(GetPidFile(), getpid());
 
