@@ -5878,6 +5878,24 @@ get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx) {
       }
     }
   }
+#if 0
+  // NOTE: Using -txindex would prevent this.
+  int64_t i = 0;
+  int64_t height = chainActive.Height();
+  for (; i <= height; i++) {
+    CBlock block;
+    CBlockIndex* pblockindex = chainActive[i];
+    if (ReadBlockFromDisk(block, pblockindex)) {
+      BOOST_FOREACH(const CTransaction& tx, block.vtx) {
+        if (tx.GetHash() == txid) {
+          ctx = tx;
+          blockhash = block.GetHash();
+          return -2;
+        }
+      }
+    }
+  }
+#endif
   return 0;
 }
 
