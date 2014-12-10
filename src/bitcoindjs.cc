@@ -846,6 +846,7 @@ start_node_thread(void) {
           mapArgs["-datadir"].c_str());
       }
       shutdown_complete = true;
+      _exit(1);
       return;
     }
 
@@ -857,6 +858,7 @@ start_node_thread(void) {
           "bitcoind.js: Error reading configuration file: %s\n", e.what());
       }
       shutdown_complete = true;
+      _exit(1);
       return;
     }
 
@@ -866,6 +868,7 @@ start_node_thread(void) {
           "bitcoind.js: Invalid combination of -regtest and -testnet.\n");
       }
       shutdown_complete = true;
+      _exit(1);
       return;
     }
 
@@ -875,6 +878,7 @@ start_node_thread(void) {
         fprintf(stderr, "You need to rebuild the database using -reindex to change -txindex\n");
       }
       shutdown_complete = true;
+      _exit(1);
       return;
     }
 
