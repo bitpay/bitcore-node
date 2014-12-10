@@ -21,22 +21,22 @@ if test -f /etc/centos-release \
   os=centos
 elif grep -q 'Fedora' /etc/system-release; then
   os=fedora
-elif uname -a | grep -q '^Darwin'; then
-  os=osx
 elif test -f /etc/redhat_release \
   || test -f /etc/redhat-release; then
   os=rhel
+elif uname -a | grep -q '^Darwin'; then
+  os=osx
 elif test -f /etc/SuSE-release; then
   os=suse
 elif test -f /etc/mandrake-release \
   || test -f /etc/mandriva-release; then
   os=mandriva
+elif grep -q 'Linux Mint' /etc/issue; then
+  os=mint
 elif grep -q 'Ubuntu' /etc/issue \
   || grep -q 'Ubuntu' /etc/lsb-release \
   || uname -v | grep -q 'Ubuntu'; then
   os=ubuntu
-elif grep -q 'Linux Mint' /etc/issue; then
-  os=mint
 elif test -f /etc/debian_version \
   || test -f /etc/debian-version; then
   os=debian
@@ -51,7 +51,7 @@ elif test -d /system && test -d /data/data; then
   os=android
 fi
 
-if test -z "$os" -o "$os" = 'android'; then
+if test -z "$os" -o x"$os" = x'android' -o x"$os" = x'aix'; then
   # Maybe someday...
   if test "$os" = 'android' -o "$os" = 'aix'; then
     echo 'Android or AIX detected!' >& 2
