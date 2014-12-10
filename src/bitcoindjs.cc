@@ -891,13 +891,15 @@ start_node_thread(void) {
       boost::bind(&DetectShutdownThread, &threadGroup));
     fRet = AppInit2(threadGroup);
   } catch (std::exception& e) {
-    if (set_cooked()) {
-      fprintf(stderr, "bitcoind.js: AppInit(): std::exception\n");
-    }
+    // if (set_cooked()) {
+    //   fprintf(stderr, "bitcoind.js: AppInit(): std::exception\n");
+    // }
+    ;
   } catch (...) {
-    if (set_cooked()) {
-      fprintf(stderr, "bitcoind.js: AppInit(): other exception\n");
-    }
+    // if (set_cooked()) {
+    //   fprintf(stderr, "bitcoind.js: AppInit(): other exception\n");
+    // }
+    ;
   }
 
   if (!fRet) {
