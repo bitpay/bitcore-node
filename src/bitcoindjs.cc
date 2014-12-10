@@ -713,7 +713,7 @@ async_start_node(uv_work_t *req) {
   g_testnet = (bool)data->testnet;
   g_txindex = (bool)data->txindex;
   start_node();
-  data->result = std::string("start_node(): bitcoind opened.");
+  data->result = std::string("bitcoind opened.");
 }
 
 /**
@@ -945,7 +945,7 @@ async_stop_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
   unhook_packets();
   StartShutdown();
-  data->result = std::string("stop_node(): bitcoind shutdown.");
+  data->result = std::string("bitcoind shutdown.");
 }
 
 /**
@@ -1068,7 +1068,7 @@ async_get_block(uv_work_t *req) {
       data->cblock = cblock;
       data->cblock_index = pblockindex;
     } else {
-      data->err_msg = std::string("get_block(): failed.");
+      data->err_msg = std::string("Block not found.");
     }
     return;
   }
@@ -1082,7 +1082,7 @@ async_get_block(uv_work_t *req) {
     data->cblock = cblock;
     data->cblock_index = pblockindex;
   } else {
-    data->err_msg = std::string("get_block(): failed.");
+    data->err_msg = std::string("Block not found.");
   }
 }
 
@@ -1188,7 +1188,7 @@ async_get_tx(uv_work_t *req) {
     data->ctx = ctx;
     data->blockhash = blockhash.GetHex();
   } else {
-    data->err_msg = std::string("get_tx(): failed.");
+    data->err_msg = std::string("Transaction not found.");
   }
 }
 
@@ -2054,7 +2054,7 @@ async_get_addrtx(uv_work_t *req) {
 done:
       continue;
     } else {
-      data->err_msg = std::string("get_addrtx(): failed.");
+      data->err_msg = std::string("Address not found.");
       break;
     }
   }
