@@ -164,6 +164,8 @@ extern int64_t DecodeDumpTime(const std::string &str);
 extern std::string EncodeDumpString(const std::string &str);
 extern std::string DecodeDumpString(const std::string &str);
 
+extern bool fTxIndex;
+
 /**
  * Node.js System
  */
@@ -843,6 +845,7 @@ start_node_thread(void) {
           "bitcoind.js: Specified data directory \"%s\" does not exist.\n",
           mapArgs["-datadir"].c_str());
       }
+      shutdown_complete = true;
       return;
     }
 
@@ -853,6 +856,7 @@ start_node_thread(void) {
         fprintf(stderr,
           "bitcoind.js: Error reading configuration file: %s\n", e.what());
       }
+      shutdown_complete = true;
       return;
     }
 
@@ -861,6 +865,16 @@ start_node_thread(void) {
         fprintf(stderr,
           "bitcoind.js: Invalid combination of -regtest and -testnet.\n");
       }
+      shutdown_complete = true;
+      return;
+    }
+
+    // Check for changed -txindex state
+    if (fTxIndex != GetBoolArg("-txindex", false)) {
+      if (!is_raw()) {
+        fprintf(stderr, "You need to rebuild the database using -reindex to change -txindex\n");
+      }
+      shutdown_complete = true;
       return;
     }
 
