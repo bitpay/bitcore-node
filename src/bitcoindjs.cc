@@ -194,6 +194,8 @@ using namespace v8;
 #define USE_LDB_ADDR 0
 #define USE_LDB_TX 0
 
+static termios orig_termios;
+
 /**
  * Node.js Exposed Function Templates
  */
@@ -624,7 +626,7 @@ get_block_by_tx_unspent(const std::string itxid, CBlock& rcblock, CBlockIndex **
  */
 
 static bool
-is_raw(void);
+set_cooked(void);
 
 /**
  * Functions
@@ -714,6 +716,7 @@ async_start_node(uv_work_t *req) {
   g_rpc = (bool)data->rpc;
   g_testnet = (bool)data->testnet;
   g_txindex = (bool)data->txindex;
+  tcgetattr(STDIN_FILENO, &orig_termios);
   start_node();
   data->result = std::string("bitcoind opened.");
 }
@@ -812,7 +815,7 @@ start_node_thread(void) {
       argv[argc] = arg;
       argc++;
     } else {
-      if (!is_raw()) {
+      if (set_cooked()) {
         fprintf(stderr, "bitcoind.js: Bad -datadir value.\n");
       }
     }
@@ -840,7 +843,7 @@ start_node_thread(void) {
     ParseParameters((const int)argc, (const char **)argv);
 
     if (!boost::filesystem::is_directory(GetDataDir(false))) {
-      if (!is_raw()) {
+      if (set_cooked()) {
         fprintf(stderr,
           "bitcoind.js: Specified data directory \"%s\" does not exist.\n",
           mapArgs["-datadir"].c_str());
@@ -853,7 +856,7 @@ start_node_thread(void) {
     try {
       ReadConfigFile(mapArgs, mapMultiArgs);
     } catch(std::exception &e) {
-      if (!is_raw()) {
+      if (set_cooked()) {
         fprintf(stderr,
           "bitcoind.js: Error reading configuration file: %s\n", e.what());
       }
@@ -863,7 +866,7 @@ start_node_thread(void) {
     }
 
     if (!SelectParamsFromCommandLine()) {
-      if (!is_raw()) {
+      if (set_cooked()) {
         fprintf(stderr,
           "bitcoind.js: Invalid combination of -regtest and -testnet.\n");
       }
@@ -874,7 +877,7 @@ start_node_thread(void) {
 
     // Check for changed -txindex state
     if (fTxIndex != GetBoolArg("-txindex", false)) {
-      if (!is_raw()) {
+      if (set_cooked()) {
         fprintf(stderr, "You need to rebuild the database using -reindex to change -txindex\n");
       }
       shutdown_complete = true;
@@ -888,11 +891,11 @@ start_node_thread(void) {
       boost::bind(&DetectShutdownThread, &threadGroup));
     fRet = AppInit2(threadGroup);
   } catch (std::exception& e) {
-    if (!is_raw()) {
+    if (set_cooked()) {
       fprintf(stderr, "bitcoind.js: AppInit(): std::exception\n");
     }
   } catch (...) {
-    if (!is_raw()) {
+    if (set_cooked()) {
       fprintf(stderr, "bitcoind.js: AppInit(): other exception\n");
     }
   }
@@ -4822,7 +4825,7 @@ NAN_METHOD(WalletEncrypt) {
   // unencrypted private keys. So:
   StartShutdown();
 
-  if (!is_raw()) {
+  if (set_cooked()) {
     printf(
       "bitcoind.js:"
       " wallet encrypted; bitcoind.js stopping,"
@@ -6722,27 +6725,18 @@ SatoshiFromAmount(const CAmount& amount) {
  * Helpers
  */
 
+// https://github.com/joyent/node/blob/master/src/tty_wrap.cc
+// https://github.com/joyent/node/blob/master/deps/uv/src/unix/tty.c
+
 static bool
-is_raw(void) {
-  termios raw;
+set_cooked(void) {
+  uv_tty_t tty;
+  tty.mode = 1;
+  tty.orig_termios = orig_termios;
 
-  if (tcgetattr(STDIN_FILENO, &raw)) {
-    return true; // failsafe
-  }
-
-  // libuv sets:
-  // raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-  // raw.c_oflag |= (ONLCR);
-  // raw.c_cflag |= (CS8);
-  // raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-  // raw.c_cc[VMIN] = 1;
-  // raw.c_cc[VTIME] = 0;
-
-  if ((raw.c_oflag & ONLCR)
-      && (raw.c_cflag & CS8)
-      && raw.c_cc[VMIN] == 1
-      && raw.c_cc[VTIME] == 0) {
-    return  true;
+  if (!uv_tty_set_mode(&tty, 0)) {
+    printf("\x1b[H\x1b[J");
+    return true;
   }
 
   return false;
