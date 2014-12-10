@@ -180,6 +180,8 @@ extern std::string DecodeDumpString(const std::string &str);
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
+#include <termios.h>
+
 using namespace node;
 using namespace v8;
 
@@ -616,6 +618,13 @@ get_block_by_tx_unspent(const std::string itxid, CBlock& rcblock, CBlockIndex **
 #endif
 
 /**
+ * Helpers
+ */
+
+static bool
+is_raw(void);
+
+/**
  * Functions
  */
 
@@ -801,7 +810,9 @@ start_node_thread(void) {
       argv[argc] = arg;
       argc++;
     } else {
-      fprintf(stderr, "bitcoind.js: Bad -datadir value.");
+      if (!is_raw()) {
+        fprintf(stderr, "bitcoind.js: Bad -datadir value.\n");
+      }
     }
   }
 
@@ -827,23 +838,29 @@ start_node_thread(void) {
     ParseParameters((const int)argc, (const char **)argv);
 
     if (!boost::filesystem::is_directory(GetDataDir(false))) {
-      fprintf(stderr,
-        "bitcoind.js: Specified data directory \"%s\" does not exist.\n",
-        mapArgs["-datadir"].c_str());
+      if (!is_raw()) {
+        fprintf(stderr,
+          "bitcoind.js: Specified data directory \"%s\" does not exist.\n",
+          mapArgs["-datadir"].c_str());
+      }
       return;
     }
 
     try {
       ReadConfigFile(mapArgs, mapMultiArgs);
     } catch(std::exception &e) {
-      fprintf(stderr,
-        "bitcoind.js: Error reading configuration file: %s\n", e.what());
+      if (!is_raw()) {
+        fprintf(stderr,
+          "bitcoind.js: Error reading configuration file: %s\n", e.what());
+      }
       return;
     }
 
     if (!SelectParamsFromCommandLine()) {
-      fprintf(stderr,
-        "bitcoind.js: Invalid combination of -regtest and -testnet.\n");
+      if (!is_raw()) {
+        fprintf(stderr,
+          "bitcoind.js: Invalid combination of -regtest and -testnet.\n");
+      }
       return;
     }
 
@@ -853,9 +870,13 @@ start_node_thread(void) {
       boost::bind(&DetectShutdownThread, &threadGroup));
     fRet = AppInit2(threadGroup);
   } catch (std::exception& e) {
-    fprintf(stderr, "bitcoind.js: AppInit(): std::exception");
+    if (!is_raw()) {
+      fprintf(stderr, "bitcoind.js: AppInit(): std::exception\n");
+    }
   } catch (...) {
-    fprintf(stderr, "bitcoind.js: AppInit(): other exception");
+    if (!is_raw()) {
+      fprintf(stderr, "bitcoind.js: AppInit(): other exception\n");
+    }
   }
 
   if (!fRet) {
@@ -4783,13 +4804,15 @@ NAN_METHOD(WalletEncrypt) {
   // unencrypted private keys. So:
   StartShutdown();
 
-  printf(
-    "bitcoind.js:"
-    " wallet encrypted; bitcoind.js stopping,"
-    " restart to run with encrypted wallet."
-    " The keypool has been flushed, you need"
-    " to make a new backup.\n"
-  );
+  if (!is_raw()) {
+    printf(
+      "bitcoind.js:"
+      " wallet encrypted; bitcoind.js stopping,"
+      " restart to run with encrypted wallet."
+      " The keypool has been flushed, you need"
+      " to make a new backup.\n"
+    );
+  }
 
   NanReturnValue(Undefined());
 }
@@ -6657,6 +6680,36 @@ error:
 static int64_t
 SatoshiFromAmount(const CAmount& amount) {
   return (int64_t)amount;
+}
+
+/**
+ * Helpers
+ */
+
+static bool
+is_raw(void) {
+  termios raw;
+
+  if (tcgetattr(STDIN_FILENO, &raw)) {
+    return true; // failsafe
+  }
+
+  // libuv sets:
+  // raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+  // raw.c_oflag |= (ONLCR);
+  // raw.c_cflag |= (CS8);
+  // raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+  // raw.c_cc[VMIN] = 1;
+  // raw.c_cc[VTIME] = 0;
+
+  if ((raw.c_oflag & ONLCR)
+      && (raw.c_cflag & CS8)
+      && raw.c_cc[VMIN] == 1
+      && raw.c_cc[VTIME] == 0) {
+    return  true;
+  }
+
+  return false;
 }
 
 /**
