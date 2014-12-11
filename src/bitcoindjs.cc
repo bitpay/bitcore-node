@@ -2276,7 +2276,7 @@ async_block_tx_after(uv_work_t *req) {
     Local<Object> jstx = NanNew<Object>();
     ctx_to_jstx(ctx, cblock.GetHash(), jstx);
 
-    const unsigned argc = 2;
+    const unsigned argc = 3;
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
       Local<Value>::New(jsblock),
