@@ -192,7 +192,7 @@ using namespace v8;
 
 // LevelDB options
 #define USE_LDB_ADDR 0
-#define USE_LDB_TX 1
+#define USE_LDB_TX 0
 
 static termios orig_termios;
 
