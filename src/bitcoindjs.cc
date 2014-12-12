@@ -420,6 +420,7 @@ init(Handle<Object>);
  */
 
 static volatile bool shutdown_complete = false;
+static volatile bool shutting_down = false;
 static char *g_data_dir = NULL;
 static bool g_rpc = false;
 static bool g_testnet = false;
@@ -904,6 +905,8 @@ start_node_thread(void) {
     ;
   }
 
+  shutting_down = true;
+
   if (!fRet) {
     if (detectShutdownThread) {
       detectShutdownThread->interrupt();
@@ -968,6 +971,7 @@ NAN_METHOD(StopBitcoind) {
 static void
 async_stop_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
+  shutting_down = true;
   unhook_packets();
   StartShutdown();
   data->result = std::string("bitcoind shutdown.");
@@ -1043,6 +1047,8 @@ NAN_METHOD(IsStopped) {
 
 NAN_METHOD(GetBlock) {
   NanScope();
+
+  // if (shutting_down) NanReturnValue(Undefined());
 
   if (args.Length() < 2
       || (!args[0]->IsString() && !args[0]->IsNumber())
