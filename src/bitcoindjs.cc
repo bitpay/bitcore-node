@@ -933,7 +933,7 @@ start_node_thread(void) {
 NAN_METHOD(StopBitcoind) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
@@ -1027,7 +1027,7 @@ async_stop_node_after(uv_work_t *req) {
 
 NAN_METHOD(IsStopping) {
   NanScope();
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
   NanReturnValue(NanNew<Boolean>(ShutdownRequested()));
 }
 
@@ -1040,7 +1040,7 @@ NAN_METHOD(IsStopping) {
 
 NAN_METHOD(IsStopped) {
   NanScope();
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
   NanReturnValue(NanNew<Boolean>(shutdown_complete));
 }
 
@@ -1053,7 +1053,7 @@ NAN_METHOD(IsStopped) {
 NAN_METHOD(GetBlock) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2
       || (!args[0]->IsString() && !args[0]->IsNumber())
@@ -1174,7 +1174,7 @@ async_get_block_after(uv_work_t *req) {
 NAN_METHOD(GetTransaction) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 3
       || !args[0]->IsString()
@@ -1287,7 +1287,7 @@ async_get_tx_after(uv_work_t *req) {
 NAN_METHOD(BroadcastTx) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 4
       || !args[0]->IsObject()
@@ -1421,7 +1421,7 @@ async_broadcast_tx_after(uv_work_t *req) {
 NAN_METHOD(VerifyBlock) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -1452,7 +1452,7 @@ NAN_METHOD(VerifyBlock) {
 NAN_METHOD(VerifyTransaction) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -1486,7 +1486,7 @@ NAN_METHOD(VerifyTransaction) {
 NAN_METHOD(FillTransaction) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsObject()) {
     return NanThrowError(
@@ -1576,7 +1576,7 @@ NAN_METHOD(FillTransaction) {
 NAN_METHOD(GetInfo) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -1627,7 +1627,7 @@ NAN_METHOD(GetInfo) {
 NAN_METHOD(GetPeerInfo) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -1704,7 +1704,7 @@ NAN_METHOD(GetPeerInfo) {
 NAN_METHOD(GetAddresses) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -1746,7 +1746,7 @@ NAN_METHOD(GetAddresses) {
 NAN_METHOD(GetProgress) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
@@ -1867,7 +1867,7 @@ async_get_progress_after(uv_work_t *req) {
 NAN_METHOD(SetGenerate) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -1934,7 +1934,7 @@ NAN_METHOD(SetGenerate) {
 
 NAN_METHOD(GetGenerate) {
   NanScope();
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
   bool generate = GetBoolArg("-gen", false);
   NanReturnValue(NanNew<Boolean>(generate));
 }
@@ -1948,7 +1948,7 @@ NAN_METHOD(GetGenerate) {
 NAN_METHOD(GetMiningInfo) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   Local<Object> obj = NanNew<Object>();
 
@@ -1988,7 +1988,7 @@ NAN_METHOD(GetMiningInfo) {
 NAN_METHOD(GetAddrTransactions) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2
       || (!args[0]->IsString() && !args[0]->IsObject())
@@ -2208,7 +2208,7 @@ async_get_addrtx_after(uv_work_t *req) {
 NAN_METHOD(GetBestBlock) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 0) {
     return NanThrowError(
@@ -2229,7 +2229,7 @@ NAN_METHOD(GetBestBlock) {
 NAN_METHOD(GetChainHeight) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -2248,7 +2248,7 @@ NAN_METHOD(GetChainHeight) {
 NAN_METHOD(GetBlockByTx) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2
       || !args[0]->IsString()
@@ -2368,7 +2368,7 @@ async_block_tx_after(uv_work_t *req) {
 NAN_METHOD(GetBlocksByTime) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2
       || !args[0]->IsString()
@@ -2504,7 +2504,7 @@ async_block_time_after(uv_work_t *req) {
 NAN_METHOD(GetLastFileIndex) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -2527,7 +2527,7 @@ NAN_METHOD(GetLastFileIndex) {
 NAN_METHOD(GetBlockHex) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -2561,7 +2561,7 @@ NAN_METHOD(GetBlockHex) {
 NAN_METHOD(GetTxHex) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -2594,7 +2594,7 @@ NAN_METHOD(GetTxHex) {
 NAN_METHOD(BlockFromHex) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return NanThrowError(
@@ -2628,7 +2628,7 @@ NAN_METHOD(BlockFromHex) {
 NAN_METHOD(TxFromHex) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return NanThrowError(
@@ -2676,7 +2676,7 @@ boost::mutex poll_packets_mutex;
 NAN_METHOD(HookPackets) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   Local<Array> obj = NanNew<Array>();
   poll_packets_list *cur = NULL;
@@ -3233,7 +3233,7 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
 NAN_METHOD(WalletNewAddress) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3321,7 +3321,7 @@ CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false) 
 NAN_METHOD(WalletGetAccountAddress) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3366,7 +3366,7 @@ NAN_METHOD(WalletGetAccountAddress) {
 NAN_METHOD(WalletSetAccount) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3460,7 +3460,7 @@ NAN_METHOD(WalletSetAccount) {
 NAN_METHOD(WalletGetAccount) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3495,7 +3495,7 @@ NAN_METHOD(WalletGetAccount) {
 NAN_METHOD(WalletGetRecipients) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3540,7 +3540,7 @@ NAN_METHOD(WalletGetRecipients) {
 NAN_METHOD(WalletSetRecipient) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3589,7 +3589,7 @@ NAN_METHOD(WalletSetRecipient) {
 NAN_METHOD(WalletRemoveRecipient) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3618,7 +3618,7 @@ NAN_METHOD(WalletRemoveRecipient) {
 NAN_METHOD(WalletSendTo) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
@@ -3747,7 +3747,7 @@ async_wallet_sendto_after(uv_work_t *req) {
 NAN_METHOD(WalletSendFrom) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
@@ -3890,7 +3890,7 @@ async_wallet_sendfrom_after(uv_work_t *req) {
 NAN_METHOD(WalletMove) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3973,7 +3973,7 @@ NAN_METHOD(WalletMove) {
 NAN_METHOD(WalletSignMessage) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4030,7 +4030,7 @@ NAN_METHOD(WalletSignMessage) {
 NAN_METHOD(WalletVerifyMessage) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4153,7 +4153,7 @@ CScript _createmultisig_redeemScript(int nRequired, Local<Array> keys) {
 NAN_METHOD(WalletCreateMultiSigAddress) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4223,7 +4223,7 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
 NAN_METHOD(WalletGetBalance) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4301,7 +4301,7 @@ NAN_METHOD(WalletGetBalance) {
 
 NAN_METHOD(WalletGetUnconfirmedBalance) {
   NanScope();
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
   NanReturnValue(NanNew<Number>(pwalletMain->GetUnconfirmedBalance()));
 }
 
@@ -4314,7 +4314,7 @@ NAN_METHOD(WalletGetUnconfirmedBalance) {
 NAN_METHOD(WalletListTransactions) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4549,7 +4549,7 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
 NAN_METHOD(WalletReceivedByAddress) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4609,7 +4609,7 @@ NAN_METHOD(WalletReceivedByAddress) {
 NAN_METHOD(WalletListAccounts) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4721,7 +4721,7 @@ NAN_METHOD(WalletListAccounts) {
 NAN_METHOD(WalletGetTransaction) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4789,7 +4789,7 @@ NAN_METHOD(WalletGetTransaction) {
 NAN_METHOD(WalletBackup) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4817,7 +4817,7 @@ NAN_METHOD(WalletBackup) {
 NAN_METHOD(WalletPassphrase) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4860,7 +4860,7 @@ NAN_METHOD(WalletPassphrase) {
 NAN_METHOD(WalletPassphraseChange) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4907,7 +4907,7 @@ NAN_METHOD(WalletPassphraseChange) {
 NAN_METHOD(WalletLock) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 0) {
     return NanThrowError(
@@ -4933,7 +4933,7 @@ NAN_METHOD(WalletLock) {
 NAN_METHOD(WalletEncrypt) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4988,7 +4988,7 @@ NAN_METHOD(WalletEncrypt) {
 NAN_METHOD(WalletEncrypted) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -5020,7 +5020,7 @@ NAN_METHOD(WalletEncrypted) {
 NAN_METHOD(WalletKeyPoolRefill) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5058,7 +5058,7 @@ NAN_METHOD(WalletKeyPoolRefill) {
 NAN_METHOD(WalletSetTxFee) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5089,7 +5089,7 @@ NAN_METHOD(WalletSetTxFee) {
 NAN_METHOD(WalletDumpKey) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5138,7 +5138,7 @@ NAN_METHOD(WalletDumpKey) {
 NAN_METHOD(WalletImportKey) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5331,7 +5331,7 @@ async_import_key_after(uv_work_t *req) {
 NAN_METHOD(WalletDumpWallet) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
@@ -5484,7 +5484,7 @@ async_dump_wallet_after(uv_work_t *req) {
 NAN_METHOD(WalletImportWallet) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
@@ -5665,7 +5665,7 @@ async_import_wallet_after(uv_work_t *req) {
 NAN_METHOD(WalletChangeLabel) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5748,7 +5748,7 @@ NAN_METHOD(WalletChangeLabel) {
 NAN_METHOD(WalletDeleteAccount) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5829,7 +5829,7 @@ NAN_METHOD(WalletDeleteAccount) {
 NAN_METHOD(WalletIsMine) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5877,7 +5877,7 @@ NAN_METHOD(WalletIsMine) {
 NAN_METHOD(WalletRescan) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  if (SHUTTING_DOWN()) NanReturnValue(NanNew<Array>());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
