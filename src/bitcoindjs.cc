@@ -194,6 +194,8 @@ using namespace v8;
 #define USE_LDB_ADDR 0
 #define USE_LDB_TX 0
 
+#define SHUTTING_DOWN() (ShutdownRequested() || shutdown_complete)
+
 static termios orig_termios;
 
 /**
@@ -420,7 +422,6 @@ init(Handle<Object>);
  */
 
 static volatile bool shutdown_complete = false;
-static volatile bool shutting_down = false;
 static char *g_data_dir = NULL;
 static bool g_rpc = false;
 static bool g_testnet = false;
@@ -905,8 +906,6 @@ start_node_thread(void) {
     ;
   }
 
-  shutting_down = true;
-
   if (!fRet) {
     if (detectShutdownThread) {
       detectShutdownThread->interrupt();
@@ -934,7 +933,7 @@ start_node_thread(void) {
 NAN_METHOD(StopBitcoind) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
@@ -973,8 +972,7 @@ NAN_METHOD(StopBitcoind) {
 static void
 async_stop_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
-  // if (shutting_down) return;
-  shutting_down = true;
+  // if (SHUTTING_DOWN()) return;
   unhook_packets();
   StartShutdown();
   data->result = std::string("bitcoind shutdown.");
@@ -990,7 +988,7 @@ async_stop_node_after(uv_work_t *req) {
   NanScope();
   async_node_data* data = static_cast<async_node_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -1029,7 +1027,7 @@ async_stop_node_after(uv_work_t *req) {
 
 NAN_METHOD(IsStopping) {
   NanScope();
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
   NanReturnValue(NanNew<Boolean>(ShutdownRequested()));
 }
 
@@ -1042,7 +1040,7 @@ NAN_METHOD(IsStopping) {
 
 NAN_METHOD(IsStopped) {
   NanScope();
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
   NanReturnValue(NanNew<Boolean>(shutdown_complete));
 }
 
@@ -1055,7 +1053,7 @@ NAN_METHOD(IsStopped) {
 NAN_METHOD(GetBlock) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2
       || (!args[0]->IsString() && !args[0]->IsNumber())
@@ -1099,7 +1097,7 @@ static void
 async_get_block(uv_work_t *req) {
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->height != -1) {
     CBlockIndex* pblockindex = chainActive[data->height];
@@ -1131,7 +1129,7 @@ async_get_block_after(uv_work_t *req) {
   NanScope();
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -1176,7 +1174,7 @@ async_get_block_after(uv_work_t *req) {
 NAN_METHOD(GetTransaction) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 3
       || !args[0]->IsString()
@@ -1219,7 +1217,7 @@ static void
 async_get_tx(uv_work_t *req) {
   async_tx_data* data = static_cast<async_tx_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   uint256 hash(data->txid);
   uint256 blockhash(data->blockhash);
@@ -1243,7 +1241,7 @@ async_get_tx_after(uv_work_t *req) {
   NanScope();
   async_tx_data* data = static_cast<async_tx_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   CTransaction ctx = data->ctx;
   uint256 blockhash(data->blockhash);
@@ -1289,7 +1287,7 @@ async_get_tx_after(uv_work_t *req) {
 NAN_METHOD(BroadcastTx) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 4
       || !args[0]->IsObject()
@@ -1331,7 +1329,7 @@ static void
 async_broadcast_tx(uv_work_t *req) {
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   bool fOverrideFees = false;
   bool fOwnOnly = false;
@@ -1382,7 +1380,7 @@ async_broadcast_tx_after(uv_work_t *req) {
   NanScope();
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -1423,7 +1421,7 @@ async_broadcast_tx_after(uv_work_t *req) {
 NAN_METHOD(VerifyBlock) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -1454,7 +1452,7 @@ NAN_METHOD(VerifyBlock) {
 NAN_METHOD(VerifyTransaction) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -1488,7 +1486,7 @@ NAN_METHOD(VerifyTransaction) {
 NAN_METHOD(FillTransaction) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsObject()) {
     return NanThrowError(
@@ -1578,7 +1576,7 @@ NAN_METHOD(FillTransaction) {
 NAN_METHOD(GetInfo) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -1629,7 +1627,7 @@ NAN_METHOD(GetInfo) {
 NAN_METHOD(GetPeerInfo) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -1706,7 +1704,7 @@ NAN_METHOD(GetPeerInfo) {
 NAN_METHOD(GetAddresses) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -1748,7 +1746,7 @@ NAN_METHOD(GetAddresses) {
 NAN_METHOD(GetProgress) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
@@ -1779,7 +1777,7 @@ NAN_METHOD(GetProgress) {
 
 static void
 async_get_progress(uv_work_t *req) {
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
   async_get_block(req);
 }
 
@@ -1788,7 +1786,7 @@ async_get_progress_after(uv_work_t *req) {
   NanScope();
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -1869,7 +1867,7 @@ async_get_progress_after(uv_work_t *req) {
 NAN_METHOD(SetGenerate) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -1936,7 +1934,7 @@ NAN_METHOD(SetGenerate) {
 
 NAN_METHOD(GetGenerate) {
   NanScope();
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
   bool generate = GetBoolArg("-gen", false);
   NanReturnValue(NanNew<Boolean>(generate));
 }
@@ -1950,7 +1948,7 @@ NAN_METHOD(GetGenerate) {
 NAN_METHOD(GetMiningInfo) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   Local<Object> obj = NanNew<Object>();
 
@@ -1990,7 +1988,7 @@ NAN_METHOD(GetMiningInfo) {
 NAN_METHOD(GetAddrTransactions) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2
       || (!args[0]->IsString() && !args[0]->IsObject())
@@ -2059,7 +2057,7 @@ static void
 async_get_addrtx(uv_work_t *req) {
   async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->addr.empty()) {
     data->err_msg = std::string("Invalid address.");
@@ -2157,7 +2155,7 @@ async_get_addrtx_after(uv_work_t *req) {
   NanScope();
   async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -2210,7 +2208,7 @@ async_get_addrtx_after(uv_work_t *req) {
 NAN_METHOD(GetBestBlock) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 0) {
     return NanThrowError(
@@ -2231,7 +2229,7 @@ NAN_METHOD(GetBestBlock) {
 NAN_METHOD(GetChainHeight) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -2250,7 +2248,7 @@ NAN_METHOD(GetChainHeight) {
 NAN_METHOD(GetBlockByTx) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2
       || !args[0]->IsString()
@@ -2284,7 +2282,7 @@ NAN_METHOD(GetBlockByTx) {
 static void
 async_block_tx(uv_work_t *req) {
   async_block_tx_data* data = static_cast<async_block_tx_data*>(req->data);
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 #if USE_LDB_TX
   if (!g_txindex) {
 parse:
@@ -2320,7 +2318,7 @@ async_block_tx_after(uv_work_t *req) {
   NanScope();
   async_block_tx_data* data = static_cast<async_block_tx_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -2370,7 +2368,7 @@ async_block_tx_after(uv_work_t *req) {
 NAN_METHOD(GetBlocksByTime) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2
       || !args[0]->IsString()
@@ -2415,7 +2413,7 @@ NAN_METHOD(GetBlocksByTime) {
 static void
 async_block_time(uv_work_t *req) {
   async_block_time_data* data = static_cast<async_block_time_data*>(req->data);
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
   if (!data->gte && !data->lte) {
     data->err_msg = std::string("gte and lte not found.");
     return;
@@ -2456,7 +2454,7 @@ async_block_time_after(uv_work_t *req) {
   NanScope();
   async_block_time_data* data = static_cast<async_block_time_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -2506,7 +2504,7 @@ async_block_time_after(uv_work_t *req) {
 NAN_METHOD(GetLastFileIndex) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -2529,7 +2527,7 @@ NAN_METHOD(GetLastFileIndex) {
 NAN_METHOD(GetBlockHex) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -2563,7 +2561,7 @@ NAN_METHOD(GetBlockHex) {
 NAN_METHOD(GetTxHex) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -2596,7 +2594,7 @@ NAN_METHOD(GetTxHex) {
 NAN_METHOD(BlockFromHex) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return NanThrowError(
@@ -2630,7 +2628,7 @@ NAN_METHOD(BlockFromHex) {
 NAN_METHOD(TxFromHex) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return NanThrowError(
@@ -2678,7 +2676,7 @@ boost::mutex poll_packets_mutex;
 NAN_METHOD(HookPackets) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   Local<Array> obj = NanNew<Array>();
   poll_packets_list *cur = NULL;
@@ -3235,7 +3233,7 @@ process_packet(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTim
 NAN_METHOD(WalletNewAddress) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3323,7 +3321,7 @@ CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false) 
 NAN_METHOD(WalletGetAccountAddress) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3368,7 +3366,7 @@ NAN_METHOD(WalletGetAccountAddress) {
 NAN_METHOD(WalletSetAccount) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3462,7 +3460,7 @@ NAN_METHOD(WalletSetAccount) {
 NAN_METHOD(WalletGetAccount) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3497,7 +3495,7 @@ NAN_METHOD(WalletGetAccount) {
 NAN_METHOD(WalletGetRecipients) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3542,7 +3540,7 @@ NAN_METHOD(WalletGetRecipients) {
 NAN_METHOD(WalletSetRecipient) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3591,7 +3589,7 @@ NAN_METHOD(WalletSetRecipient) {
 NAN_METHOD(WalletRemoveRecipient) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3620,7 +3618,7 @@ NAN_METHOD(WalletRemoveRecipient) {
 NAN_METHOD(WalletSendTo) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
@@ -3673,7 +3671,7 @@ static void
 async_wallet_sendto(uv_work_t *req) {
   async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   CBitcoinAddress address(data->address);
 
@@ -3708,7 +3706,7 @@ async_wallet_sendto_after(uv_work_t *req) {
   NanScope();
   async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -3749,7 +3747,7 @@ async_wallet_sendto_after(uv_work_t *req) {
 NAN_METHOD(WalletSendFrom) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
@@ -3811,7 +3809,7 @@ static void
 async_wallet_sendfrom(uv_work_t *req) {
   async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   CBitcoinAddress address(data->address);
 
@@ -3853,7 +3851,7 @@ async_wallet_sendfrom_after(uv_work_t *req) {
   NanScope();
   async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -3892,7 +3890,7 @@ async_wallet_sendfrom_after(uv_work_t *req) {
 NAN_METHOD(WalletMove) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3975,7 +3973,7 @@ NAN_METHOD(WalletMove) {
 NAN_METHOD(WalletSignMessage) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4032,7 +4030,7 @@ NAN_METHOD(WalletSignMessage) {
 NAN_METHOD(WalletVerifyMessage) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4155,7 +4153,7 @@ CScript _createmultisig_redeemScript(int nRequired, Local<Array> keys) {
 NAN_METHOD(WalletCreateMultiSigAddress) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4225,7 +4223,7 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
 NAN_METHOD(WalletGetBalance) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4303,7 +4301,7 @@ NAN_METHOD(WalletGetBalance) {
 
 NAN_METHOD(WalletGetUnconfirmedBalance) {
   NanScope();
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
   NanReturnValue(NanNew<Number>(pwalletMain->GetUnconfirmedBalance()));
 }
 
@@ -4316,7 +4314,7 @@ NAN_METHOD(WalletGetUnconfirmedBalance) {
 NAN_METHOD(WalletListTransactions) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4551,7 +4549,7 @@ ListTransactions_V8(const CWalletTx& wtx, const string& strAccount,
 NAN_METHOD(WalletReceivedByAddress) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4611,7 +4609,7 @@ NAN_METHOD(WalletReceivedByAddress) {
 NAN_METHOD(WalletListAccounts) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4723,7 +4721,7 @@ NAN_METHOD(WalletListAccounts) {
 NAN_METHOD(WalletGetTransaction) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4791,7 +4789,7 @@ NAN_METHOD(WalletGetTransaction) {
 NAN_METHOD(WalletBackup) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4819,7 +4817,7 @@ NAN_METHOD(WalletBackup) {
 NAN_METHOD(WalletPassphrase) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4862,7 +4860,7 @@ NAN_METHOD(WalletPassphrase) {
 NAN_METHOD(WalletPassphraseChange) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4909,7 +4907,7 @@ NAN_METHOD(WalletPassphraseChange) {
 NAN_METHOD(WalletLock) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 0) {
     return NanThrowError(
@@ -4935,7 +4933,7 @@ NAN_METHOD(WalletLock) {
 NAN_METHOD(WalletEncrypt) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4990,7 +4988,7 @@ NAN_METHOD(WalletEncrypt) {
 NAN_METHOD(WalletEncrypted) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() > 0) {
     return NanThrowError(
@@ -5022,7 +5020,7 @@ NAN_METHOD(WalletEncrypted) {
 NAN_METHOD(WalletKeyPoolRefill) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5060,7 +5058,7 @@ NAN_METHOD(WalletKeyPoolRefill) {
 NAN_METHOD(WalletSetTxFee) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5091,7 +5089,7 @@ NAN_METHOD(WalletSetTxFee) {
 NAN_METHOD(WalletDumpKey) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5140,7 +5138,7 @@ NAN_METHOD(WalletDumpKey) {
 NAN_METHOD(WalletImportKey) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5279,7 +5277,7 @@ rescan:
 static void
 async_import_key(uv_work_t *req) {
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
   if (data->err_msg != "") {
     return;
   }
@@ -5294,7 +5292,7 @@ async_import_key_after(uv_work_t *req) {
   NanScope();
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -5333,7 +5331,7 @@ async_import_key_after(uv_work_t *req) {
 NAN_METHOD(WalletDumpWallet) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
@@ -5374,7 +5372,7 @@ static void
 async_dump_wallet(uv_work_t *req) {
   async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     return;
@@ -5447,7 +5445,7 @@ async_dump_wallet_after(uv_work_t *req) {
   NanScope();
   async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -5486,7 +5484,7 @@ async_dump_wallet_after(uv_work_t *req) {
 NAN_METHOD(WalletImportWallet) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
@@ -5527,7 +5525,7 @@ static void
 async_import_wallet(uv_work_t *req) {
   async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   std::string path = data->path;
 
@@ -5628,7 +5626,7 @@ async_import_wallet_after(uv_work_t *req) {
   NanScope();
   async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -5667,7 +5665,7 @@ async_import_wallet_after(uv_work_t *req) {
 NAN_METHOD(WalletChangeLabel) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5750,7 +5748,7 @@ NAN_METHOD(WalletChangeLabel) {
 NAN_METHOD(WalletDeleteAccount) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5831,7 +5829,7 @@ NAN_METHOD(WalletDeleteAccount) {
 NAN_METHOD(WalletIsMine) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5879,7 +5877,7 @@ NAN_METHOD(WalletIsMine) {
 NAN_METHOD(WalletRescan) {
   NanScope();
 
-  // if (shutting_down) NanReturnValue(Undefined());
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
@@ -5908,7 +5906,7 @@ NAN_METHOD(WalletRescan) {
 
 static void
 async_rescan(uv_work_t *req) {
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
   // async_rescan_data* data = static_cast<async_rescan_data*>(req->data);
   // This may take a long time, do it on the libuv thread pool:
   pwalletMain->ScanForWalletTransactions(chainActive.Genesis(), true);
@@ -5919,7 +5917,7 @@ async_rescan_after(uv_work_t *req) {
   NanScope();
   async_rescan_data* data = static_cast<async_rescan_data*>(req->data);
 
-  // if (shutting_down) return;
+  // if (SHUTTING_DOWN()) return;
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
