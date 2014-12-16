@@ -224,6 +224,7 @@ NAN_METHOD(GetBestBlock);
 NAN_METHOD(GetChainHeight);
 NAN_METHOD(GetBlockByTx);
 NAN_METHOD(GetBlocksByTime);
+NAN_METHOD(GetFromTx);
 NAN_METHOD(GetLastFileIndex);
 
 NAN_METHOD(GetBlockHex);
@@ -602,6 +603,17 @@ struct async_dump_wallet_data {
 
 struct async_rescan_data {
   std::string err_msg;
+  Persistent<Function> callback;
+};
+
+/**
+ * async_from_tx_data
+ */
+
+struct async_from_tx_data {
+  std::string err_msg;
+  std::string txid;
+  ctx_list *ctxs;
   Persistent<Function> callback;
 };
 
@@ -2481,6 +2493,130 @@ async_block_time_after(uv_work_t *req) {
     Local<Value> argv[argc] = {
       Local<Value>::New(Null()),
       Local<Value>::New(jsblocks)
+    };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  data->callback.Dispose();
+
+  delete data;
+  delete req;
+}
+
+/**
+ * GetFromTx()
+ * bitcoindjs.getFromTx()
+ * Get all TXes beyond a txid
+ */
+
+NAN_METHOD(GetFromTx) {
+  NanScope();
+
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+
+  if (args.Length() < 2
+      || !args[0]->IsString()
+      || !args[1]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getFromTx(txid, callback)");
+  }
+
+  async_from_tx_data *data = new async_from_tx_data();
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  String::Utf8Value txid_(args[0]->ToString());
+  std::string txid = std::string(*txid_);
+
+  data->txid = txid;
+  data->ctxs = NULL;
+  data->err_msg = std::string("");
+
+  Local<Function> callback = Local<Function>::Cast(args[1]);
+  data->callback = Persistent<Function>::New(callback);
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_from_tx,
+    (uv_after_work_cb)async_from_tx_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined());
+}
+
+static void
+async_from_tx(uv_work_t *req) {
+  async_from_tx_data* data = static_cast<async_from_tx_data*>(req->data);
+
+  // if (SHUTTING_DOWN()) return;
+
+  uint256 txid(data->txid);
+  bool found = false;
+  int64_t i = 0;
+  int64_t height = chainActive.Height();
+
+  for (; i <= height; i++) {
+    CBlockIndex* pblockindex = chainActive[i];
+    CBlock cblock;
+    if (ReadBlockFromDisk(cblock, pblockindex)) {
+      BOOST_FOREACH(const CTransaction& ctx, cblock.vtx) {
+        if (found || ctx.GetHash() == txid) {
+          if (!found) found = true;
+          ctx_list *item = new ctx_list();
+          item->ctx = ctx;
+          item->blockhash = cblock.GetHash();
+          if (data->ctxs == NULL) {
+            data->ctxs = item;
+          } else {
+            data->ctxs->next = item;
+            data->ctxs = item;
+          }
+        }
+      }
+    } else {
+      data->err_msg = std::string("TX not found.");
+      break;
+    }
+  }
+}
+
+static void
+async_from_tx_after(uv_work_t *req) {
+  NanScope();
+  async_from_tx_data* data = static_cast<async_from_tx_data*>(req->data);
+
+  // if (SHUTTING_DOWN()) return;
+
+  if (data->err_msg != "") {
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Array> tx = NanNew<Array>();
+    int i = 0;
+    ctx_list *next;
+    for (ctx_list *item = data->ctxs; item; item = next) {
+      Local<Object> jstx = NanNew<Object>();
+      ctx_to_jstx(item->ctx, item->blockhash, jstx);
+      tx->Set(i, jstx);
+      i++;
+      next = item->next;
+      delete item;
+    }
+    Local<Value> argv[argc] = {
+      Local<Value>::New(Null()),
+      Local<Value>::New(tx)
     };
     TryCatch try_catch;
     data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
@@ -7121,6 +7257,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getChainHeight", GetChainHeight);
   NODE_SET_METHOD(target, "getBlockByTx", GetBlockByTx);
   NODE_SET_METHOD(target, "getBlocksByTime", GetBlocksByTime);
+  NODE_SET_METHOD(target, "getFromTx", GetFromTx);
   NODE_SET_METHOD(target, "getLastFileIndex", GetLastFileIndex);
   NODE_SET_METHOD(target, "getBlockHex", GetBlockHex);
   NODE_SET_METHOD(target, "getTxHex", GetTxHex);
