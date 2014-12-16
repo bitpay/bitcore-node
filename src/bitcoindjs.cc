@@ -2495,9 +2495,10 @@ async_block_time_after(uv_work_t *req) {
   delete req;
 }
 
-/home/chjj/work/node_modules/bitcore/lib/Bloom.js
-/home/chjj/bitcoin/src/bloom.cpp
-/home/chjj/bitcoin/src/bloom.h
+#if 0
+// ~/work/node_modules/bitcore/lib/Bloom.js
+// ~/bitcoin/src/bloom.cpp
+// ~/bitcoin/src/bloom.h
 
 static const unsigned int MAX_BLOOM_FILTER_SIZE = 36000; // bytes
 static const unsigned int MAX_HASH_FUNCS = 50;
@@ -2513,13 +2514,20 @@ NAN_METHOD(BloomCreate) {
 
   // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
-var LN2SQUARED = 0.4804530139182014246671025263266649717305529515945455;
-var LN2 = 0.6931471805599453094172321214581765680755001343602552;
-var bit_mask = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80];
-
-  if (args.Length() > 0) {
+  if (args.Length() < 1) {
     return NanThrowError(
-      "Usage: bitcoindjs.bloomCreate()");
+      "Usage: bitcoindjs.bloomCreate(options)");
+  }
+
+  Local<Object> options = Local<Object>::Cast(args[0]);
+  Local<Array> data = NanNew<Array>();
+  Local<Number> nhash = NanNew<Number>(0);
+
+  if (options->Get(NanNew<String>("data"))->IsArray()) {
+    data = options->Get(NanNew<String>("data"));
+  }
+  if (options->Get(NanNew<String>("hashFuncs"))->IsNumber()) {
+    nhash = options->Get(NanNew<String>("hashFuncs"));
   }
 
   Local<Object> filter = NanNew<Object>();
@@ -2531,8 +2539,8 @@ var bit_mask = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80];
   std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
   filter->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
-  filter->Set(NanNew<String>("data"), NanNew<Array>());
-  filter->Set(NanNew<String>("hashFuncs"), NanNew<Number>(0));
+  filter->Set(NanNew<String>("data"), data);
+  filter->Set(NanNew<String>("hashFuncs"), nhash);
 
   NanReturnValue(filter);
 }
@@ -2542,13 +2550,15 @@ NAN_METHOD(BloomHash) {
 
   // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
-  if (args.Length() > 1) {
+  if (args.Length() < 1) {
     return NanThrowError(
       "Usage: bitcoindjs.bloomHash(filter)");
   }
 
+  Local<Object> filter = Local<Object>::Cast(args[0]);
+
   CBloomFilter cfilter;
-  String::AsciiValue hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
+  String::AsciiValue hex_string_(filter->Get(NanNew<String>("hex"))->ToString());
   std::string hex_string = *hex_string_;
 
   CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
@@ -2560,7 +2570,10 @@ NAN_METHOD(BloomHash) {
   }
 
   std::vector<unsigned char> vDataToHash;
-  unsigned int nHashNum = 0;
+  CDataStream ss(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
+  ss >> vDataToHash;
+
+  unsigned int nHashNum = filter->Get(NanNew<String>("hashFuncs"))->ToUint32();
   cfilter.Hash(nHashNum, vDataToHash);
 
   NanReturnValue(NanNew<String>(vDataToHash));
@@ -2603,10 +2616,12 @@ NAN_METHOD(BloomInsert) {
   ss << cfilter;
   std::string strHex = HexStr(ss.begin(), ss.end());
 
-  if (cfilter.isFull) NanReturnValue(NanNew<Boolean>(false));
-  if (!cfilter.isEmpty) NanReturnValue(NanNew<Boolean>(true));
+  filter->Set(NanNew<String>("hex"), NanNew<String>(strHex));
 
-  NanReturnValue(NanNew<Boolean>(true));
+  if (cfilter.isFull) NanReturnValue(NanNew<Boolean>(false));
+  if (!cfilter.isEmpty) NanReturnValue(filter);
+
+  NanReturnValue(filter);
 }
 
 NAN_METHOD(BloomContains) {
@@ -2614,13 +2629,19 @@ NAN_METHOD(BloomContains) {
 
   // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
-  if (args.Length() < 1) {
+  if (args.Length() < 2) {
     return NanThrowError(
-      "Usage: bitcoindjs.bloomContains(vKey)");
+      "Usage: bitcoindjs.bloomContains(filter, hash)");
   }
 
+  Local<Object> filter = Local<Object>::Cast(args[0]);
+
+  String::Utf8Value s_(args[1]->ToString());
+  std::string js_hash = std::string(*s_);
+  uint256 hash(js_hash);
+
   CBloomFilter cfilter;
-  String::AsciiValue hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
+  String::AsciiValue hex_string_(filter->Get(NanNew<String>("hex"))->ToString());
   std::string hex_string = *hex_string_;
 
   CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
@@ -2631,8 +2652,9 @@ NAN_METHOD(BloomContains) {
     return;
   }
 
-  vector<unsigned char> vKey;
-  bool contained = cfilter.contains(vKey);
+  //vector<unsigned char> vKey;
+  //bool contained = cfilter.contains(vKey);
+  bool contained = cfilter.contains(hash);
 
   NanReturnValue(NanNew<Boolean>(contained));
 }
@@ -2642,13 +2664,15 @@ NAN_METHOD(BloomSize) {
 
   // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
 
-  if (args.Length() > 0) {
+  if (args.Length() < 1) {
     return NanThrowError(
-      "Usage: bitcoindjs.bloomSize()");
+      "Usage: bitcoindjs.bloomSize(filter)");
   }
 
+  Local<Object> filter = Local<Object>::Cast(args[0]);
+
   CBloomFilter cfilter;
-  String::AsciiValue hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
+  String::AsciiValue hex_string_(filter->Get(NanNew<String>("hex"))->ToString());
   std::string hex_string = *hex_string_;
 
   CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
@@ -2662,8 +2686,7 @@ NAN_METHOD(BloomSize) {
   bool size_ok = cfilter.IsWithinSizeConstraints();
   NanReturnValue(NanNew<Boolean>(size_ok));
 }
-
-
+#endif
 
 /**
  * GetLastFileIndex()
