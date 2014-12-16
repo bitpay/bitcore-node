@@ -2495,6 +2495,176 @@ async_block_time_after(uv_work_t *req) {
   delete req;
 }
 
+/home/chjj/work/node_modules/bitcore/lib/Bloom.js
+/home/chjj/bitcoin/src/bloom.cpp
+/home/chjj/bitcoin/src/bloom.h
+
+static const unsigned int MAX_BLOOM_FILTER_SIZE = 36000; // bytes
+static const unsigned int MAX_HASH_FUNCS = 50;
+
+/**
+ * BloomCreate()
+ * bitcoindjs.createBloom()
+ * Create bloom filter
+ */
+
+NAN_METHOD(BloomCreate) {
+  NanScope();
+
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+
+var LN2SQUARED = 0.4804530139182014246671025263266649717305529515945455;
+var LN2 = 0.6931471805599453094172321214581765680755001343602552;
+var bit_mask = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80];
+
+  if (args.Length() > 0) {
+    return NanThrowError(
+      "Usage: bitcoindjs.bloomCreate()");
+  }
+
+  Local<Object> filter = NanNew<Object>();
+
+  CBloomFilter cfilter;
+
+  CDataStream ssFilter(SER_NETWORK, PROTOCOL_VERSION);
+  ssFilter << cfilter;
+  std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
+  filter->Set(NanNew<String>("hex"), NanNew<String>(strHex));
+
+  filter->Set(NanNew<String>("data"), NanNew<Array>());
+  filter->Set(NanNew<String>("hashFuncs"), NanNew<Number>(0));
+
+  NanReturnValue(filter);
+}
+
+NAN_METHOD(BloomHash) {
+  NanScope();
+
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+
+  if (args.Length() > 1) {
+    return NanThrowError(
+      "Usage: bitcoindjs.bloomHash(filter)");
+  }
+
+  CBloomFilter cfilter;
+  String::AsciiValue hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
+  std::string hex_string = *hex_string_;
+
+  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> cfilter;
+  } catch (std::exception &e) {
+    NanThrowError("Bad BloomFilter decode");
+    return;
+  }
+
+  std::vector<unsigned char> vDataToHash;
+  unsigned int nHashNum = 0;
+  cfilter.Hash(nHashNum, vDataToHash);
+
+  NanReturnValue(NanNew<String>(vDataToHash));
+}
+
+NAN_METHOD(BloomInsert) {
+  NanScope();
+
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+
+  if (args.Length() < 2) {
+    return NanThrowError(
+      "Usage: bitcoindjs.bloomInsert(filter, hash)");
+  }
+
+  Local<Object> filter = Local<Object>::Cast(args[0]);
+
+  String::Utf8Value s_(args[1]->ToString());
+  std::string js_hash = std::string(*s_);
+  uint256 hash(js_hash);
+
+  CBloomFilter cfilter;
+  String::AsciiValue hex_string_(filter->Get(NanNew<String>("hex"))->ToString());
+  std::string hex_string = *hex_string_;
+
+  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> cfilter;
+  } catch (std::exception &e) {
+    NanThrowError("Bad BloomFilter decode");
+    return;
+  }
+
+  //vector<unsigned char> vKey;
+  //COutPoint outpoint;
+  //uint256 hash;
+  cfilter.insert(hash);
+
+  CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+  ss << cfilter;
+  std::string strHex = HexStr(ss.begin(), ss.end());
+
+  if (cfilter.isFull) NanReturnValue(NanNew<Boolean>(false));
+  if (!cfilter.isEmpty) NanReturnValue(NanNew<Boolean>(true));
+
+  NanReturnValue(NanNew<Boolean>(true));
+}
+
+NAN_METHOD(BloomContains) {
+  NanScope();
+
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+
+  if (args.Length() < 1) {
+    return NanThrowError(
+      "Usage: bitcoindjs.bloomContains(vKey)");
+  }
+
+  CBloomFilter cfilter;
+  String::AsciiValue hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
+  std::string hex_string = *hex_string_;
+
+  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> cfilter;
+  } catch (std::exception &e) {
+    NanThrowError("Bad BloomFilter decode");
+    return;
+  }
+
+  vector<unsigned char> vKey;
+  bool contained = cfilter.contains(vKey);
+
+  NanReturnValue(NanNew<Boolean>(contained));
+}
+
+NAN_METHOD(BloomSize) {
+  NanScope();
+
+  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+
+  if (args.Length() > 0) {
+    return NanThrowError(
+      "Usage: bitcoindjs.bloomSize()");
+  }
+
+  CBloomFilter cfilter;
+  String::AsciiValue hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
+  std::string hex_string = *hex_string_;
+
+  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
+  try {
+    ssData >> cfilter;
+  } catch (std::exception &e) {
+    NanThrowError("Bad BloomFilter decode");
+    return;
+  }
+
+  bool size_ok = cfilter.IsWithinSizeConstraints();
+  NanReturnValue(NanNew<Boolean>(size_ok));
+}
+
+
+
 /**
  * GetLastFileIndex()
  * bitcoindjs.getLastFileIndex()
