@@ -3251,6 +3251,12 @@ NAN_METHOD(HookPackets) {
       Local<Object> jstx = NanNew<Object>();
       ctx_to_jstx(tx, 0, jstx);
       o->Set(NanNew<String>("tx"), jstx);
+      CNodeStatus stats;
+      pfrom->copyStats(stats);
+      jstx->Set(NanNew<String>("from"), NanNew<String>(stats.addrName));
+      if (!stats.addrLocal.empty()) {
+        jstx->Set(NanNew<String>("fromlocal"), NanNew<String>(stats.addrLocal));
+      }
     } else if (strCommand == "block" && !fImporting && !fReindex) {
       // XXX May be able to do prev_list asynchronously
       CBlock block;
@@ -3258,6 +3264,12 @@ NAN_METHOD(HookPackets) {
       Local<Object> jsblock = NanNew<Object>();
       cblock_to_jsblock(block, NULL, jsblock, true);
       o->Set(NanNew<String>("block"), jsblock);
+      CNodeStatus stats;
+      pfrom->copyStats(stats);
+      jsblock->Set(NanNew<String>("from"), NanNew<String>(stats.addrName));
+      if (!stats.addrLocal.empty()) {
+        jsblock->Set(NanNew<String>("fromlocal"), NanNew<String>(stats.addrLocal));
+      }
     } else if (strCommand == "getaddr") {
       ; // not much other information in getaddr as long as we know we got a getaddr
     } else if (strCommand == "mempool") {
