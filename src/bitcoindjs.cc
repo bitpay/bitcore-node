@@ -369,6 +369,12 @@ async_block_time(uv_work_t *req);
 static void
 async_block_time_after(uv_work_t *req);
 
+static void
+async_from_tx(uv_work_t *req);
+
+static void
+async_from_tx_after(uv_work_t *req);
+
 static inline void
 cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object> jsblock, bool is_new);
 
