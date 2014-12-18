@@ -3251,7 +3251,7 @@ NAN_METHOD(HookPackets) {
       Local<Object> jstx = NanNew<Object>();
       ctx_to_jstx(tx, 0, jstx);
       o->Set(NanNew<String>("tx"), jstx);
-      CNodeStatus stats;
+      CNodeStats stats;
       pfrom->copyStats(stats);
       jstx->Set(NanNew<String>("from"), NanNew<String>(stats.addrName));
       if (!stats.addrLocal.empty()) {
@@ -3264,7 +3264,7 @@ NAN_METHOD(HookPackets) {
       Local<Object> jsblock = NanNew<Object>();
       cblock_to_jsblock(block, NULL, jsblock, true);
       o->Set(NanNew<String>("block"), jsblock);
-      CNodeStatus stats;
+      CNodeStats stats;
       pfrom->copyStats(stats);
       jsblock->Set(NanNew<String>("from"), NanNew<String>(stats.addrName));
       if (!stats.addrLocal.empty()) {
