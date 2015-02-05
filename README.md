@@ -1,23 +1,10 @@
-# *insight API*
-
-*insight API* is an open-source bitcoin blockchain REST
-and websocket API. Insight API runs in NodeJS and uses LevelDB for storage. 
-
-This is a backend-only service. If you're looking for the web frontend application,
-take a look at https://github.com/bitpay/insight.
-
-*Insight API* allows to develop bitcoin-related applications (such as wallets) that 
-require certain information from the blockchain that bitcoind does not provide.
-
-A blockchain explorer front-end has been developed on top of *Insight API*. It can
-be downloaded at [Github Insight Repository](https://github.com/bitpay/insight).
-
+# bitcore-node
 
 ## Prerequisites
 
 * **bitcoind** - Download and Install [Bitcoin](http://bitcoin.org/en/download)
 
-*insight API* needs a *trusted* bitcoind node to run. *insight API* will connect to the node
+`bitcore-node` needs a *trusted* bitcoind node to run. It will connect to the node
 through the RPC API, bitcoin peer-to-peer protocol, and will even read its raw block .dat files for syncing.
 
 Configure bitcoind to listen to RPC calls and set `txindex` to true.
@@ -25,7 +12,7 @@ The easiest way to do this is by copying `./etc/bitcoind/bitcoin.conf` to your
 bitcoin data directory (usually `~/.bitcoin` on Linux, `%appdata%\Bitcoin\` on Windows,
 or `~/Library/Application Support/Bitcoin` on Mac OS X).
 
-bitcoind must be running and must have finished downloading the blockchain **before** running *insight API*.
+bitcoind must be running and must have finished downloading the blockchain **before** running `bitcore-node`.
 
 
 * **Node.js v0.10.x** - Download and Install [Node.js](http://www.nodejs.org/download/).
@@ -35,9 +22,9 @@ bitcoind must be running and must have finished downloading the blockchain **bef
 ## Quick Install
   Check the Prerequisites section above before installing.
 
-  To install Insight API, clone the main repository:
+  To install `bitcore-node`, clone the main repository:
 
-    $ git clone https://github.com/bitpay/insight-api && cd insight-api
+    $ git clone https://github.com/bitpay/bitcore-node && cd bitcore-node
 
   Install dependencies:
 
@@ -45,7 +32,7 @@ bitcoind must be running and must have finished downloading the blockchain **bef
 
   Run the main application:
 
-    $ node insight.js
+    $ node index.js
 
   Then open a browser and go to:
 
@@ -68,11 +55,11 @@ BITCOIND_P2P_PORT     # P2P bitcoind Port
 BITCOIND_USER         # RPC username
 BITCOIND_PASS         # RPC password
 BITCOIND_DATADIR      # bitcoind datadir. 'testnet3' will be appended automatically if testnet is used. NEED to finish with '/'. e.g: `/vol/data/`
-INSIGHT_NETWORK [= 'livenet' | 'testnet']
-INSIGHT_PORT          # insight api port
-INSIGHT_DB            # Path where to store insight's internal DB. (defaults to $HOME/.insight)
-INSIGHT_SAFE_CONFIRMATIONS=6  # Nr. of confirmation needed to start caching transaction information   
-INSIGHT_IGNORE_CACHE  # True to ignore cache of spents in transaction, with more than INSIGHT_SAFE_CONFIRMATIONS confirmations. This is useful for tracking double spents for old transactions.
+BLOCKCHAIN_API_NETWORK [= 'livenet' | 'testnet']
+BLOCKCHAIN_API_PORT   # blockchain api port
+BLOCKCHAIN_API_DB            # Path where to store bitcore-node's internal DB. (defaults to $HOME/.bitcore-node)
+BLOCKCHAIN_API_SAFE_CONFIRMATIONS=6  # Nr. of confirmation needed to start caching transaction information   
+BLOCKCHAIN_API_IGNORE_CACHE  # True to ignore cache of spents in transaction, with more than BLOCKCHAIN_API_SAFE_CONFIRMATIONS confirmations. This is useful for tracking double spents for old transactions.
 LOGGER_LEVEL # defaults to 'info', can be 'debug','verbose','error', etc.
 ENABLE_HTTPS # if "true" it will server using SSL/HTTPS
 ```
@@ -80,13 +67,13 @@ ENABLE_HTTPS # if "true" it will server using SSL/HTTPS
 Make sure that bitcoind is configured to [accept incoming connections using 'rpcallowip'](https://en.bitcoin.it/wiki/Running_Bitcoin).
 
 In case the network is changed (testnet to livenet or vice versa) levelDB database needs to be deleted. This can be performed running:
-```util/sync.js -D``` and waiting for *insight* to synchronize again.  Once the database is deleted, the sync.js process can be safely interrupted (CTRL+C) and continued from the synchronization process embedded in main app.
+```util/sync.js -D``` and waiting for `bitcore-node` to synchronize again.  Once the database is deleted, the sync.js process can be safely interrupted (CTRL+C) and continued from the synchronization process embedded in main app.
 
 ## Synchronization
 
-The initial synchronization process scans the blockchain from the paired bitcoind server to update addresses and balances. *insight-api* needs exactly one trusted bitcoind node to run. This node must have finished downloading the blockchain before running *insight-api*.
+The initial synchronization process scans the blockchain from the paired bitcoind server to update addresses and balances. `bitcore-node` needs exactly one trusted bitcoind node to run. This node must have finished downloading the blockchain before running `bitcore-node`.
 
-While *insight* is synchronizing the website can be accessed (the sync process is embedded in the webserver), but there may be missing data or incorrect balances for addresses. The 'sync' status is shown at the `/api/sync` endpoint.
+While `bitcore-node` is synchronizing the website can be accessed (the sync process is embedded in the webserver), but there may be missing data or incorrect balances for addresses. The 'sync' status is shown at the `/api/sync` endpoint.
 
 The blockchain can be read from bitcoind's raw `.dat` files or RPC interface. 
 Reading the information from the `.dat` files is much faster so it's the
@@ -96,13 +83,13 @@ non-standard location is used, it needs to be defined (see the Configuration sec
 As of June 2014, using `.dat` files the sync process takes 9 hrs.
 for livenet and 30 mins. for testnet.
 
-While synchronizing the blockchain, *insight-api* listens for new blocks and
-transactions relayed by the bitcoind node. Those are also stored on *insight-api*'s database.
-In case *insight-api* is shutdown for a period of time, restarting it will trigger
+While synchronizing the blockchain, `bitcore-node` listens for new blocks and
+transactions relayed by the bitcoind node. Those are also stored on `bitcore-node`'s database.
+In case `bitcore-node` is shutdown for a period of time, restarting it will trigger
 a partial (historic) synchronization of the blockchain. Depending on the size of
 that synchronization task, a reverse RPC or forward `.dat` syncing strategy will be used.
 
-If bitcoind is shutdown, *insight-api* needs to be stopped and restarted
+If bitcoind is shutdown, `bitcore-node` needs to be stopped and restarted
 once bitcoind is restarted.
 
 ### Syncing old blockchain data manually
@@ -114,24 +101,22 @@ once bitcoind is restarted.
   Check util/sync.js --help for options, particulary -D to erase the current DB.
 
   *NOTE*: there is no need to run this manually since the historic synchronization
-  is built in into the web application. Running *insight-api* normally will trigger
+  is built in into the web application. Running `bitcore-node` normally will trigger
   the historic sync automatically.
 
 
 ### DB storage requirement
 
-To store the blockchain and address related information, *insight-api* uses LevelDB.
+To store the blockchain and address related information, LevelDB is used.
 Two DBs are created: txs and blocks. By default these are stored on
 
-  ``~/.insight/``
-
-Please note that some older versions of Insight-API store that on `<insight's root>/db`.
+  ``~/.bitcore-node/``
 
 This can be changed at config/config.js. As of June 2014, storing the livenet blockchain takes ~35GB of disk space (2GB for the testnet).
 
 ## Development
 
-To run insight locally for development with grunt:
+To run `bitcore-node` locally for development with grunt:
 
 ```$ NODE_ENV=development grunt```
 
@@ -140,12 +125,10 @@ To run the tests
 ```$ grunt test```
 
 
-Contributions and suggestions are welcome at [insight-api github repository](https://github.com/bitpay/insight-api).
-
 ## Caching schema
 
 Since v0.2 a new cache schema has been introduced. Only information from transactions with
-INSIGHT_SAFE_CONFIRMATIONS settings will be cached (by default SAFE_CONFIRMATIONS=6). There 
+BLOCKCHAIN_API_SAFE_CONFIRMATIONS settings will be cached (by default SAFE_CONFIRMATIONS=6). There 
 are 3 different caches:
  * Number of confirmations 
  * Transaction output spent/unspent status
@@ -153,12 +136,12 @@ are 3 different caches:
 
 Cache data is only populated on request, i.e., only after accessing the required data for
 the first time, the information is cached, there is not pre-caching procedure.  To ignore 
-cache by default, use INSIGHT_IGNORE_CACHE. Also, address related calls support `?noCache=1`
+cache by default, use BLOCKCHAIN_API_IGNORE_CACHE. Also, address related calls support `?noCache=1`
 to ignore the cache in a particular API request.
 
 ## API
 
-By default, insight provides a REST API at `/api`, but this prefix is configurable from the var `apiPrefix` in the `config.js` file.
+By default, `bitcore-node` provides a REST API at `/api`, but this prefix is configurable from the var `apiPrefix` in the `config.js` file.
 
 The end-points are:
 
@@ -214,7 +197,7 @@ Sample return:
     }
 ]
 ```
-Please note that in case confirmations are cached (which happens by default when the number of confirmations is bigger that INSIGHT_SAFE_CONFIRMATIONS) the response will include the pair confirmationsFromCache:true, and confirmations will equal INSIGHT_SAFE_CONFIRMATIONS. See noCache and INSIGHT_IGNORE_CACHE options for details.
+Please note that in case confirmations are cached (which happens by default when the number of confirmations is bigger that BLOCKCHAIN_API_SAFE_CONFIRMATIONS) the response will include the pair confirmationsFromCache:true, and confirmations will equal BLOCKCHAIN_API_SAFE_CONFIRMATIONS. See noCache and BLOCKCHAIN_API_IGNORE_CACHE options for details.
 
 
 
@@ -349,7 +332,7 @@ Where "xxx" can be:
 ## Web Socket API
 The web socket API is served using [socket.io](http://socket.io).
 
-The following are the events published by insight:
+The following are the events published:
 
 'tx': new transaction received from network. This event is published in the 'inv' room. Data will be a app/models/Transaction object.
 Sample output:
@@ -392,18 +375,18 @@ Sample output:
 
 ### Example Usage
 
-The following html page connects to the socket.io insight API and listens for new transactions.
+The following html page connects to the socket.io API and listens for new transactions.
 
 html
 ```
 <html>
 <body>
-  <script src="http://<insight-server>:<port>/socket.io/socket.io.js"></script>
+  <script src="http://<bitcore-node-server>:<port>/socket.io/socket.io.js"></script>
   <script>
     eventToListenTo = 'tx'
     room = 'inv'
 
-    var socket = io("http://<insight-server>:<port>/");
+    var socket = io("http://<bitcore-node-server>:<port>/");
     socket.on('connect', function() {
       // Join the room.
       socket.emit('subscribe', room);

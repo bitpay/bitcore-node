@@ -1,9 +1,9 @@
 {
-  "name": "bitcored",
-  "description": "An open-source bitcoin blockchain API. The Insight API provides you with a convenient, powerful and simple way to query and broadcast data on the bitcoin network and build your own services with it.",
+  "name": "bitcore-node",
+  "description": "Full node with extended capabilities using bitcore and Bitcoin Core",
   "version": "0.0.1",
   "author": "BitPay <dev@bitpay.com>",
-  "repository": "git://github.com/bitpay/bitcored.git",
+  "repository": "git://github.com/bitpay/bitcore-node.git",
   "contributors": [
     {
       "name": "Matias Alejo Garcia",
@@ -31,9 +31,9 @@
     }
   ],
   "bugs": {
-    "url": "https://github.com/bitpay/bitcored/issues"
+    "url": "https://github.com/bitpay/bitcore-node/issues"
   },
-  "homepage": "https://github.com/bitpay/bitcored",
+  "homepage": "https://github.com/bitpay/bitcore-node",
   "license": "MIT",
   "keywords": [
     "bitcoin",

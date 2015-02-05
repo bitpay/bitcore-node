@@ -19,9 +19,9 @@ function getUserHome() {
   return process.env[(process.platform === 'win32') ? 'USERPROFILE' : 'HOME'];
 }
 
-var home = process.env.INSIGHT_DB || (getUserHome() + '/.insight');
+var home = process.env.BLOCKCHAIN_API_DB || (getUserHome() + '/.bitcore-node');
 
-if (process.env.INSIGHT_NETWORK === 'livenet') {
+if (process.env.BLOCKCHAIN_API_NETWORK === 'livenet') {
   env = 'livenet';
   db = home;
   port = '3000';
@@ -34,7 +34,7 @@ if (process.env.INSIGHT_NETWORK === 'livenet') {
   b_port = '18332';
   p2p_port = '18333';
 }
-port = parseInt(process.env.INSIGHT_PORT) || port;
+port = parseInt(process.env.BLOCKCHAIN_API_PORT) || port;
 
 
 switch (process.env.NODE_ENV) {
@@ -49,7 +49,7 @@ switch (process.env.NODE_ENV) {
     break;
 }
 
-var network = process.env.INSIGHT_NETWORK || 'testnet';
+var network = process.env.BLOCKCHAIN_API_NETWORK || 'testnet';
 
 var dataDir = process.env.BITCOIND_DATADIR;
 var isWin = /^win/.test(process.platform);
@@ -62,8 +62,8 @@ if (!dataDir) {
 }
 dataDir += network === 'testnet' ? 'testnet3' : '';
 
-var safeConfirmations = process.env.INSIGHT_SAFE_CONFIRMATIONS || 6;
-var ignoreCache = process.env.INSIGHT_IGNORE_CACHE || 0;
+var safeConfirmations = process.env.BLOCKCHAIN_API_SAFE_CONFIRMATIONS || 6;
+var ignoreCache = process.env.BLOCKCHAIN_API_IGNORE_CACHE || 0;
 
 
 var bitcoindConf = {
@@ -91,8 +91,7 @@ module.exports = {
   enableHTTPS: enableHTTPS,
   version: version,
   root: rootPath,
-  publicPath: process.env.INSIGHT_PUBLIC_PATH || false,
-  appName: 'Insight ' + env,
+  publicPath: process.env.BLOCKCHAIN_API_PUBLIC_PATH || false,
   apiPrefix: '/api',
   port: port,
   leveldb: db,
@@ -103,7 +102,7 @@ module.exports = {
   poolMatchFile: rootPath + '/etc/minersPoolStrings.json',
 
   keys: {
-    segmentio: process.env.INSIGHT_SEGMENTIO_KEY
+    segmentio: process.env.BLOCKCHAIN_API_SEGMENTIO_KEY
   },
   safeConfirmations: safeConfirmations, // PLEASE NOTE THAT *FULL RESYNC* IS NEEDED TO CHANGE safeConfirmations
   ignoreCache: ignoreCache,

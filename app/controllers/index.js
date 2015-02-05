@@ -14,7 +14,7 @@ exports.render = function(req, res) {
   }
   else {
     var version = _getVersion();
-    res.send('insight API v' + version);
+    res.send('bitcore-node API v' + version);
   }
 };
 

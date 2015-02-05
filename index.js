@@ -20,20 +20,14 @@ program
 
 // text title
 console.log(
-  '\n\
-    ____           _       __    __     ___          _ \n\
-   /  _/___  _____(_)___ _/ /_  / /_   /   |  ____  (_)\n\
-   / // __ \\/ ___/ / __ `/ __ \\/ __/  / /\| \| / __ \\/ / \n\
- _/ // / / (__  ) / /_/ / / / / /_   / ___ |/ /_/ / /  \n\
-/___/_/ /_/____/_/\\__, /_/ /_/\\__/  /_/  |_/ .___/_/   \n\
-                 /____/                   /_/           \n\
+  'bitcore-node
 \n\t\t\t\t\t\tv%s\n', config.version);
 program.on('--help', function() {
   logger.info('\n# Configuration:\n\
-\tINSIGHT_NETWORK (Network): %s\n\
-\tINSIGHT_DB (Database Path):  %s\n\
-\tINSIGHT_SAFE_CONFIRMATIONS (Safe Confirmations):  %s\n\
-\tINSIGHT_IGNORE_CACHE (Ignore Cache):  %s\n\
+\tBLOCKCHAIN_API_NETWORK (Network): %s\n\
+\tBLOCKCHAIN_API_DB (Database Path):  %s\n\
+\tBLOCKCHAIN_API_SAFE_CONFIRMATIONS (Safe Confirmations):  %s\n\
+\tBLOCKCHAIN_API_IGNORE_CACHE (Ignore Cache):  %s\n\
  # Bicoind Connection configuration:\n\
 \tRPC Username: %s\t\tBITCOIND_USER\n\
 \tRPC Password: %s\tBITCOIND_PASS\n\
@@ -44,7 +38,7 @@ program.on('--help', function() {
 \tBITCOIND_DATADIR: %s\n\
 \t%s\n\
 \nChange setting by assigning the enviroment variables above. Example:\n\
- $ INSIGHT_NETWORK="testnet" BITCOIND_HOST="123.123.123.123" ./insight.js\
+ $ BLOCKCHAIN_API_NETWORK="testnet" BITCOIND_HOST="123.123.123.123" ./index.js\
 \n\n',
     config.network, config.leveldb, config.safeConfirmations, config.ignoreCache ? 'yes' : 'no',
     config.bitcoind.user,
@@ -133,7 +127,7 @@ require('./config/routes')(expressApp);
 
 //Start the app by listening on <port>
 server.listen(config.port, function() {
-  logger.info('insight server listening on port %d in %s mode', server.address().port, process.env.NODE_ENV);
+  logger.info('bitcoin-node API listening on port %d in %s mode', server.address().port, process.env.NODE_ENV);
 });
 
 //expose app
