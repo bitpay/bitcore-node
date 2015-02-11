@@ -20,8 +20,8 @@ program
 
 // text title
 console.log(
-  'bitcore-node
-\n\t\t\t\t\t\tv%s\n', config.version);
+  'bitcore-node',
+'\n\t\t\t\t\t\tv%s\n', config.version);
 program.on('--help', function() {
   logger.info('\n# Configuration:\n\
 \tBLOCKCHAIN_API_NETWORK (Network): %s\n\
