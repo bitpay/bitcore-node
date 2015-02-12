@@ -14,7 +14,7 @@ var assert = require('assert'),
 var should = require('chai');
 
 var txDb;
-describe('Address balances', function() {
+describe.skip('Address balances', function() {
   this.timeout(5000);
 
   before(function(c) {
@@ -83,7 +83,7 @@ describe('Address balances', function() {
 });
 
 //tested against https://api.biteasy.com/testnet/v1/addresses/2N1pLkosf6o8Ciqs573iwwgVpuFS6NbNKx5/unspent-outputs?per_page=40
-describe('Address unspent', function() {
+describe.skip('Address unspent', function() {
 
   before(function(c) {
     txDb = TransactionDb;

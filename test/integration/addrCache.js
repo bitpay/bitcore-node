@@ -16,7 +16,7 @@ var should = require('chai');
 var txDb;
 
 
-describe('Address cache ', function() {
+describe.skip('Address cache ', function() {
   this.timeout(5000);
 
   before(function(c) {

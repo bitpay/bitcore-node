@@ -6,7 +6,7 @@ var bDb = BlockDb;
 
 var expect = require('chai').expect;
 
-describe('Node check', function() {
+describe.skip('Node check', function() {
   it('should contain block ' + height_needed, function(done) {
     bDb.blockIndex(height_needed, function(err, b) {
       expect(err).to.equal(null);

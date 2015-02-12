@@ -131,7 +131,7 @@ var checkBlocks = function(hashes,heights){
 };
 
 
-describe('Sync Reorgs', function(){
+describe.skip('Sync Reorgs', function(){
   var opts = {
     forceRPC: true,
     stopAt: b[5],
@@ -157,7 +157,7 @@ describe('Sync Reorgs', function(){
   };
 
 
-  describe('reorg, case 1', function() {
+  describe.skip('reorg, case 1', function() {
     checkTxs([t[0], t[1], t[2], t[3], t[4]],[16,17,18,19,20]);
     checkBlocks([b[0], b[1], b[2], b[3], b[4]],[16,17,18,19,20]);
     it('trigger reorg case 1', function(done1){
@@ -250,7 +250,7 @@ describe('Sync Reorgs', function(){
 //  *                  \
 //  *                   C2c(TX=C2.TX)*
  
-  describe('reorg, case 2c', function() {
+  describe.skip('reorg, case 2c', function() {
     it('trigger reorg case 2c', function(done1){
       s.sync.storeTipBlock(case2c, function(err) {
         assert(!err, 'shouldnt return error' + err);
@@ -291,7 +291,7 @@ describe('Sync Reorgs', function(){
     previousblockhash: '666',
   };
 
-  describe('reorg, case 3)', function() {
+  describe.skip('reorg, case 3)', function() {
     it('case 3). Should return an error', function(done1){
       s.sync.storeTipBlock(case3, function(err) {
         assert(err, 'should return error' + err);
@@ -322,7 +322,7 @@ describe('Sync Reorgs', function(){
     previousblockhash: '111',
   };
   
-  describe('p2p sync. no reorgs', function() {
+  describe.skip('p2p sync. no reorgs', function() {
     it('Should return an error', function(done1){
       s.sync.storeTipBlock(p2p, false, function(err) {
         assert(!err, 'shouldnt return error' + err);

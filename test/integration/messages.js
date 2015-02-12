@@ -31,7 +31,7 @@ function createMockReq(body) {
   };
 }
 
-describe('messages.verify', function() {
+describe.skip('messages.verify', function() {
 
   it('should return true with correct message', function(done) {
     var mockReq = createMockReq({

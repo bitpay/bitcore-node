@@ -14,7 +14,7 @@ var assert        = require('assert'),
 var should = require('chai');
 //var txItemsValid = JSON.parse(fs.readFileSync('test/model/txitems.json'));
 
-describe('BlockExtractor', function(){
+describe.skip('BlockExtractor', function(){
 
   var be = new BlockExtractor(config.bitcoind.dataDir, config.network);
 
