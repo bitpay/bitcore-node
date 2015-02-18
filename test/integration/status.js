@@ -6,7 +6,7 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 var assert  = require('assert'),
   Status = require('../../app/models/Status');
 
-describe('Status', function(){
+describe.skip('Status', function(){
 
   it('getInfo', function(done) {
     var d = new Status();

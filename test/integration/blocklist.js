@@ -13,7 +13,7 @@ var assert  = require('assert'),
 
 var bDb;
 
-describe('BlockDb getBlocksByDate', function(){
+describe.skip('BlockDb getBlocksByDate', function(){
 
 
   before(function(c) {

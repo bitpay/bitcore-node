@@ -14,7 +14,7 @@ assert = require('assert'),
 
 var bDb;
 
-describe('BlockDb fromHashWithInfo', function() {
+describe.skip('BlockDb fromHashWithInfo', function() {
 
   before(function(c) {
     bDb = BlockDb;

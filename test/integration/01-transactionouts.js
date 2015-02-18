@@ -14,7 +14,7 @@ var assert          = require('assert'),
 var txItemsValid = JSON.parse(fs.readFileSync('test/integration/txitems.json'));
 var txDb;
 
-describe('TransactionDb fromIdWithInfo', function(){
+describe.skip('TransactionDb fromIdWithInfo', function(){
 
   before(function(c) {
     txDb = TransactionDb;
@@ -119,7 +119,7 @@ describe('TransactionDb fromIdWithInfo', function(){
   });
 });
 
-describe('TransactionDb Outs', function(){
+describe.skip('TransactionDb Outs', function(){
 
   before(function(c) {
     txDb = TransactionDb;

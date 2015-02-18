@@ -17,7 +17,7 @@ var spentValid   = JSON.parse(fs.readFileSync('test/integration/spent.json'));
 
 var txDb;
 
-describe('TransactionDb Expenses', function(){
+describe.skip('TransactionDb Expenses', function(){
 
   before(function(c) {
     txDb = TransactionDb;

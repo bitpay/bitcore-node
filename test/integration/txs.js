@@ -16,7 +16,7 @@ var should = require('chai');
 var sinon = require('sinon');
 
 var txDb;
-describe('Transactions for multiple addresses', function() {
+describe.skip('Transactions for multiple addresses', function() {
   this.timeout(5000);
 
   var req, res;
