@@ -48,7 +48,7 @@ describe('EventBus', function() {
       bus.register(FooEvent, function(e) {
         var b = new BarEvent();
         b.y = e.x;
-        return [b];
+        return b;
       });
       bus.register(BarEvent, function(e) {
         e.y.should.equal(foo.x);
