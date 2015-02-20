@@ -4,8 +4,9 @@ var chai = require('chai');
 var should = chai.should();
 var sinon = require('sinon');
 
+var Promise = require('bluebird');
 var EventBus = require('../lib/eventbus');
-require('bluebird').longStackTraces();
+Promise.longStackTraces();
 
 describe('EventBus', function() {
 
@@ -55,12 +56,12 @@ describe('EventBus', function() {
       });
       bus.process(foo);
     });
+    var b1 = new BarEvent();
+    var b2 = new BarEvent();
     it('foo returns two bars', function() {
       var bus = new EventBus();
       var spy = sinon.spy();
       bus.register(FooEvent, function() {
-        var b1 = new BarEvent();
-        var b2 = new BarEvent();
         return [b1, b2];
       });
       bus.register(BarEvent, spy);
@@ -69,8 +70,6 @@ describe('EventBus', function() {
     });
     it('foo returns two bars and emits external events', function(cb) {
       var bus = new EventBus();
-      var b1 = new BarEvent();
-      var b2 = new BarEvent();
       var spy = sinon.spy(bus, 'emit');
       bus.register(FooEvent, function() {
         return [b1, b2];
@@ -79,6 +78,19 @@ describe('EventBus', function() {
         .then(function() {
           spy.calledWith('BarEvent', b1).should.equal(true);
           spy.calledWith('BarEvent', b2).should.equal(true);
+        })
+        .then(cb);
+    });
+    it('foo returns two async bars', function(cb) {
+      var bus = new EventBus();
+      var spy = sinon.spy();
+      bus.register(FooEvent, function() {
+        return Promise.resolve([b1, b2]).delay(1);
+      });
+      bus.register(BarEvent, spy);
+      bus.process(foo)
+        .then(function() {
+          spy.callCount.should.equal(2);
         })
         .then(cb);
     });
