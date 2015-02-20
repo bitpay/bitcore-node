@@ -5,6 +5,7 @@ var should = chai.should();
 var sinon = require('sinon');
 
 var EventBus = require('../lib/eventbus');
+require('bluebird').longStackTraces();
 
 describe('EventBus', function() {
 
@@ -15,6 +16,7 @@ describe('EventBus', function() {
 
   describe('process', function() {
     function FooEvent() {}
+
     function BarEvent() {}
     var foo = new FooEvent();
     var bar = new BarEvent();
@@ -64,6 +66,21 @@ describe('EventBus', function() {
       bus.register(BarEvent, spy);
       bus.process(foo);
       spy.callCount.should.equal(2);
+    });
+    it('foo returns two bars and emits external events', function(cb) {
+      var bus = new EventBus();
+      var b1 = new BarEvent();
+      var b2 = new BarEvent();
+      var spy = sinon.spy(bus, 'emit');
+      bus.register(FooEvent, function() {
+        return [b1, b2];
+      });
+      bus.process(foo)
+        .then(function() {
+          spy.calledWith('BarEvent', b1).should.equal(true);
+          spy.calledWith('BarEvent', b2).should.equal(true);
+        })
+        .then(cb);
     });
   });
 
