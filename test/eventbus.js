@@ -57,7 +57,9 @@ describe('EventBus', function() {
       bus.process(foo);
     });
     var b1 = new BarEvent();
+    b1.x = 42;
     var b2 = new BarEvent();
+    b2.x = 69;
     it('foo returns two bars', function() {
       var bus = new EventBus();
       var spy = sinon.spy();
@@ -93,6 +95,25 @@ describe('EventBus', function() {
           spy.callCount.should.equal(2);
         })
         .then(cb);
+    });
+    it('events are not externalized when async processing fails', function(cb) {
+      var bus = new EventBus();
+      var spy = sinon.spy(bus, 'emit');
+      var err = new Error();
+      bus.register(FooEvent, function() {
+        return Promise.resolve([b1, b2]).delay(1);
+      });
+      bus.register(BarEvent, function(e) {
+        if (e.x === b1.x) {
+          throw err;
+        }
+      });
+      bus.process(foo)
+        .catch(function(reason) {
+          reason.should.equal(err);
+          spy.callCount.should.equal(0);
+          cb();
+        });
     });
   });
 
