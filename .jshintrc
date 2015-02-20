@@ -41,5 +41,8 @@
         "it",
         "module",
         "require"
-    ]
+    ],
+    "globals" : {
+      "Promise"   : true
+    }
 }
