@@ -43,15 +43,13 @@
     "start": "node node_modules/grunt-cli/bin/grunt"
   },
   "dependencies": {
-    "async": "*",
-    "base58-native": "0.1.2",
+    "async": "0.9.0",
     "bignum": "*",
-    "bitauth": "^0.1.1",
-    "bitcore": "git://github.com/bitpay/bitcore.git#aa41c70cff2583d810664c073a324376c39c8b36",
+    "bitcore": "0.10.4",
+    "bluebird": "^2.9.12",
     "bufferput": "git://github.com/bitpay/node-bufferput.git",
     "buffertools": "*",
     "commander": "^2.3.0",
-    "connect-ratelimit": "git://github.com/dharmafly/connect-ratelimit.git#0550eff209c54f35078f46445000797fa942ab97",
     "cron": "^1.0.4",
     "express": "~3.4.7",
     "glob": "*",
@@ -61,7 +59,6 @@
     "microtime": "^0.6.0",
     "mkdirp": "^0.5.0",
     "moment": "~2.5.0",
-    "nodemailer": "^1.3.0",
     "preconditions": "^1.0.7",
     "request": "^2.48.0",
     "socket.io": "1.0.6",
@@ -71,17 +68,9 @@
     "xmlhttprequest": "~1.6.0"
   },
   "devDependencies": {
-    "gulp": "^3.8.10",
-    "gulp-bump": "^0.1.11",
-    "gulp-coveralls": "^0.1.3",
-    "gulp-jshint": "^1.9.0",
-    "gulp-mocha": "^2.0.0",
-    "gulp-shell": "^0.2.10",
-    "istanbul": "^0.3.5",
-    "mocha": "^2.0.1",
-    "plato": "^1.3.0",
+    "bitcore-build": "bitpay/bitcore-build",
     "chai": "*",
-    "memdown": "^0.10.2",
+    "gulp": "^3.8.10",
     "should": "^2.1.1",
     "sinon": "^1.10.3"
   }
