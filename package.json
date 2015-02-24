@@ -45,9 +45,10 @@
   "dependencies": {
     "async": "0.9.0",
     "bignum": "*",
-    "bitcore": "0.10.4",
+    "bitcore": "bitpay/bitcore",
+    "bitcore-p2p": "bitpay/bitcore-p2p",
     "bluebird": "^2.9.12",
-    "bufferput": "git://github.com/bitpay/node-bufferput.git",
+    "bufferput": "bitpay/node-bufferput",
     "buffertools": "*",
     "commander": "^2.3.0",
     "cron": "^1.0.4",
