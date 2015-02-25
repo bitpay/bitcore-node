@@ -70,9 +70,11 @@
     "morgan": "^1.5.1",
     "preconditions": "^1.0.7",
     "request": "^2.48.0",
+    "sequelize": "^2.0.3",
     "socket.io": "1.0.6",
     "socket.io-client": "1.0.6",
     "soop": "=0.1.5",
+    "sqlite3": "^3.0.5",
     "winston": "*",
     "xmlhttprequest": "~1.6.0"
   },
