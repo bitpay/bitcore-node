@@ -3,6 +3,7 @@
 var chai = require('chai');
 var should = chai.should();
 var bitcore = require('bitcore');
+var Networks = bitcore.Networks;
 var sinon = require('sinon');
 var util = require('util');
 var Transaction = bitcore.Transaction;
@@ -45,6 +46,16 @@ describe('NetworkMonitor', function() {
   });
 
   it('instantiates correctly from create', function() {
+    var nm = NetworkMonitor.create(busMock);
+    should.exist(nm);
+  });
+
+  it('instantiates correctly from create with opts', function() {
+    var opts = {
+      network: Networks.livenet,
+      host: '8.8.8.8',
+      port: 3001
+    };
     var nm = NetworkMonitor.create(busMock);
     should.exist(nm);
   });
