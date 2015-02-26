@@ -4,7 +4,7 @@ var path = require('path');
 var fs = require('fs');
 var mkdirp = require('mkdirp');
 
-var rootPath = path.normalize(__dirname + '/..'),
+var rootPath = path.normalize(__dirname),
   env,
   db,
   port,
