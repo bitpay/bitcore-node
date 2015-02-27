@@ -1,0 +1,4 @@
+NetworkMonitor:
+  network: livenet
+  host: localhost
+  port: 8333
