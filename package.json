@@ -56,7 +56,7 @@
     "cors": "^2.5.3",
     "cron": "^1.0.4",
     "eventemitter2": "^0.4.14",
-    "express": "~3.4.7",
+    "express": "4.11.1",
     "glob": "*",
     "js-yaml": "^3.2.7",
     "leveldown": "~0.10.0",
