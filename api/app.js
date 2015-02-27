@@ -5,7 +5,6 @@ var express = require('express');
 var compress = require('compression');
 var bodyParser = require('body-parser');
 
-var config = require('./config');
 var routes = require('./routes');
 
 function init(backend) {
