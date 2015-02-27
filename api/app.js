@@ -1,5 +1,6 @@
 'use strict';
 
+var cors = require('cors')
 var express = require('express');
 var bodyParser = require('body-parser');
 
@@ -18,6 +19,7 @@ API.prototype._initApp = function() {
   this.app = express();
 
   // parse POST data
+  this.app.use(cors());
   this.app.use(bodyParser.json());
   this.app.use(bodyParser.urlencoded({ extended: false }));
 
