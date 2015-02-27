@@ -52,6 +52,8 @@
     "buffertools": "*",
     "commander": "^2.3.0",
     "config": "^1.12.0",
+    "compression": "^1.4.1",
+    "cors": "^2.5.3",
     "cron": "^1.0.4",
     "express": "4.11.1",
     "glob": "*",

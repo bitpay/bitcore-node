@@ -2,6 +2,7 @@
 
 var cors = require('cors')
 var express = require('express');
+var compress = require('compression');
 var bodyParser = require('body-parser');
 
 var config = require('./config');
@@ -12,6 +13,7 @@ function init(backend) {
 
   // parse POST data
   app.use(cors());
+  app.use(compress());
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: false }));
 
