@@ -4,7 +4,7 @@ var express = require('express');
 var bodyParser = require('body-parser');
 
 var config = require('./config');
-var routes = require('./routes/index');
+var routes = require('./routes');
 
 
 function API(backend, opts) {
@@ -22,7 +22,7 @@ API.prototype._initApp = function() {
   this.app.use(bodyParser.urlencoded({ extended: false }));
 
   // install routes
-  this.app.use('/v1', routes);
+  this.app.use('/', routes);
 
   // catch 404 and forward to error handler
   this.app.use(function(req, res, next) {
@@ -34,7 +34,7 @@ API.prototype._initApp = function() {
   // production error handler
   this.app.use(function(err, req, res, next) {
       res.status(err.status || 500);
-      res.render('error', {
+      res.send({
           message: err.message,
           error: {}
       });
