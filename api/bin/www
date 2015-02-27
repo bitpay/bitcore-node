@@ -6,20 +6,29 @@
 
 var API = require('../app');
 var http = require('http');
-var api = new API();
+
+/**
+ * Init api with backing services
+ */
+
+var Node = {
+  status: 'live',
+  nodes: 123
+}
+var app = new API(Node);
 
 /**
  * Get port from environment and store in Express.
  */
 
 var port = normalizePort(process.env.PORT || '8000');
-api.app.set('port', port);
+app.set('port', port);
 
 /**
  * Create HTTP server.
  */
 
-var server = http.createServer(api.app);
+var server = http.createServer(app);
 
 /**
  * Listen on provided port, on all network interfaces.

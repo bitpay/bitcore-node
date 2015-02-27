@@ -7,40 +7,34 @@ var bodyParser = require('body-parser');
 var config = require('./config');
 var routes = require('./routes');
 
-
-function API(backend, opts) {
-  this.backend = backend;
-  this.opts = opts;
-
-  this._initApp();
-}
-
-API.prototype._initApp = function() {
-  this.app = express();
+function init(backend) {
+  var app = express();
 
   // parse POST data
-  this.app.use(cors());
-  this.app.use(bodyParser.json());
-  this.app.use(bodyParser.urlencoded({ extended: false }));
+  app.use(cors());
+  app.use(bodyParser.json());
+  app.use(bodyParser.urlencoded({ extended: false }));
 
   // install routes
-  this.app.use('/', routes);
+  app.use('/', routes(backend));
 
   // catch 404 and forward to error handler
-  this.app.use(function(req, res, next) {
+  app.use(function(req, res, next) {
       var err = new Error('Not Found');
       err.status = 404;
       next(err);
   });
 
   // production error handler
-  this.app.use(function(err, req, res, next) {
+  app.use(function(err, req, res, next) {
       res.status(err.status || 500);
       res.send({
           message: err.message,
           error: {}
       });
   });
+
+  return app;
 }
 
-module.exports = API;
+module.exports = init;

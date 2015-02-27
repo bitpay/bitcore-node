@@ -1,11 +1,15 @@
 'use strict';
 
 var express = require('express');
-var router = express.Router();
 
-/* GET home page. */
-router.get('/blocks', function(req, res, next) {
-  res.send('blocks v2');
-});
+function initRouter(backend) {
+  var router = express.Router();
 
-module.exports = router;
+  router.get('/blocks', function(req, res, next) {
+    res.send('blocks v2 ' + backend.nodes);
+  });
+
+  return router;
+}
+
+module.exports = initRouter;
