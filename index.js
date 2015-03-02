@@ -1,26 +1,19 @@
 'use strict';
 
-
 var config = require('config');
 
-var bitcore = require('bitcore');
+var BitcoreNode = require('./lib/node.js');
 
-var NetworkMonitor = require('./lib/networkmonitor');
-var EventBus = require('./lib/eventbus');
+if (require.main === module) {
+  var node = BitcoreNode.create(config.get('BitcoreNode'));
+  node.start();
+  node.on('error', function(err) {
+    if (err.code === 'ECONNREFUSED') {
+      console.log('Connection to bitcoind failed');
+    } else {
+      console.log('Unrecognized error: ', err);
+    }
+  });
+}
 
-
-var bus = new EventBus();
-var nm = NetworkMonitor.create(bus, config.get('NetworkMonitor'));
-
-bus.register(bitcore.Transaction, function(tx) {
-  console.log('Transaction:', tx.id);
-});
-
-bus.register(bitcore.Block, function(block) {
-  console.log('Block:', block.id);
-});
-
-nm.start();
-
-
-
+module.exports = BitcoreNode;

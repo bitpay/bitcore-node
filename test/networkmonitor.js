@@ -8,7 +8,7 @@ var sinon = require('sinon');
 var util = require('util');
 var Transaction = bitcore.Transaction;
 var Block = bitcore.Block;
-var EventEmitter = require('events').EventEmitter;
+var EventEmitter = require('eventemitter2').EventEmitter2;
 
 var NetworkMonitor = require('../lib/networkmonitor');
 var EventBus = require('../lib/eventbus');
@@ -65,9 +65,16 @@ describe('NetworkMonitor', function() {
     nm.start.bind(nm).should.not.throw();
   });
 
+  it('broadcasts errors in underlying peer', function(cb) {
+    var nm = new NetworkMonitor(busMock, peerMock);
+    nm.on('error', cb);
+    nm.start();
+    peerMock.emit('error');
+  });
+
   it('broadcasts ready after start', function(cb) {
     var nm = new NetworkMonitor(busMock, peerMock);
-    nm.on('ready', cb)
+    nm.on('ready', cb);
     nm.start();
   });
 

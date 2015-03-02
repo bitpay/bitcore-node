@@ -57,18 +57,20 @@ describe('EventBus', function() {
       bus.process(foo);
     });
     var b1 = new BarEvent();
-    b1.x = 42;
+    b1.y = 42;
     var b2 = new BarEvent();
-    b2.x = 69;
-    it('foo returns two bars', function() {
+    b2.y = 69;
+    it('foo returns two bars', function(cb) {
       var bus = new EventBus();
       var spy = sinon.spy();
       bus.register(FooEvent, function() {
         return [b1, b2];
       });
       bus.register(BarEvent, spy);
-      bus.process(foo);
-      spy.callCount.should.equal(2);
+      bus.process(foo).then(function() {
+        spy.callCount.should.equal(2);
+        cb();
+      });
     });
     it('foo returns two bars and emits external events', function(cb) {
       var bus = new EventBus();
@@ -104,7 +106,7 @@ describe('EventBus', function() {
         return Promise.resolve([b1, b2]).delay(1);
       });
       bus.register(BarEvent, function(e) {
-        if (e.x === b1.x) {
+        if (e.y === b1.y) {
           throw err;
         }
       });
