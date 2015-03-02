@@ -11,7 +11,8 @@ function initRouter(backend) {
   router.use('/v2', v2);
 
   router.get('/', function(req, res, next) {
-    res.send('bitcore node api');
+    res.send('bitcore-node API');
+    next();
   });
 
   return router;
