@@ -7,7 +7,6 @@ function initRouter(backend) {
 
   function mockResponse(req, res, next) {
     res.send({'message': 'This is a mocked response'});
-    next();
   }
 
   // Node routes
