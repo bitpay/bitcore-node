@@ -2,11 +2,11 @@
 
 var express = require('express');
 
-function initRouter(backend) {
+function initRouter(node) {
   var router = express.Router();
 
-  router.get('/blocks', function(req, res, next) {
-    res.send('blocks v2 ' + backend.nodes);
+  router.get('/blocks', function(req, res) {
+    res.send('blocks v2 ');
   });
 
   return router;

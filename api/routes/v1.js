@@ -2,7 +2,7 @@
 
 var express = require('express');
 
-function initRouter(backend) {
+function initRouter(node) {
   var router = express.Router();
 
   function mockResponse(req, res) {
