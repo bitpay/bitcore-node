@@ -5,7 +5,7 @@ var express = require('express');
 function initRouter(backend) {
   var router = express.Router();
 
-  function mockResponse(req, res, next) {
+  function mockResponse(req, res) {
     res.send({'message': 'This is a mocked response'});
   }
 

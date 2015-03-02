@@ -1,0 +1,7 @@
+BitcoreHTTP:
+  port: 8080
+  BitcoreNode:
+    NetworkMonitor:
+      network: livenet
+      host: localhost
+      port: 8333
