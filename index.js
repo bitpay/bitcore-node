@@ -17,7 +17,8 @@ var BitcoreNode = function(bus, nm) {
   this.nm = nm;
 
   this.bus.register(bitcore.Transaction, function(tx) {
-    console.log('Transaction:', tx.id, 'total_out:', Unit.fromSatoshis(tx.outputAmount).toBTC());
+    var tout = Unit.fromSatoshis(tx.outputAmount).toBTC();
+    console.log('Transaction:', tx.id, 'total_out:', tout, 'BTC');
   });
 
   this.bus.register(bitcore.Block, function(block) {
