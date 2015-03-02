@@ -65,6 +65,13 @@ describe('NetworkMonitor', function() {
     nm.start.bind(nm).should.not.throw();
   });
 
+  it('broadcasts errors in underlying peer', function(cb) {
+    var nm = new NetworkMonitor(busMock, peerMock);
+    nm.on('error', cb);
+    nm.start();
+    peerMock.emit('error');
+  });
+
   it('broadcasts ready after start', function(cb) {
     var nm = new NetworkMonitor(busMock, peerMock);
     nm.on('ready', cb);
