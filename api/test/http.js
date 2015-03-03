@@ -1,0 +1,32 @@
+'use strict';
+
+var chai = require('chai');
+var should = chai.should();
+
+var EventEmitter = require('eventemitter2').EventEmitter2;
+
+var BitcoreHTTP = require('../lib/http');
+
+describe('BitcoreHTTP', function() {
+
+  // mocks
+  var nodeMock;
+  beforeEach(function() {
+    nodeMock = new EventEmitter();
+  });
+  describe('instantiates', function() {
+    it('from constructor', function() {
+      var http = new BitcoreHTTP(nodeMock);
+      should.exist(http);
+    });
+    it('from create', function() {
+      var http = new BitcoreHTTP.create();
+      should.exist(http);
+    });
+  });
+  it('starts', function() {
+    var http = new BitcoreHTTP(nodeMock);
+    http.start.bind(http).should.not.throw();
+  });
+
+});

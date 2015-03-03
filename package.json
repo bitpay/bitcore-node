@@ -48,11 +48,12 @@
     "bitcore": "bitpay/bitcore",
     "bitcore-p2p": "bitpay/bitcore-p2p",
     "bluebird": "^2.9.12",
+    "body-parser": "^1.12.0",
     "bufferput": "bitpay/node-bufferput",
     "buffertools": "*",
     "commander": "^2.3.0",
-    "config": "^1.12.0",
     "compression": "^1.4.1",
+    "config": "^1.12.0",
     "cors": "^2.5.3",
     "cron": "^1.0.4",
     "eventemitter2": "^0.4.14",
@@ -65,6 +66,7 @@
     "microtime": "^0.6.0",
     "mkdirp": "^0.5.0",
     "moment": "~2.5.0",
+    "morgan": "^1.5.1",
     "preconditions": "^1.0.7",
     "request": "^2.48.0",
     "socket.io": "1.0.6",
@@ -78,6 +80,7 @@
     "chai": "*",
     "gulp": "^3.8.10",
     "should": "^2.1.1",
-    "sinon": "^1.10.3"
+    "sinon": "^1.10.3",
+    "supertest": "^0.15.0"
   }
 }
