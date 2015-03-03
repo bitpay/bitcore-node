@@ -19,6 +19,7 @@ function BitcoreHTTP(node, opts) {
   opts = opts || {};
   this.node = node;
   this.port = opts.port || 8000;
+  this.logging = opts.logging || false;
   this.setupExpress();
 }
 
@@ -39,25 +40,16 @@ BitcoreHTTP.prototype.setupExpress = function() {
   app.use(bodyParser.urlencoded({
     extended: false
   }));
-  app.use(morgan('dev'));
+  if (this.logging) {
+    app.use(morgan('dev'));
+  }
 
   // install routes
   app.use('/', routes(this.node));
 
   // catch 404 and forward to error handler
-  app.use(function(req, res, next) {
-    var err = new Error('Not Found');
-    err.status = 404;
-    next(err);
-  });
-
-  // production error handler
-  app.use(function(err, req, res) {
-    res.status(err.status || 500);
-    res.send({
-      message: err.message,
-      error: {}
-    });
+  app.use(function(req, res) {
+    res.status(404).send('Not Found');
   });
 
   app.set('port', this.port);

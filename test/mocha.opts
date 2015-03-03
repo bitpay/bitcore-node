@@ -1,0 +1,4 @@
+test/
+api/test
+--recursive
+-R spec
