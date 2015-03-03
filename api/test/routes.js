@@ -29,12 +29,5 @@ describe('BitcoreHTTP routes', function() {
       .expect(200)
       .expect('bitcore-node API', cb);
   });
-  it('blocks', function(cb) {
-    agent.get('/v1/blocks/')
-      .expect(200)
-      .expect({
-        'message': 'This is a mocked response'
-      }, cb);
-  });
 
 });

@@ -1,6 +1,8 @@
 'use strict';
 
 var express = require('express');
+var Blocks = require('../controllers/blocks');
+
 
 function initRouter(node) {
   var router = express.Router();
@@ -9,23 +11,27 @@ function initRouter(node) {
     res.send({'message': 'This is a mocked response'});
   }
 
+  // parameter middleware
+  router.param('blockHash', Blocks.blockHashParam);
+
   // Node routes
   router.get('/node', mockResponse);
 
   // Block routes
   router.get('/blocks', mockResponse);
   router.get('/blocks/latest', mockResponse);
-  router.get('/blocks/:blockHash', mockResponse);
-  router.get('/blocks/:height', mockResponse);
+  router.get('/blocks/:blockHash([A-Fa-f0-9]{64})', Blocks.getBlock);
+  router.get('/blocks/*', Blocks.getBlockError);
+  router.get('/blocks/:height([0-9]+)', mockResponse);
   router.get('/blocks/:blockHash/transactions/:txIndex', mockResponse);
 
   // Transaction routes
   router.get('/transactions', mockResponse);
   router.get('/transactions/:txHash', mockResponse);
-  router.post('/transactions/send', mockResponse);
   router.get('/transactions/:txHash/addresses', mockResponse);
   router.get('/transactions/:txHash/outputs/addresses', mockResponse);
   router.get('/transactions/:txHash/inputs/addresses', mockResponse);
+  router.post('/transactions/send', mockResponse);
 
   // Input routes
   router.get('/transactions/:txHash/inputs', mockResponse);
