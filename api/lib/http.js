@@ -9,9 +9,9 @@ var morgan = require('morgan');
 
 var bitcore = require('bitcore');
 var $ = bitcore.util.preconditions;
-var BitcoreNode = require('../lib/node');
+var BitcoreNode = require('../../lib/node');
 
-var routes = require('./routes');
+var routes = require('../routes');
 
 
 function BitcoreHTTP(node, opts) {

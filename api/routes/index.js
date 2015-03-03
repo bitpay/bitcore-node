@@ -1,5 +1,6 @@
 'use strict';
 
+
 var express = require('express');
 var router = express.Router();
 
@@ -10,9 +11,8 @@ function initRouter(node) {
   router.use('/v1', v1);
   router.use('/v2', v2);
 
-  router.get('/', function(req, res, next) {
+  router.get('/', function(req, res) {
     res.send('bitcore-node API');
-    next();
   });
 
   return router;
