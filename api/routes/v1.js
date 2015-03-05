@@ -20,6 +20,7 @@ function initRouter(node) {
 
   // parameter middleware
   router.param('blockHash', Blocks.blockHashParam);
+  router.param('height', Blocks.heightParam);
 
   // Node routes
   router.get('/node', NodeStatus.getStatus);
@@ -28,8 +29,8 @@ function initRouter(node) {
   router.get('/blocks', mockResponse);
   router.get('/blocks/latest', mockResponse);
   router.get('/blocks/:blockHash([A-Fa-f0-9]{64})', Blocks.getBlock);
+  router.get('/blocks/:height([0-9]+)', Blocks.getBlock);
   router.get('/blocks/*', Blocks.getBlockError);
-  router.get('/blocks/:height([0-9]+)', mockResponse);
   router.get('/blocks/:blockHash/transactions/:txIndex', mockResponse);
 
   // Transaction routes
