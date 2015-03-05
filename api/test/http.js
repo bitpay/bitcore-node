@@ -10,6 +10,9 @@ var BitcoreHTTP = require('../lib/http');
 describe('BitcoreHTTP', function() {
 
   // mocks
+  var opts = {
+    port: 1234
+  };
   var nodeMock;
   beforeEach(function() {
     nodeMock = new EventEmitter();
@@ -25,7 +28,7 @@ describe('BitcoreHTTP', function() {
     });
   });
   it('starts', function() {
-    var http = new BitcoreHTTP(nodeMock);
+    var http = new BitcoreHTTP(nodeMock, opts);
     http.start.bind(http).should.not.throw();
   });
 
