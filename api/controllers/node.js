@@ -1,6 +1,6 @@
 'use strict';
 
-function NodeStatus() {}
+var NodeStatus = {};
 var node;
 NodeStatus.setNode = function(aNode) {
   node = aNode;
