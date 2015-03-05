@@ -32,6 +32,7 @@ Blocks.blockHashParam = function(req, res, next, blockHash) {
 
 Blocks.heightParam = function(req, res, next, height) {
   // TODO: fetch block from service
+  height = parseInt(height);
   var block = mockBlocks[Object.keys(mockBlocks)[height]];
   
   if (_.isUndefined(block)) {
