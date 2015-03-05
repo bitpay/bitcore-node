@@ -2,20 +2,27 @@
 
 var express = require('express');
 var Blocks = require('../controllers/blocks');
+var NodeStatus = require('../controllers/node');
 
 
 function initRouter(node) {
   var router = express.Router();
 
+  [NodeStatus, Blocks].forEach(function(controller) {
+    controller.setNode(node);
+  });
+
   function mockResponse(req, res) {
-    res.send({'message': 'This is a mocked response'});
+    res.send({
+      'message': 'This is a mocked response'
+    });
   }
 
   // parameter middleware
   router.param('blockHash', Blocks.blockHashParam);
 
   // Node routes
-  router.get('/node', mockResponse);
+  router.get('/node', NodeStatus.getStatus);
 
   // Block routes
   router.get('/blocks', mockResponse);
