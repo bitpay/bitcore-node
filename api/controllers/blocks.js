@@ -20,6 +20,10 @@ Blocks.setNode = function(aNode) {
 /*
  *  params
  */
+
+/*
+ * Finds a block by its hash
+ */
 Blocks.blockHashParam = function(req, res, next, blockHash) {
   // TODO: fetch block from service
   var block = mockBlocks[blockHash];
@@ -32,6 +36,9 @@ Blocks.blockHashParam = function(req, res, next, blockHash) {
   next();
 };
 
+/*
+ * Finds a block by its height
+ */
 Blocks.heightParam = function(req, res, next, height) {
   // TODO: fetch block from service
   height = parseInt(height);
@@ -44,6 +51,7 @@ Blocks.heightParam = function(req, res, next, height) {
   req.block = block;
   next();
 };
+
 
 /*
  * controllers

@@ -1,14 +1,15 @@
 'use strict';
 
 var express = require('express');
-var Blocks = require('../controllers/blocks');
 var NodeStatus = require('../controllers/node');
+var Blocks = require('../controllers/blocks');
+var Transactions = require('../controllers/transactions');
 
 
 function initRouter(node) {
   var router = express.Router();
 
-  [NodeStatus, Blocks].forEach(function(controller) {
+  [NodeStatus, Blocks, Transactions].forEach(function(controller) {
     controller.setNode(node);
   });
 
@@ -21,6 +22,7 @@ function initRouter(node) {
   // parameter middleware
   router.param('blockHash', Blocks.blockHashParam);
   router.param('height', Blocks.heightParam);
+  router.param('txHash', Transactions.txHashParam);
 
   // Node routes
   router.get('/node', NodeStatus.getStatus);
@@ -30,15 +32,13 @@ function initRouter(node) {
   router.get('/blocks/latest', Blocks.getLatest);
   router.get('/blocks/:blockHash([A-Fa-f0-9]{64})', Blocks.get);
   router.get('/blocks/:height([0-9]+)', Blocks.get);
-  router.get('/blocks/*', Blocks.getBlockError);
-  router.get('/blocks/:blockHash/transactions/:txIndex', mockResponse);
 
   // Transaction routes
   router.get('/transactions', mockResponse);
-  router.get('/transactions/:txHash', mockResponse);
-  router.get('/transactions/:txHash/addresses', mockResponse);
-  router.get('/transactions/:txHash/outputs/addresses', mockResponse);
-  router.get('/transactions/:txHash/inputs/addresses', mockResponse);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})', Transactions.get);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/addresses', mockResponse);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/outputs/addresses', mockResponse);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/inputs/addresses', mockResponse);
   router.post('/transactions/send', mockResponse);
 
   // Input routes
@@ -55,6 +55,10 @@ function initRouter(node) {
   router.get('/addresses/:address/utxos', mockResponse);
   // TODO: check if this is really restful
   router.get('/addresses/:addresses/utxos', mockResponse);
+
+  // error routes
+  router.get('/blocks/*', Blocks.getBlockError);
+  router.get('/transactions/*', Transactions.getTxError);
 
   return router;
 }
