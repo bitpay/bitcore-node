@@ -27,9 +27,9 @@ function initRouter(node) {
 
   // Block routes
   router.get('/blocks', mockResponse);
-  router.get('/blocks/latest', mockResponse);
-  router.get('/blocks/:blockHash([A-Fa-f0-9]{64})', Blocks.getBlock);
-  router.get('/blocks/:height([0-9]+)', Blocks.getBlock);
+  router.get('/blocks/latest', Blocks.getLatest);
+  router.get('/blocks/:blockHash([A-Fa-f0-9]{64})', Blocks.get);
+  router.get('/blocks/:height([0-9]+)', Blocks.get);
   router.get('/blocks/*', Blocks.getBlockError);
   router.get('/blocks/:blockHash/transactions/:txIndex', mockResponse);
 

@@ -13,6 +13,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
 
   // mocks
   var b1 = mockBlocks[Object.keys(mockBlocks)[0]];
+  var lastBlock = mockBlocks[Object.keys(mockBlocks).splice(-1)[0]];
   var nodeMock, app, agent;
   beforeEach(function() {
     nodeMock = new EventEmitter();
@@ -27,6 +28,13 @@ describe('BitcoreHTTP v1 blocks routes', function() {
         .expect({
           'message': 'This is a mocked response'
         }, cb);
+    });
+  });
+  describe('/blocks/latest', function() {
+    it('returns latest block', function(cb) {
+      agent.get('/v1/blocks/latest')
+        .expect(200)
+        .expect(lastBlock.toJSON(), cb);
     });
   });
   describe('/blocks/:blockHash', function() {
