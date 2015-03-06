@@ -4,7 +4,11 @@ var chai = require('chai');
 var should = chai.should();
 var request = require('supertest');
 
+var bitcore = require('bitcore');
+var Transaction = bitcore.Transaction;
 var EventEmitter = require('eventemitter2').EventEmitter2;
+var Promise = require('bluebird');
+Promise.longStackTraces();
 
 var BitcoreHTTP = require('../../lib/http');
 var mockTransactions = require('../data/transactions');
@@ -12,11 +16,19 @@ var mockTransactions = require('../data/transactions');
 describe('BitcoreHTTP v1 transactions routes', function() {
 
   // mocks
+  var mockValidTx = new Transaction();
+  var t1 = mockTransactions[Object.keys(mockTransactions)[0]];
   var nodeMock, app, agent;
   beforeEach(function() {
     nodeMock = new EventEmitter();
     nodeMock.getTransaction = function(txHash) {
       return mockTransactions[txHash];
+    };
+    nodeMock.broadcast = function(tx) {
+      if (mockTransactions[tx.id]) {
+        return Promise.reject('some error');
+      }
+      return Promise.resolve();
     };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);
@@ -48,6 +60,46 @@ describe('BitcoreHTTP v1 transactions routes', function() {
           .expect(200)
           .expect(mockTransactions[hash].toJSON(), cb);
       });
+    });
+  });
+  describe('/transactions/send', function() {
+    it('fails with invalid data type', function(cb) {
+      agent.post('/v1/transactions/send')
+        .send('some random data')
+        .expect(422)
+        .expect('/v1/transactions/send parameter must be a raw transaction hex', cb);
+    });
+    it('fails with invalid data format', function(cb) {
+      agent.post('/v1/transactions/send')
+        .send({
+          1: 2
+        })
+        .expect(422)
+        .expect('/v1/transactions/send parameter must be a raw transaction hex', cb);
+    });
+    it('fails with valid data format, invalid raw tx', function(cb) {
+      agent.post('/v1/transactions/send')
+        .send({
+          raw: '00abad1d3a'
+        })
+        .expect(422)
+        .expect('/v1/transactions/send parameter must be a raw transaction hex', cb);
+    });
+    it('works with valid tx', function(cb) {
+      agent.post('/v1/transactions/send')
+        .send({
+          raw: mockValidTx.uncheckedSerialize()
+        })
+        .expect(200)
+        .expect('Transaction broadcasted successfully', cb);
+    });
+    it('fails with invalid tx', function(cb) {
+      agent.post('/v1/transactions/send')
+        .send({
+          raw: t1.uncheckedSerialize()
+        })
+        .expect(422)
+        .expect('some error', cb);
     });
   });
 
