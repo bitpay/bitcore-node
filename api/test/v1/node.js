@@ -5,6 +5,8 @@ var should = chai.should();
 var request = require('supertest');
 
 var EventEmitter = require('eventemitter2').EventEmitter2;
+var Promise = require('bluebird');
+Promise.longStackTraces();
 
 var BitcoreHTTP = require('../../lib/http');
 
@@ -18,6 +20,9 @@ describe('BitcoreHTTP v1 node routes', function() {
       sync: 0.75,
       peer_count: 8,
       version: 'test'
+    };
+    nodeMock.getStatus = function() {
+      return Promise.resolve(nodeMock.status);
     };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);

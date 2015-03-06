@@ -7,7 +7,10 @@ NodeStatus.setNode = function(aNode) {
 };
 
 NodeStatus.getStatus = function(req, res) {
-  res.send(node.status);
+  node.getStatus()
+    .then(function(status) {
+      res.send(status);
+    });
 };
 
 module.exports = NodeStatus;

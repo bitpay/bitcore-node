@@ -5,12 +5,14 @@ var should = chai.should();
 var request = require('supertest');
 
 var bitcore = require('bitcore');
+var _ = bitcore.deps._;
 var Transaction = bitcore.Transaction;
 var EventEmitter = require('eventemitter2').EventEmitter2;
 var Promise = require('bluebird');
 Promise.longStackTraces();
 
 var BitcoreHTTP = require('../../lib/http');
+var BitcoreNode = require('../../../');
 var mockTransactions = require('../data/transactions');
 
 describe('BitcoreHTTP v1 transactions routes', function() {
@@ -22,11 +24,15 @@ describe('BitcoreHTTP v1 transactions routes', function() {
   beforeEach(function() {
     nodeMock = new EventEmitter();
     nodeMock.getTransaction = function(txHash) {
-      return Promise.resolve(mockTransactions[txHash]);
+      var tx = mockTransactions[txHash];
+      if (_.isUndefined(tx)) {
+        return Promise.reject(new BitcoreNode.errors.Transactions.NotFound(txHash));
+      }
+      return Promise.resolve(tx);
     };
     nodeMock.broadcast = function(tx) {
       if (mockTransactions[tx.id]) {
-        return Promise.reject('some error');
+        return Promise.reject(new BitcoreNode.errors.Transactions.CantBroadcast(tx.id));
       }
       return Promise.resolve();
     };
@@ -99,7 +105,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
           raw: t1.uncheckedSerialize()
         })
         .expect(422)
-        .expect('some error', cb);
+        .expect('Unable to broadcast transaction 8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87', cb);
     });
   });
 
