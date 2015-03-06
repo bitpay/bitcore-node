@@ -1,9 +1,13 @@
 'use strict';
 
+var Promise = require('bluebird');
+
 var bitcore = require('bitcore');
 var _ = bitcore.deps._;
 var $ = bitcore.util.preconditions;
 var Transaction = bitcore.Transaction;
+
+var BitcoreNode = require('../../');
 
 var Transactions = {};
 
@@ -23,13 +27,12 @@ Transactions.setNode = function(aNode) {
 Transactions.txHashParam = function(req, res, next, txHash) {
   node.getTransaction(txHash)
     .then(function(tx) {
-      if (_.isUndefined(tx)) {
-        res.status(404).send('Transaction with id ' + txHash + ' not found');
-        return;
-      }
       req.tx = tx;
     })
-    .then(next);
+    .then(next)
+    .catch(BitcoreNode.errors.Transactions.NotFound, function() {
+      res.status(404).send('Transaction with id ' + txHash + ' not found');
+    });
 };
 
 
@@ -66,8 +69,8 @@ Transactions.send = function(req, res) {
     .then(function() {
       res.send('Transaction broadcasted successfully');
     })
-    .catch(function(err) {
-      res.status(422).send(err);
+    .catch(BitcoreNode.errors.Transactions.CantBroadcast, function(err) {
+      res.status(422).send(err.message);
     });
 };
 

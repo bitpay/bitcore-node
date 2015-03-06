@@ -1,8 +1,11 @@
 'use strict';
 
-var config = require('config');
 var BitcoreHTTP = require('./lib/http');
 
-var http = BitcoreHTTP.create(config.get('BitcoreHTTP'));
-http.start();
+if (require.main === module) {
+  var config = require('config');
+  var http = BitcoreHTTP.create(config.get('BitcoreHTTP'));
+  http.start();
+}
 
+module.exports = BitcoreHTTP;
