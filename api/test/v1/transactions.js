@@ -15,6 +15,9 @@ describe('BitcoreHTTP v1 transactions routes', function() {
   var nodeMock, app, agent;
   beforeEach(function() {
     nodeMock = new EventEmitter();
+    nodeMock.getTransaction = function(txHash) {
+      return mockTransactions[txHash];
+    };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);
   });

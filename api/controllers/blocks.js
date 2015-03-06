@@ -5,10 +5,6 @@ var _ = bitcore.deps._;
 var $ = bitcore.util.preconditions;
 var Block = bitcore.Block;
 
-// mocks
-
-var mockBlocks = require('../test/data/blocks');
-
 var Blocks = {};
 
 var node;
@@ -25,8 +21,7 @@ Blocks.setNode = function(aNode) {
  * Finds a block by its hash
  */
 Blocks.blockHashParam = function(req, res, next, blockHash) {
-  // TODO: fetch block from service
-  var block = mockBlocks[blockHash];
+  var block = node.getBlock(blockHash);
 
   if (_.isUndefined(block)) {
     res.status(404).send('Block with id ' + blockHash + ' not found');
@@ -40,9 +35,8 @@ Blocks.blockHashParam = function(req, res, next, blockHash) {
  * Finds a block by its height
  */
 Blocks.heightParam = function(req, res, next, height) {
-  // TODO: fetch block from service
   height = parseInt(height);
-  var block = mockBlocks[Object.keys(mockBlocks)[height]];
+  var block = node.getBlock(height);
 
   if (_.isUndefined(block)) {
     res.status(404).send('Block with height ' + height + ' not found');
@@ -58,7 +52,7 @@ Blocks.heightParam = function(req, res, next, height) {
  */
 
 Blocks.getLatest = function(req, res) {
-  req.block = mockBlocks[Object.keys(mockBlocks).splice(-1)[0]];
+  req.block = node.getLatestBlock();
   Blocks.get(req, res);
 };
 
