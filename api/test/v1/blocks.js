@@ -17,6 +17,16 @@ describe('BitcoreHTTP v1 blocks routes', function() {
   var nodeMock, app, agent;
   beforeEach(function() {
     nodeMock = new EventEmitter();
+    nodeMock.getBlock = function(blockHash) {
+      if (typeof blockHash === 'number') {
+        var height = blockHash;
+        return mockBlocks[Object.keys(mockBlocks)[height]];
+      }
+      return mockBlocks[blockHash];
+    };
+    nodeMock.getLatestBlock = function() {
+      return mockBlocks[Object.keys(mockBlocks).splice(-1)[0]];
+    };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);
   });
