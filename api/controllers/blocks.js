@@ -17,7 +17,9 @@ Blocks.setNode = function(aNode) {
 };
 
 
-// params
+/*
+ *  params
+ */
 Blocks.blockHashParam = function(req, res, next, blockHash) {
   // TODO: fetch block from service
   var block = mockBlocks[blockHash];
@@ -43,11 +45,19 @@ Blocks.heightParam = function(req, res, next, height) {
   next();
 };
 
-Blocks.getBlock = function(req, res) {
+/*
+ * controllers
+ */
+
+Blocks.getLatest = function(req, res) {
+  req.block = mockBlocks[Object.keys(mockBlocks).splice(-1)[0]];
+  Blocks.get(req, res);
+};
+
+Blocks.get = function(req, res) {
   $.checkState(req.block instanceof Block);
   res.send(req.block.toObject());
 };
-
 Blocks.getBlockError = function(req, res) {
   res.status(422);
   res.send('/v1/blocks/ parameter must be a 64 digit hex or block height integer');
