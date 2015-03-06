@@ -21,14 +21,15 @@ Transactions.setNode = function(aNode) {
  * Finds a transaction by its hash
  */
 Transactions.txHashParam = function(req, res, next, txHash) {
-  var tx = node.getTransaction(txHash);
-
-  if (_.isUndefined(tx)) {
-    res.status(404).send('Transaction with id ' + txHash + ' not found');
-    return;
-  }
-  req.tx = tx;
-  next();
+  node.getTransaction(txHash)
+    .then(function(tx) {
+      if (_.isUndefined(tx)) {
+        res.status(404).send('Transaction with id ' + txHash + ' not found');
+        return;
+      }
+      req.tx = tx;
+    })
+    .then(next);
 };
 
 

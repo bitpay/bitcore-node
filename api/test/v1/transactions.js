@@ -22,7 +22,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
   beforeEach(function() {
     nodeMock = new EventEmitter();
     nodeMock.getTransaction = function(txHash) {
-      return mockTransactions[txHash];
+      return Promise.resolve(mockTransactions[txHash]);
     };
     nodeMock.broadcast = function(tx) {
       if (mockTransactions[tx.id]) {
