@@ -48,10 +48,13 @@ describe('BitcoreHTTP v1 blocks routes', function() {
         .expect(404)
         .expect('Block with id 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b600000000 not found', cb);
     });
-    it('works with valid blockHash', function(cb) {
-      agent.get('/v1/blocks/' + b1.hash)
-        .expect(200)
-        .expect(b1.toJSON(), cb);
+    Object.keys(mockBlocks).forEach(function(hash) {
+      var block = mockBlocks[hash];
+      it('works with valid blockHash ...' + hash.substring(hash.length - 8), function(cb) {
+        agent.get('/v1/blocks/' + hash)
+          .expect(200)
+          .expect(block.toJSON(), cb);
+      });
     });
   });
   describe('/blocks/:height', function() {
