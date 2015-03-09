@@ -28,7 +28,13 @@ describe('BitcoreHTTP v1 blocks routes', function() {
 
   // mocks
   var b1 = mockBlocks[Object.keys(mockBlocks)[0]];
+  var firstBlock = mockBlocks[Object.keys(mockBlocks).splice(0, 1)[0]];
+  var secondBlock = mockBlocks[Object.keys(mockBlocks).splice(1, 1)[0]];
   var lastBlock = mockBlocks[Object.keys(mockBlocks).splice(-1)[0]];
+  var blockForHash = function(hash) {
+    return mockBlocks[hash];
+  };
+  var last3 = Object.keys(mockBlocks).splice(-3).map(blockForHash);
   var nodeMock, app, agent;
   var blockList = Object.values(mockBlocks);
   beforeEach(function() {
@@ -37,7 +43,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
       var block;
       if (typeof blockHash === 'number') {
         var height = blockHash;
-        block = mockBlocks[Object.keys(mockBlocks)[height]];
+        block = mockBlocks[Object.keys(mockBlocks)[height - 100000]];
       } else {
         block = mockBlocks[blockHash];
       }
@@ -48,10 +54,13 @@ describe('BitcoreHTTP v1 blocks routes', function() {
 
     };
     nodeMock.getLatestBlock = function() {
-      return Promise.resolve(mockBlocks[Object.keys(mockBlocks).splice(-1)[0]]);
+      return Promise.resolve(lastBlock);
     };
-    nodeMock.listBlocks = function() {
-      return Promise.resolve(blockList);
+    nodeMock.listBlocks = function(from, to, offset, limit) {
+      var start = from - 1e5;
+      var end = to - 1e5;
+      var section = blockList.slice(start, end);
+      return Promise.resolve(section.slice(offset, offset + limit));
     };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);
@@ -62,6 +71,21 @@ describe('BitcoreHTTP v1 blocks routes', function() {
       agent.get('/v1/blocks/')
         .expect(200)
         .expect(JSON.stringify(blockList), cb);
+    });
+    it('works with to/from parameters', function(cb) {
+      agent.get('/v1/blocks/?from=100000&to=100001')
+        .expect(200)
+        .expect(JSON.stringify([firstBlock]), cb);
+    });
+    it('works with limit/offset parameters', function(cb) {
+      agent.get('/v1/blocks/?limit=1&offset=1')
+        .expect(200)
+        .expect(JSON.stringify([secondBlock]), cb);
+    });
+    it('works with all parameters', function(cb) {
+      agent.get('/v1/blocks/?from=100005&to=100020&limit=3&offset=2')
+        .expect(200)
+        .expect(JSON.stringify(last3), cb);
     });
   });
   describe('/blocks/latest', function() {
@@ -103,7 +127,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
         .expect('Block with height 876543 not found', cb);
     });
     it('works with valid height', function(cb) {
-      agent.get('/v1/blocks/0')
+      agent.get('/v1/blocks/100000')
         .expect(200)
         .expect(b1.toJSON(), cb);
     });
