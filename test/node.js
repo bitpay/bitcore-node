@@ -13,15 +13,16 @@ Promise.longStackTraces();
 describe('BitcoreNode', function() {
 
   // mocks
-  var busMock, nmMock;
+  var busMock, nmMock, rpcMock;
   beforeEach(function() {
     busMock = new EventBus();
     nmMock = new EventEmitter();
     nmMock.start = function() {};
+    rpcMock = {};
   });
   describe('instantiates', function() {
     it('from constructor', function() {
-      var node = new BitcoreNode(busMock, nmMock);
+      var node = new BitcoreNode(busMock, nmMock, rpcMock);
       should.exist(node);
     });
 
@@ -32,17 +33,17 @@ describe('BitcoreNode', function() {
   });
 
   it('starts', function() {
-    var node = new BitcoreNode(busMock, nmMock);
+    var node = new BitcoreNode(busMock, nmMock, rpcMock);
     node.start.bind(node).should.not.throw();
   });
 
   it('broadcasts errors from network monitor', function(cb) {
-    var node = new BitcoreNode(busMock, nmMock);
+    var node = new BitcoreNode(busMock, nmMock, rpcMock);
     node.on('error', cb);
     nmMock.emit('error');
   });
   it('exposes all events from the event bus', function(cb) {
-    var node = new BitcoreNode(busMock, nmMock);
+    var node = new BitcoreNode(busMock, nmMock, rpcMock);
     node.on('foo', cb);
     busMock.emit('foo');
   });

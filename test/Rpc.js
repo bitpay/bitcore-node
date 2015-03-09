@@ -26,8 +26,8 @@ describe('BitcoindRpc', function() {
       should.exist(rpc);
     });
     it('from create', function() {
-      var nm = BitcoindRpc.create(busMock);
-      should.exist(nm);
+      var rpc = BitcoindRpc.create(busMock);
+      should.exist(rpc);
     });
     it('from create with opts', function() {
       var opts = {
@@ -37,8 +37,12 @@ describe('BitcoindRpc', function() {
         user: 'user',
         password: 'pass'
       };
-      var nm = BitcoindRpc.create(busMock, opts);
-      should.exist(nm);
+      var rpc = BitcoindRpc.create(busMock, opts);
+      should.exist(rpc);
+    });
+    it('getTxes', function() {
+      var rpc = new BitcoindRpc(busMock, clientMock);
+      rpc.getTx.bind(rpc).should.not.throw('abc123');
     });
   })
 });
