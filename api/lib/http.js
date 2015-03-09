@@ -18,7 +18,7 @@ function BitcoreHTTP(node, opts) {
   $.checkArgument(node);
   opts = opts || {};
   this.node = node;
-  this.port = opts.port || 8000;
+  this.port = opts.port || 8080;
   this.logging = opts.logging || false;
   this.setupExpress();
 }
