@@ -50,24 +50,7 @@ bitcoind must be running and must have finished downloading the blockchain **bef
 
 ## Configuration
 
-All configuration is specified in the [config](config/) folder, particularly the [config.js](config/config.js) file. There you can specify your application name and database name. Certain configuration values are pulled from environment variables if they are defined:
-
-```
-BITCOIND_HOST         # RPC bitcoind host
-BITCOIND_PORT         # RPC bitcoind Port
-BITCOIND_P2P_HOST     # P2P bitcoind Host (will default to BITCOIND_HOST, if specified)
-BITCOIND_P2P_PORT     # P2P bitcoind Port
-BITCOIND_USER         # RPC username
-BITCOIND_PASS         # RPC password
-BITCOIND_DATADIR      # bitcoind datadir. 'testnet3' will be appended automatically if testnet is used. NEED to finish with '/'. e.g: `/vol/data/`
-BLOCKCHAIN_API_NETWORK [= 'livenet' | 'testnet']
-BLOCKCHAIN_API_PORT   # blockchain api port
-BLOCKCHAIN_API_DB            # Path where to store bitcore-node's internal DB. (defaults to $HOME/.bitcore-node)
-BLOCKCHAIN_API_SAFE_CONFIRMATIONS=6  # Nr. of confirmation needed to start caching transaction information   
-BLOCKCHAIN_API_IGNORE_CACHE  # True to ignore cache of spents in transaction, with more than BLOCKCHAIN_API_SAFE_CONFIRMATIONS confirmations. This is useful for tracking double spents for old transactions.
-LOGGER_LEVEL # defaults to 'info', can be 'debug','verbose','error', etc.
-ENABLE_HTTPS # if "true" it will server using SSL/HTTPS
-```
+`bitcore-node` is configured using [yaml](http://en.wikipedia.org/wiki/YAML) files. The application defaults are in the [config](config/) folder.
 
 Make sure that bitcoind is configured to [accept incoming connections using 'rpcallowip'](https://en.bitcoin.it/wiki/Running_Bitcoin).
 
