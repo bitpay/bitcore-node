@@ -53,8 +53,22 @@ Blocks.heightParam = function(req, res, next, height) {
  * controllers
  */
 
+/*
+ * Returns a list of blocks given certain query options.
+ *
+ * from: block height as lower limit (default: 0)
+ * to: ditto, but for the upper limit, non inclusive (default: 1000000)
+ * page: for paginating results (default: 0)
+ * offset: skip the first offset blocks (default: 0)
+ * limit: max amount of blocks returned (default: 10)
+ *
+ */
 Blocks.list = function(req, res) {
-  node.listBlocks()
+  var from = parseInt(req.query.from || 0);
+  var to = parseInt(req.query.to || 1e6);
+  var offset = parseInt(req.query.offset || 0);
+  var limit = parseInt(req.query.limit || 10);
+  node.listBlocks(from, to, offset, limit)
     .then(function(blocks) {
       res.send(blocks);
     });
