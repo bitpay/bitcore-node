@@ -54,14 +54,18 @@ Blocks.heightParam = function(req, res, next, height) {
  */
 
 Blocks.getLatest = function(req, res) {
-  req.block = node.getLatestBlock();
-  Blocks.get(req, res);
+  node.getLatestBlock()
+    .then(function(block) {
+      req.block = block;
+      Blocks.get(req, res);
+    });
 };
 
 Blocks.get = function(req, res) {
   $.checkState(req.block instanceof Block);
   res.send(req.block.toObject());
 };
+
 Blocks.getBlockError = function(req, res) {
   res.status(422);
   res.send('/v1/blocks/ parameter must be a 64 digit hex or block height integer');
