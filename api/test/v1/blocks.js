@@ -14,12 +14,23 @@ var BitcoreHTTP = require('../../lib/http');
 var BitcoreNode = require('../../../');
 var mockBlocks = require('../data/blocks');
 
+Object.values = function(obj) {
+  var vals = [];
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      vals.push(obj[key]);
+    }
+  }
+  return vals;
+};
+
 describe('BitcoreHTTP v1 blocks routes', function() {
 
   // mocks
   var b1 = mockBlocks[Object.keys(mockBlocks)[0]];
   var lastBlock = mockBlocks[Object.keys(mockBlocks).splice(-1)[0]];
   var nodeMock, app, agent;
+  var blockList = Object.values(mockBlocks);
   beforeEach(function() {
     nodeMock = new EventEmitter();
     nodeMock.getBlock = function(blockHash) {
@@ -39,6 +50,9 @@ describe('BitcoreHTTP v1 blocks routes', function() {
     nodeMock.getLatestBlock = function() {
       return Promise.resolve(mockBlocks[Object.keys(mockBlocks).splice(-1)[0]]);
     };
+    nodeMock.listBlocks = function() {
+      return Promise.resolve(blockList);
+    };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);
   });
@@ -47,9 +61,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
     it('works with default parameters', function(cb) {
       agent.get('/v1/blocks/')
         .expect(200)
-        .expect({
-          'message': 'This is a mocked response'
-        }, cb);
+        .expect(JSON.stringify(blockList), cb);
     });
   });
   describe('/blocks/latest', function() {
