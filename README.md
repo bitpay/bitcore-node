@@ -121,13 +121,13 @@ This can be changed at config/config.js. As of June 2014, storing the livenet bl
 
 ## Development
 
-To run `bitcore-node` locally for development with grunt:
+To run `bitcore-node` locally for development with gulp:
 
-```$ NODE_ENV=development grunt```
+```$ NODE_ENV=development gulp```
 
 To run the tests
 
-```$ grunt test```
+```$ gulp test```
 
 
 ## Caching schema
