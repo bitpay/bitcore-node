@@ -45,6 +45,7 @@
   "dependencies": {
     "async": "0.9.0",
     "bignum": "*",
+    "bitcoind-rpc": "^0.2.1",
     "bitcore": "bitpay/bitcore",
     "bitcore-p2p": "bitpay/bitcore-p2p",
     "bluebird": "^2.9.12",
