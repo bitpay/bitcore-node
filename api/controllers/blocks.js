@@ -53,6 +53,13 @@ Blocks.heightParam = function(req, res, next, height) {
  * controllers
  */
 
+Blocks.list = function(req, res) {
+  node.listBlocks()
+    .then(function(blocks) {
+      res.send(blocks);
+    });
+};
+
 Blocks.getLatest = function(req, res) {
   node.getLatestBlock()
     .then(function(block) {
