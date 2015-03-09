@@ -5,8 +5,13 @@ var should = chai.should();
 var request = require('supertest');
 
 var EventEmitter = require('eventemitter2').EventEmitter2;
+var Promise = require('bluebird');
+Promise.longStackTraces();
+var bitcore = require('bitcore');
+var _ = bitcore.deps._;
 
 var BitcoreHTTP = require('../../lib/http');
+var BitcoreNode = require('../../../');
 var mockBlocks = require('../data/blocks');
 
 describe('BitcoreHTTP v1 blocks routes', function() {
@@ -18,11 +23,18 @@ describe('BitcoreHTTP v1 blocks routes', function() {
   beforeEach(function() {
     nodeMock = new EventEmitter();
     nodeMock.getBlock = function(blockHash) {
+      var block;
       if (typeof blockHash === 'number') {
         var height = blockHash;
-        return mockBlocks[Object.keys(mockBlocks)[height]];
+        block = mockBlocks[Object.keys(mockBlocks)[height]];
+      } else {
+        block = mockBlocks[blockHash];
       }
-      return mockBlocks[blockHash];
+      if (_.isUndefined(block)) {
+        return Promise.reject(new BitcoreNode.errors.Blocks.NotFound(blockHash));
+      }
+      return Promise.resolve(block);
+
     };
     nodeMock.getLatestBlock = function() {
       return mockBlocks[Object.keys(mockBlocks).splice(-1)[0]];
