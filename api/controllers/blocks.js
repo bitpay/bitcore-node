@@ -5,6 +5,8 @@ var _ = bitcore.deps._;
 var $ = bitcore.util.preconditions;
 var Block = bitcore.Block;
 
+var BitcoreNode = require('../../');
+
 var Blocks = {};
 
 var node;
@@ -21,14 +23,14 @@ Blocks.setNode = function(aNode) {
  * Finds a block by its hash
  */
 Blocks.blockHashParam = function(req, res, next, blockHash) {
-  var block = node.getBlock(blockHash);
-
-  if (_.isUndefined(block)) {
-    res.status(404).send('Block with id ' + blockHash + ' not found');
-    return;
-  }
-  req.block = block;
-  next();
+  node.getBlock(blockHash)
+    .then(function(block) {
+      req.block = block;
+    })
+    .then(next)
+    .catch(BitcoreNode.errors.Blocks.NotFound, function() {
+      res.status(404).send('Block with id ' + blockHash + ' not found');
+    });
 };
 
 /*
@@ -36,14 +38,14 @@ Blocks.blockHashParam = function(req, res, next, blockHash) {
  */
 Blocks.heightParam = function(req, res, next, height) {
   height = parseInt(height);
-  var block = node.getBlock(height);
-
-  if (_.isUndefined(block)) {
-    res.status(404).send('Block with height ' + height + ' not found');
-    return;
-  }
-  req.block = block;
-  next();
+  node.getBlock(height)
+    .then(function(block) {
+      req.block = block;
+    })
+    .then(next)
+    .catch(BitcoreNode.errors.Blocks.NotFound, function() {
+      res.status(404).send('Block with height ' + height + ' not found');
+    });
 };
 
 
