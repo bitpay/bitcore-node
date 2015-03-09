@@ -37,7 +37,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
 
     };
     nodeMock.getLatestBlock = function() {
-      return mockBlocks[Object.keys(mockBlocks).splice(-1)[0]];
+      return Promise.resolve(mockBlocks[Object.keys(mockBlocks).splice(-1)[0]]);
     };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);
