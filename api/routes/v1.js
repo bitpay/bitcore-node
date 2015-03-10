@@ -4,12 +4,13 @@ var express = require('express');
 var NodeStatus = require('../controllers/node');
 var Blocks = require('../controllers/blocks');
 var Transactions = require('../controllers/transactions');
+var Addresses = require('../controllers/addresses');
 
 
 function initRouter(node) {
   var router = express.Router();
 
-  [NodeStatus, Blocks, Transactions].forEach(function(controller) {
+  [NodeStatus, Blocks, Transactions, Addresses].forEach(function(controller) {
     controller.setNode(node);
   });
 
@@ -23,6 +24,7 @@ function initRouter(node) {
   router.param('blockHash', Blocks.blockHashParam);
   router.param('height', Blocks.heightParam);
   router.param('txHash', Transactions.txHashParam);
+  router.param('address', Addresses.addressParam);
 
   // Node routes
   router.get('/node', NodeStatus.getStatus);
@@ -46,7 +48,7 @@ function initRouter(node) {
   router.get('/transactions/:txHash([A-Fa-f0-9]{64})/outputs/:index([0-9]+)', mockResponse);
 
   // Address routes
-  router.get('/addresses/:address', mockResponse);
+  router.get('/addresses/:address', Addresses.get);
   router.get('/addresses/:address/transactions', mockResponse);
   router.get('/addresses/:address/utxos', mockResponse);
   // TODO: check if this is really restful
