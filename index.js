@@ -1,10 +1,10 @@
 'use strict';
 
-var config = require('config');
 
-var BitcoreNode = require('./lib/node.js');
+var BitcoreNode = require('./lib/node');
 
 if (require.main === module) {
+  var config = require('config');
   var node = BitcoreNode.create(config.get('BitcoreNode'));
   node.start();
   node.on('error', function(err) {
@@ -15,5 +15,8 @@ if (require.main === module) {
     }
   });
 }
+
+
+BitcoreNode.errors = require('./lib/errors');
 
 module.exports = BitcoreNode;
