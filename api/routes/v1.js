@@ -34,7 +34,6 @@ function initRouter(node) {
   router.get('/blocks/:height([0-9]+)', Blocks.get);
 
   // Transaction routes
-  router.get('/transactions', mockResponse);
   router.get('/transactions/:txHash([A-Fa-f0-9]{64})', Transactions.get);
   router.post('/transactions/send', Transactions.send);
 
