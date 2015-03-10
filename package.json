@@ -40,7 +40,8 @@
     "bitcore"
   ],
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "gulp test"
   },
   "dependencies": {
     "async": "0.9.0",
