@@ -78,6 +78,19 @@ describe('NetworkMonitor', function() {
     nm.start();
   });
 
+  it('emits reconnect on peer disconnect', function(cb) {
+    var nm = new NetworkMonitor(busMock, peerMock);
+    nm.on('reconnect', cb);
+    nm.peer.emit('disconnect');
+  });
+
+  it('emits reconnect on peer error', function(cb) {
+    var nm = new NetworkMonitor(busMock, peerMock);
+    nm.on('reconnect', cb);
+    nm.on('error', function() {});
+    nm.peer.emit('error');
+  });
+
   it('sends getdatas when receiving invs', function() {
     var nm = new NetworkMonitor(busMock, peerMock);
     nm.start();
