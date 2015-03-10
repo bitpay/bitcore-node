@@ -20,20 +20,6 @@ Addresses.setNode = function(aNode) {
  */
 
 /*
- * Finds a block by its hash
- */
-Addresses.blockHashParam = function(req, res, next, blockHash) {
-  node.getBlock(blockHash)
-    .then(function(block) {
-      req.block = block;
-    })
-    .then(next)
-    .catch(BitcoreNode.errors.Addresses.NotFound, function() {
-      res.status(404).send('Block with id ' + blockHash + ' not found');
-    });
-};
-
-/*
  * Finds an address' info by it's string representation
  */
 Addresses.addressParam = function(req, res, next, address) {
