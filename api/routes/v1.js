@@ -38,12 +38,12 @@ function initRouter(node) {
   router.post('/transactions/send', Transactions.send);
 
   // Input routes
-  router.get('/transactions/:txHash/inputs', mockResponse);
-  router.get('/transactions/:txHash/inputs/:index', mockResponse);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/inputs', mockResponse);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/inputs/:index([0-9]+)', mockResponse);
 
   // Output routes
-  router.get('/transactions/:txHash/outputs', mockResponse);
-  router.get('/transactions/:txHash/outputs/:index', mockResponse);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/outputs', mockResponse);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/outputs/:index([0-9]+)', mockResponse);
 
   // Address routes
   router.get('/addresses/:address', mockResponse);
