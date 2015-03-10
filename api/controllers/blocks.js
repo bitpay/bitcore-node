@@ -68,6 +68,13 @@ Blocks.list = function(req, res) {
   var to = parseInt(req.query.to || 1e6);
   var offset = parseInt(req.query.offset || 0);
   var limit = parseInt(req.query.limit || 10);
+
+  if (to < from) {
+    res.status(422);
+    res.send('/v1/blocks/ "to" must be >= to "from"');
+    return;
+  }
+
   node.listBlocks(from, to, offset, limit)
     .then(function(blocks) {
       res.send(blocks);
