@@ -35,6 +35,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
     return mockBlocks[hash];
   };
   var last3 = Object.keys(mockBlocks).splice(-3).map(blockForHash);
+  var some2 = Object.keys(mockBlocks).splice(2,2).map(blockForHash);
   var nodeMock, app, agent;
   var blockList = Object.values(mockBlocks);
   beforeEach(function() {
@@ -72,6 +73,11 @@ describe('BitcoreHTTP v1 blocks routes', function() {
         .expect(200)
         .expect(JSON.stringify(blockList), cb);
     });
+    it('fails with to<from', function(cb) {
+      agent.get('/v1/blocks/?from=100000&to=99999')
+        .expect(422)
+        .expect('/v1/blocks/ "to" must be >= to "from"', cb);
+    });
     it('works with to/from parameters', function(cb) {
       agent.get('/v1/blocks/?from=100000&to=100001')
         .expect(200)
@@ -86,6 +92,11 @@ describe('BitcoreHTTP v1 blocks routes', function() {
       agent.get('/v1/blocks/?from=100005&to=100020&limit=3&offset=2')
         .expect(200)
         .expect(JSON.stringify(last3), cb);
+    });
+    it('works with all parameters 2', function(cb) {
+      agent.get('/v1/blocks/?from=100000&to=100005&limit=2&offset=2')
+        .expect(200)
+        .expect(JSON.stringify(some2), cb);
     });
   });
   describe('/blocks/latest', function() {
