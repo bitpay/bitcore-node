@@ -12,11 +12,14 @@ var _ = bitcore.deps._;
 
 var BitcoreHTTP = require('../../lib/http');
 var BitcoreNode = require('../../../');
+
 var mockAddresses = require('../data/addresses');
+var mockTransactions = require('../data/transactions');
 
 describe('BitcoreHTTP v1 addresses routes', function() {
 
   // mocks
+  var transactionList = Object.values(mockTransactions);
   var nodeMock, app, agent;
   beforeEach(function() {
     nodeMock = new EventEmitter();
@@ -24,7 +27,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
       return Promise.resolve(mockAddresses[address.toString()]);
     };
     nodeMock.listTransactions = function(opts) {
-      
+      var addr = opts.address;     
     };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);

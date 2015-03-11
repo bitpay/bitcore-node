@@ -14,16 +14,6 @@ var BitcoreHTTP = require('../../lib/http');
 var BitcoreNode = require('../../../');
 var mockBlocks = require('../data/blocks');
 
-Object.values = function(obj) {
-  var vals = [];
-  for (var key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      vals.push(obj[key]);
-    }
-  }
-  return vals;
-};
-
 describe('BitcoreHTTP v1 blocks routes', function() {
 
   // mocks
