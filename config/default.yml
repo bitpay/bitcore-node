@@ -3,3 +3,10 @@ BitcoreNode:
     network: livenet
     host: localhost
     port: 8333
+LevelUp: ./db
+RPC:
+  username: username
+  password: password
+  protocol: http
+  host: 127.0.0.1
+  port: 8332
