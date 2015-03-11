@@ -40,15 +40,6 @@ describe('BitcoreHTTP v1 transactions routes', function() {
     agent = request(app);
   });
 
-  describe('/transactions', function() {
-    it('works with default parameters', function(cb) {
-      agent.get('/v1/transactions/')
-        .expect(200)
-        .expect({
-          'message': 'This is a mocked response'
-        }, cb);
-    });
-  });
   describe('/transactions/:txHash', function() {
     it('fails with invalid txHash', function(cb) {
       agent.get('/v1/transactions/abad1dea')
