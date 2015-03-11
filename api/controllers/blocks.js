@@ -71,7 +71,7 @@ Blocks.list = function(req, res) {
 
   if (to < from) {
     res.status(422);
-    res.send('/v1/blocks/ "to" must be >= to "from"');
+    res.send('/v1/blocks/ "to" must be >= "from"');
     return;
   }
 
