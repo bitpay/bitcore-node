@@ -41,7 +41,7 @@
   ],
   "scripts": {
     "start": "node index.js",
-    "test": "gulp test"
+    "test": "mocha"
   },
   "dependencies": {
     "async": "0.9.0",
