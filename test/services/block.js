@@ -2,6 +2,7 @@
 
 var sinon = require('sinon');
 var should = require('chai').should();
+var Promise = require('bluebird');
 
 var bitcore = require('bitcore');
 
@@ -18,7 +19,7 @@ describe('BlockService', function() {
       rpc: 'rpc',
       transactionService: 'txService'
     });
-    blockService.should.exist();
+    blockService.should.exist;
     blockService.database.should.equal(database);
     blockService.rpc.should.equal(rpc);
     blockService.transactionService.should.equal(txService);
