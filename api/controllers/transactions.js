@@ -74,6 +74,23 @@ Transactions.send = function(req, res) {
     });
 };
 
+
+/*
+ * Returns a list of transactions given certain request options
+ */
+Transactions.list = function(req, res) {
+  var opts = {};
+  opts.address = req.address;
+  node.listTransactions(opts)
+    .then(function(transactions) {
+      res.send(transactions);
+    });
+};
+
+/**
+ * errors
+ */
+
 Transaction._sendError = function(res) {
   res.status(422);
   res.send('/v1/transactions/send parameter must be a raw transaction hex');

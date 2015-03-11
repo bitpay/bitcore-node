@@ -49,7 +49,7 @@ function initRouter(node) {
 
   // Address routes
   router.get('/addresses/:address', Addresses.get);
-  router.get('/addresses/:address/transactions', mockResponse);
+  router.get('/addresses/:address/transactions', Transactions.list);
   router.get('/addresses/:address/utxos', mockResponse);
   // TODO: check if this is really restful
   router.get('/addresses/:addresses/utxos', mockResponse);

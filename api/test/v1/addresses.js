@@ -23,6 +23,9 @@ describe('BitcoreHTTP v1 addresses routes', function() {
     nodeMock.getAddressInfo = function(address) {
       return Promise.resolve(mockAddresses[address.toString()]);
     };
+    nodeMock.listTransactions = function(opts) {
+      
+    };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);
   });
