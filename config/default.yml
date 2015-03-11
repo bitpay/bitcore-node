@@ -3,3 +3,7 @@ BitcoreNode:
     network: livenet
     host: localhost
     port: 8333
+  Rpc:
+    host: localhost
+    user: user
+    password: pass
