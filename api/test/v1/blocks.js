@@ -76,7 +76,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
     it('fails with to<from', function(cb) {
       agent.get('/v1/blocks/?from=100000&to=99999')
         .expect(422)
-        .expect('/v1/blocks/ "to" must be >= to "from"', cb);
+        .expect('/v1/blocks/ "to" must be >= "from"', cb);
     });
     it('works with to/from parameters', function(cb) {
       agent.get('/v1/blocks/?from=100000&to=100001')
