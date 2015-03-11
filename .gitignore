@@ -22,6 +22,7 @@ report
 *.swp
 *.swo
 *~
+.idea
 .project
 peerdb.json
 
