@@ -35,6 +35,15 @@ Transactions.txHashParam = function(req, res, next, txHash) {
     });
 };
 
+/*
+ * sets an input or output index
+ */
+Transactions.indexParam = function(req, res, next, index) {
+  index = parseInt(index);
+  req.index = index;
+  next();
+};
+
 
 /*
  * controllers
@@ -87,6 +96,32 @@ Transactions.list = function(req, res) {
     });
 };
 
+
+var buildIOHelper = function(name) {
+  $.checkArgument(name === 'inputs' || name === 'outputs');
+  return function(req, res) {
+    $.checkState(req.tx instanceof Transaction);
+    if (_.isNumber(req.index)) {
+      res.send(req.tx[name][req.index].toJSON());
+      return;
+    }
+    res.send(req.tx[name].map(function(x) {
+      return x.toJSON();
+    }));
+  };
+
+};
+
+/**
+ * Returns a transaction's outputs
+ */
+Transactions.getInputs = buildIOHelper('inputs');
+
+/**
+ * Returns a transaction's outputs
+ */
+Transactions.getOutputs = buildIOHelper('outputs');
+
 /**
  * errors
  */
@@ -100,6 +135,11 @@ Transaction._sendError = function(res) {
 Transactions.getTxError = function(req, res) {
   res.status(422);
   res.send('/v1/transactions/ parameter must be a 64 digit hex');
+};
+
+Transactions.indexError = function(req, res) {
+  res.status(422);
+  res.send('index parameter must be a positive integer');
 };
 
 module.exports = Transactions;

@@ -6,7 +6,6 @@ var Blocks = require('../controllers/blocks');
 var Transactions = require('../controllers/transactions');
 var Addresses = require('../controllers/addresses');
 
-
 function initRouter(node) {
   var router = express.Router();
 
@@ -25,6 +24,7 @@ function initRouter(node) {
   router.param('height', Blocks.heightParam);
   router.param('txHash', Transactions.txHashParam);
   router.param('address', Addresses.addressParam);
+  router.param('index', Transactions.indexParam);
 
   // Node routes
   router.get('/node', NodeStatus.getStatus);
@@ -40,12 +40,12 @@ function initRouter(node) {
   router.post('/transactions/send', Transactions.send);
 
   // Input routes
-  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/inputs', mockResponse);
-  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/inputs/:index([0-9]+)', mockResponse);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/inputs', Transactions.getInputs);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/inputs/:index([0-9]+)', Transactions.getInputs);
 
   // Output routes
-  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/outputs', mockResponse);
-  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/outputs/:index([0-9]+)', mockResponse);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/outputs', Transactions.getOutputs);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/outputs/:index([0-9]+)', Transactions.getOutputs);
 
   // Address routes
   router.get('/addresses/:address', Addresses.get);
@@ -56,6 +56,8 @@ function initRouter(node) {
 
   // error routes
   router.get('/blocks/*', Blocks.getBlockError);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/inputs/*', Transactions.indexError);
+  router.get('/transactions/:txHash([A-Fa-f0-9]{64})/outputs/*', Transactions.indexError);
   router.get('/transactions/*', Transactions.getTxError);
 
   return router;
