@@ -8,6 +8,5 @@ RPC:
   username: username
   password: password
   protocol: http
-  network: livenet
   host: 127.0.0.1
   port: 8332

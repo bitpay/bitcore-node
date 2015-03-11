@@ -19,7 +19,7 @@ describe('BlockService', function() {
       rpc: 'rpc',
       transactionService: 'txService'
     });
-    blockService.should.exist;
+    should.exist(blockService);
     blockService.database.should.equal(database);
     blockService.rpc.should.equal(rpc);
     blockService.transactionService.should.equal(txService);

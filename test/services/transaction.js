@@ -20,7 +20,7 @@ describe('TransactionService', function() {
       database: database,
       rpc: rpc
     });
-    service.should.exist;
+    should.exist(service);
   });
 
   describe('get', function() {
