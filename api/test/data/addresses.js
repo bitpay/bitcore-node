@@ -20,7 +20,7 @@ var mockAddresses = {
     },
     utxos: [{
       satoshis: 5000000000,
-      script: 'TODO',
+      script: '4104b715afd59b31be928e073e375a6196d654a78d9aa709789665dd4aecf1b85ebc850ffb90a1c04f18565afe0be4a042ff6629c398f674a5c632b017d793dc8e04ac',
       txid: 'b944ef8c77f9b5f4a4276880f17256988bba4d0125abc54391548061a688ae09',
       index: 0
     }]
@@ -45,10 +45,20 @@ var mockAddresses = {
       }
     },
     utxos: [{
-      satoshis: 5000000000,
-      script: 'TODO',
-      txid: 'b944ef8c77f9b5f4a4276880f17256988bba4d0125abc54391548061a688ae09',
-      index: 0
+      satoshis: 200000000000,
+      script: '76a914b59cc3ffe416e460a75baaae3d78cafc787e329d88ac',
+      txid: '0c88e745b5c1dffccc39a96f3e25e9486bcafde82b92441f463859df15685959',
+      index: 1
+    }, {
+      satoshis: 1000,
+      script: '76a914b59cc3ffe416e460a75baaae3d78cafc787e329d88ac',
+      txid: '7b309cef1b87471baee38a533c850ce25350f10e88a64e04da1ee08a69dbbba1',
+      index: 46
+    }, {
+      satoshis: 42000,
+      script: '76a914b59cc3ffe416e460a75baaae3d78cafc787e329d88ac',
+      txid: '07ebb557e5782d4b9b7180c5b0b299ab1249d28f3454ccc19d4e7bd819e5ec35',
+      index: 41
     }]
 
   },
@@ -80,10 +90,35 @@ var mockAddresses = {
       }
     },
     utxos: [{
-      satoshis: 5000000000,
-      script: 'TODO',
-      txid: 'b944ef8c77f9b5f4a4276880f17256988bba4d0125abc54391548061a688ae09',
-      index: 0
+      'satoshis': 5636607,
+      'script': '76a9147b386f749b54b874f8ce5d2a344bd524f2d7c62188ac',
+      'txid': '9aa72c5b116a12f80b2d38b1f7bb43356d3a4f02637e7ac5abfeebb14862a3f8',
+      'index': 1
+    }, {
+      'satoshis': 47379701,
+      'script': '76a9147b386f749b54b874f8ce5d2a344bd524f2d7c62188ac',
+      'txid': 'f14c1e10e8b0657068df4d53d8d93d1eb6b1f699041f7d505d5c482479c59634',
+      'index': 1
+    }, {
+      'satoshis': 17254743,
+      'script': '76a9147b386f749b54b874f8ce5d2a344bd524f2d7c62188ac',
+      'txid': '35dd6607d21b3b0739fc0696d0633eaaa26f5ab10e2cbb0fa12353c2ccff6f83',
+      'index': 1
+    }, {
+      'satoshis': 8460000,
+      'script': '76a9147b386f749b54b874f8ce5d2a344bd524f2d7c62188ac',
+      'txid': 'b6025e6835966b31f40a9f0bb4a1717df0976ec23934934d2b2580a884c09b68',
+      'index': 0
+    }, {
+      'satoshis': 8460000,
+      'script': '76a9147b386f749b54b874f8ce5d2a344bd524f2d7c62188ac',
+      'txid': '6ae158f49c25435c472f1533bce7d090f9edeb75b20fc30297ee78c962f4295a',
+      'index': 0
+    }, {
+      'satoshis': 6159194,
+      'script': '76a9147b386f749b54b874f8ce5d2a344bd524f2d7c62188ac',
+      'txid': '07ebb557e5782d4b9b7180c5b0b299ab1249d28f3454ccc19d4e7bd819e5ec35',
+      'index': 100
     }]
 
   },

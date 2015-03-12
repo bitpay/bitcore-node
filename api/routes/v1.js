@@ -13,12 +13,6 @@ function initRouter(node) {
     controller.setNode(node);
   });
 
-  function mockResponse(req, res) {
-    res.send({
-      'message': 'This is a mocked response'
-    });
-  }
-
   // parameter middleware
   router.param('blockHash', Blocks.blockHashParam);
   router.param('height', Blocks.heightParam);
