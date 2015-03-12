@@ -37,11 +37,26 @@ Addresses.addressParam = function(req, res, next, address) {
  * controllers
  */
 
+
+/**
+ * Gets an address information
+ */
 Addresses.get = function(req, res) {
   $.checkState(req.address instanceof Address);
   node.getAddressInfo(req.address)
     .then(function(info) {
       res.send(info);
+    });
+};
+
+/**
+ * Gets an address utxos
+ */
+Addresses.utxos = function(req, res) {
+  $.checkState(req.address instanceof Address);
+  node.getUTXOs(req.address)
+    .then(function(utxos) {
+      res.send(utxos);
     });
 };
 

@@ -50,7 +50,7 @@ function initRouter(node) {
   // Address routes
   router.get('/addresses/:address', Addresses.get);
   router.get('/addresses/:address/transactions', Transactions.list);
-  router.get('/addresses/:address/utxos', mockResponse);
+  router.get('/addresses/:address/utxos', Addresses.utxos);
   // TODO: check if this is really restful
   router.get('/addresses/:addresses/utxos', mockResponse);
 
