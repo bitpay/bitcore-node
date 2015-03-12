@@ -24,8 +24,29 @@ describe('BitcoreHTTP v1 addresses routes', function() {
     var amount = mockAddresses[addr].summary.transactions.length;
     return transactionList.slice(0, amount);
   };
-  var utxos_for_addr = function(addr) {
-    return mockAddresses[addr].utxos;
+  var utxos_for_addrs = function(addrs) {
+    return _.reduce(addrs, function(utxos, addr) {
+      return utxos.concat(mockAddresses[addr].utxos);
+    }, []);
+  };
+
+  var powerset = function(set) {
+    if (set.length === 0) {
+      return [
+        []
+      ];
+    }
+    var sets = [];
+    var head = set.shift();
+    var tail = set;
+    powerset(tail).forEach(function(s) {
+      var copy = s.slice();
+      copy.push(head);
+
+      sets.push(copy);
+      sets.push(s);
+    });
+    return sets;
   };
 
   beforeEach(function() {
@@ -36,8 +57,8 @@ describe('BitcoreHTTP v1 addresses routes', function() {
     nodeMock.listTransactions = function(opts) {
       return Promise.resolve(txs_for_addr(opts.address));
     };
-    nodeMock.getUTXOs = function(address) {
-      return Promise.resolve(utxos_for_addr(address));
+    nodeMock.getUTXOs = function(addresses) {
+      return Promise.resolve(utxos_for_addrs(addresses));
     };
     app = new BitcoreHTTP(nodeMock).app;
     agent = request(app);
@@ -76,13 +97,30 @@ describe('BitcoreHTTP v1 addresses routes', function() {
   });
   describe('/addresses/:address/utxos', function() {
     it('fails with invalid address', function(cb) {
-      failsWithInvalidAddress(agent, '/v1/addresses/1BpbpfLdY7oBS9gK7aDXgvMgr1DpvNH3B2/utxos', cb);
+      agent.get('/v1/addresses/1BpbpfLdY7oBS9gK7aDXgvMgr1DpvNH3B2/utxos')
+        .expect(422)
+        .expect('/v1/addresses/ parameter must be a bitcoin address list', cb);
+
     });
     Object.keys(mockAddresses).forEach(function(addr) {
       it('works with valid address ' + addr, function(cb) {
         agent.get('/v1/addresses/' + addr + '/utxos')
           .expect(200)
-          .expect(JSON.stringify(utxos_for_addr(addr)), cb);
+          .expect(JSON.stringify(utxos_for_addrs([addr])), cb);
+      });
+    });
+  });
+  describe('/addresses/:addresses/utxos', function() {
+    powerset(Object.keys(mockAddresses)).forEach(function(addresses) {
+      if (addresses.length === 0) {
+        return;
+      }
+      var list = addresses.join(',');
+      it('works with valid addresses ' + list, function(cb) {
+        var path = '/v1/addresses/' + list + '/utxos';
+        agent.get(path)
+          .expect(200)
+          .expect(JSON.stringify(utxos_for_addrs(addresses)), cb);
       });
     });
   });

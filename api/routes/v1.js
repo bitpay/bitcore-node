@@ -24,6 +24,7 @@ function initRouter(node) {
   router.param('height', Blocks.heightParam);
   router.param('txHash', Transactions.txHashParam);
   router.param('address', Addresses.addressParam);
+  router.param('addresses', Addresses.addressesParam);
   router.param('index', Transactions.indexParam);
 
   // Node routes
@@ -50,9 +51,7 @@ function initRouter(node) {
   // Address routes
   router.get('/addresses/:address', Addresses.get);
   router.get('/addresses/:address/transactions', Transactions.list);
-  router.get('/addresses/:address/utxos', Addresses.utxos);
-  // TODO: check if this is really restful
-  router.get('/addresses/:addresses/utxos', mockResponse);
+  router.get('/addresses/:addresses/utxos', Addresses.utxos);
 
   // error routes
   router.get('/blocks/*', Blocks.getBlockError);
