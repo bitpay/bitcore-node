@@ -102,6 +102,11 @@ var buildIOHelper = function(name) {
   return function(req, res) {
     $.checkState(req.tx instanceof Transaction);
     if (_.isNumber(req.index)) {
+      if (req.index >= req.tx[name].length) {
+        res.status(404).send('Transaction ' + name.substring(0, name.length - 1) + ' ' + req.index +
+          ' for ' + req.tx.id + ' not found, it only has ' + req.tx[name].length + ' ' + name + '.');
+        return;
+      }
       res.send(req.tx[name][req.index].toJSON());
       return;
     }

@@ -136,6 +136,15 @@ describe('BitcoreHTTP v1 transactions routes', function() {
         for (var i = 0; i < tx[name].length; i++) {
           it('works with valid txHash ...' + summary + ' ' + name + ' ' + i, canGetSpecificInput(i));
         }
+        it('fails with invalid ' + name + ' index ' + i + ' for txHash ...' + summary, function(cb) {
+          agent.get('/v1/transactions/' + hash + '/' + name + '/' + i)
+            .expect(404, cb);
+        });
+      });
+      it('fails with invalid ' + name + ' format', function(cb) {
+        agent.get('/v1/transactions/' + t1.id + '/' + name + '/-1')
+          .expect(422)
+          .expect('index parameter must be a positive integer', cb);
       });
     });
   };
