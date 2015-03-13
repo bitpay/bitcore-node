@@ -19,7 +19,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
 
   // mocks
   var mockValidTx = new Transaction();
-  var t1 = mockTransactions[Object.keys(mockTransactions)[0]];
+  var t1 = mockTransactions[_.keys(mockTransactions)[0]];
   var nodeMock, app, agent;
   beforeEach(function() {
     nodeMock = new EventEmitter();
@@ -40,18 +40,25 @@ describe('BitcoreHTTP v1 transactions routes', function() {
     agent = request(app);
   });
 
+  var failsWithInvalidHash = function(agent, url, cb) {
+    agent.get(url)
+      .expect(422)
+      .expect('/v1/transactions/ parameter must be a 64 digit hex', cb);
+  };
+  var reportsNotFound = function(agent, url, cb) {
+    agent.get(url)
+      .expect(404)
+      .expect('Transaction with id 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b600000000 not found', cb);
+  };
+
   describe('/transactions/:txHash', function() {
     it('fails with invalid txHash', function(cb) {
-      agent.get('/v1/transactions/abad1dea')
-        .expect(422)
-        .expect('/v1/transactions/ parameter must be a 64 digit hex', cb);
+      failsWithInvalidHash(agent, '/v1/transactions/abad1dea', cb);
     });
     it('returns 404 with non existent transaction', function(cb) {
-      agent.get('/v1/transactions/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b600000000')
-        .expect(404)
-        .expect('Transaction with id 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b600000000 not found', cb);
+      reportsNotFound(agent, '/v1/transactions/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b600000000', cb);
     });
-    Object.keys(mockTransactions).forEach(function(hash) {
+    _.keys(mockTransactions).forEach(function(hash) {
       it('works with valid txHash ...' + hash.substring(hash.length - 8), function(cb) {
         agent.get('/v1/transactions/' + hash)
           .expect(200)
@@ -99,5 +106,48 @@ describe('BitcoreHTTP v1 transactions routes', function() {
         .expect('Unable to broadcast transaction 8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87', cb);
     });
   });
-
+  var testIO = function(name) {
+    describe('/transactions/:txHash/' + name + '/', function() {
+      it('fails with invalid txHash', function(cb) {
+        failsWithInvalidHash(agent, '/v1/transactions/abad1dea/' + name, cb);
+      });
+      it('returns 404 with non existent transaction', function(cb) {
+        reportsNotFound(agent,
+          '/v1/transactions/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b600000000/' + name, cb);
+      });
+      _.keys(mockTransactions).forEach(function(hash) {
+        var tx = mockTransactions[hash];
+        var summary = hash.substring(hash.length - 8);
+        it('works with valid txHash ...' + summary + 'getting all ' + name, function(cb) {
+          agent.get('/v1/transactions/' + hash + '/' + name + '/')
+            .expect(200)
+            .expect(tx[name].map(function(x) {
+              return x.toJSON();
+            }), cb);
+        });
+        var canGetSpecificInput = function(i) {
+          var x = tx[name][i];
+          return function(cb) {
+            agent.get('/v1/transactions/' + hash + '/' + name + '/' + i)
+              .expect(200)
+              .expect(x.toJSON(), cb);
+          };
+        };
+        for (var i = 0; i < tx[name].length; i++) {
+          it('works with valid txHash ...' + summary + ' ' + name + ' ' + i, canGetSpecificInput(i));
+        }
+        it('fails with invalid ' + name + ' index ' + i + ' for txHash ...' + summary, function(cb) {
+          agent.get('/v1/transactions/' + hash + '/' + name + '/' + i)
+            .expect(404, cb);
+        });
+      });
+      it('fails with invalid ' + name + ' format', function(cb) {
+        agent.get('/v1/transactions/' + t1.id + '/' + name + '/-1')
+          .expect(422)
+          .expect('index parameter must be a positive integer', cb);
+      });
+    });
+  };
+  testIO('inputs');
+  testIO('outputs');
 });

@@ -35,6 +35,15 @@ Transactions.txHashParam = function(req, res, next, txHash) {
     });
 };
 
+/*
+ * sets an input or output index
+ */
+Transactions.indexParam = function(req, res, next, index) {
+  index = parseInt(index);
+  req.index = index;
+  next();
+};
+
 
 /*
  * controllers
@@ -74,6 +83,54 @@ Transactions.send = function(req, res) {
     });
 };
 
+
+/*
+ * Returns a list of transactions given certain request options
+ */
+Transactions.list = function(req, res) {
+  var opts = {};
+  opts.address = req.address;
+  node.listTransactions(opts)
+    .then(function(transactions) {
+      res.send(transactions);
+    });
+};
+
+
+var buildIOHelper = function(name) {
+  $.checkArgument(name === 'inputs' || name === 'outputs');
+  return function(req, res) {
+    $.checkState(req.tx instanceof Transaction);
+    if (_.isNumber(req.index)) {
+      if (req.index >= req.tx[name].length) {
+        res.status(404).send('Transaction ' + name.substring(0, name.length - 1) + ' ' + req.index +
+          ' for ' + req.tx.id + ' not found, it only has ' + req.tx[name].length + ' ' + name + '.');
+        return;
+      }
+      res.send(req.tx[name][req.index].toJSON());
+      return;
+    }
+    res.send(req.tx[name].map(function(x) {
+      return x.toJSON();
+    }));
+  };
+
+};
+
+/**
+ * Returns a transaction's outputs
+ */
+Transactions.getInputs = buildIOHelper('inputs');
+
+/**
+ * Returns a transaction's outputs
+ */
+Transactions.getOutputs = buildIOHelper('outputs');
+
+/**
+ * errors
+ */
+
 Transaction._sendError = function(res) {
   res.status(422);
   res.send('/v1/transactions/send parameter must be a raw transaction hex');
@@ -83,6 +140,11 @@ Transaction._sendError = function(res) {
 Transactions.getTxError = function(req, res) {
   res.status(422);
   res.send('/v1/transactions/ parameter must be a 64 digit hex');
+};
+
+Transactions.indexError = function(req, res) {
+  res.status(422);
+  res.send('index parameter must be a positive integer');
 };
 
 module.exports = Transactions;

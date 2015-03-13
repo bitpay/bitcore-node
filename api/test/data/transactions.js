@@ -1,14 +1,11 @@
 'use strict';
 
 var bitcore = require('bitcore');
-var Block = bitcore.Block;
+var _ = bitcore.deps._;
 
 var mockTransactions = {};
-var blockHexs = require('./blocks.json');
-blockHexs.map(function(hex) {
-  var block = new Block(new Buffer(hex, 'hex'));
-  return block;
-}).forEach(function(block) {
+var blocks = require('./blocks');
+_.each(blocks, function(block) {
   block.transactions.forEach(function(tx) {
     mockTransactions[tx.id] = tx;
   });
