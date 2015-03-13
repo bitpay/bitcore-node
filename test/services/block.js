@@ -77,4 +77,67 @@ describe('BlockService', function() {
     });
 
   });
+
+  describe('block confirmation', function() {
+
+    var mockRpc, transactionMock, database, blockService, writeLock;
+
+    var thenCaller = {
+      then: function(arg) {
+        return arg();
+      }
+    };
+    var genesisBlock = new bitcore.Block(
+      new Buffer(
+        '0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a'
+        +'7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c010'
+        +'1000000010000000000000000000000000000000000000000000000000000000000000000ffffffff'
+        +'4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f7'
+        +'2206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffff'
+        +'ff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0e'
+        +'a1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000'
+      , 'hex')
+    );
+    
+    beforeEach(function() {
+      database = sinon.mock();
+      mockRpc = sinon.mock();
+      transactionMock = sinon.mock();
+
+      blockService = new BlockService({
+        rpc: mockRpc,
+        transactionService: transactionMock,
+        database: database
+      });
+      blockService.writeLock = sinon.mock();
+      blockService.getBlock = sinon.mock();
+    }); 
+
+    it('makes the expected calls when confirming the genesis block', function(callback) {
+      database.batchAsync = function(ops) {
+        ops.should.deep.equal([
+          { type: 'put',
+            key: 'nxt-0000000000000000000000000000000000000000000000000000000000000000',
+            value: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f' },
+          { type: 'put',
+            key: 'prev-000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+            value: '0000000000000000000000000000000000000000000000000000000000000000' },
+          { type: 'put',
+            key: 'bh-000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+            value: 0 },
+          { type: 'put',
+            key: 'bts-1231006505',
+            value: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f' }
+        ]);
+        return thenCaller;
+      };
+      blockService.unlock = callback;
+      blockService.writeLock.onFirstCall().returns(thenCaller);
+      database.getAsync = function() {
+        return Promise.reject({notFound: true});
+      };
+      transactionMock._confirmTransaction = sinon.mock();
+      blockService._confirmBlock(genesisBlock);
+    });
+  });
 });
