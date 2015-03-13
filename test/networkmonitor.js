@@ -84,17 +84,19 @@ describe('NetworkMonitor', function() {
     peerMock.sendMessage.calledOnce.should.equal(true);
   });
 
-  it('emits reconnect on peer disconnect', function(cb) {
+  it('reconnects on peer disconnect', function() {
     var nm = new NetworkMonitor(busMock, peerMock);
-    nm.on('reconnect', cb);
-    nm.peer.emit('disconnect');
+    sinon.spy(nm, '_reconnect');
+    peerMock.emit('disconnect');
+    nm._reconnect.calledOnce.should.equal(true);
   });
 
-  it('emits reconnect on peer error', function(cb) {
+  it('reconnects on peer error', function() {
     var nm = new NetworkMonitor(busMock, peerMock);
-    nm.on('reconnect', cb);
-    nm.on('error', function(){});
-    nm.peer.emit('error');
+    sinon.spy(nm, '_reconnect');
+    nm.on('error', function() {});
+    peerMock.emit('error');
+    nm._reconnect.calledOnce.should.equal(true);
   });
 
   it('sends transactions to bus', function(cb) {
