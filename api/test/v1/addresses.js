@@ -18,7 +18,7 @@ var mockTransactions = require('../data/transactions');
 describe('BitcoreHTTP v1 addresses routes', function() {
 
   // mocks
-  var transactionList = Object.values(mockTransactions);
+  var transactionList = _.values(mockTransactions);
   var nodeMock, app, agent;
   var txs_for_addr = function(addr) {
     var amount = mockAddresses[addr].summary.transactions.length;
@@ -74,7 +74,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
     it('fails with invalid address', function(cb) {
       failsWithInvalidAddress(agent, '/v1/addresses/1BpbpfLdY7oBS9gK7aDXgvMgr1DpvNH3B2', cb);
     });
-    Object.keys(mockAddresses).forEach(function(addr) {
+    _.keys(mockAddresses).forEach(function(addr) {
       var info = mockAddresses[addr];
       it('works with valid address ' + addr, function(cb) {
         agent.get('/v1/addresses/' + addr)
@@ -87,7 +87,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
     it('fails with invalid address', function(cb) {
       failsWithInvalidAddress(agent, '/v1/addresses/1BpbpfLdY7oBS9gK7aDXgvMgr1DpvNH3B2/transactions', cb);
     });
-    Object.keys(mockAddresses).forEach(function(addr) {
+    _.keys(mockAddresses).forEach(function(addr) {
       it('works with valid address ' + addr, function(cb) {
         agent.get('/v1/addresses/' + addr + '/transactions')
           .expect(200)
@@ -102,7 +102,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
         .expect('/v1/addresses/ parameter must be a bitcoin address list', cb);
 
     });
-    Object.keys(mockAddresses).forEach(function(addr) {
+    _.keys(mockAddresses).forEach(function(addr) {
       it('works with valid address ' + addr, function(cb) {
         agent.get('/v1/addresses/' + addr + '/utxos')
           .expect(200)
@@ -111,7 +111,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
     });
   });
   describe('/addresses/:addresses/utxos', function() {
-    powerset(Object.keys(mockAddresses)).forEach(function(addresses) {
+    powerset(_.keys(mockAddresses)).forEach(function(addresses) {
       if (addresses.length === 0) {
         return;
       }

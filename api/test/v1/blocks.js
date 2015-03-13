@@ -17,24 +17,24 @@ var mockBlocks = require('../data/blocks');
 describe('BitcoreHTTP v1 blocks routes', function() {
 
   // mocks
-  var b1 = mockBlocks[Object.keys(mockBlocks)[0]];
-  var firstBlock = mockBlocks[Object.keys(mockBlocks).splice(0, 1)[0]];
-  var secondBlock = mockBlocks[Object.keys(mockBlocks).splice(1, 1)[0]];
-  var lastBlock = mockBlocks[Object.keys(mockBlocks).splice(-1)[0]];
+  var b1 = mockBlocks[_.keys(mockBlocks)[0]];
+  var firstBlock = mockBlocks[_.keys(mockBlocks).splice(0, 1)[0]];
+  var secondBlock = mockBlocks[_.keys(mockBlocks).splice(1, 1)[0]];
+  var lastBlock = mockBlocks[_.keys(mockBlocks).splice(-1)[0]];
   var blockForHash = function(hash) {
     return mockBlocks[hash];
   };
-  var last3 = Object.keys(mockBlocks).splice(-3).map(blockForHash);
-  var some2 = Object.keys(mockBlocks).splice(2,2).map(blockForHash);
+  var last3 = _.keys(mockBlocks).splice(-3).map(blockForHash);
+  var some2 = _.keys(mockBlocks).splice(2,2).map(blockForHash);
   var nodeMock, app, agent;
-  var blockList = Object.values(mockBlocks);
+  var blockList = _.values(mockBlocks);
   beforeEach(function() {
     nodeMock = new EventEmitter();
     nodeMock.getBlock = function(blockHash) {
       var block;
       if (typeof blockHash === 'number') {
         var height = blockHash;
-        block = mockBlocks[Object.keys(mockBlocks)[height - 100000]];
+        block = mockBlocks[_.keys(mockBlocks)[height - 100000]];
       } else {
         block = mockBlocks[blockHash];
       }
@@ -107,7 +107,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
         .expect(404)
         .expect('Block with id 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b600000000 not found', cb);
     });
-    Object.keys(mockBlocks).forEach(function(hash) {
+    _.keys(mockBlocks).forEach(function(hash) {
       var block = mockBlocks[hash];
       it('works with valid blockHash ...' + hash.substring(hash.length - 8), function(cb) {
         agent.get('/v1/blocks/' + hash)

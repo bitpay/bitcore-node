@@ -19,7 +19,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
 
   // mocks
   var mockValidTx = new Transaction();
-  var t1 = mockTransactions[Object.keys(mockTransactions)[0]];
+  var t1 = mockTransactions[_.keys(mockTransactions)[0]];
   var nodeMock, app, agent;
   beforeEach(function() {
     nodeMock = new EventEmitter();
@@ -58,7 +58,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
     it('returns 404 with non existent transaction', function(cb) {
       reportsNotFound(agent, '/v1/transactions/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b600000000', cb);
     });
-    Object.keys(mockTransactions).forEach(function(hash) {
+    _.keys(mockTransactions).forEach(function(hash) {
       it('works with valid txHash ...' + hash.substring(hash.length - 8), function(cb) {
         agent.get('/v1/transactions/' + hash)
           .expect(200)
@@ -115,7 +115,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
         reportsNotFound(agent,
           '/v1/transactions/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b600000000/' + name, cb);
       });
-      Object.keys(mockTransactions).forEach(function(hash) {
+      _.keys(mockTransactions).forEach(function(hash) {
         var tx = mockTransactions[hash];
         var summary = hash.substring(hash.length - 8);
         it('works with valid txHash ...' + summary + 'getting all ' + name, function(cb) {
