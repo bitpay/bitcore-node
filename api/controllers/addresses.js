@@ -5,8 +5,6 @@ var _ = bitcore.deps._;
 var $ = bitcore.util.preconditions;
 var Address = bitcore.Address;
 
-var BitcoreNode = require('../../');
-
 var Addresses = {};
 
 var node;

@@ -11,7 +11,6 @@ var EventEmitter = require('eventemitter2').EventEmitter2;
 var Promise = require('bluebird');
 Promise.longStackTraces();
 
-var BitcoreHTTP = require('../../lib/http');
 var BitcoreNode = require('../../../');
 var mockTransactions = require('../data/transactions');
 
@@ -36,7 +35,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
       }
       return Promise.resolve();
     };
-    app = new BitcoreHTTP(nodeMock).app;
+    app = require('../app')(nodeMock);
     agent = request(app);
   });
 

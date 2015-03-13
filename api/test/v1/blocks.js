@@ -10,7 +10,6 @@ Promise.longStackTraces();
 var bitcore = require('bitcore');
 var _ = bitcore.deps._;
 
-var BitcoreHTTP = require('../../lib/http');
 var BitcoreNode = require('../../../');
 var mockBlocks = require('../data/blocks');
 
@@ -53,7 +52,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
       var section = blockList.slice(start, end);
       return Promise.resolve(section.slice(offset, offset + limit));
     };
-    app = new BitcoreHTTP(nodeMock).app;
+    app = require('../app')(nodeMock);
     agent = request(app);
   });
 
