@@ -71,7 +71,6 @@
     "bitcore-build": "bitpay/bitcore-build",
     "chai": "^2.1.1",
     "gulp": "^3.8.10",
-    "mocha": "^2.2.1",
     "should": "^5.1.0",
     "sinon": "^1.13.0",
     "supertest": "^0.15.0"

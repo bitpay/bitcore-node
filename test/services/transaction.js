@@ -5,6 +5,7 @@ var should = require('chai').should();
 var Promise = require('bluebird');
 
 var bitcore = require('bitcore');
+var _ = bitcore.deps._;
 
 var TransactionService = require('../../lib/services/transaction');
 
@@ -63,17 +64,7 @@ describe('TransactionService', function() {
       });
     });
 
-    var genesisBlock = new bitcore.Block(
-      new Buffer(
-        '0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a'
-        +'7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c010'
-        +'1000000010000000000000000000000000000000000000000000000000000000000000000ffffffff'
-        +'4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f7'
-        +'2206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffff'
-        +'ff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0e'
-        +'a1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000'
-      , 'hex')
-    );
+    var genesisBlock = require('../data/genesis');
     genesisBlock.height = 0;
     var genesisTx = genesisBlock.transactions[0];
 
@@ -90,11 +81,71 @@ describe('TransactionService', function() {
             { satoshis: 5000000000,
               script: '65 0x04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f OP_CHECKSIG' } },
           { type: 'put',
-            key: 'txa-1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+            key: 'txa-1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa-4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b-0',
             value: 
             { satoshis: 5000000000,
               script: '65 0x04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f OP_CHECKSIG' } }
         ]);
+        callback();
+      });
+    });
+
+    var block170 = require('../data/170');
+
+    it('confirms correctly the first non-coinbase transaction (block 170)', function(callback) {
+      var ops = [];
+      service.getTransaction = sinon.stub();
+      var firstTxSpent = require('../data/firstTxSpent');
+      service.getTransaction.onFirstCall().returns({
+        then: function(arg) {
+          return arg(firstTxSpent);
+        }
+      });
+      service._confirmTransaction(ops, block170, block170.transactions[1]).then(function() {
+        ops.should.deep.equal([
+          { type: 'put',
+            key: 'btx-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16',
+            value: '00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee' },
+          { type: 'put',
+            key: 'txo-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-0',
+            value: 
+            { satoshis: 1000000000,
+              script: '65 0x04ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c OP_CHECKSIG' } },
+          { type: 'put',
+            key: 'txa-1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-0',
+            value: 
+            { satoshis: 1000000000,
+              script: '65 0x04ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c OP_CHECKSIG' } },
+          { type: 'put',
+            key: 'txo-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-1',
+            value: 
+            { satoshis: 4000000000,
+              script: '65 0x0411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3 OP_CHECKSIG' } },
+          { type: 'put',
+            key: 'txa-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-1',
+            value: 
+            { satoshis: 4000000000,
+              script: '65 0x0411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3 OP_CHECKSIG' } },
+          { type: 'put',
+            key: 'txo-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-0',
+            value: 
+            { prevTxId: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9',
+              outputIndex: 0,
+              sequenceNumber: 4294967295,
+              script: '71 0x304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901',
+              output: undefined,
+              heightConfirmed: 170 } },
+          { type: 'put',
+            key: 'txas-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-0',
+            value: 
+            { heightSpent: 170,
+              spentTx: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16',
+              spentTxInputIndex: 0,
+              spendInput: { prevTxId: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9',
+                outputIndex: 0,
+                sequenceNumber: 4294967295,
+                script: '71 0x304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901',
+                output: undefined }}}]);
         callback();
       });
     });
