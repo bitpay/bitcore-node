@@ -87,17 +87,9 @@ describe('BlockService', function() {
         return arg();
       }
     };
-    var genesisBlock = new bitcore.Block(
-      new Buffer(
-        '0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a'
-        +'7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c010'
-        +'1000000010000000000000000000000000000000000000000000000000000000000000000ffffffff'
-        +'4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f7'
-        +'2206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffff'
-        +'ff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0e'
-        +'a1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000'
-      , 'hex')
-    );
+    var genesisBlock = require('../data/genesis');
+    var block169 = require('../data/169');
+    var block170 = require('../data/170');
     
     beforeEach(function() {
       database = sinon.mock();
@@ -110,7 +102,6 @@ describe('BlockService', function() {
         database: database
       });
       blockService.writeLock = sinon.mock();
-      blockService.getBlock = sinon.mock();
     }); 
 
     it('makes the expected calls when confirming the genesis block', function(callback) {
@@ -133,11 +124,42 @@ describe('BlockService', function() {
       };
       blockService.unlock = callback;
       blockService.writeLock.onFirstCall().returns(thenCaller);
+      blockService.getBlock = sinon.mock();
       database.getAsync = function() {
         return Promise.reject({notFound: true});
       };
       transactionMock._confirmTransaction = sinon.mock();
       blockService._confirmBlock(genesisBlock);
+    });
+
+    it('makes the expected calls when confirming the block #170', function(callback) {
+      database.batchAsync = function(ops) {
+        ops.should.deep.equal([
+          { type: 'put',
+            key: 'nxt-000000002a22cfee1f2c846adbd12b3e183d4f97683f85dad08a79780a84bd55',
+            value: '00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee' },
+          { type: 'put',
+            key: 'prev-00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee',
+            value: '000000002a22cfee1f2c846adbd12b3e183d4f97683f85dad08a79780a84bd55' },
+          { type: 'put',
+            key: 'bh-00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee',
+            value: 170 },
+          { type: 'put',
+            key: 'bts-1231731025',
+            value: '00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee' }
+        ]);
+        return thenCaller;
+      };
+      blockService.unlock = callback;
+      blockService.writeLock.onFirstCall().returns(thenCaller);
+      blockService.getBlock = function() {
+        return Promise.resolve(block169);
+      };
+      database.getAsync = function() {
+        return Promise.reject({notFound: true});
+      };
+      transactionMock._confirmTransaction = sinon.spy();
+      blockService._confirmBlock(block170);
     });
   });
 });
