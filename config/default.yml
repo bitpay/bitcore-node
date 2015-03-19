@@ -5,8 +5,8 @@ BitcoreNode:
     port: 8333
 LevelUp: ./db
 RPC:
-  username: username
-  password: password
+  user: username
+  pass: password
   protocol: http
   host: 127.0.0.1
   port: 8332
