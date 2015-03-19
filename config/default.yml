@@ -3,6 +3,7 @@ BitcoreNode:
     network: livenet
     host: localhost
     port: 8333
+Reporter: simple # none, simple, matrix
 LevelUp: ./db
 RPC:
   username: username

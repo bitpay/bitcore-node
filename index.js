@@ -1,7 +1,7 @@
 'use strict';
 
-
 var BitcoreNode = require('./lib/node');
+var reporters = require('./lib/reporters');
 
 if (require.main === module) {
   var config = require('config');
@@ -11,9 +11,17 @@ if (require.main === module) {
     if (err.code === 'ECONNREFUSED') {
       console.log('Connection to bitcoind failed');
     } else {
-      console.log('Unrecognized error: ', err);
+      console.log('Error: ', err);
     }
   });
+
+  var reporterName = config.get('Reporter');
+  var reporter = reporters[reporterName];
+  if (!reporter) {
+    throw new Error('Unrecognized network reporter: ' + reporterName +
+      '. Available: ' + Object.keys(reporters));
+  }
+  node.on('Transaction', reporter);
 }
 
 
