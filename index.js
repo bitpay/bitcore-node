@@ -1,6 +1,5 @@
 'use strict';
 
-
 var BitcoreNode = require('./lib/node');
 var bitcore = require('bitcore');
 var Unit = bitcore.Unit;
