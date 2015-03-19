@@ -51,11 +51,6 @@ describe('NetworkMonitor', function() {
   });
 
   it('instantiates correctly from create with opts', function() {
-    var opts = {
-      network: Networks.livenet,
-      host: '8.8.8.8',
-      port: 3001
-    };
     var nm = NetworkMonitor.create(busMock);
     should.exist(nm);
   });
