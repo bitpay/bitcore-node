@@ -4,6 +4,8 @@ var BitcoreNode = require('./lib/node');
 var reporters = require('./lib/reporters');
 var bitcore = require('bitcore');
 
+BitcoreNode.errors = require('./lib/errors');
+
 if (require.main === module) {
   var config = require('config');
   bitcore.Networks.defaultNetwork = bitcore.Networks.get(config.network);
@@ -27,6 +29,5 @@ if (require.main === module) {
 }
 
 
-BitcoreNode.errors = require('./lib/errors');
 
 module.exports = BitcoreNode;

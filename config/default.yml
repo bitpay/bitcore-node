@@ -3,11 +3,11 @@ BitcoreNode:
   NetworkMonitor:
     host: localhost
     port: 8333
-Reporter: simple # none, simple, matrix
+Reporter: none # none, simple, matrix
 LevelUp: ./db
 RPC:
   user: username
   pass: password
   protocol: http
   host: 127.0.0.1
-  port: 8332
+  port: 18332
