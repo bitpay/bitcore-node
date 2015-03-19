@@ -2,9 +2,11 @@
 
 var BitcoreNode = require('./lib/node');
 var reporters = require('./lib/reporters');
+var bitcore = require('bitcore');
 
 if (require.main === module) {
   var config = require('config');
+  bitcore.Networks.defaultNetwork = bitcore.Networks.get(config.network);
   var node = BitcoreNode.create(config.get('BitcoreNode'));
   node.start();
   node.on('error', function(err) {

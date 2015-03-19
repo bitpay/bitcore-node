@@ -1,6 +1,6 @@
 BitcoreNode:
+  network: testnet
   NetworkMonitor:
-    network: livenet
     host: localhost
     port: 8333
 Reporter: simple # none, simple, matrix
