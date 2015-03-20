@@ -42,7 +42,7 @@ describe('BlockService', function() {
             size: 215,
             height: 2,
             version: 1,
-            merkleRoot: '9b0fc92260312ce44e74ef369f5c66bbb85848f2eddd5a7a1cde251e54ccfdd5',
+            merkleroot: '9b0fc92260312ce44e74ef369f5c66bbb85848f2eddd5a7a1cde251e54ccfdd5',
             tx: [ '9b0fc92260312ce44e74ef369f5c66bbb85848f2eddd5a7a1cde251e54ccfdd5' ],
             time: 1231469744,
             nonce: 1639830024,
