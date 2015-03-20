@@ -6,7 +6,7 @@ BitcoreNode:
 Reporter: none # none, simple, matrix
 LevelUp: ./db
 RPC:
-  user: username
+  user: user
   pass: password
   protocol: http
   host: 127.0.0.1
