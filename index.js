@@ -3,6 +3,8 @@
 var BitcoreNode = require('./lib/node');
 var reporters = require('./lib/reporters');
 var bitcore = require('bitcore');
+var Promise = require('bluebird');
+Promise.longStackTraces();
 
 BitcoreNode.errors = require('./lib/errors');
 
