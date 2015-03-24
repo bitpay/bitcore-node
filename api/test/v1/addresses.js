@@ -10,8 +10,6 @@ Promise.longStackTraces();
 var bitcore = require('bitcore');
 var _ = bitcore.deps._;
 
-var BitcoreHTTP = require('../../lib/http');
-
 var mockAddresses = require('../data/addresses');
 var mockTransactions = require('../data/transactions');
 
@@ -60,7 +58,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
     nodeMock.getUTXOs = function(addresses) {
       return Promise.resolve(utxos_for_addrs(addresses));
     };
-    app = new BitcoreHTTP(nodeMock).app;
+    app = require('../app')(nodeMock);
     agent = request(app);
   });
 
