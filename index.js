@@ -10,7 +10,8 @@ BitcoreNode.errors = require('./lib/errors');
 
 if (require.main === module) {
   var config = require('config');
-  bitcore.Networks.defaultNetwork = bitcore.Networks.get(config.network);
+  bitcore.Networks.defaultNetwork = bitcore.Networks.get(config.get('BitcoreNode').network);
+
   var node = BitcoreNode.create(config.get('BitcoreNode'));
   node.start();
   node.on('error', function(err) {
@@ -29,7 +30,5 @@ if (require.main === module) {
   }
   node.on('Transaction', reporter);
 }
-
-
 
 module.exports = BitcoreNode;

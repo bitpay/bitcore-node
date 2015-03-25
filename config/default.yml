@@ -1,5 +1,5 @@
 BitcoreNode:
-  network: testnet
+  network: livenet
   NetworkMonitor:
     host: localhost
     port: 8333
@@ -10,4 +10,4 @@ RPC:
   pass: password
   protocol: http
   host: 127.0.0.1
-  port: 8322
+  port: 8332
