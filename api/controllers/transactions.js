@@ -25,7 +25,7 @@ Transactions.setNode = function(aNode) {
  * Finds a transaction by its hash
  */
 Transactions.txHashParam = function(req, res, next, txHash) {
-  node.getTransaction(txHash)
+  node.transactionService.getTransaction(txHash)
     .then(function(tx) {
       req.tx = tx;
     })
