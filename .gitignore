@@ -38,6 +38,7 @@ db/blocks/*
 db/blocks
 db/testnet/blocks/*
 db/testnet/blocks
+db/*
 
 README.html
 public
