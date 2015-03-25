@@ -4,6 +4,9 @@ BitcoreNode:
     host: localhost
     port: 8333
 Reporter: none # none, simple, matrix
+BitcoreHTTP:
+  host: localhost
+  port: 8080
 LevelUp: ./db
 RPC:
   user: user
