@@ -60,6 +60,7 @@
     "glob": "*",
     "js-yaml": "^3.2.7",
     "leveldown": "^1.0.1",
+    "levelup": "git://github.com/rvagg/node-levelup",
     "moment": "~2.5.0",
     "morgan": "^1.5.1",
     "request": "^2.48.0",
