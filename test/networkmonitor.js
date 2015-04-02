@@ -79,6 +79,21 @@ describe('NetworkMonitor', function() {
     peerMock.sendMessage.calledOnce.should.equal(true);
   });
 
+  it('reconnects on peer disconnect', function() {
+    var nm = new NetworkMonitor(busMock, peerMock);
+    sinon.spy(nm, '_reconnect');
+    peerMock.emit('disconnect');
+    nm._reconnect.calledOnce.should.equal(true);
+  });
+
+  it('reconnects on peer error', function() {
+    var nm = new NetworkMonitor(busMock, peerMock);
+    sinon.spy(nm, '_reconnect');
+    nm.on('error', function() {});
+    peerMock.emit('error');
+    nm._reconnect.calledOnce.should.equal(true);
+  });
+
   it('sends transactions to bus', function(cb) {
     var nm = new NetworkMonitor(busMock, peerMock);
     busMock.register(bitcore.Transaction, function(tx) {
