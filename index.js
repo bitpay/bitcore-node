@@ -21,6 +21,10 @@ if (require.main === module) {
       console.log('Error: ', err);
     }
   });
+  process.on('SIGINT', function() {
+    node.stop();
+    process.exit();
+  });
 
   var reporterName = config.get('Reporter');
   var reporter = reporters[reporterName];
