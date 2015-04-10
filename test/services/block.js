@@ -87,9 +87,18 @@ describe('BlockService', function() {
         return arg();
       }
     };
+    var work = 1000;
+    var work169 = 169;
+    var work170 = 170;
     var genesisBlock = require('../data/genesis');
+    genesisBlock.work = work;
+    genesisBlock.height = 1;
     var block169 = require('../data/169');
+    block169.work = work169;
+    block169.height = 169;
     var block170 = require('../data/170');
+    block170.work = work170;
+    block170.height = 170;
 
     beforeEach(function() {
       database = sinon.mock();
@@ -120,24 +129,15 @@ describe('BlockService', function() {
           value: 0
         }, {
           type: 'put',
-          key: 'bts-1231006505',
-          value: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'
+          key: 'wk-000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+          value: work
         }, {
           type: 'put',
-          key: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'
+          key: 'tip',
+          value: genesisBlock.id
         }];
-        console.log(ops);
-        console.log(expectedOps);
         ops.should.deep.equal(expectedOps);
-        return thenCaller;
-      };
-      blockService.unlock = callback;
-      blockService.writeLock.onFirstCall().returns(thenCaller);
-      blockService.getBlock = sinon.mock();
-      database.getAsync = function() {
-        return Promise.reject({
-          notFound: true
-        });
+        return callback();
       };
       transactionMock._confirmTransaction = sinon.mock();
       blockService.confirm(genesisBlock);
@@ -159,23 +159,18 @@ describe('BlockService', function() {
           value: 170
         }, {
           type: 'put',
-          key: 'bts-1231731025',
-          value: '00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee'
+          key: 'wk-00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee',
+          value: work170
+        }, {
+          type: 'put',
+          key: 'tip',
+          value: block170.id
         }]);
-        return thenCaller;
+        return callback();
       };
-      blockService.unlock = callback;
       blockService.writeLock.onFirstCall().returns(thenCaller);
-      blockService.getBlock = function() {
-        return Promise.resolve(block169);
-      };
-      database.getAsync = function() {
-        return Promise.reject({
-          notFound: true
-        });
-      };
       transactionMock._confirmTransaction = sinon.spy();
-      blockService._confirmBlock(block170);
+      blockService.confirm(block170);
     });
   });
 });
