@@ -13,12 +13,16 @@ Promise.longStackTraces();
 describe('BitcoreNode', function() {
 
   // mocks
-  var node, busMock, nmMock, bsMock, tsMock, asMock;
+  var node, busMock, nmMock, bsMock, tsMock, asMock, chainMock;
   beforeEach(function() {
     busMock = new EventBus();
     nmMock = new EventEmitter();
     nmMock.start = function() {};
+    chainMock = {};
     bsMock = {};
+    bsMock.getBlockchain = function() {
+      return Promise.resolve(chainMock);
+    };
     tsMock = {};
     asMock = {};
     node = new BitcoreNode(busMock, nmMock, bsMock, tsMock, asMock);
