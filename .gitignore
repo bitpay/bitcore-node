@@ -24,7 +24,6 @@ report
 *~
 .idea
 .project
-peerdb.json
 
 npm-debug.log
 .nodemonignore
@@ -39,6 +38,7 @@ db/blocks
 db/testnet/blocks/*
 db/testnet/blocks
 db/*
+db-test/
 
 README.html
 public

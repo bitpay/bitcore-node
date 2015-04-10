@@ -34,7 +34,27 @@ describe('BitcoreNode', function() {
     });
 
     it('from create', function() {
-      var node = BitcoreNode.create();
+      var opts = {
+        LevelUp: './db-test',
+        network: 'testnet',
+        NetworkMonitor: {
+          host: 'localhost',
+          port: 8555,
+        },
+        Reporter: 'none',
+        BitcoreHTTP: {
+          host: 'somehost',
+          port: 9090,
+        },
+        RPC: {
+          user: 'test-user',
+          pass: 'test-password',
+          protocol: 'http',
+          host: '8.8.8.8',
+          port: 8552,
+        }
+      };
+      var node = BitcoreNode.create(opts);
       should.exist(node);
     });
   });
