@@ -11,6 +11,9 @@ describe('BitcoreHTTP', function() {
 
   // mocks
   var opts = {
+    BitcoreNode: {
+      LevelUp: './test-db'
+    },
     port: 1234
   };
   var nodeMock;
@@ -23,7 +26,7 @@ describe('BitcoreHTTP', function() {
       should.exist(http);
     });
     it('from create', function() {
-      var http = new BitcoreHTTP.create();
+      var http = new BitcoreHTTP.create(opts);
       should.exist(http);
     });
   });

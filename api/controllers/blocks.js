@@ -23,7 +23,7 @@ Blocks.setNode = function(aNode) {
  * Finds a block by its hash
  */
 Blocks.blockHashParam = function(req, res, next, blockHash) {
-  node.getBlock(blockHash)
+  node.blockService.getBlock(blockHash)
     .then(function(block) {
       req.block = block;
     })
