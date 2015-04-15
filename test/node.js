@@ -34,25 +34,13 @@ describe('BitcoreNode', function() {
     });
 
     it('from create', function() {
+      var dbMock = {};
+      var rpcMock = {};
       var opts = {
-        LevelUp: './db-test',
-        network: 'testnet',
-        NetworkMonitor: {
-          host: 'localhost',
-          port: 8555,
-        },
-        Reporter: 'none',
-        BitcoreHTTP: {
-          host: 'somehost',
-          port: 9090,
-        },
-        RPC: {
-          user: 'test-user',
-          pass: 'test-password',
-          protocol: 'http',
-          host: '8.8.8.8',
-          port: 8552,
-        }
+        database: dbMock,
+        rpc: rpcMock,
+        blockService: bsMock,
+        transactionService: tsMock
       };
       var node = BitcoreNode.create(opts);
       should.exist(node);
