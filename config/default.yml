@@ -1,12 +1,15 @@
 BitcoreNode:
+  LevelUp: ./db
+  network: livenet
   NetworkMonitor:
-    network: livenet
     host: localhost
     port: 8333
-Reporter: simple # none, simple, matrix
-LevelUp: ./db
+Reporter: none # none, simple, matrix
+BitcoreHTTP:
+  host: localhost
+  port: 8080
 RPC:
-  user: username
+  user: user
   pass: password
   protocol: http
   host: 127.0.0.1

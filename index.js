@@ -2,9 +2,16 @@
 
 var BitcoreNode = require('./lib/node');
 var reporters = require('./lib/reporters');
+var bitcore = require('bitcore');
+var Promise = require('bluebird');
+Promise.longStackTraces();
+
+BitcoreNode.errors = require('./lib/errors');
 
 if (require.main === module) {
   var config = require('config');
+  bitcore.Networks.defaultNetwork = bitcore.Networks.get(config.get('BitcoreNode').network);
+
   var node = BitcoreNode.create(config.get('BitcoreNode'));
   node.start();
   node.on('error', function(err) {
@@ -13,6 +20,10 @@ if (require.main === module) {
     } else {
       console.log('Error: ', err);
     }
+  });
+  process.on('SIGINT', function() {
+    node.stop();
+    process.exit();
   });
 
   var reporterName = config.get('Reporter');
@@ -23,8 +34,5 @@ if (require.main === module) {
   }
   node.on('Transaction', reporter);
 }
-
-
-BitcoreNode.errors = require('./lib/errors');
 
 module.exports = BitcoreNode;

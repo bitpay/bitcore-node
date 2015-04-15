@@ -25,26 +25,28 @@ describe('BitcoreHTTP v1 blocks routes', function() {
     return mockBlocks[hash];
   };
   var last3 = _.keys(mockBlocks).splice(-3).map(blockForHash);
-  var some2 = _.keys(mockBlocks).splice(2,2).map(blockForHash);
+  var some2 = _.keys(mockBlocks).splice(2, 2).map(blockForHash);
   var nodeMock, app, agent;
   var blockList = _.values(mockBlocks);
   beforeEach(function() {
     nodeMock = new EventEmitter();
-    nodeMock.getBlock = function(blockHash) {
-      var block;
-      if (typeof blockHash === 'number') {
-        var height = blockHash;
-        block = mockBlocks[_.keys(mockBlocks)[height - 100000]];
-      } else {
-        block = mockBlocks[blockHash];
-      }
+    nodeMock.blockService = {};
+    nodeMock.blockService.resolveBlock = function(block, blockHash) {
       if (_.isUndefined(block)) {
         return Promise.reject(new BitcoreNode.errors.Blocks.NotFound(blockHash));
       }
       return Promise.resolve(block);
+    };
+    nodeMock.blockService.getBlockByHeight = function(height) {
+      var block = mockBlocks[_.keys(mockBlocks)[height - 100000]];
+      return this.resolveBlock(block, height);
+    };
+    nodeMock.blockService.getBlock = function(blockHash) {
+      var block = mockBlocks[blockHash];
+      return this.resolveBlock(block, blockHash);
 
     };
-    nodeMock.getLatestBlock = function() {
+    nodeMock.blockService.getLatest = function() {
       return Promise.resolve(lastBlock);
     };
     nodeMock.listBlocks = function(from, to, offset, limit) {

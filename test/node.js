@@ -13,36 +13,50 @@ Promise.longStackTraces();
 describe('BitcoreNode', function() {
 
   // mocks
-  var busMock, nmMock;
+  var node, busMock, nmMock, bsMock, tsMock, asMock, chainMock;
   beforeEach(function() {
     busMock = new EventBus();
     nmMock = new EventEmitter();
     nmMock.start = function() {};
+    chainMock = {};
+    bsMock = {};
+    bsMock.getBlockchain = function() {
+      return Promise.resolve(chainMock);
+    };
+    tsMock = {};
+    asMock = {};
+    node = new BitcoreNode(busMock, nmMock, bsMock, tsMock, asMock);
   });
   describe('instantiates', function() {
     it('from constructor', function() {
-      var node = new BitcoreNode(busMock, nmMock);
-      should.exist(node);
+      var n = new BitcoreNode(busMock, nmMock, bsMock, tsMock, asMock);
+      should.exist(n);
     });
 
     it('from create', function() {
-      var node = BitcoreNode.create();
+      var dbMock = {};
+      var rpcMock = {};
+      var opts = {
+        database: dbMock,
+        rpc: rpcMock,
+        blockService: bsMock,
+        transactionService: tsMock
+      };
+      var node = BitcoreNode.create(opts);
       should.exist(node);
     });
   });
 
   it('starts', function() {
-    var node = new BitcoreNode(busMock, nmMock);
+    node.start();
     node.start.bind(node).should.not.throw();
   });
 
   it('broadcasts errors from network monitor', function(cb) {
-    var node = new BitcoreNode(busMock, nmMock);
     node.on('error', cb);
     nmMock.emit('error');
   });
   it('exposes all events from the event bus', function(cb) {
-    var node = new BitcoreNode(busMock, nmMock);
     node.on('foo', cb);
     busMock.emit('foo');
   });

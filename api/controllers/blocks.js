@@ -23,7 +23,7 @@ Blocks.setNode = function(aNode) {
  * Finds a block by its hash
  */
 Blocks.blockHashParam = function(req, res, next, blockHash) {
-  node.getBlock(blockHash)
+  node.blockService.getBlock(blockHash)
     .then(function(block) {
       req.block = block;
     })
@@ -38,7 +38,7 @@ Blocks.blockHashParam = function(req, res, next, blockHash) {
  */
 Blocks.heightParam = function(req, res, next, height) {
   height = parseInt(height);
-  node.getBlock(height)
+  node.blockService.getBlockByHeight(height)
     .then(function(block) {
       req.block = block;
     })
@@ -83,7 +83,7 @@ Blocks.list = function(req, res) {
 };
 
 Blocks.getLatest = function(req, res) {
-  node.getLatestBlock()
+  node.blockService.getLatest()
     .then(function(block) {
       req.block = block;
       Blocks.get(req, res);
