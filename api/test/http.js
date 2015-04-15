@@ -12,7 +12,7 @@ describe('BitcoreHTTP', function() {
   // mocks
   var opts = {
     BitcoreNode: {
-      LevelUp: './test-db'
+      database: {}
     },
     port: 1234
   };
