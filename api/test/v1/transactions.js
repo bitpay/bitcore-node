@@ -23,7 +23,8 @@ describe('BitcoreHTTP v1 transactions routes', function() {
   var nodeMock, app, agent;
   beforeEach(function() {
     nodeMock = new EventEmitter();
-    nodeMock.getTransaction = function(txHash) {
+    nodeMock.transactionService = {};
+    nodeMock.transactionService.getTransaction = function(txHash) {
       var tx = mockTransactions[txHash];
       if (_.isUndefined(tx)) {
         return Promise.reject(new BitcoreNode.errors.Transactions.NotFound(txHash));
