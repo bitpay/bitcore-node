@@ -1,0 +1,16 @@
+BitcoreNode:
+  LevelUp: ./testnet-db
+  network: testnet
+  NetworkMonitor:
+    host: localhost
+    port: 18333
+Reporter: none # none, simple, matrix
+BitcoreHTTP:
+  host: localhost
+  port: 8080
+RPC:
+  user: user
+  pass: password
+  protocol: http
+  host: 127.0.0.1
+  port: 18332
