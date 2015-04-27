@@ -25,6 +25,7 @@ describe('NetworkMonitor', function() {
     mockBlock.id = 'asd';
     busMock = new EventBus();
     peerMock = new EventEmitter();
+    peerMock.network = Networks.testnet;
     peerMock.sendMessage = sinon.spy();
     peerMock.connect = function() {
       this.emit('ready');
