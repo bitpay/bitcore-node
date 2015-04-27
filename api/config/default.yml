@@ -2,15 +2,15 @@ BitcoreHTTP:
   port: 8080
   logging: true
   BitcoreNode:
-    LevelUp: ./testnet-db
-    network: testnet
+    LevelUp: ./db
+    network: livenet
     NetworkMonitor:
       host: localhost
-      port: 18333
+      port: 8333
   Reporter: none # none, simple, matrix
   RPC:
     user: user
     pass: password
     protocol: http
     host: 127.0.0.1
-    port: 18332
+    port: 8332
