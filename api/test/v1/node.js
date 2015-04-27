@@ -18,7 +18,7 @@ describe('BitcoreHTTP v1 node routes', function() {
     nodeMock = new EventEmitter();
     nodeMock.status = {
       sync: 0.75,
-      peer_count: 8,
+      peerCount: 8,
       version: 'test'
     };
     nodeMock.getStatus = function() {
