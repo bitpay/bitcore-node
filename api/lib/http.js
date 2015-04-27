@@ -98,6 +98,7 @@ BitcoreHTTP.prototype.onListening = function() {
 
 
 BitcoreHTTP.prototype.start = function() {
+  this.node.start();
   this.server.listen(this.port);
 };
 

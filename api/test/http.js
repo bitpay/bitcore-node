@@ -2,6 +2,7 @@
 
 var chai = require('chai');
 var should = chai.should();
+var sinon = require('sinon');
 
 var EventEmitter = require('eventemitter2').EventEmitter2;
 
@@ -19,6 +20,7 @@ describe('BitcoreHTTP', function() {
   var nodeMock;
   beforeEach(function() {
     nodeMock = new EventEmitter();
+    nodeMock.start = sinon.spy();
   });
   describe('instantiates', function() {
     it('from constructor', function() {

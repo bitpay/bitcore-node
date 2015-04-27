@@ -29,16 +29,10 @@ npm-debug.log
 .nodemonignore
 
 .DS_Store
-db/txs/*
-db/txs
-db/testnet/txs/*
-db/testnet/txs
-db/blocks/*
-db/blocks
-db/testnet/blocks/*
-db/testnet/blocks
-db/*
+db/
 db-test/
+testnet-db/
+db.bkp/
 
 README.html
 public
