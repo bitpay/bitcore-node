@@ -5,9 +5,6 @@ BitcoreNode:
     host: localhost
     port: 18333
 Reporter: none # none, simple, matrix
-BitcoreHTTP:
-  host: localhost
-  port: 8080
 RPC:
   user: user
   pass: password
