@@ -76,7 +76,7 @@ Blocks.list = function(req, res) {
   // TODO: add more parameter validation
 
   // TODO: return block_summary instead of block_full
-  node.listBlocks(from, to, offset, limit)
+  node.blockService.listBlocks(from, to, offset, limit)
     .then(function(blocks) {
       res.send(blocks);
     });

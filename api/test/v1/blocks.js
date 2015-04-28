@@ -49,13 +49,13 @@ describe('BitcoreHTTP v1 blocks routes', function() {
     nodeMock.blockService.getLatest = function() {
       return Promise.resolve(lastBlock);
     };
-    nodeMock.listBlocks = function(from, to, offset, limit) {
+    nodeMock.blockService.listBlocks = function(from, to, offset, limit) {
       var start = from - 1e5;
       var end = to - 1e5;
       var section = blockList.slice(start, end);
       return Promise.resolve(section.slice(offset, offset + limit));
     };
-    app = new BitcoreHTTP(nodeMock).app;
+    app = require('../app')(nodeMock);
     agent = request(app);
   });
 

@@ -98,8 +98,12 @@ BitcoreHTTP.prototype.onListening = function() {
 
 
 BitcoreHTTP.prototype.start = function() {
-  this.node.start();
   this.server.listen(this.port);
+  return this.node.start();
+};
+
+BitcoreHTTP.prototype.stop = function() {
+  return this.node.stop();
 };
 
 module.exports = BitcoreHTTP;

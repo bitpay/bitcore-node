@@ -10,7 +10,9 @@ BitcoreNode.errors = require('./lib/errors');
 
 if (require.main === module) {
   var config = require('config');
-  bitcore.Networks.defaultNetwork = bitcore.Networks.get(config.get('BitcoreNode').network);
+  var network = config.get('BitcoreHTTP.BitcoreNode').network;
+  console.log('Starting bitcore-node', network, 'network');
+  bitcore.Networks.defaultNetwork = bitcore.Networks.get(network);
 
   var node = BitcoreNode.create(config.get('BitcoreNode'));
   node.start();

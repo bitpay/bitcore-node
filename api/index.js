@@ -9,7 +9,11 @@ if (require.main === module) {
   console.log('Starting bitcore-node-http', network, 'network');
   bitcore.Networks.defaultNetwork = bitcore.Networks.get(network);
   var http = BitcoreHTTP.create(config.get('BitcoreHTTP'));
-  http.start();
+  http.start()
+    .catch(function(err) {
+      http.stop();
+      throw err;
+    });
 }
 
 module.exports = BitcoreHTTP;
