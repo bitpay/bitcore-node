@@ -23,6 +23,10 @@ describe('BitcoreNode', function() {
     bsMock.getBlockchain = function() {
       return Promise.resolve(chainMock);
     };
+    bsMock.rpc = {};
+    bsMock.rpc.getBlockHashAsync = function() {
+      return Promise.resolve(true);
+    };
     tsMock = {};
     asMock = {};
     node = new BitcoreNode(busMock, nmMock, bsMock, tsMock, asMock);
