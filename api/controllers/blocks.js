@@ -30,6 +30,9 @@ Blocks.blockHashParam = function(req, res, next, blockHash) {
     .then(next)
     .catch(BitcoreNode.errors.Blocks.NotFound, function() {
       res.status(404).send('Block with id ' + blockHash + ' not found');
+    })
+    .catch(function() {
+      console.log(arguments);
     });
 };
 
