@@ -75,15 +75,17 @@ describe('BitcoreHTTP v1 blocks routes', function() {
         .expect(422)
         .expect('/v1/blocks/ "to" must be >= "from"', cb);
     });
-    it.only('works with to/from parameters', function(cb) {
-      agent.get('/v1/blocks/?from=100000&to=100001')
-        .expect(200)
-        .expect([firstBlock.toObject()], cb);
-    });
-    it('works with limit/offset parameters', function(cb) {
-      agent.get('/v1/blocks/?limit=1&offset=1')
-        .expect(200)
-        .expect([secondBlock.toObject()], cb);
+    describe.only('go', function() {
+      it('works with to/from parameters', function(cb) {
+        agent.get('/v1/blocks/?from=100000&to=100001')
+          .expect(200)
+          .expect([firstBlock.toObject()], cb);
+      });
+      it('works with limit/offset parameters', function(cb) {
+        agent.get('/v1/blocks/?from=100000&limit=1&offset=1')
+          .expect(200)
+          .expect([secondBlock.toObject()], cb);
+      });
     });
     it('works with all parameters', function(cb) {
       agent.get('/v1/blocks/?from=100005&to=100020&limit=3&offset=2')
