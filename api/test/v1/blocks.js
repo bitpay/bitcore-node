@@ -53,13 +53,15 @@ describe('BitcoreHTTP v1 blocks routes', function() {
       var start = from - 1e5;
       var end = to - 1e5;
       var section = blockList.slice(start, end);
-      return Promise.resolve(section.slice(offset, offset + limit));
+      var ret = section.slice(offset, offset + limit);
+      console.log(ret);
+      return Promise.resolve(ret);
     };
     app = require('../app')(nodeMock);
     agent = request(app);
   });
 
-  describe('/blocks', function() {
+  describe.only('/blocks', function() {
     it('works with default parameters', function(cb) {
       agent.get('/v1/blocks/')
         .expect(200)
@@ -95,7 +97,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
     it('returns latest block', function(cb) {
       agent.get('/v1/blocks/latest')
         .expect(200)
-        .expect(lastBlock.toJSON(), cb);
+        .expect(lastBlock, cb);
     });
   });
   describe('/blocks/:blockHash', function() {
