@@ -68,12 +68,31 @@ Blocks.list = function(req, res) {
   var offset = parseInt(req.query.offset || 0);
   var limit = parseInt(req.query.limit || 10);
 
+  if (from < 0) {
+    res.status(422);
+    res.send('/v1/blocks/ "from" must be valid block height (a positive integer)');
+    return;
+  }
+  if (to < 0) {
+    res.status(422);
+    res.send('/v1/blocks/ "to" must be valid block height (a positive integer)');
+    return;
+  }
+  if (offset < 0) {
+    res.status(422);
+    res.send('/v1/blocks/ "offset" must be a positive integer');
+    return;
+  }
+  if (limit < 0) {
+    res.status(422);
+    res.send('/v1/blocks/ "limit" must be a positive integer');
+    return;
+  }
   if (to < from) {
     res.status(422);
     res.send('/v1/blocks/ "to" must be >= "from"');
     return;
   }
-  // TODO: add more parameter validation
 
   // TODO: return block_summary instead of block_full
   node.blockService.listBlocks(from, to, offset, limit)
