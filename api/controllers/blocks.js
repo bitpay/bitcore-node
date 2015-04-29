@@ -48,6 +48,9 @@ Blocks.heightParam = function(req, res, next, height) {
     .then(next)
     .catch(BitcoreNode.errors.Blocks.NotFound, function() {
       res.status(404).send('Block with height ' + height + ' not found');
+    })
+    .catch(function() {
+      console.log(arguments);
     });
 };
 

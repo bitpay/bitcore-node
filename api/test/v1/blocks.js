@@ -64,7 +64,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
     return b.toObject();
   };
 
-  describe.only('/blocks', function() {
+  describe('/blocks', function() {
     it('works with default parameters', function(cb) {
       agent.get('/v1/blocks/?from=100000')
         .expect(200)
