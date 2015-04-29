@@ -54,50 +54,53 @@ describe('BitcoreHTTP v1 blocks routes', function() {
       var end = to - 1e5;
       var section = blockList.slice(start, end);
       var ret = section.slice(offset, offset + limit);
-      console.log(ret);
       return Promise.resolve(ret);
     };
     app = require('../app')(nodeMock);
     agent = request(app);
   });
 
-  describe.only('/blocks', function() {
+  var toObject = function(b) {
+    return b.toObject();
+  };
+
+  describe('/blocks', function() {
     it('works with default parameters', function(cb) {
       agent.get('/v1/blocks/')
         .expect(200)
-        .expect(JSON.stringify(blockList), cb);
+        .expect(blockList.map(toObject), cb);
     });
     it('fails with to<from', function(cb) {
       agent.get('/v1/blocks/?from=100000&to=99999')
         .expect(422)
         .expect('/v1/blocks/ "to" must be >= "from"', cb);
     });
-    it('works with to/from parameters', function(cb) {
+    it.only('works with to/from parameters', function(cb) {
       agent.get('/v1/blocks/?from=100000&to=100001')
         .expect(200)
-        .expect(JSON.stringify([firstBlock]), cb);
+        .expect([firstBlock.toObject()], cb);
     });
     it('works with limit/offset parameters', function(cb) {
       agent.get('/v1/blocks/?limit=1&offset=1')
         .expect(200)
-        .expect(JSON.stringify([secondBlock]), cb);
+        .expect([secondBlock.toObject()], cb);
     });
     it('works with all parameters', function(cb) {
       agent.get('/v1/blocks/?from=100005&to=100020&limit=3&offset=2')
         .expect(200)
-        .expect(JSON.stringify(last3), cb);
+        .expect(last3.map(toObject), cb);
     });
     it('works with all parameters 2', function(cb) {
       agent.get('/v1/blocks/?from=100000&to=100005&limit=2&offset=2')
         .expect(200)
-        .expect(JSON.stringify(some2), cb);
+        .expect(some2.map(toObject), cb);
     });
   });
   describe('/blocks/latest', function() {
     it('returns latest block', function(cb) {
       agent.get('/v1/blocks/latest')
         .expect(200)
-        .expect(lastBlock, cb);
+        .expect(lastBlock.toObject(), cb);
     });
   });
   describe('/blocks/:blockHash', function() {

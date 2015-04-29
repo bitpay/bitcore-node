@@ -97,7 +97,9 @@ Blocks.list = function(req, res) {
   // TODO: return block_summary instead of block_full
   node.blockService.listBlocks(from, to, offset, limit)
     .then(function(blocks) {
-      res.send(blocks);
+      res.send(blocks.map(function(b) {
+        return b.toObject();
+      }));
     });
 };
 
@@ -110,7 +112,7 @@ Blocks.getLatest = function(req, res) {
 };
 
 Blocks.get = function(req, res) {
-  $.checkState(req.block instanceof Block);
+  $.checkState(req.block instanceof Block, JSON.stringify(req.block));
   res.send(req.block.toObject());
 };
 

@@ -9,7 +9,7 @@ blockHexs.map(function(hex) {
   var block = new Block(new Buffer(hex, 'hex'));
   return block;
 }).forEach(function(block) {
-  mockBlocks[block.id] = block.toObject();
+  mockBlocks[block.id] = block;
 });
 
 module.exports = mockBlocks;
