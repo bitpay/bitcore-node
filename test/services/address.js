@@ -144,7 +144,6 @@ describe('AddressService', function() {
             gte: 'txas-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-' + '0000000000000000000000000000000000000000000000000000000000000000-0',
             lte: 'txas-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-' + 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff-4294967295'
           });
-          console.log(arguments);
           arg[0].should.deep.equal('processed');
           done();
         });
