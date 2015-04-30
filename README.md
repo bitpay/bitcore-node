@@ -45,7 +45,7 @@ to remove the need of running Bitcoin Core separately. [More info](https://githu
 
   Please note that the app will need to sync its internal database
   with the blockchain state, which will take some time. You can check
-  sync progress at http://localhost:8080/v1/node.
+  sync progress at `http://localhost:8080/v1/node`.
 
 
 ## Configuration
