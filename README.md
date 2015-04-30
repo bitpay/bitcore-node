@@ -9,15 +9,16 @@
 
 * **Bitcoin Core** - Download and Install [Bitcoin Core](http://bitcoin.org/en/download)
 
-`bitcore-node` needs a *trusted* bitcoind node to run. It will connect to the node
+`bitcore-node` needs a trusted Bitcoin Core instance to run. It will connect to it
 through the RPC API and bitcoin peer-to-peer protocol.
 
-Configure bitcoind to listen to RPC calls and set `txindex` to true.
-The easiest way to do this is by copying `./etc/bitcoind/bitcoin.conf` to your
+Configure Bitcoin Core to listen to RPC calls and set `txindex` to true.
+The easiest way to do this is by copying `./config/bitcoin.conf` to your
 bitcoin data directory (usually `~/.bitcoin` on Linux, `%appdata%\Bitcoin\` on Windows,
 or `~/Library/Application Support/Bitcoin` on Mac OS X).
 
-bitcoind must be running and must have finished downloading the blockchain **before** running `bitcore-node`.
+Bitcoin Core must be running and fully synced before running `bitcore-node`. We're planning
+to remove the need of running Bitcoin Core separately. (More info)[https://github.com/bitpay/bitcore-node/issues/57].
 
 
 * **Node.js v0.10.x** - Download and Install [Node.js](http://www.nodejs.org/download/).
