@@ -32,6 +32,9 @@ Transactions.txHashParam = function(req, res, next, txHash) {
     .then(next)
     .catch(BitcoreNode.errors.Transactions.NotFound, function() {
       res.status(404).send('Transaction with id ' + txHash + ' not found');
+    })
+    .catch(function() {
+      console.log(arguments);
     });
 };
 
