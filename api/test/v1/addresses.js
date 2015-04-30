@@ -11,17 +11,11 @@ var _ = bitcore.deps._;
 
 
 var mockAddresses = require('../data/addresses');
-var mockTransactions = require('../data/transactions');
 
 describe('BitcoreHTTP v1 addresses routes', function() {
 
   // mocks
-  var transactionList = _.values(mockTransactions);
   var nodeMock, agent;
-  var txs_for_addr = function(addr) {
-    var amount = mockAddresses[addr].summary.transactions.length;
-    return transactionList.slice(0, amount);
-  };
   var utxos_for_addrs = function(addrs) {
     return _.reduce(addrs, function(utxos, addr) {
       return utxos.concat(mockAddresses[addr].utxos);
@@ -53,10 +47,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
     nodeMock.addressService.getSummary = function(address) {
       return Promise.resolve(mockAddresses[address.toString()].summary);
     };
-    nodeMock.listTransactions = function(opts) {
-      return Promise.resolve(txs_for_addr(opts.address));
-    };
-    nodeMock.getUTXOs = function(addresses) {
+    nodeMock.addressService.getUnspent = function(addresses) {
       return Promise.resolve(utxos_for_addrs(addresses));
     };
     agent = require('../app')(nodeMock);
@@ -77,19 +68,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
       it('works with valid address ' + addr, function(cb) {
         agent.get('/v1/addresses/' + addr)
           .expect(200)
-          .expect(JSON.stringify(info.summary), cb);
-      });
-    });
-  });
-  describe('/addresses/:address/transactions', function() {
-    it('fails with invalid address', function(cb) {
-      failsWithInvalidAddress(agent, '/v1/addresses/1BpbpfLdY7oBS9gK7aDXgvMgr1DpvNH3B2/transactions', cb);
-    });
-    _.keys(mockAddresses).forEach(function(addr) {
-      it('works with valid address ' + addr, function(cb) {
-        agent.get('/v1/addresses/' + addr + '/transactions')
-          .expect(200)
-          .expect(JSON.stringify(txs_for_addr(addr)), cb);
+          .expect(info.summary, cb);
       });
     });
   });
@@ -104,7 +83,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
       it('works with valid address ' + addr, function(cb) {
         agent.get('/v1/addresses/' + addr + '/utxos')
           .expect(200)
-          .expect(JSON.stringify(utxos_for_addrs([addr])), cb);
+          .expect(utxos_for_addrs([addr]), cb);
       });
     });
   });
@@ -118,7 +97,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
         var path = '/v1/addresses/' + list + '/utxos';
         agent.get(path)
           .expect(200)
-          .expect(JSON.stringify(utxos_for_addrs(addresses)), cb);
+          .expect(utxos_for_addrs(addresses), cb);
       });
     });
   });

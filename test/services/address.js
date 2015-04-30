@@ -6,7 +6,6 @@ var events = require('events');
 var Promise = require('bluebird');
 
 var bitcore = require('bitcore');
-var _ = bitcore.deps._;
 
 var AddressService = require('../../lib/services/address');
 
@@ -43,7 +42,9 @@ describe('AddressService', function() {
     beforeEach(initialize);
 
     it('calls internal functions as expected', function(done) {
-      service.blockService = { getLatest: sinon.mock() };
+      service.blockService = {
+        getLatest: sinon.mock()
+      };
       service.getAllOutputs = sinon.mock();
       service.getSpent = sinon.mock();
       service.buildAddressSummary = sinon.mock();
@@ -105,17 +106,16 @@ describe('AddressService', function() {
       AddressService.processOutput = sinon.stub(AddressService, 'processOutput');
       AddressService.processOutput.onFirstCall().returns('processed');
 
-      var element = {key: 'key', value: 'value'};
+      var element = {
+        key: 'key',
+        value: 'value'
+      };
       var address = '12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S';
       service.getAllOutputs(address).then(function(arg) {
-        service.database.createReadStream.firstCall.args[0].should.deep.equal(
-          {
-            gte: 'txa-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-'
-               + '0000000000000000000000000000000000000000000000000000000000000000-0',
-            lte: 'txa-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-'
-               + 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff-4294967295'
-          }
-        );
+        service.database.createReadStream.firstCall.args[0].should.deep.equal({
+          gte: 'txa-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-' + '0000000000000000000000000000000000000000000000000000000000000000-0',
+          lte: 'txa-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-' + 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff-4294967295'
+        });
         AddressService.processOutput.firstCall.args[0].should.equal(element);
         AddressService.processOutput.reset();
         arg[0].should.equal('processed');
@@ -131,20 +131,23 @@ describe('AddressService', function() {
       var dataCall = new events.EventEmitter();
       service.database.createReadStream.onFirstCall().returns(dataCall);
 
-      var element = {key: 'key', value: JSON.stringify({a: 'b'})};
+      var element = {
+        key: 'key',
+        value: JSON.stringify({
+          a: 'b'
+        })
+      };
       var address = '12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S';
-      service.getSpent(address).then(function(arg) {
-        service.database.createReadStream.firstCall.args[0].should.deep.equal(
-          {
-            gte: 'txas-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-'
-               + '0000000000000000000000000000000000000000000000000000000000000000-0',
-            lte: 'txas-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-'
-               + 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff-4294967295'
-          }
-        );
-        arg[0].should.deep.equal({a: 'b'});
-        done();
-      });
+      service.getSpent(address)
+        .then(function(arg) {
+          service.database.createReadStream.firstCall.args[0].should.deep.equal({
+            gte: 'txas-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-' + '0000000000000000000000000000000000000000000000000000000000000000-0',
+            lte: 'txas-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-' + 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff-4294967295'
+          });
+          console.log(arguments);
+          arg[0].should.deep.equal('processed');
+          done();
+        });
 
       dataCall.emit('data', element);
       dataCall.emit('end');
@@ -158,107 +161,203 @@ describe('AddressService', function() {
     var tip = {
       height: 10
     };
-    var allOutputs = [
-      {
+    var allOutputs = [{
+      satoshis: 10,
+      txId: 'A',
+      outputIndex: 1,
+      heightConfirmed: 1
+    }];
+
+    it('calculates balance correctly for confirmed balance', function() {
+      var allOutputs = [{
         satoshis: 10,
         txId: 'A',
         outputIndex: 1,
         heightConfirmed: 1
-      }
-    ];
-
-    it('calculates balance correctly for confirmed balance', function() {
-      var allOutputs = [ { satoshis: 10, txId: 'A', outputIndex: 1, heightConfirmed: 1 } ];
+      }];
       var spendOutputs = [];
 
       service.buildAddressSummary(address, tip, allOutputs, spendOutputs).should.deep.equal({
         address: address.toString(),
         transactions: ['A'],
-        confirmed: { balance: 10, sent: 0, received: 10 },
-        unconfirmed: { balance: 10, sent: 0, received: 10 }
+        confirmed: {
+          balance: 10,
+          sent: 0,
+          received: 10
+        },
+        unconfirmed: {
+          balance: 10,
+          sent: 0,
+          received: 10
+        }
       });
     });
 
     it('calculates balance correctly for unconfirmed balance', function() {
-      var allOutputs = [
-        { satoshis: 20, txId: 'B', outputIndex: 1, heightConfirmed: 10 }
-      ];
-      var spendOutputs = [ ];
+      var allOutputs = [{
+        satoshis: 20,
+        txId: 'B',
+        outputIndex: 1,
+        heightConfirmed: 10
+      }];
+      var spendOutputs = [];
 
       service.buildAddressSummary(address, tip, allOutputs, spendOutputs).should.deep.equal({
         address: address.toString(),
         transactions: ['B'],
-        confirmed: { balance: 0, sent: 0, received: 0 },
-        unconfirmed: { balance: 20, sent: 0, received: 20 }
+        confirmed: {
+          balance: 0,
+          sent: 0,
+          received: 0
+        },
+        unconfirmed: {
+          balance: 20,
+          sent: 0,
+          received: 20
+        }
       });
     });
 
     it('works with multiple transactions', function() {
-      var allOutputs = [
-        { satoshis: 10, txId: 'A', outputIndex: 1, heightConfirmed: 1 },
-        { satoshis: 20, txId: 'B', outputIndex: 1, heightConfirmed: 10 }
-      ];
-      var spendOutputs = [
-        { spendInput: { prevTxId: 'A', outputIndex: 1 }, spentTx: 'A', heightSpent: 10 }
-      ];
+      var allOutputs = [{
+        satoshis: 10,
+        txId: 'A',
+        outputIndex: 1,
+        heightConfirmed: 1
+      }, {
+        satoshis: 20,
+        txId: 'B',
+        outputIndex: 1,
+        heightConfirmed: 10
+      }];
+      var spendOutputs = [{
+        spendInput: {
+          prevTxId: 'A',
+          outputIndex: 1
+        },
+        spentTx: 'A',
+        heightSpent: 10
+      }];
 
       service.buildAddressSummary(address, tip, allOutputs, spendOutputs).should.deep.equal({
         address: address.toString(),
         transactions: ['A', 'B'],
-        confirmed: { balance: 10, sent: 0, received: 10 },
-        unconfirmed: { balance: 20, sent: 10, received: 30 }
+        confirmed: {
+          balance: 10,
+          sent: 0,
+          received: 10
+        },
+        unconfirmed: {
+          balance: 20,
+          sent: 10,
+          received: 30
+        }
       });
     });
 
     it('works with a medium amount of transactions', function() {
-      var allOutputs = [
-        { satoshis: 10, txId: 'A', outputIndex: 1, heightConfirmed: 1 },
-        { satoshis: 20, txId: 'B', outputIndex: 1, heightConfirmed: 5 },
-        { satoshis: 30, txId: 'C', outputIndex: 1, heightConfirmed: 10 }
-      ];
-      var spendOutputs = [
-        { spendInput: { prevTxId: 'A', outputIndex: 1 }, spentTx: 'D', heightSpent: 10 }
-      ];
+      var allOutputs = [{
+        satoshis: 10,
+        txId: 'A',
+        outputIndex: 1,
+        heightConfirmed: 1
+      }, {
+        satoshis: 20,
+        txId: 'B',
+        outputIndex: 1,
+        heightConfirmed: 5
+      }, {
+        satoshis: 30,
+        txId: 'C',
+        outputIndex: 1,
+        heightConfirmed: 10
+      }];
+      var spendOutputs = [{
+        spendInput: {
+          prevTxId: 'A',
+          outputIndex: 1
+        },
+        spentTx: 'D',
+        heightSpent: 10
+      }];
 
       service.buildAddressSummary(address, tip, allOutputs, spendOutputs).should.deep.equal({
         address: address.toString(),
         transactions: ['A', 'B', 'C', 'D'],
-        confirmed: { balance: 30, sent: 0, received: 30 },
-        unconfirmed: { balance: 50, sent: 10, received: 60 }
+        confirmed: {
+          balance: 30,
+          sent: 0,
+          received: 30
+        },
+        unconfirmed: {
+          balance: 50,
+          sent: 10,
+          received: 60
+        }
       });
     });
 
     it('works with a transaction that includes twice the same address', function() {
-      var allOutputs = [
-        { satoshis: 10, txId: 'A', outputIndex: 0, heightConfirmed: 1 },
-        { satoshis: 10, txId: 'A', outputIndex: 1, heightConfirmed: 1 },
-      ];
+      var allOutputs = [{
+        satoshis: 10,
+        txId: 'A',
+        outputIndex: 0,
+        heightConfirmed: 1
+      }, {
+        satoshis: 10,
+        txId: 'A',
+        outputIndex: 1,
+        heightConfirmed: 1
+      }, ];
       var spendOutputs = [];
 
       service.buildAddressSummary(address, tip, allOutputs, spendOutputs).should.deep.equal({
         address: address.toString(),
         transactions: ['A'],
-        confirmed: { balance: 20, sent: 0, received: 20 },
-        unconfirmed: { balance: 20, sent: 0, received: 20 }
+        confirmed: {
+          balance: 20,
+          sent: 0,
+          received: 20
+        },
+        unconfirmed: {
+          balance: 20,
+          sent: 0,
+          received: 20
+        }
       });
     });
 
     it('confirmed spent transactions change the balance', function() {
-      var allOutputs = [
-        { satoshis: 10, txId: 'A', outputIndex: 0, heightConfirmed: 1 },
-      ];
-      var spendOutputs = [
-        { spendInput: { prevTxId: 'A', outputIndex: 0 }, spentTx: 'D', heightSpent: 2 }
-      ];
+      var allOutputs = [{
+        satoshis: 10,
+        txId: 'A',
+        outputIndex: 0,
+        heightConfirmed: 1
+      }, ];
+      var spendOutputs = [{
+        spendInput: {
+          prevTxId: 'A',
+          outputIndex: 0
+        },
+        spentTx: 'D',
+        heightSpent: 2
+      }];
 
       service.buildAddressSummary(address, tip, allOutputs, spendOutputs).should.deep.equal({
         address: address.toString(),
         transactions: ['A', 'D'],
-        confirmed: { balance: 0, sent: 10, received: 10 },
-        unconfirmed: { balance: 0, sent: 10, received: 10 }
+        confirmed: {
+          balance: 0,
+          sent: 10,
+          received: 10
+        },
+        unconfirmed: {
+          balance: 0,
+          sent: 10,
+          received: 10
+        }
       });
     });
 
   });
 });
-
