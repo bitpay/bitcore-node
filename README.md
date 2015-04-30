@@ -66,7 +66,7 @@ NODE_ENV=foo npm start
 $  
 ```
 
-A sample configuration file would be:
+A sample configuration file would contain:
 
 ```
 # Sample configuration file with defaults for livenet
