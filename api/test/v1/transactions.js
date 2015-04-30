@@ -15,7 +15,7 @@ var BitcoreHTTP = require('../../lib/http');
 var BitcoreNode = require('../../../');
 var mockTransactions = require('../data/transactions');
 
-describe.only('BitcoreHTTP v1 transactions routes', function() {
+describe('BitcoreHTTP v1 transactions routes', function() {
 
   // mocks
   var mockValidTx = new Transaction();
