@@ -133,7 +133,7 @@ https://docs.google.com/document/d/1rXQdfr8VDBSzheEn0KynnCKCMB0oAsMunkjdG4aY-18
 Here is a small summary via examples:
 
 ### Node routes
-GET '/v1/node'
+####GET '/v1/node'
 ```
 {
   "sync": 0.0011844682935139,
@@ -145,7 +145,7 @@ GET '/v1/node'
 ```
 
 ### Block routes
-GET '/v1/blocks?from=100&offset=4&limit=2'
+####GET '/v1/blocks?from=100&offset=4&limit=2'
   ```
 [
   {
@@ -211,7 +211,7 @@ GET '/v1/blocks?from=100&offset=4&limit=2'
 ]
 ```
 
-GET '/v1/blocks/latest'
+####GET '/v1/blocks/latest'
 ```
 {
   "header": {
@@ -1663,7 +1663,7 @@ GET '/v1/blocks/latest'
 ```
 
 
-GET '/v1/blocks/0000000040a24e14497879bdd67db948cf30edc5d0a5833e8cb2736582157b49'
+####GET '/v1/blocks/0000000040a24e14497879bdd67db948cf30edc5d0a5833e8cb2736582157b49'
 ```
 {
   "header": {
@@ -1698,7 +1698,7 @@ GET '/v1/blocks/0000000040a24e14497879bdd67db948cf30edc5d0a5833e8cb2736582157b49
 ```
 
 
-GET '/v1/blocks/4'
+####GET '/v1/blocks/4'
 ```
 {
   "header": {
@@ -1733,21 +1733,71 @@ GET '/v1/blocks/4'
 ```
 
 ### Transaction routes
-GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})'
-POST '/v1/transactions/send'
+####GET '/v1/transactions/2ceea8fb53873ae3f61fb332bf844e5a35630a1a4885a212f84f63f39c638b5e'
+```
+{
+  "version": 1,
+  "inputs": [
+    {
+      "prevTxId": "8e6a7fc6493064e4a1a957b03a1f95ec387c26d25ac40de01eac770a9574a4b8",
+      "outputIndex": 1,
+      "sequenceNumber": 4294967295,
+      "script": "4730440220608500a5381dcdbd529438f2f42c1feb936b776b6e53866fcc47f09dcb04f86402207c6bd88925a534159068f901dcf9d7e1e2b443afdccafac76739e06c13e93290012102021335f4a109182d6df47d0ab9aa0635217f2ad208ae403a86922edcbcb08e4f",
+      "scriptString": "71 0x30440220608500a5381dcdbd529438f2f42c1feb936b776b6e53866fcc47f09dcb04f86402207c6bd88925a534159068f901dcf9d7e1e2b443afdccafac76739e06c13e9329001 33 0x02021335f4a109182d6df47d0ab9aa0635217f2ad208ae403a86922edcbcb08e4f"
+    }
+  ],
+  "outputs": [
+    {
+      "satoshis": 47203800,
+      "script": "OP_DUP OP_HASH160 20 0x7c8fe8004e1dfdf0826f357de9ff93db25a8239d OP_EQUALVERIFY OP_CHECKSIG"
+    },
+    {
+      "satoshis": 9490000,
+      "script": "OP_DUP OP_HASH160 20 0xbf158227da5604c112bdf5af744f30bb7e85c7bf OP_EQUALVERIFY OP_CHECKSIG"
+    }
+  ],
+  "nLockTime": 0
+}
+```
+
+####POST '/v1/transactions/send'
+```
+Transaction broadcasted successfully
+```
 
 ### Input routes
-GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})/inputs'
-GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})/inputs/:index([0-9]+)'
+####GET '/v1/transactions/2ceea8fb53873ae3f61fb332bf844e5a35630a1a4885a212f84f63f39c638b5e/inputs/`'
+```
+[
+  {
+    "prevTxId": "8e6a7fc6493064e4a1a957b03a1f95ec387c26d25ac40de01eac770a9574a4b8",
+    "outputIndex": 1,
+    "sequenceNumber": 4294967295,
+    "script": "4730440220608500a5381dcdbd529438f2f42c1feb936b776b6e53866fcc47f09dcb04f86402207c6bd88925a534159068f901dcf9d7e1e2b443afdccafac76739e06c13e93290012102021335f4a109182d6df47d0ab9aa0635217f2ad208ae403a86922edcbcb08e4f",
+    "scriptString": "71 0x30440220608500a5381dcdbd529438f2f42c1feb936b776b6e53866fcc47f09dcb04f86402207c6bd88925a534159068f901dcf9d7e1e2b443afdccafac76739e06c13e9329001 33 0x02021335f4a109182d6df47d0ab9aa0635217f2ad208ae403a86922edcbcb08e4f"
+  }
+]
+```
+
+####GET '/v1/transactions/2ceea8fb53873ae3f61fb332bf844e5a35630a1a4885a212f84f63f39c638b5e/inputs/0`'
+```
+{
+  "prevTxId": "8e6a7fc6493064e4a1a957b03a1f95ec387c26d25ac40de01eac770a9574a4b8",
+  "outputIndex": 1,
+  "sequenceNumber": 4294967295,
+  "script": "4730440220608500a5381dcdbd529438f2f42c1feb936b776b6e53866fcc47f09dcb04f86402207c6bd88925a534159068f901dcf9d7e1e2b443afdccafac76739e06c13e93290012102021335f4a109182d6df47d0ab9aa0635217f2ad208ae403a86922edcbcb08e4f",
+  "scriptString": "71 0x30440220608500a5381dcdbd529438f2f42c1feb936b776b6e53866fcc47f09dcb04f86402207c6bd88925a534159068f901dcf9d7e1e2b443afdccafac76739e06c13e9329001 33 0x02021335f4a109182d6df47d0ab9aa0635217f2ad208ae403a86922edcbcb08e4f"
+}
+```
 
 ### Output routes
-GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})/outputs'
-GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})/outputs/:index([0-9]+)'
+####GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})/outputs'
+####GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})/outputs/:index([0-9]+)'
 
 ### Address routes
-GET '/v1/addresses/:address'
-GET '/v1/addresses/:address/transactions'
-GET '/v1/addresses/:addresses/utxos'
+####GET '/v1/addresses/:address'
+####GET '/v1/addresses/:address/transactions'
+####GET '/v1/addresses/:addresses/utxos'
 
 
 

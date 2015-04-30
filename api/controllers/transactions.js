@@ -110,11 +110,11 @@ var buildIOHelper = function(name) {
           ' for ' + req.tx.id + ' not found, it only has ' + req.tx[name].length + ' ' + name + '.');
         return;
       }
-      res.send(req.tx[name][req.index].toJSON());
+      res.send(req.tx[name][req.index].toObject());
       return;
     }
     res.send(req.tx[name].map(function(x) {
-      return x.toJSON();
+      return x.toObject();
     }));
   };
 
