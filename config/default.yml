@@ -8,6 +8,8 @@ BitcoreNode:
   RPC:
     user: user
     pass: password
-    protocol: http
+    protocol: http # http, https
+    #rejectUnauthorized: false
+    #disableAgent: true
     host: 127.0.0.1
     port: 8332

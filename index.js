@@ -10,7 +10,7 @@ BitcoreNode.errors = require('./lib/errors');
 
 if (require.main === module) {
   var config = require('config');
-  var network = config.get('BitcoreHTTP.BitcoreNode').network;
+  var network = config.get('BitcoreNode').network;
   console.log('Starting bitcore-node', network, 'network');
   bitcore.Networks.defaultNetwork = bitcore.Networks.get(network);
 
@@ -28,7 +28,7 @@ if (require.main === module) {
     process.exit();
   });
 
-  var reporterName = config.get('Reporter');
+  var reporterName = config.get('BitcoreNode.Reporter');
   var reporter = reporters[reporterName];
   if (!reporter) {
     throw new Error('Unrecognized network reporter: ' + reporterName +
