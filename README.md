@@ -1665,11 +1665,72 @@ GET '/v1/blocks/latest'
 
 GET '/v1/blocks/0000000040a24e14497879bdd67db948cf30edc5d0a5833e8cb2736582157b49'
 ```
-
+{
+  "header": {
+    "version": 1,
+    "prevHash": "00000000423cc5a91cb52e9e1ee5bc817b50c74e11f3f4424d92f45ebae69663",
+    "merkleRoot": "598df49f42632c33ca0afb3875dda82391adb6cacfe15cd6067a7baf0892af49",
+    "time": 1296699374,
+    "bits": 486604799,
+    "nonce": 3542639877
+  },
+  "transactions": [
+    {
+      "version": 1,
+      "inputs": [
+        {
+          "prevTxId": "0000000000000000000000000000000000000000000000000000000000000000",
+          "outputIndex": 4294967295,
+          "sequenceNumber": 4294967295,
+          "script": "04ee0f4a4d0103062f503253482f"
+        }
+      ],
+      "outputs": [
+        {
+          "satoshis": 5000000000,
+          "script": "33 0x03628ac026185f6e94d9c789ffe5cb92c0c4442a4b124b8f6811fa2e8cd2d7aeda OP_CHECKSIG"
+        }
+      ],
+      "nLockTime": 0
+    }
+  ]
+}
 ```
 
 
 GET '/v1/blocks/4'
+```
+{
+  "header": {
+    "version": 1,
+    "prevHash": "000000008b896e272758da5297bcd98fdc6d97c9b765ecec401e286dc1fdbe10",
+    "merkleRoot": "2d1f657e970f724c4cd690494152a83bd297cd10e86ed930daa2dd76576d974c",
+    "time": 1296689066,
+    "bits": 486604799,
+    "nonce": 1081518338
+  },
+  "transactions": [
+    {
+      "version": 1,
+      "inputs": [
+        {
+          "prevTxId": "0000000000000000000000000000000000000000000000000000000000000000",
+          "outputIndex": 4294967295,
+          "sequenceNumber": 4294967295,
+          "script": "04aae7494d011d062f503253482f"
+        }
+      ],
+      "outputs": [
+        {
+          "satoshis": 5000000000,
+          "script": "33 0x021f72de1cff1777a9584f31adc458041814c3bc39c66241ac4d43136d7106aebe OP_CHECKSIG"
+        }
+      ],
+      "nLockTime": 0
+    }
+  ]
+}
+```
 
 ### Transaction routes
 GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})'
