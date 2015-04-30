@@ -1,5 +1,5 @@
-<img width="250" src="http://bitcore.io/css/images/node-illustration.png"></img>
-<img width="250" src="http://bitcore.io/css/images/bitcore-node-logo.png"></img>
+<img width="100" src="http://bitcore.io/css/images/node-illustration.png"></img>
+<img width="100" src="http://bitcore.io/css/images/bitcore-node-logo.png"></img>
 =======
 
 [![NPM Package](https://img.shields.io/npm/v/bitcore-node.svg?style=flat-square)](https://www.npmjs.org/package/bitcore-node)
