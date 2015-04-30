@@ -60,7 +60,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
       it('works with valid txHash ...' + hash.substring(hash.length - 8), function(cb) {
         agent.get('/v1/transactions/' + hash)
           .expect(200)
-          .expect(mockTransactions[hash].toJSON(), cb);
+          .expect(mockTransactions[hash].toObject(), cb);
       });
     });
   });
@@ -112,7 +112,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
           agent.get('/v1/transactions/' + hash + '/' + name + '/')
             .expect(200)
             .expect(tx[name].map(function(x) {
-              return x.toJSON();
+              return x.toObject();
             }), cb);
         });
         var canGetSpecificInput = function(i) {
@@ -120,7 +120,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
           return function(cb) {
             agent.get('/v1/transactions/' + hash + '/' + name + '/' + i)
               .expect(200)
-              .expect(x.toJSON(), cb);
+              .expect(x.toObject(), cb);
           };
         };
         for (var i = 0; i < tx[name].length; i++) {

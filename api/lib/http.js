@@ -44,6 +44,8 @@ BitcoreHTTP.prototype.setupExpress = function() {
     app.use(morgan('dev'));
   }
 
+  app.set('json spaces', 2);
+
   // install routes
   app.use('/', routes(this.node));
 

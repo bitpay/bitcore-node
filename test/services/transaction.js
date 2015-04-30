@@ -5,7 +5,6 @@ var should = require('chai').should();
 var Promise = require('bluebird');
 
 var bitcore = require('bitcore');
-var _ = bitcore.deps._;
 
 var TransactionService = require('../../lib/services/transaction');
 

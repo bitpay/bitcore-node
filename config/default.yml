@@ -1,15 +1,17 @@
-BitcoreNode:
-  LevelUp: ./db
-  network: livenet
-  NetworkMonitor:
-    host: localhost
-    port: 8333
-  Reporter: none # none, simple, matrix
-  RPC:
-    user: user
-    pass: password
-    protocol: http # http, https
-    #rejectUnauthorized: false
-    #disableAgent: true
-    host: 127.0.0.1
-    port: 8332
+BitcoreHTTP:
+  port: 8080
+  logging: true
+  BitcoreNode:
+    LevelUp: ./db
+    network: livenet
+    NetworkMonitor:
+      host: localhost
+      port: 8333
+    RPC:
+      user: user
+      pass: password
+      protocol: http #http, https
+      #rejectUnauthorized: false
+      #disableAgent: true
+      host: 127.0.0.1
+      port: 8332

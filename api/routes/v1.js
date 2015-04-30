@@ -44,7 +44,6 @@ function initRouter(node) {
 
   // Address routes
   router.get('/addresses/:address', Addresses.get);
-  router.get('/addresses/:address/transactions', Transactions.list);
   router.get('/addresses/:addresses/utxos', Addresses.utxos);
 
   // error routes
