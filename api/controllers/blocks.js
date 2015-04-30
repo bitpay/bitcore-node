@@ -30,6 +30,9 @@ Blocks.blockHashParam = function(req, res, next, blockHash) {
     .then(next)
     .catch(BitcoreNode.errors.Blocks.NotFound, function() {
       res.status(404).send('Block with id ' + blockHash + ' not found');
+    })
+    .catch(function() {
+      console.log(arguments);
     });
 };
 
@@ -45,6 +48,9 @@ Blocks.heightParam = function(req, res, next, height) {
     .then(next)
     .catch(BitcoreNode.errors.Blocks.NotFound, function() {
       res.status(404).send('Block with height ' + height + ' not found');
+    })
+    .catch(function() {
+      console.log(arguments);
     });
 };
 
@@ -68,17 +74,38 @@ Blocks.list = function(req, res) {
   var offset = parseInt(req.query.offset || 0);
   var limit = parseInt(req.query.limit || 10);
 
+  if (from < 0) {
+    res.status(422);
+    res.send('/v1/blocks/ "from" must be valid block height (a positive integer)');
+    return;
+  }
+  if (to < 0) {
+    res.status(422);
+    res.send('/v1/blocks/ "to" must be valid block height (a positive integer)');
+    return;
+  }
+  if (offset < 0) {
+    res.status(422);
+    res.send('/v1/blocks/ "offset" must be a positive integer');
+    return;
+  }
+  if (limit < 0) {
+    res.status(422);
+    res.send('/v1/blocks/ "limit" must be a positive integer');
+    return;
+  }
   if (to < from) {
     res.status(422);
     res.send('/v1/blocks/ "to" must be >= "from"');
     return;
   }
-  // TODO: add more parameter validation
 
   // TODO: return block_summary instead of block_full
   node.blockService.listBlocks(from, to, offset, limit)
     .then(function(blocks) {
-      res.send(blocks);
+      res.send(blocks.map(function(b) {
+        return b.toObject();
+      }));
     });
 };
 
@@ -91,7 +118,7 @@ Blocks.getLatest = function(req, res) {
 };
 
 Blocks.get = function(req, res) {
-  $.checkState(req.block instanceof Block);
+  $.checkState(req.block instanceof Block, JSON.stringify(req.block));
   res.send(req.block.toObject());
 };
 

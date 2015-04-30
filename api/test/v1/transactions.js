@@ -15,7 +15,7 @@ var BitcoreHTTP = require('../../lib/http');
 var BitcoreNode = require('../../../');
 var mockTransactions = require('../data/transactions');
 
-describe('BitcoreHTTP v1 transactions routes', function() {
+describe.only('BitcoreHTTP v1 transactions routes', function() {
 
   // mocks
   var mockValidTx = new Transaction();
@@ -37,7 +37,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
       }
       return Promise.resolve();
     };
-    app = new BitcoreHTTP(nodeMock).app;
+    app = require('../app')(nodeMock);
     agent = request(app);
   });
 
