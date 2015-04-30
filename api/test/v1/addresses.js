@@ -51,7 +51,7 @@ describe.only('BitcoreHTTP v1 addresses routes', function() {
     nodeMock = new EventEmitter();
     nodeMock.addressService = {};
     nodeMock.addressService.getSummary = function(address) {
-      return Promise.resolve(mockAddresses[address.toString()]);
+      return Promise.resolve(mockAddresses[address.toString()].summary);
     };
     nodeMock.listTransactions = function(opts) {
       return Promise.resolve(txs_for_addr(opts.address));
@@ -77,7 +77,7 @@ describe.only('BitcoreHTTP v1 addresses routes', function() {
       it('works with valid address ' + addr, function(cb) {
         agent.get('/v1/addresses/' + addr)
           .expect(200)
-          .expect(JSON.stringify(info), cb);
+          .expect(JSON.stringify(info.summary), cb);
       });
     });
   });
