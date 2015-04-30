@@ -87,18 +87,6 @@ Transactions.send = function(req, res) {
 };
 
 
-/*
- * Returns a list of transactions given certain request options
- */
-Transactions.list = function(req, res) {
-  var opts = {};
-  opts.address = req.address;
-  node.listTransactions(opts)
-    .then(function(transactions) {
-      res.send(transactions);
-    });
-};
-
 
 var buildIOHelper = function(name) {
   $.checkArgument(name === 'inputs' || name === 'outputs');

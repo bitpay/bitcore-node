@@ -23,7 +23,7 @@ Addresses.setNode = function(aNode) {
  * Finds an address' info by it's string representation
  */
 Addresses.addressParam = function(req, res, next, address) {
-  if (!Address.isValid(address)) {
+  if (!Address.isValid(address, bitcore.Networks.defaultNetwork)) {
     res.status(422);
     res.send('/v1/addresses/ parameter must be a valid bitcoin address');
     return;
@@ -76,7 +76,7 @@ Addresses.utxos = function(req, res) {
   $.checkState(_.all(req.addresses, function(addr) {
     return addr instanceof Address;
   }));
-  node.getUTXOs(req.addresses)
+  node.addressService.getUnspent(req.addresses)
     .then(function(utxos) {
       res.send(utxos);
     });

@@ -1791,14 +1791,95 @@ Transaction broadcasted successfully
 ```
 
 ### Output routes
-####GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})/outputs'
-####GET '/v1/transactions/:txHash([A-Fa-f0-9]{64})/outputs/:index([0-9]+)'
+####GET '/v1/transactions/2ceea8fb53873ae3f61fb332bf844e5a35630a1a4885a212f84f63f39c638b5e/outputs'
+```
+[
+  {
+    "satoshis": 47203800,
+    "script": "OP_DUP OP_HASH160 20 0x7c8fe8004e1dfdf0826f357de9ff93db25a8239d OP_EQUALVERIFY OP_CHECKSIG"
+  },
+  {
+    "satoshis": 9490000,
+    "script": "OP_DUP OP_HASH160 20 0xbf158227da5604c112bdf5af744f30bb7e85c7bf OP_EQUALVERIFY OP_CHECKSIG"
+  }
+]
+```
+
+####GET '/v1/transactions/2ceea8fb53873ae3f61fb332bf844e5a35630a1a4885a212f84f63f39c638b5e/outputs/1'
+```
+{
+  "satoshis": 9490000,
+  "script": "OP_DUP OP_HASH160 20 0xbf158227da5604c112bdf5af744f30bb7e85c7bf OP_EQUALVERIFY OP_CHECKSIG"
+}
+```
 
 ### Address routes
-####GET '/v1/addresses/:address'
-####GET '/v1/addresses/:address/transactions'
-####GET '/v1/addresses/:addresses/utxos'
+####GET '/v1/addresses/msWN7CbKLWh88P1Vr8pQa7DmZNSiy9xfkj'
+```
+{
+  "address": "mtBHBTKTZv74cytccymVq3weidcoy4o1UY",
+  "transactions": [
+    "88c844570a227fe89d82e4e20d41576b95df8aa790a799bf7114dbed83b788b0",
+    "d1cd5072cf4f6bff12e46a1e7949e58b544abed969313d65263141b9c94221cd"
+  ],
+  "confirmed": {
+    "balance": 0,
+    "sent": 4900642709,
+    "received": 4900642709
+  },
+  "unconfirmed": {
+    "balance": 0,
+    "sent": 4900642709,
+    "received": 4900642709
+  }
+}
+```
 
+####GET '/v1/addresses/:addresses/utxos'
+```
+[
+  {
+    "satoshis": 967008,
+    "script": "OP_DUP OP_HASH160 20 0x0b4322ac01719030a710b60b0a3397c074cf9edf OP_EQUALVERIFY OP_CHECKSIG",
+    "heightConfirmed": 410,
+    "address": "mgYW9pHcxjUSvqHwaJF48uFbrDfFoPAcjx",
+    "txId": "0c233e2730cb94dc85e32546060c2361d348921961ab957ae66acadf88a578f1",
+    "outputIndex": "1"
+  },
+  {
+    "satoshis": 568367,
+    "script": "OP_DUP OP_HASH160 20 0x0b4322ac01719030a710b60b0a3397c074cf9edf OP_EQUALVERIFY OP_CHECKSIG",
+    "heightConfirmed": 417,
+    "address": "mgYW9pHcxjUSvqHwaJF48uFbrDfFoPAcjx",
+    "txId": "0ca394ce3c2feecb2957b3aa5ecdc964f706e0b4ceec96bfc1ace526a80c67d1",
+    "outputIndex": "1"
+  },
+  {
+    "satoshis": 977315,
+    "script": "OP_DUP OP_HASH160 20 0x0b4322ac01719030a710b60b0a3397c074cf9edf OP_EQUALVERIFY OP_CHECKSIG",
+    "heightConfirmed": 421,
+    "address": "mgYW9pHcxjUSvqHwaJF48uFbrDfFoPAcjx",
+    "txId": "96bdd67bd1b80f70acc7cca454c5ca80cfc8ba621e0e93756c406977102b586a",
+    "outputIndex": "1"
+  },
+  {
+    "satoshis": 496223,
+    "script": "OP_DUP OP_HASH160 20 0x0b4322ac01719030a710b60b0a3397c074cf9edf OP_EQUALVERIFY OP_CHECKSIG",
+    "heightConfirmed": 420,
+    "address": "mgYW9pHcxjUSvqHwaJF48uFbrDfFoPAcjx",
+    "txId": "97d561085af6041e2b570dd07d4ee8b49a2d5667776f2112fac611727f949b3b",
+    "outputIndex": "1"
+  },
+  {
+    "satoshis": 123667,
+    "script": "OP_DUP OP_HASH160 20 0x0b4322ac01719030a710b60b0a3397c074cf9edf OP_EQUALVERIFY OP_CHECKSIG",
+    "heightConfirmed": 405,
+    "address": "mgYW9pHcxjUSvqHwaJF48uFbrDfFoPAcjx",
+    "txId": "e72f781efc41224cf37d1aa0c63fa4655a86b647233622e653b38eb3d379b1cc",
+    "outputIndex": "1"
+  }
+]
+```
 
 
 ## License
