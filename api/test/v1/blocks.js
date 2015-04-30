@@ -120,7 +120,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
       it('works with valid blockHash ...' + hash.substring(hash.length - 8), function(cb) {
         agent.get('/v1/blocks/' + hash)
           .expect(200)
-          .expect(block.toJSON(), cb);
+          .expect(block.toObject(), cb);
       });
     });
   });
@@ -138,7 +138,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
     it('works with valid height', function(cb) {
       agent.get('/v1/blocks/100000')
         .expect(200)
-        .expect(b1.toJSON(), cb);
+        .expect(b1.toObject(), cb);
     });
   });
 
