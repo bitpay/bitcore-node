@@ -2,7 +2,6 @@
 
 var chai = require('chai');
 var should = chai.should();
-var request = require('supertest');
 
 var bitcore = require('bitcore');
 var _ = bitcore.deps._;
@@ -11,7 +10,6 @@ var EventEmitter = require('eventemitter2').EventEmitter2;
 var Promise = require('bluebird');
 Promise.longStackTraces();
 
-var BitcoreHTTP = require('../../lib/http');
 var BitcoreNode = require('../../../');
 var mockTransactions = require('../data/transactions');
 
@@ -20,7 +18,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
   // mocks
   var mockValidTx = new Transaction();
   var t1 = mockTransactions[_.keys(mockTransactions)[0]];
-  var nodeMock, app, agent;
+  var nodeMock, agent;
   beforeEach(function() {
     nodeMock = new EventEmitter();
     nodeMock.transactionService = {};
@@ -37,8 +35,7 @@ describe('BitcoreHTTP v1 transactions routes', function() {
       }
       return Promise.resolve();
     };
-    app = require('../app')(nodeMock);
-    agent = request(app);
+    agent = require('../app')(nodeMock);
   });
 
   var failsWithInvalidHash = function(agent, url, cb) {
@@ -97,14 +94,6 @@ describe('BitcoreHTTP v1 transactions routes', function() {
         })
         .expect(200)
         .expect('Transaction broadcasted successfully', cb);
-    });
-    it('fails with invalid tx', function(cb) {
-      agent.post('/v1/transactions/send')
-        .send({
-          raw: t1.uncheckedSerialize()
-        })
-        .expect(422)
-        .expect('Unable to broadcast transaction 8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87', cb);
     });
   });
   var testIO = function(name) {
