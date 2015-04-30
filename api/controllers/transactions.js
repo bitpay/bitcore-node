@@ -7,7 +7,7 @@ var _ = bitcore.deps._;
 var $ = bitcore.util.preconditions;
 var Transaction = bitcore.Transaction;
 
-var BitcoreNode = require('../../');
+var errors = require('../../lib/errors');
 
 var Transactions = {};
 
@@ -30,7 +30,7 @@ Transactions.txHashParam = function(req, res, next, txHash) {
       req.tx = tx;
     })
     .then(next)
-    .catch(BitcoreNode.errors.Transactions.NotFound, function() {
+    .catch(errors.Transactions.NotFound, function() {
       res.status(404).send('Transaction with id ' + txHash + ' not found');
     })
     .catch(function() {
@@ -81,7 +81,7 @@ Transactions.send = function(req, res) {
     .then(function() {
       res.send('Transaction broadcasted successfully');
     })
-    .catch(BitcoreNode.errors.Transactions.CantBroadcast, function(err) {
+    .catch(errors.Transactions.CantBroadcast, function(err) {
       res.status(422).send(err.message);
     });
 };

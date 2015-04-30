@@ -1,11 +1,10 @@
 'use strict';
 
 var bitcore = require('bitcore');
-var _ = bitcore.deps._;
 var $ = bitcore.util.preconditions;
 var Block = bitcore.Block;
 
-var BitcoreNode = require('../../');
+var errors = require('../../lib/errors');
 
 var Blocks = {};
 
@@ -28,7 +27,7 @@ Blocks.blockHashParam = function(req, res, next, blockHash) {
       req.block = block;
     })
     .then(next)
-    .catch(BitcoreNode.errors.Blocks.NotFound, function() {
+    .catch(errors.Blocks.NotFound, function() {
       res.status(404).send('Block with id ' + blockHash + ' not found');
     })
     .catch(function() {
@@ -46,7 +45,7 @@ Blocks.heightParam = function(req, res, next, height) {
       req.block = block;
     })
     .then(next)
-    .catch(BitcoreNode.errors.Blocks.NotFound, function() {
+    .catch(errors.Blocks.NotFound, function() {
       res.status(404).send('Block with height ' + height + ' not found');
     })
     .catch(function() {
