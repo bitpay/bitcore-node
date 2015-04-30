@@ -7,10 +7,10 @@
 
 ## Prerequisites
 
-* **bitcoind** - Download and Install [Bitcoin](http://bitcoin.org/en/download)
+* **Bitcoin Core** - Download and Install [Bitcoin Core](http://bitcoin.org/en/download)
 
 `bitcore-node` needs a *trusted* bitcoind node to run. It will connect to the node
-through the RPC API, bitcoin peer-to-peer protocol, and will even read its raw block .dat files for syncing.
+through the RPC API and bitcoin peer-to-peer protocol.
 
 Configure bitcoind to listen to RPC calls and set `txindex` to true.
 The easiest way to do this is by copying `./etc/bitcoind/bitcoin.conf` to your
