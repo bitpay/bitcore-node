@@ -22,10 +22,6 @@ if (require.main === module) {
       console.log('Error: ', err);
     }
   });
-  process.on('SIGINT', function() {
-    node.stop();
-    process.exit();
-  });
   var http = new BitcoreHTTP(node, httpConfig);
   http.start()
     .catch(function(err) {
