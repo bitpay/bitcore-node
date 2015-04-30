@@ -67,7 +67,6 @@ describe('NetworkMonitor', function() {
   it('broadcasts errors in underlying peer', function(cb) {
     var nm = new NetworkMonitor(busMock, peerMock);
     nm.on('error', function() {
-      console.log('under');
       cb();
     });
     nm.start();

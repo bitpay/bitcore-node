@@ -107,40 +107,23 @@ describe('TransactionService', function() {
         }
       });
       service._confirmTransaction(ops, block170, block170.transactions[1]).then(function() {
-        ops.map(function(k) {
-          if (bitcore.util.js.isValidJSON(k.value)) {
-            k.value = JSON.parse(k.value);
-          }
-          return k;
-        }).should.deep.equal([{
+        ops.should.deep.equal([{
           type: 'put',
           key: 'btx-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16',
           value: '00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee'
         }, {
           type: 'put',
           key: 'txo-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-0',
-          value: {
-            satoshis: 1000000000,
-            script: '65 0x04ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c OP_CHECKSIG'
-          }
+          value: '{"satoshis":1000000000,"script":"65 0x04ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c OP_CHECKSIG"}'
         }, {
           type: 'put',
           key: 'txo-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-1',
-          value: {
-            satoshis: 4000000000,
-            script: '65 0x0411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3 OP_CHECKSIG'
-          }
+          value: '{"satoshis":4000000000,"script":"65 0x0411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3 OP_CHECKSIG"}'
         }, {
           type: 'put',
           key: 'txo-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-0',
-          value: {
-            prevTxId: '0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9',
-            outputIndex: 0,
-            sequenceNumber: 4294967295,
-            script: '71 0x304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901',
-            heightConfirmed: 170
-          }
-        }, ]);
+          value: '{"prevTxId":"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9","outputIndex":0,"sequenceNumber":4294967295,"script":"47304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901","scriptString":"71 0x304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901","heightConfirmed":170}'
+        }]);
         /* TODO: This should work if address spent is accepted for public key. Add test for P2PKH if not accepted
          * { type: 'put',
           key: 'txas-12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-0',

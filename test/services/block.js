@@ -80,7 +80,7 @@ describe('BlockService', function() {
 
   describe('block confirmation', function() {
 
-    var mockRpc, transactionMock, database, blockService, writeLock;
+    var mockRpc, transactionMock, database, blockService;
 
     var thenCaller = {
       then: function(arg) {
@@ -118,7 +118,7 @@ describe('BlockService', function() {
         var expectedOps = [{
           type: 'put',
           key: 'header-000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
-          value: '{"version":1,"prevHash":"0000000000000000000000000000000000000000000000000000000000000000","merkleRoot":"3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a","time":1231006505,"bits":486604799,"nonce":2083236893}'
+          value: '{"version":1,"prevHash":"0000000000000000000000000000000000000000000000000000000000000000","merkleRoot":"4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b","time":1231006505,"bits":486604799,"nonce":2083236893}'
         }, {
           type: 'put',
           key: 'nxt-0000000000000000000000000000000000000000000000000000000000000000',
@@ -149,10 +149,10 @@ describe('BlockService', function() {
 
     it('makes the expected calls when confirming the block #170', function(callback) {
       database.batchAsync = function(ops) {
-        ops.should.deep.equal([{
+        var eops = [{
           type: 'put',
           key: 'header-00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee',
-          value: '{"version":1,"prevHash":"55bd840a78798ad0da853f68974f3d183e2bd1db6a842c1feecf222a00000000","merkleRoot":"ff104ccb05421ab93e63f8c3ce5c2c2e9dbb37de2764b3a3175c8166562cac7d","time":1231731025,"bits":486604799,"nonce":1889418792}'
+          value: '{"version":1,"prevHash":"000000002a22cfee1f2c846adbd12b3e183d4f97683f85dad08a79780a84bd55","merkleRoot":"7dac2c5666815c17a3b36427de37bb9d2e2c5ccec3f8633eb91a4205cb4c10ff","time":1231731025,"bits":486604799,"nonce":1889418792}'
         }, {
           type: 'put',
           key: 'nxt-000000002a22cfee1f2c846adbd12b3e183d4f97683f85dad08a79780a84bd55',
@@ -173,7 +173,8 @@ describe('BlockService', function() {
           type: 'put',
           key: 'tip',
           value: block170.id
-        }]);
+        }];
+        ops.should.deep.equal(eops);
         return callback();
       };
       blockService.writeLock.onFirstCall().returns(thenCaller);
