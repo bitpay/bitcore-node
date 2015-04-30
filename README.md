@@ -130,6 +130,110 @@ The end-points are detailed in the following document (please review and comment
 
 https://docs.google.com/document/d/1rXQdfr8VDBSzheEn0KynnCKCMB0oAsMunkjdG4aY-18
 
+Here is a small summary via examples:
+
+### Node routes
+GET '/v1/node'
+```
+{
+  "sync": 0.0011844682935139,
+  "peerCount": 1,
+  "version": "0.0.1",
+  "network": "testnet",
+  "height": 445
+}
+```
+
+### Block routes
+GET 'v1/blocks?from=100&offset=4&limit=2'
+  ```
+[
+  {
+    "header": {
+      "version": 1,
+      "prevHash": "0000000040a24e14497879bdd67db948cf30edc5d0a5833e8cb2736582157b49",
+      "merkleRoot": "6749762ae220c10705556799dcec9bb6a54a7b881eb4b961323a3363b00db518",
+      "time": 1296699408,
+      "bits": 486604799,
+      "nonce": 2783774724
+    },
+    "transactions": [
+      {
+        "version": 1,
+        "inputs": [
+          {
+            "prevTxId": "0000000000000000000000000000000000000000000000000000000000000000",
+            "outputIndex": 4294967295,
+            "sequenceNumber": 4294967295,
+            "script": "0410104a4d011e062f503253482f"
+          }
+        ],
+        "outputs": [
+          {
+            "satoshis": 5000000000,
+            "script": "33 0x02dd75eb56481a1be34cbea2dac1ed1b24c703fd42eb210fbc30112df5373ecc11 OP_CHECKSIG"
+          }
+        ],
+        "nLockTime": 0
+      }
+    ]
+  },
+  {
+    "header": {
+      "version": 1,
+      "prevHash": "00000000a04a30baed00999ad971f807b5e742f602e013519f89eb7248c7ddf5",
+      "merkleRoot": "b52fcf0359ba4dae01fece4dbf9907f459396ff755fec3af4447a150b846658f",
+      "time": 1296699475,
+      "bits": 486604799,
+      "nonce": 2389020417
+    },
+    "transactions": [
+      {
+        "version": 1,
+        "inputs": [
+          {
+            "prevTxId": "0000000000000000000000000000000000000000000000000000000000000000",
+            "outputIndex": 4294967295,
+            "sequenceNumber": 4294967295,
+            "script": "0453104a4d013e062f503253482f"
+          }
+        ],
+        "outputs": [
+          {
+            "satoshis": 5000000000,
+            "script": "33 0x032b388f00544d231a1c964db35142e8909eb079aa533c8b70f23947a8a3002a89 OP_CHECKSIG"
+          }
+        ],
+        "nLockTime": 0
+      }
+    ]
+  }
+]
+  ```
+
+GET '/blocks/latest'
+GET '/blocks/0000000040a24e14497879bdd67db948cf30edc5d0a5833e8cb2736582157b49'
+GET '/blocks/:height([0-9]+)'
+
+### Transaction routes
+GET '/transactions/:txHash([A-Fa-f0-9]{64})'
+POST '/transactions/send'
+
+### Input routes
+GET '/transactions/:txHash([A-Fa-f0-9]{64})/inputs'
+GET '/transactions/:txHash([A-Fa-f0-9]{64})/inputs/:index([0-9]+)'
+
+### Output routes
+GET '/transactions/:txHash([A-Fa-f0-9]{64})/outputs'
+GET '/transactions/:txHash([A-Fa-f0-9]{64})/outputs/:index([0-9]+)'
+
+### Address routes
+GET '/addresses/:address'
+GET '/addresses/:address/transactions'
+GET '/addresses/:addresses/utxos'
+
+
+
 ## License
 (The MIT License)
 
