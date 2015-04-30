@@ -2,7 +2,6 @@
 
 var chai = require('chai');
 var should = chai.should();
-var request = require('supertest');
 
 var EventEmitter = require('eventemitter2').EventEmitter2;
 var Promise = require('bluebird');
@@ -10,7 +9,6 @@ Promise.longStackTraces();
 var bitcore = require('bitcore');
 var _ = bitcore.deps._;
 
-var BitcoreHTTP = require('../../lib/http');
 var BitcoreNode = require('../../../');
 var mockBlocks = require('../data/blocks');
 
@@ -26,7 +24,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
   };
   var last3 = _.keys(mockBlocks).splice(-3).map(blockForHash);
   var some2 = _.keys(mockBlocks).splice(2, 2).map(blockForHash);
-  var nodeMock, app, agent;
+  var nodeMock, agent;
   var blockList = _.values(mockBlocks);
   beforeEach(function() {
     nodeMock = new EventEmitter();
@@ -56,8 +54,7 @@ describe('BitcoreHTTP v1 blocks routes', function() {
       var ret = section.slice(offset, offset + limit);
       return Promise.resolve(ret);
     };
-    app = require('../app')(nodeMock);
-    agent = request(app);
+    agent = require('../app')(nodeMock);
   });
 
   var toObject = function(b) {
