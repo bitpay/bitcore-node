@@ -1,12 +1,12 @@
 'use strict';
 
 var BitcoreNode = require('./lib/node');
+BitcoreNode.errors = require('./lib/errors');
 var BitcoreHTTP = require('./api/lib/http');
 var bitcore = require('bitcore');
 var Promise = require('bluebird');
 Promise.longStackTraces();
 
-BitcoreNode.errors = require('./lib/errors');
 
 if (require.main === module) {
   var config = require('config');
