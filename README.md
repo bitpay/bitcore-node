@@ -7,7 +7,11 @@
 
 ## Prerequisites
 
-* **Bitcoin Core** - Download and Install [Bitcoin Core](http://bitcoin.org/en/download)
+* **Node.js v0.10.0-v0.12.x** - Download and Install [Node.js](http://www.nodejs.org/download/).
+
+* **NPM** - Node.js package manager, should be automatically installed when you get node.js.
+
+* **Fully-synced Bitcoin Core** - Download and Install [Bitcoin Core](http://bitcoin.org/en/download)
 
 `bitcore-node` needs a trusted Bitcoin Core instance to run. It will connect to it
 through the RPC API and bitcoin peer-to-peer protocol.
@@ -18,12 +22,7 @@ bitcoin data directory (usually `~/.bitcoin` on Linux, `%appdata%\Bitcoin\` on W
 or `~/Library/Application Support/Bitcoin` on Mac OS X).
 
 Bitcoin Core must be running and fully synced before running `bitcore-node`. We're planning
-to remove the need of running Bitcoin Core separately. (More info)[https://github.com/bitpay/bitcore-node/issues/57].
-
-
-* **Node.js v0.10.x** - Download and Install [Node.js](http://www.nodejs.org/download/).
-
-* **NPM** - Node.js package manager, should be automatically installed when you get node.js.
+to remove the need of running Bitcoin Core separately. [More info](https://github.com/bitpay/bitcore-node/issues/57).
 
 ## Quick Install
   Check the Prerequisites section above before installing.
@@ -38,29 +37,65 @@ to remove the need of running Bitcoin Core separately. (More info)[https://githu
 
   Run the main application:
 
-    $ node index.js
+    $ npm start
 
   Then open a browser and go to:
 
-    http://localhost:3001
+    http://localhost:8080
 
   Please note that the app will need to sync its internal database
-  with the blockchain state, which may take some time. You can check
-  sync progress at http://localhost:3001/api/sync.
+  with the blockchain state, which will take some time. You can check
+  sync progress at http://localhost:8080/v1/node.
 
 
 ## Configuration
 
-`bitcore-node` is configured using [yaml](http://en.wikipedia.org/wiki/YAML) files. The application defaults are in the [config](config/) folder.
+`bitcore-node` is configured using [yaml](http://en.wikipedia.org/wiki/YAML) files.
+The application defaults are in the [api/config/](api/config/) folder.
 
-Make sure that bitcoind is configured to [accept incoming connections using 'rpcallowip'](https://en.bitcoin.it/wiki/Running_Bitcoin).
+To run the app with different configurations, simply do:
+```sh
+# to start a testnet instance
+NODE_ENV=testnet npm start
 
-In case the network is changed (testnet to livenet or vice versa) levelDB database needs to be deleted. This can be performed running:
-```util/sync.js -D``` and waiting for `bitcore-node` to synchronize again.  Once the database is deleted, the sync.js process can be safely interrupted (CTRL+C) and continued from the synchronization process embedded in main app.
+# to start a livenet instance
+NODE_ENV=livenet npm start
+
+# start a custom configuration instance (will usee foo.yml)
+NODE_ENV=foo npm start
+$  
+```
+
+A sample configuration file would be:
+
+```
+# Sample configuration file with defaults for livenet
+BitcoreHTTP:
+  port: 8080                # http api port
+  logging: true             # enables request logging
+  BitcoreNode:              
+    LevelUp: ./db           # path to database location
+    network: livenet        # bitcoin network (livenet, testnet)
+    NetworkMonitor:
+      host: localhost       # p2p host
+      port: 8333            # p2p port
+    RPC:
+      host: 127.0.0.1       # rpc ip
+      port: 8332            # rpc port
+      user: user            # rpc username
+      pass: password        # rpc password
+      protocol: http        #http, https
+      #rejectUnauthorized: false
+      #disableAgent: true
+```
 
 ## Synchronization
 
-The initial synchronization process scans the blockchain from the paired bitcoind server to update addresses and balances. `bitcore-node` needs exactly one trusted bitcoind node to run. This node must have finished downloading the blockchain before running `bitcore-node`.
+The initial synchronization process scans the blockchain from the paired
+Bitcoin Core node to update addresses and balances. `bitcore-node` needs exactly one
+trusted bitcoind node to run.
+[There are plans to expand this to more than one](https://github.com/bitpay/bitcore-node/issues/58).
+Bitcoin core must have finished downloading the blockchain before running `bitcore-node`.
 
 While `bitcore-node` is synchronizing the website can be accessed (the sync process is embedded in the webserver), but there may be missing data or incorrect balances for addresses. The 'sync' status is shown at the `/api/sync` endpoint.
 
