@@ -63,7 +63,7 @@ Addresses.addressesParam = function(req, res, next, addresses) {
  */
 Addresses.get = function(req, res) {
   $.checkState(req.address instanceof Address);
-  node.getAddressInfo(req.address)
+  node.addressService.getSummary(req.address)
     .then(function(info) {
       res.send(info);
     });

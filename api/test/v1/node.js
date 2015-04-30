@@ -18,7 +18,7 @@ describe('BitcoreHTTP v1 node routes', function() {
       peerCount: 8,
       version: 'test',
       network: 'regtest',
-      height: 1234,
+      height: 60000,
     };
     nodeMock.getStatus = function() {
       return Promise.resolve(nodeMock.status);

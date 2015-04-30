@@ -1,6 +1,67 @@
 'use strict';
 
 var mockAddresses = {
+  '13fas9TWPMRBakZ822mvddS6PM92udNB2g': {
+    summary: {
+      address: '13fas9TWPMRBakZ822mvddS6PM92udNB2g',
+      transactions: [
+        '4469092947a437f9b4276e0a7e3c899a2b74b2fe325e49202c3005911adaab85',
+        'afa55c2ce0e1038d87921d4de7b13a456edfa5ca6f44cddaf4cda9f1db441481'
+      ],
+      confirmed: {
+        balance: 0,
+        sent: 675000000,
+        received: 675000000
+      },
+      unconfirmed: {
+        balance: 0,
+        sent: 675000000,
+        received: 675000000
+      }
+    },
+    utxos: []
+  },
+  '17afxUJouat3fkaaQ9tZrDThxdkXGL4WrM': {
+    summary: {
+      address: '17afxUJouat3fkaaQ9tZrDThxdkXGL4WrM',
+      transactions: [
+        '2ccc3f59d28c709770a8bc478b112e10feda4bf55197c2e48deaa0eb6bca0311',
+        '92f55c2c0b8317eafad83c73487fbeceb8279d0eb57e398763298e6cc983b356'
+      ],
+      confirmed: {
+        balance: 0,
+        sent: 100000000000,
+        received: 100000000000
+      },
+      unconfirmed: {
+        balance: 0,
+        sent: 100000000000,
+        received: 100000000000
+      }
+    },
+    utxos: []
+  },
+  '17DC6Fxidja2DN7oHTVgfx3uQ4KGArYEwg': {
+    summary: {
+      'address': '17DC6Fxidja2DN7oHTVgfx3uQ4KGArYEwg',
+      'transactions': [
+        '33d1ad0d24e2cb466054e47060c8ae527af7a3c46445335bebf9d24a6f5b1e9e',
+        '6884733345b952b244a44cf770be62afbcf41549d8a89d2a4bea9f479e09dd47',
+        '2847ae66175042438532c2eccc5b39935fd1216453e62e2c3cb9c8e5020cc771'
+      ],
+      'confirmed': {
+        'balance': 0,
+        'sent': 65000000000,
+        'received': 65000000000
+      },
+      'unconfirmed': {
+        'balance': 0,
+        'sent': 65000000000,
+        'received': 65000000000
+      }
+    },
+    utxos: []
+  },
   '1CT9huFgxMFveRvzZ7zPPJNoaMm2Fo64VH': {
     summary: {
       address: '1CT9huFgxMFveRvzZ7zPPJNoaMm2Fo64VH',

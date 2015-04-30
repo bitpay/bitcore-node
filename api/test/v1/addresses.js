@@ -2,7 +2,6 @@
 
 var chai = require('chai');
 var should = chai.should();
-var request = require('supertest');
 
 var EventEmitter = require('eventemitter2').EventEmitter2;
 var Promise = require('bluebird');
@@ -10,7 +9,6 @@ Promise.longStackTraces();
 var bitcore = require('bitcore');
 var _ = bitcore.deps._;
 
-var BitcoreHTTP = require('../../lib/http');
 
 var mockAddresses = require('../data/addresses');
 var mockTransactions = require('../data/transactions');
@@ -19,7 +17,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
 
   // mocks
   var transactionList = _.values(mockTransactions);
-  var nodeMock, app, agent;
+  var nodeMock, agent;
   var txs_for_addr = function(addr) {
     var amount = mockAddresses[addr].summary.transactions.length;
     return transactionList.slice(0, amount);
@@ -51,8 +49,9 @@ describe('BitcoreHTTP v1 addresses routes', function() {
 
   beforeEach(function() {
     nodeMock = new EventEmitter();
-    nodeMock.getAddressInfo = function(address) {
-      return Promise.resolve(mockAddresses[address.toString()]);
+    nodeMock.addressService = {};
+    nodeMock.addressService.getSummary = function(address) {
+      return Promise.resolve(mockAddresses[address.toString()].summary);
     };
     nodeMock.listTransactions = function(opts) {
       return Promise.resolve(txs_for_addr(opts.address));
@@ -60,8 +59,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
     nodeMock.getUTXOs = function(addresses) {
       return Promise.resolve(utxos_for_addrs(addresses));
     };
-    app = new BitcoreHTTP(nodeMock).app;
-    agent = request(app);
+    agent = require('../app')(nodeMock);
   });
 
   var failsWithInvalidAddress = function(agent, url, cb) {
@@ -79,7 +77,7 @@ describe('BitcoreHTTP v1 addresses routes', function() {
       it('works with valid address ' + addr, function(cb) {
         agent.get('/v1/addresses/' + addr)
           .expect(200)
-          .expect(JSON.stringify(info), cb);
+          .expect(JSON.stringify(info.summary), cb);
       });
     });
   });
