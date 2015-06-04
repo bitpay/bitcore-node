@@ -16,9 +16,9 @@ var assert = require('assert');
  * bitcoind
  */
 
-if (fs.existsSync(process.env.HOME + '/.libbitcoind-example')) {
-  rimraf.sync(process.env.HOME + '/.libbitcoind-example');
-}
+//if (fs.existsSync(process.env.HOME + '/.libbitcoind-example')) {
+//  rimraf.sync(process.env.HOME + '/.libbitcoind-example');
+//}
 
 var bitcoind = require('../')({
   directory: '~/.libbitcoind-example'

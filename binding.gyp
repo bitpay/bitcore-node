@@ -20,6 +20,8 @@
       '<(BOOST_INCLUDE)',
       '<(LEVELDB_INCLUDE)',
       '<(BITCOIN_DIR)/src',
+      './libbitcoind/src/leveldb/helpers/memenv',
+      '/usr/local/Cellar/openssl/1.0.2a-1/include',
       '<!(node -e "require(\'nan\')")',
     ],
     'sources': [
@@ -31,12 +33,14 @@
       '-fpermissive',
     ],
     'libraries': [
+      '-L/usr/local/Cellar/openssl/1.0.2a-1/lib',
+      '-lssl',
+      '-lcrypto',
       '-lboost_system',
       '-lboost_filesystem',
       '-lboost_program_options',
-      '-lboost_thread',
+      '-lboost_thread-mt',
       '-lboost_chrono',
-      '-lsecp256k1',
       '<(LIBBITCOIND)',
     ]
   }]

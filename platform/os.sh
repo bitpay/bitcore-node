@@ -69,7 +69,7 @@ if test -z "$1" -o x"$1" = x'lib'; then
   if test -n "$BITCOIN_DIR" -a -e "${BITCOIN_DIR}/src/libbitcoind.so"; then
     echo -n "${BITCOIN_DIR}/src/libbitcoind.so"
   else
-    echo -n "$(pwd)/platform/${os}/libbitcoind.so"
+    echo -n "$(pwd)/platform/${os}/libbitcoind.dylib"
   fi
   exit 0
 fi
