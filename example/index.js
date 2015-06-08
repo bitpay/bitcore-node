@@ -6,10 +6,10 @@
 
 process.title = 'bitcoind.js';
 
-var util = require('util');
-var fs = require('fs');
+//var util = require('util');
+//var fs = require('fs');
 var argv = require('optimist').argv;
-var rimraf = require('rimraf');
+//var rimraf = require('rimraf');
 var assert = require('assert');
 
 /**
@@ -135,10 +135,12 @@ bitcoind.on('open', function(status) {
   bitcoind.log('status="%s"', status);
 
   if (argv.list) {
+    bitcoind.log('args list true');
     return bitcoind.log(bitcoind.wallet.listAccounts());
   }
 
   if (argv.blocks) {
+    bitcoind.log('args block true');
     return getBlocks(bitcoind);
   }
 

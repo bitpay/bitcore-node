@@ -451,7 +451,7 @@ struct async_node_data {
   bool rpc;
   bool testnet;
   bool txindex;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -464,7 +464,7 @@ struct async_block_data {
   int64_t height;
   CBlock cblock;
   CBlockIndex* cblock_index;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -476,7 +476,7 @@ struct async_tx_data {
   std::string txid;
   std::string blockhash;
   CTransaction ctx;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -489,7 +489,7 @@ struct async_block_tx_data {
   CBlock cblock;
   CBlockIndex* cblock_index;
   CTransaction ctx;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -509,7 +509,7 @@ struct async_block_time_data {
   uint32_t lte;
   int64_t limit;
   cblocks_list *cblocks;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -529,7 +529,7 @@ struct async_addrtx_data {
   ctx_list *ctxs;
   int64_t blockheight;
   int64_t blocktime;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -538,12 +538,12 @@ struct async_addrtx_data {
 
 struct async_broadcast_tx_data {
   std::string err_msg;
-  Persistent<Object> jstx;
+  Local<Object> jstx;
   CTransaction ctx;
   std::string txid;
   bool override_fees;
   bool own_only;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -556,7 +556,7 @@ struct async_wallet_sendto_data {
   std::string address;
   int64_t nAmount;
   CWalletTx wtx;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -570,7 +570,7 @@ struct async_wallet_sendfrom_data {
   int64_t nAmount;
   int nMinDepth;
   CWalletTx wtx;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -580,7 +580,7 @@ struct async_wallet_sendfrom_data {
 struct async_import_key_data {
   std::string err_msg;
   bool fRescan;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -590,7 +590,7 @@ struct async_import_key_data {
 struct async_import_wallet_data {
   std::string err_msg;
   std::string path;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -600,7 +600,7 @@ struct async_import_wallet_data {
 struct async_dump_wallet_data {
   std::string err_msg;
   std::string path;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -609,7 +609,7 @@ struct async_dump_wallet_data {
 
 struct async_rescan_data {
   std::string err_msg;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -620,7 +620,7 @@ struct async_from_tx_data {
   std::string err_msg;
   std::string txid;
   ctx_list *ctxs;
-  Persistent<Function> callback;
+  Local<Function> callback;
 };
 
 /**
@@ -706,7 +706,11 @@ NAN_METHOD(StartBitcoind) {
   data->rpc = rpc;
   data->testnet = testnet;
   data->txindex = txindex;
-  data->callback = Persistent<Function>::New(callback);
+
+  Isolate* isolate = Isolate::GetCurrent();
+  Persistent<Function> persistent(isolate, callback);
+
+  data->callback = Local<Function>::New(isolate, persistent);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -717,7 +721,7 @@ NAN_METHOD(StartBitcoind) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 /**
@@ -751,30 +755,32 @@ static void
 async_start_node_after(uv_work_t *req) {
   NanScope();
   async_node_data *data = static_cast<async_node_data*>(req->data);
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->result))
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNew<String>(data->result))
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -951,7 +957,7 @@ start_node_thread(void) {
 NAN_METHOD(StopBitcoind) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
@@ -967,7 +973,8 @@ NAN_METHOD(StopBitcoind) {
   async_node_data *data = new async_node_data();
   data->err_msg = std::string("");
   data->result = std::string("");
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -977,8 +984,8 @@ NAN_METHOD(StopBitcoind) {
     (uv_after_work_cb)async_stop_node_after);
 
   assert(status == 0);
+  NanReturnValue(Undefined(isolate));
 
-  NanReturnValue(Undefined());
 }
 
 /**
@@ -1003,6 +1010,7 @@ async_stop_node(uv_work_t *req) {
 static void
 async_stop_node_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
   async_node_data* data = static_cast<async_node_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -1010,24 +1018,25 @@ async_stop_node_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->result))
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNew<String>(data->result))
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -1066,6 +1075,7 @@ NAN_METHOD(IsStopped) {
 NAN_METHOD(GetBlock) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2
       || (!args[0]->IsString() && !args[0]->IsNumber())
       || !args[1]->IsFunction()) {
@@ -1089,8 +1099,8 @@ NAN_METHOD(GetBlock) {
   }
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
-
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -1101,7 +1111,7 @@ NAN_METHOD(GetBlock) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -1136,6 +1146,7 @@ async_get_block(uv_work_t *req) {
 static void
 async_get_block_after(uv_work_t *req) {
   NanScope();
+  Isolate *isolate = Isolate::GetCurrent();
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -1143,7 +1154,7 @@ async_get_block_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -1156,17 +1167,17 @@ async_get_block_after(uv_work_t *req) {
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(jsblock)
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, jsblock)
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -1181,6 +1192,7 @@ async_get_block_after(uv_work_t *req) {
 NAN_METHOD(GetTransaction) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 3
       || !args[0]->IsString()
       || !args[1]->IsString()
@@ -1204,7 +1216,8 @@ NAN_METHOD(GetTransaction) {
   data->err_msg = std::string("");
   data->txid = txid;
   data->blockhash = blockhash;
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -1215,7 +1228,7 @@ NAN_METHOD(GetTransaction) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -1242,6 +1255,7 @@ async_get_tx(uv_work_t *req) {
 static void
 async_get_tx_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
   async_tx_data* data = static_cast<async_tx_data*>(req->data);
 
   CTransaction ctx = data->ctx;
@@ -1252,7 +1266,7 @@ async_get_tx_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -1262,18 +1276,17 @@ async_get_tx_after(uv_work_t *req) {
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(jstx)
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, jstx)
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  data->callback.Dispose();
-
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
   delete data;
   delete req;
 }
@@ -1288,6 +1301,7 @@ async_get_tx_after(uv_work_t *req) {
 NAN_METHOD(BroadcastTx) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 4
       || !args[0]->IsObject()
       || !args[1]->IsBoolean()
@@ -1304,9 +1318,11 @@ NAN_METHOD(BroadcastTx) {
   data->override_fees = args[1]->ToBoolean()->IsTrue();
   data->own_only = args[2]->ToBoolean()->IsTrue();
   data->err_msg = std::string("");
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
-  data->jstx = Persistent<Object>::New(jstx);
+  Persistent<Object> persistentObject(isolate, jstx);
+  data->jstx = Local<Object>::New(isolate, persistentObject);
 
   CTransaction ctx;
   jstx_to_ctx(jstx, ctx);
@@ -1320,8 +1336,7 @@ NAN_METHOD(BroadcastTx) {
     (uv_after_work_cb)async_broadcast_tx_after);
 
   assert(status == 0);
-
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -1375,6 +1390,7 @@ async_broadcast_tx(uv_work_t *req) {
 static void
 async_broadcast_tx_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -1382,25 +1398,25 @@ async_broadcast_tx_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 3;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->txid)),
-      Local<Value>::New(data->jstx)
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNew<String>(data->txid)),
+      Local<Value>::New(isolate, data->jstx)
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -1728,6 +1744,7 @@ NAN_METHOD(GetAddresses) {
 NAN_METHOD(GetProgress) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.getProgress(callback)");
@@ -1741,7 +1758,8 @@ NAN_METHOD(GetProgress) {
   data->hash = pindex->GetBlockHash().GetHex();
   data->height = -1;
 
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -1752,7 +1770,7 @@ NAN_METHOD(GetProgress) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -1763,6 +1781,7 @@ async_get_progress(uv_work_t *req) {
 static void
 async_get_progress_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -1770,7 +1789,7 @@ async_get_progress_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -1819,17 +1838,17 @@ async_get_progress_after(uv_work_t *req) {
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(result)
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate,result)
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -1844,6 +1863,7 @@ async_get_progress_after(uv_work_t *req) {
 NAN_METHOD(SetGenerate) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
       "Usage: bitcoindjs.setGenerate(options)");
@@ -1898,7 +1918,7 @@ NAN_METHOD(SetGenerate) {
     GenerateBitcoins(fGenerate, pwalletMain, nGenProcLimit);
   }
 
-  NanReturnValue(True());
+  NanReturnValue(True(isolate));
 }
 
 /**
@@ -1960,6 +1980,7 @@ NAN_METHOD(GetMiningInfo) {
 NAN_METHOD(GetAddrTransactions) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2
       || (!args[0]->IsString() && !args[0]->IsObject())
       || !args[1]->IsFunction()) {
@@ -2000,16 +2021,14 @@ NAN_METHOD(GetAddrTransactions) {
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
 
-  Persistent<Function> cb;
-  cb = Persistent<Function>::New(callback);
-
   async_addrtx_data *data = new async_addrtx_data();
   data->err_msg = std::string("");
   data->addr = addr;
   data->ctxs = NULL;
   data->blockheight = blockheight;
   data->blocktime = blocktime;
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function>  persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -2020,7 +2039,7 @@ NAN_METHOD(GetAddrTransactions) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -2121,6 +2140,8 @@ done:
 static void
 async_get_addrtx_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
+
   async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -2128,7 +2149,7 @@ async_get_addrtx_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -2149,17 +2170,17 @@ async_get_addrtx_after(uv_work_t *req) {
     result->Set(NanNew<String>("address"), NanNew<String>(data->addr));
     result->Set(NanNew<String>("tx"), tx);
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(result)
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, result)
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -2210,6 +2231,7 @@ NAN_METHOD(GetChainHeight) {
 NAN_METHOD(GetBlockByTx) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2
       || !args[0]->IsString()
       || !args[1]->IsFunction()) {
@@ -2228,7 +2250,8 @@ NAN_METHOD(GetBlockByTx) {
   data->txid = txid;
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   int status = uv_queue_work(uv_default_loop(),
     req, async_block_tx,
@@ -2236,7 +2259,7 @@ NAN_METHOD(GetBlockByTx) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -2275,6 +2298,7 @@ parse:
 static void
 async_block_tx_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
   async_block_tx_data* data = static_cast<async_block_tx_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -2282,7 +2306,7 @@ async_block_tx_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -2299,18 +2323,19 @@ async_block_tx_after(uv_work_t *req) {
 
     const unsigned argc = 3;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(jsblock),
-      Local<Value>::New(jstx)
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, jsblock),
+      Local<Value>::New(isolate, jstx)
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -2325,6 +2350,7 @@ async_block_tx_after(uv_work_t *req) {
 NAN_METHOD(GetBlocksByTime) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2
       || !args[0]->IsString()
       || !args[1]->IsFunction()) {
@@ -2354,7 +2380,8 @@ NAN_METHOD(GetBlocksByTime) {
   data->cblocks = NULL;
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   int status = uv_queue_work(uv_default_loop(),
     req, async_block_time,
@@ -2362,7 +2389,7 @@ NAN_METHOD(GetBlocksByTime) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -2406,6 +2433,8 @@ async_block_time(uv_work_t *req) {
 static void
 async_block_time_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
+
   async_block_time_data* data = static_cast<async_block_time_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -2413,7 +2442,7 @@ async_block_time_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -2431,17 +2460,18 @@ async_block_time_after(uv_work_t *req) {
     }
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(jsblocks)
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, jsblocks)
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -2456,6 +2486,7 @@ async_block_time_after(uv_work_t *req) {
 NAN_METHOD(GetFromTx) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2
       || !args[0]->IsString()
       || !args[1]->IsFunction()) {
@@ -2476,7 +2507,8 @@ NAN_METHOD(GetFromTx) {
   data->err_msg = std::string("");
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   int status = uv_queue_work(uv_default_loop(),
     req, async_from_tx,
@@ -2484,7 +2516,7 @@ NAN_METHOD(GetFromTx) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -2524,6 +2556,8 @@ async_from_tx(uv_work_t *req) {
 static void
 async_from_tx_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
+
   async_from_tx_data* data = static_cast<async_from_tx_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -2531,7 +2565,7 @@ async_from_tx_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -2549,17 +2583,18 @@ async_from_tx_after(uv_work_t *req) {
       delete item;
     }
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(tx)
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, tx)
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -2832,6 +2867,7 @@ NAN_METHOD(GetTxHex) {
   NanReturnValue(data);
 }
 
+
 /**
  * BlockFromHex()
  * bitcoindjs.blockFromHex(hex)
@@ -2845,8 +2881,7 @@ NAN_METHOD(BlockFromHex) {
     return NanThrowError(
       "Usage: bitcoindjs.blockFromHex(hex)");
   }
-
-  String::AsciiValue hex_string_(args[0]->ToString());
+  String::Utf8Value hex_string_(args[0]->ToString());
   std::string hex_string = *hex_string_;
 
   CBlock cblock;
@@ -2873,14 +2908,12 @@ NAN_METHOD(BlockFromHex) {
 NAN_METHOD(TxFromHex) {
   NanScope();
 
-  // if (SHUTTING_DOWN()) NanReturnValue(Undefined());
-
   if (args.Length() < 1 || !args[0]->IsString()) {
     return NanThrowError(
       "Usage: bitcoindjs.txFromHex(hex)");
   }
 
-  String::AsciiValue hex_string_(args[0]->ToString());
+  String::Utf8Value hex_string_(args[0]->ToString());
   std::string hex_string = *hex_string_;
 
   CTransaction ctx;
@@ -2921,6 +2954,7 @@ boost::mutex poll_packets_mutex;
 NAN_METHOD(HookPackets) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Array> obj = NanNew<Array>();
   poll_packets_list *cur = NULL;
   poll_packets_list *next = NULL;
@@ -2946,7 +2980,7 @@ NAN_METHOD(HookPackets) {
     if (strCommand == "version") {
       // Each connection can only send one version message
       if (pfrom->nVersion != 0) {
-        NanReturnValue(Undefined());
+        NanReturnValue(Undefined(isolate));
       }
 
       bool fRelayTxes = false;
@@ -2964,7 +2998,7 @@ NAN_METHOD(HookPackets) {
       vRecv >> nVersion >> nServices >> nTime >> addrMe;
       if (pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
         // disconnect from peers older than this proto version
-        NanReturnValue(Undefined());
+        NanReturnValue(Undefined(isolate));
       }
 
       if (nVersion == 10300) {
@@ -3000,7 +3034,7 @@ NAN_METHOD(HookPackets) {
       o->Set(NanNew<String>("relay"), NanNew<Boolean>(fRelayTxes));
     } else if (pfrom->nVersion == 0) {
       // Must have a version message before anything else
-      NanReturnValue(Undefined());
+      NanReturnValue(Undefined(isolate));
     } else if (strCommand == "verack") {
       o->Set(NanNew<String>("receiveVersion"), NanNew<Number>(min(pfrom->nVersion, PROTOCOL_VERSION)));
     } else if (strCommand == "addr") {
@@ -3014,7 +3048,7 @@ NAN_METHOD(HookPackets) {
 
       // Bad address size
       if (vAddr.size() > 1000) {
-        NanReturnValue(Undefined());
+        NanReturnValue(Undefined(isolate));
       }
 
       Local<Array> array = NanNew<Array>();
@@ -3057,7 +3091,7 @@ NAN_METHOD(HookPackets) {
 
       // Bad size
       if (vInv.size() > MAX_INV_SZ) {
-        NanReturnValue(Undefined());
+        NanReturnValue(Undefined(isolate));
       }
 
       LOCK(cs_main);
@@ -3074,7 +3108,7 @@ NAN_METHOD(HookPackets) {
 
         // Bad size
         if (pfrom->nSendSize > (SendBufferSize() * 2)) {
-          NanReturnValue(Undefined());
+          NanReturnValue(Undefined(isolate));
         }
 
         Local<Object> item = NanNew<Object>();
@@ -3100,7 +3134,7 @@ NAN_METHOD(HookPackets) {
 
       // Bad size
       if (vInv.size() > MAX_INV_SZ) {
-        NanReturnValue(Undefined());
+        NanReturnValue(Undefined(isolate));
       }
 
       o->Set(NanNew<String>("size"), NanNew<Number>(vInv.size()));
@@ -3616,6 +3650,7 @@ NAN_METHOD(WalletGetAccountAddress) {
 
 NAN_METHOD(WalletSetAccount) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3663,7 +3698,7 @@ NAN_METHOD(WalletSetAccount) {
       if (!IsMine(*pwalletMain, dest)) {
         pwalletMain->SetAddressBook(dest, strAccount, "send");
         pwalletMain->SetAddressBook(dest, strAccount, "send");
-        NanReturnValue(Undefined());
+        NanReturnValue(Undefined(isolate));
       }
     }
     // Detect when changing the account of an address that is the 'unused current key' of another account:
@@ -3697,7 +3732,7 @@ NAN_METHOD(WalletSetAccount) {
   }
 
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 /**
@@ -3784,6 +3819,7 @@ NAN_METHOD(WalletGetRecipients) {
 
 NAN_METHOD(WalletSetRecipient) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3820,7 +3856,7 @@ NAN_METHOD(WalletSetRecipient) {
   pwalletMain->SetAddressBook(address, strAccount, "send");
   pwalletMain->SetAddressBook(address, strAccount, "send");
 
-  NanReturnValue(True());
+  NanReturnValue(True(isolate));
 }
 
 /**
@@ -3831,6 +3867,7 @@ NAN_METHOD(WalletSetRecipient) {
 
 NAN_METHOD(WalletRemoveRecipient) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3846,7 +3883,7 @@ NAN_METHOD(WalletRemoveRecipient) {
 
   pwalletMain->DelAddressBook(address);
 
-  NanReturnValue(True());
+  NanReturnValue(True(isolate));
 }
 
 /**
@@ -3859,6 +3896,7 @@ NAN_METHOD(WalletRemoveRecipient) {
 NAN_METHOD(WalletSendTo) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletSendTo(options, callback)");
@@ -3870,7 +3908,8 @@ NAN_METHOD(WalletSendTo) {
   async_wallet_sendto_data *data = new async_wallet_sendto_data();
 
   data->err_msg = std::string("");
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
@@ -3903,7 +3942,7 @@ NAN_METHOD(WalletSendTo) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -3932,6 +3971,7 @@ async_wallet_sendto(uv_work_t *req) {
 static void
 async_wallet_sendto_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
   async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -3939,24 +3979,25 @@ async_wallet_sendto_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->txid))
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNew<String>(data->txid))
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -3973,6 +4014,7 @@ async_wallet_sendto_after(uv_work_t *req) {
 NAN_METHOD(WalletSendFrom) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletSendFrom(options, callback)");
@@ -3984,7 +4026,8 @@ NAN_METHOD(WalletSendFrom) {
   async_wallet_sendfrom_data *data = new async_wallet_sendfrom_data();
 
   data->err_msg = std::string("");
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
@@ -4026,7 +4069,7 @@ NAN_METHOD(WalletSendFrom) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -4064,6 +4107,8 @@ async_wallet_sendfrom(uv_work_t *req) {
 static void
 async_wallet_sendfrom_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
+
   async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -4071,24 +4116,25 @@ async_wallet_sendfrom_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->txid))
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNew<String>(data->txid))
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -4102,6 +4148,7 @@ async_wallet_sendfrom_after(uv_work_t *req) {
 
 NAN_METHOD(WalletMove) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4172,7 +4219,7 @@ NAN_METHOD(WalletMove) {
     return NanThrowError("database error");
   }
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 /**
@@ -4360,6 +4407,8 @@ CScript _createmultisig_redeemScript(int nRequired, Local<Array> keys) {
 NAN_METHOD(WalletCreateMultiSigAddress) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
+
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletCreateMultiSigAddress(options)");
@@ -4381,7 +4430,7 @@ NAN_METHOD(WalletCreateMultiSigAddress) {
       "not enough keys supplied (got %u keys, but need at least %u to redeem)",
       keys->Length(), nRequired);
     NanThrowError(s);
-    NanReturnValue(Undefined());
+    NanReturnValue(Undefined(isolate));
   }
 
   std::string strAccount = "";
@@ -4983,6 +5032,8 @@ NAN_METHOD(WalletGetTransaction) {
 NAN_METHOD(WalletBackup) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
+
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletBackup(options)");
@@ -4997,7 +5048,7 @@ NAN_METHOD(WalletBackup) {
     return NanThrowError("Wallet backup failed!");
   }
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 /**
@@ -5008,6 +5059,8 @@ NAN_METHOD(WalletBackup) {
 
 NAN_METHOD(WalletPassphrase) {
   NanScope();
+
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5038,7 +5091,7 @@ NAN_METHOD(WalletPassphrase) {
   // XXX Do this asynchronously
   pwalletMain->TopUpKeyPool();
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 /**
@@ -5049,6 +5102,7 @@ NAN_METHOD(WalletPassphrase) {
 
 NAN_METHOD(WalletPassphraseChange) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5083,7 +5137,7 @@ NAN_METHOD(WalletPassphraseChange) {
     return NanThrowError("The wallet passphrase entered was incorrect.");
   }
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 /**
@@ -5094,6 +5148,8 @@ NAN_METHOD(WalletPassphraseChange) {
 
 NAN_METHOD(WalletLock) {
   NanScope();
+
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 0) {
     return NanThrowError(
@@ -5106,7 +5162,7 @@ NAN_METHOD(WalletLock) {
 
   pwalletMain->Lock();
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 /**
@@ -5118,6 +5174,7 @@ NAN_METHOD(WalletLock) {
 
 NAN_METHOD(WalletEncrypt) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5160,7 +5217,7 @@ NAN_METHOD(WalletEncrypt) {
     );
   }
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 /**
@@ -5201,6 +5258,7 @@ NAN_METHOD(WalletEncrypted) {
 
 NAN_METHOD(WalletKeyPoolRefill) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5226,7 +5284,7 @@ NAN_METHOD(WalletKeyPoolRefill) {
     return NanThrowError("Error refreshing keypool.");
   }
 
-  NanReturnValue(True());
+  NanReturnValue(True(isolate));
 }
 
 /**
@@ -5237,6 +5295,7 @@ NAN_METHOD(WalletKeyPoolRefill) {
 
 NAN_METHOD(WalletSetTxFee) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5255,7 +5314,7 @@ NAN_METHOD(WalletSetTxFee) {
 
   payTxFee = CFeeRate(nAmount, 1000);
 
-  NanReturnValue(True());
+  NanReturnValue(True(isolate));
 }
 
 /**
@@ -5314,6 +5373,7 @@ NAN_METHOD(WalletDumpKey) {
 NAN_METHOD(WalletImportKey) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletImportKey(options, callback)");
@@ -5329,7 +5389,8 @@ NAN_METHOD(WalletImportKey) {
 
   if (args.Length() > 1 && args[1]->IsFunction()) {
     callback = Local<Function>::Cast(args[1]);
-    data->callback = Persistent<Function>::New(callback);
+    Persistent<Function> persistent(isolate, callback);
+    data->callback = Local<Function>::New(isolate, persistent);
   }
 
   std::string strSecret = "";
@@ -5364,7 +5425,7 @@ rescan:
 
     assert(status == 0);
 
-    NanReturnValue(Undefined());
+    NanReturnValue(Undefined(isolate));
   }
 
   // Whether to perform rescan after import
@@ -5423,7 +5484,7 @@ rescan:
 
     // Don't throw error in case a key is already there
     if (pwalletMain->HaveKey(vchAddress)) {
-      NanReturnValue(Undefined());
+      NanReturnValue(Undefined(isolate));
     }
 
     pwalletMain->mapKeyMetadata[vchAddress].nCreateTime = 1;
@@ -5445,7 +5506,7 @@ rescan:
     goto rescan;
   }
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -5463,6 +5524,7 @@ async_import_key(uv_work_t *req) {
 static void
 async_import_key_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -5470,24 +5532,25 @@ async_import_key_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(True())
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, True(isolate))
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -5502,6 +5565,7 @@ async_import_key_after(uv_work_t *req) {
 NAN_METHOD(WalletDumpWallet) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletDumpWallet(options, callback)");
@@ -5523,7 +5587,8 @@ NAN_METHOD(WalletDumpWallet) {
   }
 
   data->path = path;
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -5534,7 +5599,7 @@ NAN_METHOD(WalletDumpWallet) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -5609,6 +5674,8 @@ async_dump_wallet(uv_work_t *req) {
 static void
 async_dump_wallet_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
+
   async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -5616,24 +5683,25 @@ async_dump_wallet_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->path))
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNew<String>(data->path))
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -5648,6 +5716,7 @@ async_dump_wallet_after(uv_work_t *req) {
 NAN_METHOD(WalletImportWallet) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletImportWallet(options, callback)");
@@ -5669,7 +5738,8 @@ NAN_METHOD(WalletImportWallet) {
   }
 
   data->path = path;
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -5680,7 +5750,7 @@ NAN_METHOD(WalletImportWallet) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -5784,6 +5854,8 @@ async_import_wallet(uv_work_t *req) {
 static void
 async_import_wallet_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
+
   async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -5791,24 +5863,25 @@ async_import_wallet_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(NanNew<String>(data->path))
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNew<String>(data->path))
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -5822,6 +5895,7 @@ async_import_wallet_after(uv_work_t *req) {
 
 NAN_METHOD(WalletChangeLabel) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5886,13 +5960,13 @@ NAN_METHOD(WalletChangeLabel) {
   if (!IsMine(*pwalletMain, dest)) {
     pwalletMain->SetAddressBook(dest, strAccount, "send");
     pwalletMain->SetAddressBook(dest, strAccount, "send");
-    NanReturnValue(True());
+    NanReturnValue(True(isolate));
   }
 
   // Rename our address:
   pwalletMain->SetAddressBook(dest, strAccount, "receive");
 
-  NanReturnValue(True());
+  NanReturnValue(True(isolate));
 }
 
 /**
@@ -5903,6 +5977,7 @@ NAN_METHOD(WalletChangeLabel) {
 
 NAN_METHOD(WalletDeleteAccount) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5971,7 +6046,7 @@ NAN_METHOD(WalletDeleteAccount) {
     }
   }
 
-  NanReturnValue(True());
+  NanReturnValue(True(isolate));
 }
 
 /**
@@ -6029,6 +6104,7 @@ NAN_METHOD(WalletIsMine) {
 NAN_METHOD(WalletRescan) {
   NanScope();
 
+  Isolate* isolate = Isolate::GetCurrent();
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletRescan(options, callback)");
@@ -6040,7 +6116,8 @@ NAN_METHOD(WalletRescan) {
   Local<Function> callback = Local<Function>::Cast(args[1]);
 
   data->err_msg = std::string("");
-  data->callback = Persistent<Function>::New(callback);
+  Persistent<Function> persistent(isolate, callback);
+  data->callback = Local<Function>::New(isolate, persistent);
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -6051,7 +6128,7 @@ NAN_METHOD(WalletRescan) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined());
+  NanReturnValue(Undefined(isolate));
 }
 
 static void
@@ -6064,6 +6141,8 @@ async_rescan(uv_work_t *req) {
 static void
 async_rescan_after(uv_work_t *req) {
   NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
+
   async_rescan_data* data = static_cast<async_rescan_data*>(req->data);
 
 
@@ -6072,24 +6151,25 @@ async_rescan_after(uv_work_t *req) {
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(Null()),
-      Local<Value>::New(True())
+      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, True(isolate))
     };
     TryCatch try_catch;
-    data->callback->Call(Context::GetCurrent()->Global(), argc, argv);
+    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
 
-  data->callback.Dispose();
+  Persistent<Function> persistent(isolate, data->callback);
+  persistent.Reset();
 
   delete data;
   delete req;
@@ -6447,7 +6527,7 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
   cblock.nVersion = (int32_t)jsblock->Get(NanNew<String>("version"))->Int32Value();
 
   if (jsblock->Get(NanNew<String>("previousblockhash"))->IsString()) {
-    String::AsciiValue hash__(jsblock->Get(NanNew<String>("previousblockhash"))->ToString());
+    String::Utf8Value hash__(jsblock->Get(NanNew<String>("previousblockhash"))->ToString());
     std::string hash_ = *hash__;
     uint256 hash(hash_);
     cblock.hashPrevBlock = (uint256)hash;
@@ -6456,7 +6536,7 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
     cblock.hashPrevBlock = (uint256)uint256(0);
   }
 
-  String::AsciiValue mhash__(jsblock->Get(NanNew<String>("merkleroot"))->ToString());
+  String::Utf8Value mhash__(jsblock->Get(NanNew<String>("merkleroot"))->ToString());
   std::string mhash_ = *mhash__;
   uint256 mhash(mhash_);
   cblock.hashMerkleRoot = (uint256)mhash;
@@ -6485,7 +6565,7 @@ jsblock_to_cblock(const Local<Object> jsblock, CBlock& cblock) {
 // when the tx is changed.
 static inline void
 jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
-  String::AsciiValue hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
+  String::Utf8Value hex_string_(jstx->Get(NanNew<String>("hex"))->ToString());
   std::string hex_string = *hex_string_;
 
   CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
@@ -6514,7 +6594,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 
     Local<Object> in = Local<Object>::Cast(vin->Get(vi));
 
-    String::AsciiValue phash__(in->Get(NanNew<String>("txid"))->ToString());
+    String::Utf8Value phash__(in->Get(NanNew<String>("txid"))->ToString());
     std::string phash_ = *phash__;
     uint256 phash(phash_);
 
@@ -6523,7 +6603,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
 
     std::string shash_;
     Local<Object> script_obj = Local<Object>::Cast(in->Get(NanNew<String>("scriptSig")));
-    String::AsciiValue shash__(script_obj->Get(NanNew<String>("hex"))->ToString());
+    String::Utf8Value shash__(script_obj->Get(NanNew<String>("hex"))->ToString());
     shash_ = *shash__;
 
     std::vector<unsigned char> shash(shash_.begin(), shash_.end());
@@ -6545,7 +6625,7 @@ jstx_to_ctx(const Local<Object> jstx, CTransaction& ctx_) {
     txout.nValue = nValue;
 
     Local<Object> script_obj = Local<Object>::Cast(out->Get(NanNew<String>("scriptPubKey")));
-    String::AsciiValue phash__(script_obj->Get(NanNew<String>("hex")));
+    String::Utf8Value phash__(script_obj->Get(NanNew<String>("hex")));
     std::string phash_ = *phash__;
 
     std::vector<unsigned char> phash(phash_.begin(), phash_.end());
