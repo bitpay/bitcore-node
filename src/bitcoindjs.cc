@@ -769,7 +769,7 @@ async_start_node_after(uv_work_t *req) {
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, NanNew<String>(data->result))
     };
     TryCatch try_catch;
@@ -1025,7 +1025,7 @@ async_stop_node_after(uv_work_t *req) {
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, NanNew<String>(data->result))
     };
     TryCatch try_catch;
@@ -1167,7 +1167,7 @@ async_get_block_after(uv_work_t *req) {
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, jsblock)
     };
     TryCatch try_catch;
@@ -1276,7 +1276,7 @@ async_get_tx_after(uv_work_t *req) {
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, jstx)
     };
     TryCatch try_catch;
@@ -1405,7 +1405,7 @@ async_broadcast_tx_after(uv_work_t *req) {
   } else {
     const unsigned argc = 3;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, NanNew<String>(data->txid)),
       Local<Value>::New(isolate, data->jstx)
     };
@@ -1838,7 +1838,7 @@ async_get_progress_after(uv_work_t *req) {
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate,result)
     };
     TryCatch try_catch;
@@ -2170,7 +2170,7 @@ async_get_addrtx_after(uv_work_t *req) {
     result->Set(NanNew<String>("address"), NanNew<String>(data->addr));
     result->Set(NanNew<String>("tx"), tx);
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, result)
     };
     TryCatch try_catch;
@@ -2323,7 +2323,7 @@ async_block_tx_after(uv_work_t *req) {
 
     const unsigned argc = 3;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, jsblock),
       Local<Value>::New(isolate, jstx)
     };
@@ -2460,7 +2460,7 @@ async_block_time_after(uv_work_t *req) {
     }
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, jsblocks)
     };
     TryCatch try_catch;
@@ -2583,7 +2583,7 @@ async_from_tx_after(uv_work_t *req) {
       delete item;
     }
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, tx)
     };
     TryCatch try_catch;
@@ -3986,7 +3986,7 @@ async_wallet_sendto_after(uv_work_t *req) {
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, NanNew<String>(data->txid))
     };
     TryCatch try_catch;
@@ -4123,7 +4123,7 @@ async_wallet_sendfrom_after(uv_work_t *req) {
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, NanNew<String>(data->txid))
     };
     TryCatch try_catch;
@@ -5539,7 +5539,7 @@ async_import_key_after(uv_work_t *req) {
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, True(isolate))
     };
     TryCatch try_catch;
@@ -5690,7 +5690,7 @@ async_dump_wallet_after(uv_work_t *req) {
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, NanNew<String>(data->path))
     };
     TryCatch try_catch;
@@ -5870,7 +5870,7 @@ async_import_wallet_after(uv_work_t *req) {
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, NanNew<String>(data->path))
     };
     TryCatch try_catch;
@@ -6158,7 +6158,7 @@ async_rescan_after(uv_work_t *req) {
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      v8::Integer::New(isolate, 0),
+      Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, True(isolate))
     };
     TryCatch try_catch;
