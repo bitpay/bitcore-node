@@ -20,6 +20,7 @@
       '<(BOOST_INCLUDE)',
       '<(LEVELDB_INCLUDE)',
       '<(BITCOIN_DIR)/src',
+      './libbitcoind/src/secp256k1/include',
       './libbitcoind/src/leveldb/helpers/memenv',
       '<!(node -e "require(\'nan\')")',
     ],

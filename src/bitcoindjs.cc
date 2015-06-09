@@ -660,7 +660,8 @@ set_cooked(void);
  */
 
 NAN_METHOD(StartBitcoind) {
-  NanScope();
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   Local<Function> callback;
   std::string datadir = std::string("");
@@ -707,7 +708,6 @@ NAN_METHOD(StartBitcoind) {
   data->testnet = testnet;
   data->txindex = txindex;
 
-  Isolate* isolate = Isolate::GetCurrent();
   Persistent<Function> persistent(isolate, callback);
 
   data->callback = Local<Function>::New(isolate, persistent);
@@ -753,9 +753,9 @@ async_start_node(uv_work_t *req) {
 
 static void
 async_start_node_after(uv_work_t *req) {
-  NanScope();
-  async_node_data *data = static_cast<async_node_data*>(req->data);
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  async_node_data *data = static_cast<async_node_data*>(req->data);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
@@ -955,9 +955,8 @@ start_node_thread(void) {
  */
 
 NAN_METHOD(StopBitcoind) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
@@ -1009,8 +1008,8 @@ async_stop_node(uv_work_t *req) {
 
 static void
 async_stop_node_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   async_node_data* data = static_cast<async_node_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -1073,9 +1072,8 @@ NAN_METHOD(IsStopped) {
  */
 
 NAN_METHOD(GetBlock) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2
       || (!args[0]->IsString() && !args[0]->IsNumber())
       || !args[1]->IsFunction()) {
@@ -1145,8 +1143,8 @@ async_get_block(uv_work_t *req) {
 
 static void
 async_get_block_after(uv_work_t *req) {
-  NanScope();
   Isolate *isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -1190,9 +1188,8 @@ async_get_block_after(uv_work_t *req) {
  */
 
 NAN_METHOD(GetTransaction) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 3
       || !args[0]->IsString()
       || !args[1]->IsString()
@@ -1254,8 +1251,8 @@ async_get_tx(uv_work_t *req) {
 
 static void
 async_get_tx_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   async_tx_data* data = static_cast<async_tx_data*>(req->data);
 
   CTransaction ctx = data->ctx;
@@ -1299,9 +1296,8 @@ async_get_tx_after(uv_work_t *req) {
  */
 
 NAN_METHOD(BroadcastTx) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 4
       || !args[0]->IsObject()
       || !args[1]->IsBoolean()
@@ -1389,8 +1385,8 @@ async_broadcast_tx(uv_work_t *req) {
 
 static void
 async_broadcast_tx_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -1742,9 +1738,8 @@ NAN_METHOD(GetAddresses) {
  */
 
 NAN_METHOD(GetProgress) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 1 || !args[0]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.getProgress(callback)");
@@ -1780,8 +1775,8 @@ async_get_progress(uv_work_t *req) {
 
 static void
 async_get_progress_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -1861,9 +1856,8 @@ async_get_progress_after(uv_work_t *req) {
  */
 
 NAN_METHOD(SetGenerate) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
       "Usage: bitcoindjs.setGenerate(options)");
@@ -1978,9 +1972,8 @@ NAN_METHOD(GetMiningInfo) {
  */
 
 NAN_METHOD(GetAddrTransactions) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2
       || (!args[0]->IsString() && !args[0]->IsObject())
       || !args[1]->IsFunction()) {
@@ -2139,8 +2132,8 @@ done:
 
 static void
 async_get_addrtx_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
 
@@ -2229,9 +2222,8 @@ NAN_METHOD(GetChainHeight) {
  */
 
 NAN_METHOD(GetBlockByTx) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2
       || !args[0]->IsString()
       || !args[1]->IsFunction()) {
@@ -2297,8 +2289,8 @@ parse:
 
 static void
 async_block_tx_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   async_block_tx_data* data = static_cast<async_block_tx_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -2348,9 +2340,8 @@ async_block_tx_after(uv_work_t *req) {
  */
 
 NAN_METHOD(GetBlocksByTime) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2
       || !args[0]->IsString()
       || !args[1]->IsFunction()) {
@@ -2432,8 +2423,8 @@ async_block_time(uv_work_t *req) {
 
 static void
 async_block_time_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   async_block_time_data* data = static_cast<async_block_time_data*>(req->data);
 
@@ -2484,9 +2475,8 @@ async_block_time_after(uv_work_t *req) {
  */
 
 NAN_METHOD(GetFromTx) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2
       || !args[0]->IsString()
       || !args[1]->IsFunction()) {
@@ -2555,8 +2545,8 @@ async_from_tx(uv_work_t *req) {
 
 static void
 async_from_tx_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   async_from_tx_data* data = static_cast<async_from_tx_data*>(req->data);
 
@@ -2952,9 +2942,8 @@ boost::mutex poll_packets_mutex;
  */
 
 NAN_METHOD(HookPackets) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   Local<Array> obj = NanNew<Array>();
   poll_packets_list *cur = NULL;
   poll_packets_list *next = NULL;
@@ -3649,8 +3638,8 @@ NAN_METHOD(WalletGetAccountAddress) {
  */
 
 NAN_METHOD(WalletSetAccount) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3818,8 +3807,8 @@ NAN_METHOD(WalletGetRecipients) {
  */
 
 NAN_METHOD(WalletSetRecipient) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3866,8 +3855,8 @@ NAN_METHOD(WalletSetRecipient) {
  */
 
 NAN_METHOD(WalletRemoveRecipient) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -3894,9 +3883,8 @@ NAN_METHOD(WalletRemoveRecipient) {
  */
 
 NAN_METHOD(WalletSendTo) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletSendTo(options, callback)");
@@ -3970,8 +3958,8 @@ async_wallet_sendto(uv_work_t *req) {
 
 static void
 async_wallet_sendto_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -4012,9 +4000,8 @@ async_wallet_sendto_after(uv_work_t *req) {
  */
 
 NAN_METHOD(WalletSendFrom) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletSendFrom(options, callback)");
@@ -4106,8 +4093,8 @@ async_wallet_sendfrom(uv_work_t *req) {
 
 static void
 async_wallet_sendfrom_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
 
@@ -4147,8 +4134,8 @@ async_wallet_sendfrom_after(uv_work_t *req) {
  */
 
 NAN_METHOD(WalletMove) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -4405,9 +4392,8 @@ CScript _createmultisig_redeemScript(int nRequired, Local<Array> keys) {
 }
 
 NAN_METHOD(WalletCreateMultiSigAddress) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5030,9 +5016,8 @@ NAN_METHOD(WalletGetTransaction) {
  */
 
 NAN_METHOD(WalletBackup) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5058,9 +5043,8 @@ NAN_METHOD(WalletBackup) {
  */
 
 NAN_METHOD(WalletPassphrase) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5101,8 +5085,8 @@ NAN_METHOD(WalletPassphrase) {
  */
 
 NAN_METHOD(WalletPassphraseChange) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5147,9 +5131,8 @@ NAN_METHOD(WalletPassphraseChange) {
  */
 
 NAN_METHOD(WalletLock) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 0) {
     return NanThrowError(
@@ -5173,8 +5156,8 @@ NAN_METHOD(WalletLock) {
  */
 
 NAN_METHOD(WalletEncrypt) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5257,8 +5240,8 @@ NAN_METHOD(WalletEncrypted) {
  */
 
 NAN_METHOD(WalletKeyPoolRefill) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5294,8 +5277,8 @@ NAN_METHOD(WalletKeyPoolRefill) {
  */
 
 NAN_METHOD(WalletSetTxFee) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5371,9 +5354,8 @@ NAN_METHOD(WalletDumpKey) {
  */
 
 NAN_METHOD(WalletImportKey) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletImportKey(options, callback)");
@@ -5523,8 +5505,8 @@ async_import_key(uv_work_t *req) {
 
 static void
 async_import_key_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
 
   if (data->err_msg != "") {
@@ -5563,9 +5545,8 @@ async_import_key_after(uv_work_t *req) {
  */
 
 NAN_METHOD(WalletDumpWallet) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletDumpWallet(options, callback)");
@@ -5673,8 +5654,8 @@ async_dump_wallet(uv_work_t *req) {
 
 static void
 async_dump_wallet_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
 
@@ -5714,9 +5695,8 @@ async_dump_wallet_after(uv_work_t *req) {
  */
 
 NAN_METHOD(WalletImportWallet) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletImportWallet(options, callback)");
@@ -5853,8 +5833,8 @@ async_import_wallet(uv_work_t *req) {
 
 static void
 async_import_wallet_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
 
@@ -5894,8 +5874,8 @@ async_import_wallet_after(uv_work_t *req) {
  */
 
 NAN_METHOD(WalletChangeLabel) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -5976,8 +5956,8 @@ NAN_METHOD(WalletChangeLabel) {
  */
 
 NAN_METHOD(WalletDeleteAccount) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return NanThrowError(
@@ -6102,9 +6082,8 @@ NAN_METHOD(WalletIsMine) {
  */
 
 NAN_METHOD(WalletRescan) {
-  NanScope();
-
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
   if (args.Length() < 2 || !args[0]->IsObject() || !args[1]->IsFunction()) {
     return NanThrowError(
       "Usage: bitcoindjs.walletRescan(options, callback)");
@@ -6140,8 +6119,8 @@ async_rescan(uv_work_t *req) {
 
 static void
 async_rescan_after(uv_work_t *req) {
-  NanScope();
   Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
 
   async_rescan_data* data = static_cast<async_rescan_data*>(req->data);
 
