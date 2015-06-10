@@ -451,7 +451,7 @@ struct async_node_data {
   bool rpc;
   bool testnet;
   bool txindex;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -464,7 +464,7 @@ struct async_block_data {
   int64_t height;
   CBlock cblock;
   CBlockIndex* cblock_index;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -476,7 +476,7 @@ struct async_tx_data {
   std::string txid;
   std::string blockhash;
   CTransaction ctx;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -489,7 +489,7 @@ struct async_block_tx_data {
   CBlock cblock;
   CBlockIndex* cblock_index;
   CTransaction ctx;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -509,7 +509,7 @@ struct async_block_time_data {
   uint32_t lte;
   int64_t limit;
   cblocks_list *cblocks;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -529,7 +529,7 @@ struct async_addrtx_data {
   ctx_list *ctxs;
   int64_t blockheight;
   int64_t blocktime;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -538,12 +538,12 @@ struct async_addrtx_data {
 
 struct async_broadcast_tx_data {
   std::string err_msg;
-  Local<Object> jstx;
+  Eternal<Object> jstx;
   CTransaction ctx;
   std::string txid;
   bool override_fees;
   bool own_only;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -556,7 +556,7 @@ struct async_wallet_sendto_data {
   std::string address;
   int64_t nAmount;
   CWalletTx wtx;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -570,7 +570,7 @@ struct async_wallet_sendfrom_data {
   int64_t nAmount;
   int nMinDepth;
   CWalletTx wtx;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -580,7 +580,7 @@ struct async_wallet_sendfrom_data {
 struct async_import_key_data {
   std::string err_msg;
   bool fRescan;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -590,7 +590,7 @@ struct async_import_key_data {
 struct async_import_wallet_data {
   std::string err_msg;
   std::string path;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -600,7 +600,7 @@ struct async_import_wallet_data {
 struct async_dump_wallet_data {
   std::string err_msg;
   std::string path;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -609,7 +609,7 @@ struct async_dump_wallet_data {
 
 struct async_rescan_data {
   std::string err_msg;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -620,7 +620,7 @@ struct async_from_tx_data {
   std::string err_msg;
   std::string txid;
   ctx_list *ctxs;
-  Local<Function> callback;
+  Eternal<Function> callback;
 };
 
 /**
@@ -708,10 +708,9 @@ NAN_METHOD(StartBitcoind) {
   data->testnet = testnet;
   data->txindex = txindex;
 
-  Persistent<Function> persistent(isolate, callback);
+  Eternal<Function> eternal(isolate, callback);
 
-  data->callback = Local<Function>::New(isolate, persistent);
-
+  data->callback = eternal;
   uv_work_t *req = new uv_work_t();
   req->data = data;
 
@@ -757,30 +756,28 @@ async_start_node_after(uv_work_t *req) {
   HandleScope scope(isolate);
   async_node_data *data = static_cast<async_node_data*>(req->data);
 
+  Local<Function> cb = data->callback.Get(isolate);
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   } else {
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
-      Local<Value>::New(isolate, NanNull()),
-      Local<Value>::New(isolate, NanNew<String>(data->result))
+     v8::Null(isolate),
+     Local<Value>::New(isolate, NanNew<String>(data->result))
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -972,8 +969,8 @@ NAN_METHOD(StopBitcoind) {
   async_node_data *data = new async_node_data();
   data->err_msg = std::string("");
   data->result = std::string("");
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -1012,12 +1009,13 @@ async_stop_node_after(uv_work_t *req) {
   HandleScope scope(isolate);
   async_node_data* data = static_cast<async_node_data*>(req->data);
 
+  Local<Function> cb = data->callback.Get(isolate);
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -1028,14 +1026,11 @@ async_stop_node_after(uv_work_t *req) {
       Local<Value>::New(isolate, NanNew<String>(data->result))
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -1097,8 +1092,8 @@ NAN_METHOD(GetBlock) {
   }
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -1146,13 +1141,14 @@ async_get_block_after(uv_work_t *req) {
   Isolate *isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   async_block_data* data = static_cast<async_block_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -1169,13 +1165,11 @@ async_get_block_after(uv_work_t *req) {
       Local<Value>::New(isolate, jsblock)
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -1213,8 +1207,8 @@ NAN_METHOD(GetTransaction) {
   data->err_msg = std::string("");
   data->txid = txid;
   data->blockhash = blockhash;
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -1257,13 +1251,14 @@ async_get_tx_after(uv_work_t *req) {
 
   CTransaction ctx = data->ctx;
   uint256 blockhash(data->blockhash);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -1277,13 +1272,11 @@ async_get_tx_after(uv_work_t *req) {
       Local<Value>::New(isolate, jstx)
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
   delete data;
   delete req;
 }
@@ -1314,11 +1307,11 @@ NAN_METHOD(BroadcastTx) {
   data->override_fees = args[1]->ToBoolean()->IsTrue();
   data->own_only = args[2]->ToBoolean()->IsTrue();
   data->err_msg = std::string("");
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
-  Persistent<Object> persistentObject(isolate, jstx);
-  data->jstx = Local<Object>::New(isolate, persistentObject);
+  Eternal<Object> eternalObject(isolate, jstx);
+  data->jstx = eternalObject;
 
   CTransaction ctx;
   jstx_to_ctx(jstx, ctx);
@@ -1388,13 +1381,15 @@ async_broadcast_tx_after(uv_work_t *req) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   async_broadcast_tx_data* data = static_cast<async_broadcast_tx_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
+  Local<Object> obj = data->jstx.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -1403,16 +1398,14 @@ async_broadcast_tx_after(uv_work_t *req) {
     Local<Value> argv[argc] = {
       Local<Value>::New(isolate, NanNull()),
       Local<Value>::New(isolate, NanNew<String>(data->txid)),
-      Local<Value>::New(isolate, data->jstx)
+      Local<Value>::New(isolate, obj)
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -1753,8 +1746,8 @@ NAN_METHOD(GetProgress) {
   data->hash = pindex->GetBlockHash().GetHex();
   data->height = -1;
 
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -1778,13 +1771,14 @@ async_get_progress_after(uv_work_t *req) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   async_block_data* data = static_cast<async_block_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -1837,13 +1831,11 @@ async_get_progress_after(uv_work_t *req) {
       Local<Value>::New(isolate,result)
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -2020,8 +2012,8 @@ NAN_METHOD(GetAddrTransactions) {
   data->ctxs = NULL;
   data->blockheight = blockheight;
   data->blocktime = blocktime;
-  Persistent<Function>  persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -2136,13 +2128,14 @@ async_get_addrtx_after(uv_work_t *req) {
   HandleScope scope(isolate);
 
   async_addrtx_data* data = static_cast<async_addrtx_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -2167,13 +2160,11 @@ async_get_addrtx_after(uv_work_t *req) {
       Local<Value>::New(isolate, result)
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -2242,8 +2233,8 @@ NAN_METHOD(GetBlockByTx) {
   data->txid = txid;
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   int status = uv_queue_work(uv_default_loop(),
     req, async_block_tx,
@@ -2292,13 +2283,14 @@ async_block_tx_after(uv_work_t *req) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   async_block_tx_data* data = static_cast<async_block_tx_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -2320,14 +2312,11 @@ async_block_tx_after(uv_work_t *req) {
       Local<Value>::New(isolate, jstx)
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -2371,8 +2360,8 @@ NAN_METHOD(GetBlocksByTime) {
   data->cblocks = NULL;
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   int status = uv_queue_work(uv_default_loop(),
     req, async_block_time,
@@ -2427,13 +2416,14 @@ async_block_time_after(uv_work_t *req) {
   HandleScope scope(isolate);
 
   async_block_time_data* data = static_cast<async_block_time_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -2455,14 +2445,11 @@ async_block_time_after(uv_work_t *req) {
       Local<Value>::New(isolate, jsblocks)
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -2497,8 +2484,8 @@ NAN_METHOD(GetFromTx) {
   data->err_msg = std::string("");
 
   Local<Function> callback = Local<Function>::Cast(args[1]);
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   int status = uv_queue_work(uv_default_loop(),
     req, async_from_tx,
@@ -2549,13 +2536,14 @@ async_from_tx_after(uv_work_t *req) {
   HandleScope scope(isolate);
 
   async_from_tx_data* data = static_cast<async_from_tx_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -2577,14 +2565,11 @@ async_from_tx_after(uv_work_t *req) {
       Local<Value>::New(isolate, tx)
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -3896,8 +3881,8 @@ NAN_METHOD(WalletSendTo) {
   async_wallet_sendto_data *data = new async_wallet_sendto_data();
 
   data->err_msg = std::string("");
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
@@ -3961,13 +3946,14 @@ async_wallet_sendto_after(uv_work_t *req) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   async_wallet_sendto_data* data = static_cast<async_wallet_sendto_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -3978,14 +3964,11 @@ async_wallet_sendto_after(uv_work_t *req) {
       Local<Value>::New(isolate, NanNew<String>(data->txid))
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -4013,8 +3996,8 @@ NAN_METHOD(WalletSendFrom) {
   async_wallet_sendfrom_data *data = new async_wallet_sendfrom_data();
 
   data->err_msg = std::string("");
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   String::Utf8Value addr_(options->Get(NanNew<String>("address"))->ToString());
   std::string addr = std::string(*addr_);
@@ -4097,13 +4080,14 @@ async_wallet_sendfrom_after(uv_work_t *req) {
   HandleScope scope(isolate);
 
   async_wallet_sendfrom_data* data = static_cast<async_wallet_sendfrom_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -4114,14 +4098,11 @@ async_wallet_sendfrom_after(uv_work_t *req) {
       Local<Value>::New(isolate, NanNew<String>(data->txid))
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -5371,8 +5352,8 @@ NAN_METHOD(WalletImportKey) {
 
   if (args.Length() > 1 && args[1]->IsFunction()) {
     callback = Local<Function>::Cast(args[1]);
-    Persistent<Function> persistent(isolate, callback);
-    data->callback = Local<Function>::New(isolate, persistent);
+    Eternal<Function> eternal(isolate, callback);
+    data->callback = eternal;
   }
 
   std::string strSecret = "";
@@ -5508,13 +5489,14 @@ async_import_key_after(uv_work_t *req) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   async_import_key_data* data = static_cast<async_import_key_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -5525,14 +5507,11 @@ async_import_key_after(uv_work_t *req) {
       Local<Value>::New(isolate, True(isolate))
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -5568,8 +5547,8 @@ NAN_METHOD(WalletDumpWallet) {
   }
 
   data->path = path;
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -5658,13 +5637,14 @@ async_dump_wallet_after(uv_work_t *req) {
   HandleScope scope(isolate);
 
   async_dump_wallet_data* data = static_cast<async_dump_wallet_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -5675,14 +5655,11 @@ async_dump_wallet_after(uv_work_t *req) {
       Local<Value>::New(isolate, NanNew<String>(data->path))
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -5718,8 +5695,8 @@ NAN_METHOD(WalletImportWallet) {
   }
 
   data->path = path;
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -5837,13 +5814,14 @@ async_import_wallet_after(uv_work_t *req) {
   HandleScope scope(isolate);
 
   async_import_wallet_data* data = static_cast<async_import_wallet_data*>(req->data);
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -5854,14 +5832,11 @@ async_import_wallet_after(uv_work_t *req) {
       Local<Value>::New(isolate, NanNew<String>(data->path))
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
@@ -6095,8 +6070,8 @@ NAN_METHOD(WalletRescan) {
   Local<Function> callback = Local<Function>::Cast(args[1]);
 
   data->err_msg = std::string("");
-  Persistent<Function> persistent(isolate, callback);
-  data->callback = Local<Function>::New(isolate, persistent);
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -6123,14 +6098,14 @@ async_rescan_after(uv_work_t *req) {
   HandleScope scope(isolate);
 
   async_rescan_data* data = static_cast<async_rescan_data*>(req->data);
-
+  Local<Function> cb = data->callback.Get(isolate);
 
   if (data->err_msg != "") {
     Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
     const unsigned argc = 1;
     Local<Value> argv[argc] = { err };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
@@ -6141,14 +6116,11 @@ async_rescan_after(uv_work_t *req) {
       Local<Value>::New(isolate, True(isolate))
     };
     TryCatch try_catch;
-    data->callback->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
     if (try_catch.HasCaught()) {
       node::FatalException(try_catch);
     }
   }
-
-  Persistent<Function> persistent(isolate, data->callback);
-  persistent.Reset();
 
   delete data;
   delete req;
