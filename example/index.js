@@ -249,7 +249,7 @@ bitcoind.on('open', function(status) {
     });
   }, 2000);
 
-  return bitcoind.log(bitcoind.wallet.listAccounts());
+  return bitcoind.log("");
 });
 
 /**

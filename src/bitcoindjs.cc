@@ -6,140 +6,14 @@
  *   A bitcoind node.js binding.
  */
 
-#include "nan.h"
 
 #include "bitcoindjs.h"
 
-/**
- * LevelDB
- */
-
-#include <leveldb/cache.h>
-#include <leveldb/options.h>
-#include <leveldb/env.h>
-#include <leveldb/filter_policy.h>
-#include <memenv.h>
-#include <leveldb/db.h>
-#include <leveldb/write_batch.h>
-#include <leveldb/comparator.h>
-
-/**
- * secp256k1
- */
-
-#include <secp256k1.h>
-
-/**
- * Bitcoin headers
- */
-
-#include "config/bitcoin-config.h"
-
-#include "addrman.h"
-#include "alert.h"
-#include "allocators.h"
-#include "amount.h"
-#include "base58.h"
-#include "bloom.h"
-#include "bitcoind.h"
-#include "chain.h"
-#include "chainparams.h"
-#include "chainparamsbase.h"
-#include "checkpoints.h"
-#include "checkqueue.h"
-#include "clientversion.h"
-#include "coincontrol.h"
-#include "coins.h"
-#include "compat.h"
-#include "primitives/block.h"
-#include "primitives/transaction.h"
-#include "core_io.h"
-#include "crypter.h"
-#include "db.h"
-#include "hash.h"
-#include "init.h"
-#include "key.h"
-#include "keystore.h"
-#include "leveldbwrapper.h"
-#include "limitedmap.h"
-#include "main.h"
-#include "miner.h"
-#include "mruset.h"
-#include "netbase.h"
-#include "net.h"
-#include "noui.h"
-#include "pow.h"
-#include "protocol.h"
-#include "random.h"
-#include "rpcclient.h"
-#include "rpcprotocol.h"
-#include "rpcserver.h"
-#include "rpcwallet.h"
-#include "script/interpreter.h"
-#include "script/script.h"
-#include "script/sigcache.h"
-#include "script/sign.h"
-#include "script/standard.h"
-#include "script/script_error.h"
-#include "serialize.h"
-#include "sync.h"
-#include "threadsafety.h"
-#include "timedata.h"
-#include "tinyformat.h"
-#include "txdb.h"
-#include "txmempool.h"
-#include "ui_interface.h"
-#include "uint256.h"
-#include "util.h"
-#include "utilstrencodings.h"
-#include "utilmoneystr.h"
-#include "utiltime.h"
-#include "version.h"
-#include "wallet.h"
-#include "wallet_ismine.h"
-#include "walletdb.h"
-#include "compat/sanity.h"
-
-#include "json/json_spirit.h"
-#include "json/json_spirit_error_position.h"
-#include "json/json_spirit_reader.h"
-#include "json/json_spirit_reader_template.h"
-#include "json/json_spirit_stream_reader.h"
-#include "json/json_spirit_utils.h"
-#include "json/json_spirit_value.h"
-#include "json/json_spirit_writer.h"
-#include "json/json_spirit_writer_template.h"
-
-#include "crypto/common.h"
-#include "crypto/hmac_sha512.h"
-#include "crypto/sha1.h"
-#include "crypto/sha256.h"
-#include "crypto/sha512.h"
-#include "crypto/ripemd160.h"
-
-#include "univalue/univalue_escapes.h"
-#include "univalue/univalue.h"
-
-/**
- * Bitcoin System
- */
-
-#include <stdint.h>
-#include <signal.h>
-#include <stdio.h>
-
-#include <fstream>
-
-#include <boost/algorithm/string/predicate.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/interprocess/sync/file_lock.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
-
-#include <openssl/crypto.h>
 
 using namespace std;
 using namespace boost;
+using namespace node;
+using namespace v8;
 
 /**
  * Bitcoin Globals
@@ -151,86 +25,15 @@ using namespace boost;
 extern void DetectShutdownThread(boost::thread_group*);
 extern int nScriptCheckThreads;
 extern std::map<std::string, std::string> mapArgs;
-#ifdef ENABLE_WALLET
-extern std::string strWalletFile;
-extern CWallet *pwalletMain;
-#endif
 extern CFeeRate payTxFee;
 extern const std::string strMessageMagic;
-// extern map<uint256, COrphanBlock*> mapOrphanBlocks;
-
 extern std::string EncodeDumpTime(int64_t nTime);
 extern int64_t DecodeDumpTime(const std::string &str);
 extern std::string EncodeDumpString(const std::string &str);
 extern std::string DecodeDumpString(const std::string &str);
-
 extern bool fTxIndex;
-
-/**
- * Node.js System
- */
-
-#include <node.h>
-#include <string>
-
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-
-#include <termios.h>
-
-using namespace node;
-using namespace v8;
-
-// Need this because account names can be an empty string.
-#define EMPTY ("\\x01")
-
-// LevelDB options
-#define USE_LDB_ADDR 0
-#define USE_LDB_TX 0
-
-#define SHUTTING_DOWN() (ShutdownRequested() || shutdown_complete)
-
 static termios orig_termios;
 
-/**
- * Node.js Exposed Function Templates
- */
-
-NAN_METHOD(StartBitcoind);
-NAN_METHOD(IsStopping);
-NAN_METHOD(IsStopped);
-NAN_METHOD(StopBitcoind);
-NAN_METHOD(GetBlock);
-NAN_METHOD(GetTransaction);
-NAN_METHOD(BroadcastTx);
-NAN_METHOD(VerifyBlock);
-NAN_METHOD(VerifyTransaction);
-NAN_METHOD(GetInfo);
-NAN_METHOD(GetPeerInfo);
-NAN_METHOD(GetAddresses);
-NAN_METHOD(GetProgress);
-NAN_METHOD(SetGenerate);
-NAN_METHOD(GetGenerate);
-NAN_METHOD(GetMiningInfo);
-NAN_METHOD(GetAddrTransactions);
-NAN_METHOD(GetBestBlock);
-NAN_METHOD(GetChainHeight);
-NAN_METHOD(GetBlockByTx);
-NAN_METHOD(GetBlocksByTime);
-NAN_METHOD(GetFromTx);
-NAN_METHOD(GetLastFileIndex);
-
-NAN_METHOD(GetBlockHex);
-NAN_METHOD(GetTxHex);
-NAN_METHOD(BlockFromHex);
-NAN_METHOD(TxFromHex);
-NAN_METHOD(HookPackets);
 
 /**
  * Node.js Internal Function Templates
@@ -480,11 +283,6 @@ static bool
 get_block_by_tx(const std::string itxid, CBlock& rcblock, CBlockIndex **rcblock_index, CTransaction& rctx);
 #endif
 
-#if 0
-static bool
-get_block_by_tx_unspent(const std::string itxid, CBlock& rcblock, CBlockIndex **rcblock_index);
-#endif
-
 /**
  * Helpers
  */
@@ -629,7 +427,6 @@ async_start_node_after(uv_work_t *req) {
 /**
  * start_node(void)
  * Start AppInit2() on a separate thread, wait for
- * pwalletMain instantiation (and signal() calls).
  * Unfortunately, we need to wait for the initialization
  * to unhook the signal handlers so we can use them
  * from node.js in javascript.
@@ -642,13 +439,6 @@ start_node(void) {
   noui_connect();
 
   new boost::thread(boost::bind(&start_node_thread));
-
-  // Wait for wallet to be instantiated. This also avoids
-  // a race condition with signals not being set up.
-  while (!pwalletMain) {
-    useconds_t usec = 100 * 1000;
-    usleep(usec);
-  }
 
   // Drop the bitcoind signal handlers: we want our own.
   signal(SIGINT, SIG_DFL);
@@ -741,17 +531,6 @@ start_node_thread(void) {
       _exit(1);
       return;
     }
-
-    // Check for changed -txindex state
-    // if (fTxIndex != GetBoolArg("-txindex", false)) {
-    // if (fTxIndex && !g_txindex) {
-    //   if (set_cooked()) {
-    //     fprintf(stderr, "You need to rebuild the database using -reindex to change -txindex\n");
-    //   }
-    //   shutdown_complete = true;
-    //   _exit(1);
-    //   return;
-    // }
 
     CreatePidFile(GetPidFile(), getpid());
 
@@ -1071,11 +850,6 @@ async_get_tx(uv_work_t *req) {
   uint256 blockhash(data->blockhash);
   CTransaction ctx;
 
-  if (pwalletMain->mapWallet.count(hash)) {
-    const CWalletTx& wtx = pwalletMain->mapWallet[hash];
-    blockhash.SetHex(wtx.hashBlock.GetHex());
-  }
-
   if (get_tx(hash, blockhash, ctx)) {
     data->ctx = ctx;
     data->blockhash = blockhash.GetHex();
@@ -1207,9 +981,6 @@ async_broadcast_tx(uv_work_t *req) {
       data->err_msg = std::string("transaction already in block chain");
       return;
     }
-  } else {
-    // With v0.9.0
-    // SyncWithWallets(hashTx, ctx, NULL);
   }
 
   RelayTransaction(ctx);
@@ -1334,28 +1105,12 @@ NAN_METHOD(GetInfo) {
 
   obj->Set(NanNew<String>("version"), NanNew<Number>(CLIENT_VERSION));
   obj->Set(NanNew<String>("protocolversion"), NanNew<Number>(PROTOCOL_VERSION));
-#ifdef ENABLE_WALLET
-  if (pwalletMain) {
-    obj->Set(NanNew<String>("walletversion"), NanNew<Number>(pwalletMain->GetVersion()));
-    obj->Set(NanNew<String>("balance"), NanNew<Number>(pwalletMain->GetBalance())); // double
-  }
-#endif
   obj->Set(NanNew<String>("blocks"), NanNew<Number>((int)chainActive.Height())->ToInt32());
   obj->Set(NanNew<String>("timeoffset"), NanNew<Number>(GetTimeOffset()));
   obj->Set(NanNew<String>("connections"), NanNew<Number>((int)vNodes.size())->ToInt32());
   obj->Set(NanNew<String>("proxy"), NanNew<String>(proxy.IsValid() ? proxy.ToStringIPPort() : std::string("")));
   obj->Set(NanNew<String>("difficulty"), NanNew<Number>((double)GetDifficulty()));
   obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkIDString() == "test"));
-#ifdef ENABLE_WALLET
-  if (pwalletMain) {
-    obj->Set(NanNew<String>("keypoololdest"), NanNew<Number>(pwalletMain->GetOldestKeyPoolTime()));
-    obj->Set(NanNew<String>("keypoolsize"), NanNew<Number>((int)pwalletMain->GetKeyPoolSize())->ToInt32());
-  }
-  if (pwalletMain && pwalletMain->IsCrypted()) {
-    obj->Set(NanNew<String>("unlocked_until"), NanNew<Number>(nWalletUnlockTime));
-  }
-  obj->Set(NanNew<String>("paytxfee"), NanNew<Number>(payTxFee.GetFeePerK())); // double
-#endif
   obj->Set(NanNew<String>("relayfee"), NanNew<Number>(::minRelayTxFee.GetFeePerK())); // double
   obj->Set(NanNew<String>("errors"), NanNew<String>(GetWarnings("statusbar")));
 
@@ -1575,8 +1330,6 @@ async_get_progress_after(uv_work_t *req) {
     result->Set(NanNew<String>("hoursBehind"), NanNew<Number>(hours_behind));
     result->Set(NanNew<String>("daysBehind"), NanNew<Number>(days_behind));
     result->Set(NanNew<String>("percent"), NanNew<Number>(percent));
-    // result->Set(NanNew<String>("orphans"),
-    //   NanNew<Number>(mapOrphanBlocks.size()));
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
@@ -1592,84 +1345,6 @@ async_get_progress_after(uv_work_t *req) {
 
   delete data;
   delete req;
-}
-
-/**
- * SetGenerate()
- * bitcoindjs.setGenerate(options)
- * Set coin generation / mining
- */
-
-NAN_METHOD(SetGenerate) {
-  Isolate* isolate = Isolate::GetCurrent();
-  HandleScope scope(isolate);
-  if (args.Length() < 1 || !args[0]->IsObject()) {
-    return NanThrowError(
-      "Usage: bitcoindjs.setGenerate(options)");
-  }
-
-  Local<Object> options = Local<Object>::Cast(args[0]);
-
-  if (pwalletMain == NULL) {
-    return NanThrowError("Method not found (disabled)");
-  }
-
-  bool fGenerate = true;
-  if (options->Get(NanNew<String>("generate"))->IsBoolean()) {
-    fGenerate = options->Get(NanNew<String>("generate"))->ToBoolean()->IsTrue();
-  }
-
-  int nGenProcLimit = -1;
-  if (options->Get(NanNew<String>("limit"))->IsNumber()) {
-    nGenProcLimit = (int)options->Get(NanNew<String>("limit"))->IntegerValue();
-    if (nGenProcLimit == 0) {
-      fGenerate = false;
-    }
-  }
-
-  // -regtest mode: don't return until nGenProcLimit blocks are generated
-  if (fGenerate && Params().MineBlocksOnDemand()) {
-    int nHeightStart = 0;
-    int nHeightEnd = 0;
-    int nHeight = 0;
-    int nGenerate = (nGenProcLimit > 0 ? nGenProcLimit : 1);
-    { // Don't keep cs_main locked
-      LOCK(cs_main);
-      nHeightStart = chainActive.Height();
-      nHeight = nHeightStart;
-      nHeightEnd = nHeightStart+nGenerate;
-    }
-    int nHeightLast = -1;
-    while (nHeight < nHeightEnd) {
-      if (nHeightLast != nHeight) {
-        nHeightLast = nHeight;
-        GenerateBitcoins(fGenerate, pwalletMain, 1);
-      }
-      MilliSleep(1);
-      {   // Don't keep cs_main locked
-        LOCK(cs_main);
-        nHeight = chainActive.Height();
-      }
-    }
-  } else { // Not -regtest: start generate thread, return immediately
-    mapArgs["-gen"] = (fGenerate ? "1" : "0");
-    mapArgs["-genproclimit"] = itostr(nGenProcLimit);
-    GenerateBitcoins(fGenerate, pwalletMain, nGenProcLimit);
-  }
-
-  NanReturnValue(True(isolate));
-}
-
-/**
- * GetGenerate()
- * bitcoindjs.GetGenerate()
- * Get coin generation / mining
- */
-
-NAN_METHOD(GetGenerate) {
-  NanScope();
-  bool generate = GetBoolArg("-gen", false);
-  NanReturnValue(NanNew<Boolean>(generate));
 }
 
 /**
@@ -1691,21 +1366,11 @@ NAN_METHOD(GetMiningInfo) {
   obj->Set(NanNew<String>("difficulty"), NanNew<Number>((double)GetDifficulty()));
   obj->Set(NanNew<String>("errors"), NanNew<String>(GetWarnings("statusbar")));
   obj->Set(NanNew<String>("genproclimit"), NanNew<Number>((int)GetArg("-genproclimit", -1)));
-  // If lookup is -1, then use blocks since last difficulty change.
-  // If lookup is larger than chain, then set it to chain length.
-  // ~/bitcoin/src/json/json_spirit_value.h
-  // ~/bitcoin/src/rpcmining.cpp
   obj->Set(NanNew<String>("networkhashps"), NanNew<Number>(
     (int64_t)getnetworkhashps(empty_params, false).get_int64()));
   obj->Set(NanNew<String>("pooledtx"), NanNew<Number>((uint64_t)mempool.size()));
   obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkIDString() == "test"));
   obj->Set(NanNew<String>("chain"), NanNew<String>(Params().NetworkIDString()));
-#ifdef ENABLE_WALLET
-  obj->Set(NanNew<String>("generate"), NanNew<Boolean>(
-    (bool)getgenerate(empty_params, false).get_bool()));
-  obj->Set(NanNew<String>("hashespersec"), NanNew<Number>(
-    (int64_t)gethashespersec(empty_params, false).get_int64()));
-#endif
 
   NanReturnValue(obj);
 }
@@ -2328,189 +1993,6 @@ async_from_tx_after(uv_work_t *req) {
   delete req;
 }
 
-#if 0
-// ~/work/node_modules/bitcore/lib/Bloom.js
-// ~/bitcoin/src/bloom.cpp
-// ~/bitcoin/src/bloom.h
-
-static const unsigned int MAX_BLOOM_FILTER_SIZE = 36000; // bytes
-static const unsigned int MAX_HASH_FUNCS = 50;
-
-/**
- * BloomCreate()
- * bitcoindjs.createBloom()
- * Create bloom filter
- */
-
-NAN_METHOD(BloomCreate) {
-  NanScope();
-
-  if (args.Length() < 1) {
-    return NanThrowError(
-      "Usage: bitcoindjs.bloomCreate(options)");
-  }
-
-  Local<Object> options = Local<Object>::Cast(args[0]);
-  Local<Array> data = NanNew<Array>();
-  Local<Number> nhash = NanNew<Number>(0);
-
-  if (options->Get(NanNew<String>("data"))->IsArray()) {
-    data = options->Get(NanNew<String>("data"));
-  }
-  if (options->Get(NanNew<String>("hashFuncs"))->IsNumber()) {
-    nhash = options->Get(NanNew<String>("hashFuncs"));
-  }
-
-  Local<Object> filter = NanNew<Object>();
-
-  CBloomFilter cfilter;
-
-  CDataStream ssFilter(SER_NETWORK, PROTOCOL_VERSION);
-  ssFilter << cfilter;
-  std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
-  filter->Set(NanNew<String>("hex"), NanNew<String>(strHex));
-
-  filter->Set(NanNew<String>("data"), data);
-  filter->Set(NanNew<String>("hashFuncs"), nhash);
-
-  NanReturnValue(filter);
-}
-
-NAN_METHOD(BloomHash) {
-  NanScope();
-
-  if (args.Length() < 1) {
-    return NanThrowError(
-      "Usage: bitcoindjs.bloomHash(filter)");
-  }
-
-  Local<Object> filter = Local<Object>::Cast(args[0]);
-
-  CBloomFilter cfilter;
-  String::AsciiValue hex_string_(filter->Get(NanNew<String>("hex"))->ToString());
-  std::string hex_string = *hex_string_;
-
-  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
-  try {
-    ssData >> cfilter;
-  } catch (std::exception &e) {
-    NanThrowError("Bad BloomFilter decode");
-    return;
-  }
-
-  std::vector<unsigned char> vDataToHash;
-  CDataStream ss(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
-  ss >> vDataToHash;
-
-  unsigned int nHashNum = filter->Get(NanNew<String>("hashFuncs"))->ToUint32();
-  cfilter.Hash(nHashNum, vDataToHash);
-
-  NanReturnValue(NanNew<String>(vDataToHash));
-}
-
-NAN_METHOD(BloomInsert) {
-  NanScope();
-
-  if (args.Length() < 2) {
-    return NanThrowError(
-      "Usage: bitcoindjs.bloomInsert(filter, hash)");
-  }
-
-  Local<Object> filter = Local<Object>::Cast(args[0]);
-
-  String::Utf8Value s_(args[1]->ToString());
-  std::string js_hash = std::string(*s_);
-  uint256 hash(js_hash);
-
-  CBloomFilter cfilter;
-  String::AsciiValue hex_string_(filter->Get(NanNew<String>("hex"))->ToString());
-  std::string hex_string = *hex_string_;
-
-  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
-  try {
-    ssData >> cfilter;
-  } catch (std::exception &e) {
-    NanThrowError("Bad BloomFilter decode");
-    return;
-  }
-
-  //vector<unsigned char> vKey;
-  //COutPoint outpoint;
-  //uint256 hash;
-  cfilter.insert(hash);
-
-  CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-  ss << cfilter;
-  std::string strHex = HexStr(ss.begin(), ss.end());
-
-  filter->Set(NanNew<String>("hex"), NanNew<String>(strHex));
-
-  if (cfilter.isFull) NanReturnValue(NanNew<Boolean>(false));
-  if (!cfilter.isEmpty) NanReturnValue(filter);
-
-  NanReturnValue(filter);
-}
-
-NAN_METHOD(BloomContains) {
-  NanScope();
-
-  if (args.Length() < 2) {
-    return NanThrowError(
-      "Usage: bitcoindjs.bloomContains(filter, hash)");
-  }
-
-  Local<Object> filter = Local<Object>::Cast(args[0]);
-
-  String::Utf8Value s_(args[1]->ToString());
-  std::string js_hash = std::string(*s_);
-  uint256 hash(js_hash);
-
-  CBloomFilter cfilter;
-  String::AsciiValue hex_string_(filter->Get(NanNew<String>("hex"))->ToString());
-  std::string hex_string = *hex_string_;
-
-  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
-  try {
-    ssData >> cfilter;
-  } catch (std::exception &e) {
-    NanThrowError("Bad BloomFilter decode");
-    return;
-  }
-
-  //vector<unsigned char> vKey;
-  //bool contained = cfilter.contains(vKey);
-  bool contained = cfilter.contains(hash);
-
-  NanReturnValue(NanNew<Boolean>(contained));
-}
-
-NAN_METHOD(BloomSize) {
-  NanScope();
-
-  if (args.Length() < 1) {
-    return NanThrowError(
-      "Usage: bitcoindjs.bloomSize(filter)");
-  }
-
-  Local<Object> filter = Local<Object>::Cast(args[0]);
-
-  CBloomFilter cfilter;
-  String::AsciiValue hex_string_(filter->Get(NanNew<String>("hex"))->ToString());
-  std::string hex_string = *hex_string_;
-
-  CDataStream ssData(ParseHex(hex_string), SER_NETWORK, PROTOCOL_VERSION);
-  try {
-    ssData >> cfilter;
-  } catch (std::exception &e) {
-    NanThrowError("Bad BloomFilter decode");
-    return;
-  }
-
-  bool size_ok = cfilter.IsWithinSizeConstraints();
-  NanReturnValue(NanNew<Boolean>(size_ok));
-}
-#endif
-
 /**
  * GetLastFileIndex()
  * bitcoindjs.getLastFileIndex()
@@ -2621,7 +2103,6 @@ NAN_METHOD(BlockFromHex) {
   }
 
   Local<Object> jsblock = NanNew<Object>();
-  // XXX Possibly pass true into is_new to search for CBlockIndex?
   cblock_to_jsblock(cblock, NULL, jsblock, false);
 
   NanReturnValue(jsblock);
@@ -2700,7 +2181,6 @@ NAN_METHOD(HookPackets) {
     o->Set(NanNew<String>("name"), NanNew<String>(strCommand));
     o->Set(NanNew<String>("received"), NanNew<Number>((int64_t)nTimeReceived));
     o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->id));
-    // o->Set(NanNew<String>("peerId"), NanNew<Number>(pfrom->GetId()));
     o->Set(NanNew<String>("userAgent"),
       NanNew<String>(pfrom->cleanSubVer));
 
@@ -2831,15 +2311,12 @@ NAN_METHOD(HookPackets) {
 
         boost::this_thread::interruption_point();
 
-        //bool fAlreadyHave = AlreadyHave(inv);
-
         // Bad size
         if (pfrom->nSendSize > (SendBufferSize() * 2)) {
           NanReturnValue(Undefined(isolate));
         }
 
         Local<Object> item = NanNew<Object>();
-        //item->Set(NanNew<String>("have"), NanNew<Boolean>(fAlreadyHave));
         item->Set(NanNew<String>("hash"), NanNew<String>(inv.hash.GetHex()));
         item->Set(NanNew<String>("type"), NanNew<String>(
           inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK
@@ -3055,23 +2532,6 @@ NAN_METHOD(HookPackets) {
         LOCK(pfrom->cs_filter);
         filter.UpdateEmptyFull();
 
-        //std::string svData(filter.vData.begin(), filter.vData.end());
-        //char *cvData = svData.c_str();
-        //int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
-        //char *vDataHex = (char *)malloc(vDataHexLen);
-        //int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
-        //uint64_t dataHex;
-        //sscanf(cvData, "%x", &dataHex);
-        //// assert(written == vDataHexLen);
-        //vDataHex[written] = '\0';
-
-        //o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
-        //free(vDataHex);
-        //o->Set(NanNew<String>("full"), NanNew<Boolean>(filter.isFull));
-        //o->Set(NanNew<String>("empty"), NanNew<Boolean>(filter.isEmpty));
-        //o->Set(NanNew<String>("hashFuncs"), NanNew<Number>(filter.nHashFuncs));
-        //o->Set(NanNew<String>("tweaks"), NanNew<Number>(filter.nTweak));
-        //o->Set(NanNew<String>("flags"), NanNew<Number>(filter.nFlags));
         o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
       }
     } else if (strCommand == "filteradd") {
@@ -3085,18 +2545,6 @@ NAN_METHOD(HookPackets) {
       } else {
         LOCK(pfrom->cs_filter);
         if (pfrom->pfilter) {
-          //std::string svData(vData.begin(), vData.end());
-          //char *cvData = svData.c_str();
-          //int vDataHexLen = sizeof(char) * (strlen(cvData) * 2) + 1;
-          //char *vDataHex = (char *)malloc(vDataHexLen);
-          //int written = snprintf(vDataHex, vDataHexLen, "%x", cvData);
-          //uint64_t dataHex;
-          //sscanf(cvData, "%x", &dataHex);
-          //// assert(written == vDataHexLen);
-          //vDataHex[written] = '\0';
-
-          //o->Set(NanNew<String>("data"), NanNew<String>(vDataHex));
-          //free(vDataHex);
           o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(false));
         } else {
           o->Set(NanNew<String>("misbehaving"), NanNew<Boolean>(true));
@@ -3133,7 +2581,6 @@ NAN_METHOD(HookPackets) {
     }
 
     next = cur->next;
-    // delete cur->pfrom; // cleaned up on disconnect
     free(cur->strCommand);
     delete cur->vRecv;
     free(cur);
@@ -3369,24 +2816,6 @@ get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx) {
       }
     }
   }
-#if 0
-  // NOTE: Using -txindex would prevent this.
-  int64_t i = 0;
-  int64_t height = chainActive.Height();
-  for (; i <= height; i++) {
-    CBlock block;
-    CBlockIndex* pblockindex = chainActive[i];
-    if (ReadBlockFromDisk(block, pblockindex)) {
-      BOOST_FOREACH(const CTransaction& tx, block.vtx) {
-        if (tx.GetHash() == txid) {
-          ctx = tx;
-          blockhash = block.GetHash();
-          return -2;
-        }
-      }
-    }
-  }
-#endif
   return 0;
 }
 
@@ -3395,15 +2824,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
   // Find block hash if it's in our wallet
   bool is_mine = false;
   CWalletTx cwtx;
-  if (pwalletMain->mapWallet.count(ctx.GetHash())) {
-    cwtx = pwalletMain->mapWallet[ctx.GetHash()];
-    blockhash.SetHex(cwtx.hashBlock.GetHex());
-    is_mine = true;
-  }
-
-  // With v0.9.0
-  // jstx->Set(NanNew<String>("mintxfee"), NanNew<Number>((int64_t)ctx.nMinTxFee)->ToInteger());
-  // jstx->Set(NanNew<String>("minrelaytxfee"), NanNew<Number>((int64_t)ctx.nMinRelayTxFee)->ToInteger());
 
   jstx->Set(NanNew<String>("current_version"),
     NanNew<Number>((int)ctx.CURRENT_VERSION)->ToInt32());
@@ -4071,102 +3491,9 @@ get_block_by_tx(const std::string itxid, CBlock& rcblock, CBlockIndex **rcblock_
 }
 #endif
 
-#if 0
-/**
- LevelDB Parser
- DB: chainstate*
- */
-
-// XXX static - will not work:
-// extern CCoinsViewDB *pcoinsdbview;
-
-static bool
-get_block_by_tx_unspent(const std::string itxid, CBlock& rcblock, CBlockIndex **rcblock_index) {
-  // XXX Will not work - db is protected property:
-  CCoinsViewDB *pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
-  bool fReindex = GetBoolArg("-reindex", false);
-  size_t nCoinDBCache = (GetArg("-dbcache", nDefaultDbCache) << 20) / 2;
-  nCoinCacheSize = nCoinDBCache / 300;
-  boost::scoped_ptr<leveldb::Iterator> pcursor(const_cast<CLevelDBWrapper*>(&pcoinsdbview->db)->NewIterator());
-
-  pcursor->SeekToFirst();
-
-  while (pcursor->Valid()) {
-    boost::this_thread::interruption_point();
-    try {
-      leveldb::Slice slKey = pcursor->key();
-
-      CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
-
-      char type;
-      ssKey >> type;
-
-      // Blockchain Index Structure:
-      // http://bitcoin.stackexchange.com/questions/28168
-
-      // Unspent Output Transaction Structure:
-      //   'c' + 32-byte tx hash
-      //   Version of the tx
-      //   Whether transaction was a coinbase
-      //   Which height block contains the tx
-      //   Which outputs of the tx are unspent
-      //   The scriptPubKey and amount for these unspent outputs
-      if (type == 'c') {
-        uint256 txid;
-        ssKey >> txid;
-        if (txid.GetHex() == itxid) {
-          leveldb::Slice slValue = pcursor->value();
-          CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
-
-          // class CCoins {
-          //   bool fCoinBase;
-          //   std::vector<CTxOut> vout;
-          //   int nHeight;
-          //   int nVersion;
-          // }
-
-          CCoins coins;
-          ssValue >> coins;
-
-          CBlockIndex* pblockindex = chainActive[coins.nHeight];
-          CBlock cblock;
-          if (ReadBlockFromDisk(cblock, pblockindex)) {
-            *rcblock_index = pblockindex;
-            return true;
-          }
-
-          goto error;
-        }
-      }
-
-      // Unspent Output Block Hash Structure
-      // 'B' + 32-byte block hash: The block hash up to which the db represents
-      // the unspent tx outputs
-      if (type == 'B') {
-        uint256 blockhash;
-        ssKey >> blockhash;
-        // CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
-        // uint256 blockhash;
-        // ssValue >> blockhash;
-      }
-
-      pcursor->Next();
-    } catch (std::exception &e) {
-      return false;
-    }
-  }
-
-error:
-  return false;
-}
-#endif
-
 /**
  * Helpers
  */
-
-// https://github.com/joyent/node/blob/master/src/tty_wrap.cc
-// https://github.com/joyent/node/blob/master/deps/uv/src/unix/tty.c
 
 static bool
 set_cooked(void) {
@@ -4204,8 +3531,6 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getPeerInfo", GetPeerInfo);
   NODE_SET_METHOD(target, "getAddresses", GetAddresses);
   NODE_SET_METHOD(target, "getProgress", GetProgress);
-  NODE_SET_METHOD(target, "setGenerate", SetGenerate);
-  NODE_SET_METHOD(target, "getGenerate", GetGenerate);
   NODE_SET_METHOD(target, "getMiningInfo", GetMiningInfo);
   NODE_SET_METHOD(target, "getAddrTransactions", GetAddrTransactions);
   NODE_SET_METHOD(target, "getBestBlock", GetBestBlock);
