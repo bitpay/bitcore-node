@@ -1,44 +1,16 @@
-From 0444112b743602ae2182832603fb9ac603907c9a Mon Sep 17 00:00:00 2001
+From 5aeac9628b35cee9dc61cba7fc4636f96b522dd7 Mon Sep 17 00:00:00 2001
 From: Chris Kleeschulte <chrisk@bitpay.com>
-Date: Mon, 1 Jun 2015 13:41:12 -0400
-Subject: [PATCH] Applied JJ's patch to v0.10.2
+Date: Mon, 15 Jun 2015 18:34:03 -0400
+Subject: [PATCH] New patch using AC_DEFINE's and without the wallet stuff.
 
 ---
- Makefile.am                 |  5 +++++
- configure.ac                | 31 +++++++++++++++++++++++++--
- src/Makefile.am             | 19 +++++++++++++++--
- src/Makefile.daemon.include | 52 +++++++++++++++++++++++++++++++++++++++++++++
- src/bitcoin-main.cpp        | 15 +++++++++++++
- src/bitcoind.cpp            | 22 +------------------
- src/bitcoind.h              | 25 ++++++++++++++++++++++
- src/init.h                  |  8 +++++++
- src/leveldbwrapper.h        |  6 ++----
- src/rpcdump.cpp             |  7 +++---
- src/rpcwallet.cpp           |  1 +
- src/rpcwallet.h             | 17 +++++++++++++++
- src/wallet.h                |  3 +--
- 13 files changed, 176 insertions(+), 35 deletions(-)
- create mode 100644 src/Makefile.daemon.include
- create mode 100644 src/bitcoin-main.cpp
- create mode 100644 src/bitcoind.h
- create mode 100644 src/rpcwallet.h
+ configure.ac         | 31 +++++++++++++++++++++++++++++--
+ src/Makefile.am      | 31 +++++++++++++++++++------------
+ src/bitcoind.cpp     |  8 ++++++--
+ src/init.h           |  6 ++++++
+ src/leveldbwrapper.h | 13 ++++++++++++-
+ 5 files changed, 72 insertions(+), 17 deletions(-)
 
-diff --git a/Makefile.am b/Makefile.am
-index b51f477..58241df 100644
---- a/Makefile.am
-+++ b/Makefile.am
-@@ -35,6 +35,11 @@ COVERAGE_INFO = baseline_filtered_combined.info baseline.info block_test.info \
-   baseline_filtered.info block_test_filtered.info \
-   leveldb_baseline_filtered.info test_bitcoin_coverage.info test_bitcoin.info
- 
-+if ENABLE_DAEMONLIB
-+all:
-+	$(MAKE) -C src
-+endif
-+
- dist-hook:
- 	-$(MAKE) -C $(top_distdir)/src/leveldb clean
- 	-$(MAKE) -C $(top_distdir)/src/secp256k1 distclean
 diff --git a/configure.ac b/configure.ac
 index 579035f..cd20489 100644
 --- a/configure.ac
@@ -117,375 +89,191 @@ index 579035f..cd20489 100644
  LIBLEVELDB=
  LIBMEMENV=
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 81b16d1..cc926e1 100644
+index 81b16d1..b64eb24 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -31,12 +31,14 @@ LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
- LIBBITCOIN_UNIVALUE=univalue/libbitcoin_univalue.a
- LIBBITCOINQT=qt/libbitcoinqt.a
- LIBSECP256K1=secp256k1/libsecp256k1.la
-+LIBBITCOIND=libbitcoind.so
+@@ -7,7 +7,6 @@ LEVELDB_CPPFLAGS += -I$(srcdir)/leveldb/include
+ LEVELDB_CPPFLAGS += -I$(srcdir)/leveldb/helpers/memenv
+ LIBLEVELDB += $(builddir)/leveldb/libleveldb.a
+ LIBMEMENV  += $(builddir)/leveldb/libmemenv.a
+-
+ # NOTE: This dependency is not strictly necessary, but without it make may try to build both in parallel, which breaks the LevelDB build system in a race
+ $(LIBLEVELDB): $(LIBMEMENV)
  
- $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
- 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
+@@ -49,22 +48,26 @@ BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
+ EXTRA_LIBRARIES += libbitcoin_wallet.a
+ endif
  
- # Make is not made aware of per-object dependencies to avoid limiting building parallelization
- # But to build the less dependent modules first, we manually select their order here:
-+if !ENABLE_DAEMONLIB
- EXTRA_LIBRARIES = \
-   crypto/libbitcoin_crypto.a \
-   libbitcoin_util.a \
-@@ -76,6 +78,7 @@ BITCOIN_CORE_H = \
-   amount.h \
-   base58.h \
-   bloom.h \
-+  bitcoind.h \
-   chain.h \
-   chainparams.h \
-   chainparamsbase.h \
-@@ -152,10 +155,17 @@ JSON_H = \
-   json/json_spirit_writer.h \
-   json/json_spirit_writer_template.h
+-if BUILD_BITCOIN_LIBS
+-lib_LTLIBRARIES = libbitcoinconsensus.la
+-LIBBITCOIN_CONSENSUS=libbitcoinconsensus.la
+-else
+-LIBBITCOIN_CONSENSUS=
+-endif
+-
++lib_LTLIBRARIES =
++LIBBITCOIN_CONSENSUS =
+ bin_PROGRAMS =
+ TESTS =
  
-+else
-+.PHONY: FORCE
-+BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
++if BUILD_BITCOIN_LIBS
++lib_LTLIBRARIES += libbitcoinconsensus.la
++LIBBITCOIN_CONSENSUS += libbitcoinconsensus.la
 +endif
 +
- obj/build.h: FORCE
++if !ENABLE_DAEMONLIB
+ if BUILD_BITCOIND
+-  bin_PROGRAMS += bitcoind
++bin_PROGRAMS += bitcoind
+ endif
+ 
+ if BUILD_BITCOIN_UTILS
+-  bin_PROGRAMS += bitcoin-cli bitcoin-tx
++bin_PROGRAMS += bitcoin-cli bitcoin-tx
++endif
++else
++lib_LTLIBRARIES += libbitcoind.la
+ endif
+ 
+ .PHONY: FORCE
+@@ -156,6 +159,7 @@ obj/build.h: FORCE
  	@$(MKDIR_P) $(builddir)/obj
  	@$(top_srcdir)/share/genbuild.sh $(abs_top_builddir)/src/obj/build.h \
  	  $(abs_top_srcdir)
 +
-+if !ENABLE_DAEMONLIB
  libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
  
  # server: shared between bitcoind and bitcoin-qt
-@@ -165,6 +175,7 @@ libbitcoin_server_a_SOURCES = \
-   alert.cpp \
-   bloom.cpp \
-   chain.cpp \
-+  bitcoind.cpp \
-   checkpoints.cpp \
-   init.cpp \
-   leveldbwrapper.cpp \
-@@ -304,8 +315,7 @@ bitcoind_LDADD = \
- if ENABLE_WALLET
+@@ -305,15 +309,19 @@ if ENABLE_WALLET
  bitcoind_LDADD += libbitcoin_wallet.a
  endif
--bitcoind_SOURCES = bitcoind.cpp
+ bitcoind_SOURCES = bitcoind.cpp
 -#
-+bitcoind_SOURCES = bitcoin-main.cpp
++libbitcoind_la_SOURCES = bitcoind.cpp
  
  if TARGET_WINDOWS
  bitcoind_SOURCES += bitcoind-res.rc
-@@ -380,6 +390,7 @@ if USE_LIBSECP256K1
- libbitcoinconsensus_la_LIBADD += secp256k1/libsecp256k1.la
++libbitcoind_la_SOURCES += bitcoind-res.rc
  endif
- endif
-+endif
  
- CLEANFILES = leveldb/libleveldb.a leveldb/libmemenv.a *.gcda *.gcno
+ bitcoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS)
++libbitcoind_la_LIBADD = $(bitcoind_LDADD)
+ bitcoind_CPPFLAGS = $(BITCOIN_INCLUDES)
++libbitcoind_la_CPPFLAGS = $(BITCOIN_INCLUDES)
+ bitcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
++libbitcoind_la_LDFLAGS = $(RELDFLAGS) -no-undefined
  
-@@ -405,6 +416,9 @@ clean-local:
- 	@test -f $(PROTOC)
- 	$(AM_V_GEN) $(PROTOC) --cpp_out=$(@D) --proto_path=$(abspath $(<D) $<)
+ # bitcoin-cli binary #
+ bitcoin_cli_LDADD = \
+@@ -386,7 +394,6 @@ CLEANFILES = leveldb/libleveldb.a leveldb/libmemenv.a *.gcda *.gcno
+ DISTCLEANFILES = obj/build.h
  
-+if ENABLE_DAEMONLIB
-+include Makefile.daemon.include
-+else
- if ENABLE_TESTS
- include Makefile.test.include
- endif
-@@ -416,3 +430,4 @@ endif
- if ENABLE_QT_TESTS
- include Makefile.qttest.include
- endif
-+endif
-diff --git a/src/Makefile.daemon.include b/src/Makefile.daemon.include
-new file mode 100644
-index 0000000..b4934ba
---- /dev/null
-+++ b/src/Makefile.daemon.include
-@@ -0,0 +1,52 @@
-+all: $(LIBBITCOIND)
-+
-+leveldb_obj = \
-+	$(patsubst %test.o,,\
-+	$(patsubst %bench.o,,\
-+	$(subst leveldb/db/leveldb_main.o,,\
-+	$(subst leveldb/util/testharness.o,,\
-+	$(subst leveldb/util/testutil.o,,\
-+	$(subst leveldb/port/port_win.o,,\
-+		$(subst .cc,.o,$(wildcard leveldb/**/*.cc)) \
-+		$(subst .cc,.o,$(wildcard leveldb/helpers/memenv/memenv.cc)) \
-+	))))))
-+
-+libbitcoind_obj = \
-+	$(subst bitcoin-main.o,, \
-+		$(subst bitcoin-cli.o,, \
-+		$(subst bitcoin-tx.o,, \
-+		$(subst .cpp,.o,$(wildcard *.cpp))))) \
-+	$(subst compat/glibcxx_compat.o,, \
-+		$(subst compat/glibc_compat.o,, \
-+		$(subst .cpp,.o,$(wildcard compat/*.cpp)))) \
-+	$(subst .cpp,.o,$(wildcard primitives/*.cpp)) \
-+	$(subst .cpp,.o,$(wildcard crypto/*.cpp)) \
-+	$(subst .cpp,.o,$(wildcard script/*.cpp)) \
-+	$(subst .cpp,.o,$(wildcard secp256k1/*.cpp)) \
-+	$(subst univalue/gen.o,, \
-+		$(subst .cpp,.o,$(wildcard univalue/*.cpp)))
-+
-+if GLIBC_BACK_COMPAT
-+libbitcoind_obj += compat/glibc_compat.o
-+libbitcoind_obj += compat/glibcxx_compat.o
-+endif
-+
-+CXXFLAGS += -I./leveldb/helpers/memenv
-+COMMAND = $(CC) -dynamiclib \
-+	-lc++ -lcrypto -L/usr/lib -lminiupnpc \
-+	$(CXXFLAGS) $(CPPFLAGS) $(DEFS) $(LEVELDB_CPPFLAGS) \
-+	$(BITCOIN_INCLUDES) $(BITCOIN_CONFIG_INCLUDES) $(BOOST_LIBS) \
-+	$(BDB_LIBS) $(PROTOBUF_LIBS) $(SSL_LIBS) $(LIBS) \
-+	$(leveldb_obj) $(libbitcoind_obj) \
-+	./secp256k1/libsecp256k1_la-secp256k1.o \
-+        -o libbitcoind.dylib 
-+
-+clientversion.o: clientversion.cpp obj/build.h
-+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-+	  $(BITCOIN_INCLUDES) $(BITCOIN_CONFIG_INCLUDES) \
-+	  $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
-+do:
-+	@echo "$(COMMAND)"
-+
-+$(LIBBITCOIND): $(LIBLEVELDB) $(LIBMEMENV) $(LIBSECP256K1) $(libbitcoind_obj)
-+	$(COMMAND)
-diff --git a/src/bitcoin-main.cpp b/src/bitcoin-main.cpp
-new file mode 100644
-index 0000000..b37f9cf
---- /dev/null
-+++ b/src/bitcoin-main.cpp
-@@ -0,0 +1,15 @@
-+// Copyright (c) 2009-2010 Satoshi Nakamoto
-+// Copyright (c) 2009-2013 The Bitcoin developers
-+// Distributed under the MIT/X11 software license, see the accompanying
-+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#include "bitcoind.h"
-+
-+int main(int argc, char* argv[]) {
-+    SetupEnvironment();
-+
-+    // Connect bitcoind signal handlers
-+    noui_connect();
-+
-+    return (AppInit(argc, argv) ? 0 : 1);
-+}
+ EXTRA_DIST = leveldb
+-
+ clean-local:
+ 	-$(MAKE) -C leveldb clean
+ 	-$(MAKE) -C secp256k1 clean
 diff --git a/src/bitcoind.cpp b/src/bitcoind.cpp
-index be7757b..0e76df1 100644
+index be7757b..e2c1698 100644
 --- a/src/bitcoind.cpp
 +++ b/src/bitcoind.cpp
-@@ -3,17 +3,7 @@
- // Distributed under the MIT/X11 software license, see the accompanying
- // file COPYING or http://www.opensource.org/licenses/mit-license.php.
- 
--#include "clientversion.h"
--#include "rpcserver.h"
--#include "init.h"
--#include "main.h"
--#include "noui.h"
--#include "ui_interface.h"
--#include "util.h"
+@@ -10,11 +10,13 @@
+ #include "noui.h"
+ #include "ui_interface.h"
+ #include "util.h"
 -
--#include <boost/algorithm/string/predicate.hpp>
--#include <boost/filesystem.hpp>
--#include <boost/thread.hpp>
-+#include "bitcoind.h"
- 
- /* Introduction text for doxygen: */
- 
-@@ -174,13 +164,3 @@ bool AppInit(int argc, char* argv[])
- 
-     return fRet;
- }
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/filesystem.hpp>
+ #include <boost/thread.hpp>
 -
--int main(int argc, char* argv[])
--{
--    SetupEnvironment();
--
--    // Connect bitcoind signal handlers
--    noui_connect();
--
--    return (AppInit(argc, argv) ? 0 : 1);
--}
-diff --git a/src/bitcoind.h b/src/bitcoind.h
-new file mode 100644
-index 0000000..0e34008
---- /dev/null
-+++ b/src/bitcoind.h
-@@ -0,0 +1,25 @@
-+// Copyright (c) 2009-2010 Satoshi Nakamoto
-+// Copyright (c) 2009-2013 The Bitcoin developers
-+// Distributed under the MIT/X11 software license, see the accompanying
-+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#ifndef _BITCOIN_BITCOIND
-+#define _BITCOIN_BITCOIND 1
-+
-+#include "clientversion.h"
-+#include "rpcserver.h"
-+#include "init.h"
-+#include "main.h"
-+#include "noui.h"
-+#include "ui_interface.h"
-+#include "util.h"
-+#include "rpcclient.h"
-+
-+#include <boost/algorithm/string/predicate.hpp>
-+#include <boost/filesystem.hpp>
-+#include <boost/thread.hpp>
-+
++#if ENABLE_DAEMONLIB 
 +extern void DetectShutdownThread(boost::thread_group* threadGroup);
 +extern bool AppInit(int argc, char* argv[]);
-+
++#endif
+ /* Introduction text for doxygen: */
+ 
+ /*! \mainpage Developer documentation
+@@ -175,6 +177,7 @@ bool AppInit(int argc, char* argv[])
+     return fRet;
+ }
+ 
++#if !ENABLE_DAEMONLIB 
+ int main(int argc, char* argv[])
+ {
+     SetupEnvironment();
+@@ -184,3 +187,4 @@ int main(int argc, char* argv[])
+ 
+     return (AppInit(argc, argv) ? 0 : 1);
+ }
 +#endif
 diff --git a/src/init.h b/src/init.h
-index f2f7ac6..10abc3a 100644
+index f2f7ac6..ce9ce2f 100644
 --- a/src/init.h
 +++ b/src/init.h
-@@ -15,7 +15,15 @@ namespace boost
- class thread_group;
- } // namespace boost
+@@ -17,6 +17,12 @@ class thread_group;
  
-+#ifdef ENABLE_WALLET
-+extern std::string strWalletFile;
  extern CWallet* pwalletMain;
-+#endif
-+
+ 
++#if ENABLE_DAEMONLIB 
 +#include <boost/filesystem/path.hpp>
 +#include <boost/thread/mutex.hpp>
-+
 +void ThreadImport(std::vector<boost::filesystem::path> vImportFiles);
- 
++#endif
++
  void StartShutdown();
  bool ShutdownRequested();
+ void Shutdown();
 diff --git a/src/leveldbwrapper.h b/src/leveldbwrapper.h
-index 4247920..08c8164 100644
+index 4247920..aa18fe4 100644
 --- a/src/leveldbwrapper.h
 +++ b/src/leveldbwrapper.h
-@@ -29,10 +29,9 @@ class CLevelDBBatch
+@@ -4,7 +4,6 @@
+ 
+ #ifndef BITCOIN_LEVELDBWRAPPER_H
+ #define BITCOIN_LEVELDBWRAPPER_H
+-
+ #include "clientversion.h"
+ #include "serialize.h"
+ #include "streams.h"
+@@ -29,10 +28,16 @@ class CLevelDBBatch
  {
      friend class CLevelDBWrapper;
  
--private:
++#if ENABLE_DAEMONLIB 
 +public:
++#else
+ private:
++#endif
      leveldb::WriteBatch batch;
  
--public:
++#if !ENABLE_DAEMONLIB 
+ public:
++#endif
      template <typename K, typename V>
      void Write(const K& key, const V& value)
      {
-@@ -63,7 +62,7 @@ public:
+@@ -63,7 +68,11 @@ public:
  
  class CLevelDBWrapper
  {
--private:
++#if ENABLE_DAEMONLIB 
 +public:
++#else
+ private:
++#endif
      //! custom environment this database is using (may be NULL in case of default environment)
      leveldb::Env* penv;
  
-@@ -85,7 +84,6 @@ private:
+@@ -85,7 +94,9 @@ private:
      //! the database itself
      leveldb::DB* pdb;
  
--public:
++#if !ENABLE_DAEMONLIB 
+ public:
++#endif
      CLevelDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory = false, bool fWipe = false);
      ~CLevelDBWrapper();
  
-diff --git a/src/rpcdump.cpp b/src/rpcdump.cpp
-index 8b95373..cd18b91 100644
---- a/src/rpcdump.cpp
-+++ b/src/rpcdump.cpp
-@@ -25,12 +25,11 @@ using namespace json_spirit;
- using namespace std;
- 
- void EnsureWalletIsUnlocked();
--
--std::string static EncodeDumpTime(int64_t nTime) {
-+std::string EncodeDumpTime(int64_t nTime) {
-     return DateTimeStrFormat("%Y-%m-%dT%H:%M:%SZ", nTime);
- }
- 
--int64_t static DecodeDumpTime(const std::string &str) {
-+int64_t DecodeDumpTime(const std::string &str) {
-     static const boost::posix_time::ptime epoch = boost::posix_time::from_time_t(0);
-     static const std::locale loc(std::locale::classic(),
-         new boost::posix_time::time_input_facet("%Y-%m-%dT%H:%M:%SZ"));
-@@ -43,7 +42,7 @@ int64_t static DecodeDumpTime(const std::string &str) {
-     return (ptime - epoch).total_seconds();
- }
- 
--std::string static EncodeDumpString(const std::string &str) {
-+std::string EncodeDumpString(const std::string &str) {
-     std::stringstream ret;
-     BOOST_FOREACH(unsigned char c, str) {
-         if (c <= 32 || c >= 128 || c == '%') {
-diff --git a/src/rpcwallet.cpp b/src/rpcwallet.cpp
-index e43eee1..8862738 100644
---- a/src/rpcwallet.cpp
-+++ b/src/rpcwallet.cpp
-@@ -4,6 +4,7 @@
- // file COPYING or http://www.opensource.org/licenses/mit-license.php.
- 
- #include "amount.h"
-+#include "rpcwallet.h"
- #include "base58.h"
- #include "core_io.h"
- #include "rpcserver.h"
-diff --git a/src/rpcwallet.h b/src/rpcwallet.h
-new file mode 100644
-index 0000000..2b53241
---- /dev/null
-+++ b/src/rpcwallet.h
-@@ -0,0 +1,17 @@
-+// Copyright (c) 2010 Satoshi Nakamoto
-+// Copyright (c) 2009-2013 The Bitcoin developers
-+// Distributed under the MIT/X11 software license, see the accompanying
-+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-+
-+#ifndef _BITCOINRPC_WALLET_H_
-+#define _BITCOINRPC_WALLET_H_ 1
-+
-+#include "wallet.h"
-+#include "walletdb.h"
-+
-+#include <stdint.h>
-+
-+CAmount GetAccountBalance(CWalletDB& walletdb, const std::string& strAccount, int nMinDepth, const isminefilter& filter);
-+CAmount GetAccountBalance(const std::string& strAccount, int nMinDepth, const isminefilter& filter);
-+
-+#endif
-diff --git a/src/wallet.h b/src/wallet.h
-index 058107e..3dfc8c4 100644
---- a/src/wallet.h
-+++ b/src/wallet.h
-@@ -110,8 +110,6 @@ public:
- class CWallet : public CCryptoKeyStore, public CValidationInterface
- {
- private:
--    bool SelectCoins(const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL) const;
--
-     CWalletDB *pwalletdbEncryption;
- 
-     //! the current wallet version: clients below this version are not able to load the wallet
-@@ -206,6 +204,7 @@ public:
-     bool CanSupportFeature(enum WalletFeature wf) { AssertLockHeld(cs_wallet); return nWalletMaxVersion >= wf; }
- 
-     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL) const;
-+    bool SelectCoins(const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL) const;
-     bool SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const;
- 
-     bool IsSpent(const uint256& hash, unsigned int n) const;
 -- 
 2.3.2 (Apple Git-55)
 

@@ -30,6 +30,7 @@
  * Bitcoin headers
  */
 
+ 
 #include "config/bitcoin-config.h"
 
 #include "addrman.h"
@@ -38,7 +39,24 @@
 #include "amount.h"
 #include "base58.h"
 #include "bloom.h"
-#include "bitcoind.h"
+
+
+#include "clientversion.h"
+#include "rpcserver.h"
+#include "init.h"
+#include "main.h"
+#include "noui.h"
+#include "ui_interface.h"
+#include "util.h"
+#include "rpcclient.h"
+
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/thread.hpp>
+
+
+
+
 #include "chain.h"
 #include "chainparams.h"
 #include "chainparamsbase.h"
@@ -71,7 +89,6 @@
 #include "rpcclient.h"
 #include "rpcprotocol.h"
 #include "rpcserver.h"
-#include "rpcwallet.h"
 #include "script/interpreter.h"
 #include "script/script.h"
 #include "script/sigcache.h"
