@@ -1,15 +1,17 @@
-From 5aeac9628b35cee9dc61cba7fc4636f96b522dd7 Mon Sep 17 00:00:00 2001
+From de8aca2d16e14cdbfc098f8dfc654355e6b0e549 Mon Sep 17 00:00:00 2001
 From: Chris Kleeschulte <chrisk@bitpay.com>
 Date: Mon, 15 Jun 2015 18:34:03 -0400
-Subject: [PATCH] New patch using AC_DEFINE's and without the wallet stuff.
+Subject: [PATCH 1/1] Added lib_LTLIBRARIES for the shared library. Added
+ conditional LDFLAGS for the different ways that Mac and Linux force
+ load/whole archive an archived library into a shared library.
 
 ---
  configure.ac         | 31 +++++++++++++++++++++++++++++--
- src/Makefile.am      | 31 +++++++++++++++++++------------
+ src/Makefile.am      | 50 ++++++++++++++++++++++++++++++++++----------------
  src/bitcoind.cpp     |  8 ++++++--
  src/init.h           |  6 ++++++
  src/leveldbwrapper.h | 13 ++++++++++++-
- 5 files changed, 72 insertions(+), 17 deletions(-)
+ 5 files changed, 87 insertions(+), 21 deletions(-)
 
 diff --git a/configure.ac b/configure.ac
 index 579035f..cd20489 100644
@@ -89,10 +91,16 @@ index 579035f..cd20489 100644
  LIBLEVELDB=
  LIBMEMENV=
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 81b16d1..b64eb24 100644
+index 81b16d1..456cfbe 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -7,7 +7,6 @@ LEVELDB_CPPFLAGS += -I$(srcdir)/leveldb/include
+@@ -1,20 +1,19 @@
+ DIST_SUBDIRS = secp256k1
+ AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS)
+ 
+-
+ if EMBEDDED_LEVELDB
+ LEVELDB_CPPFLAGS += -I$(srcdir)/leveldb/include
  LEVELDB_CPPFLAGS += -I$(srcdir)/leveldb/helpers/memenv
  LIBLEVELDB += $(builddir)/leveldb/libleveldb.a
  LIBMEMENV  += $(builddir)/leveldb/libmemenv.a
@@ -100,6 +108,16 @@ index 81b16d1..b64eb24 100644
  # NOTE: This dependency is not strictly necessary, but without it make may try to build both in parallel, which breaks the LevelDB build system in a race
  $(LIBLEVELDB): $(LIBMEMENV)
  
+ $(LIBLEVELDB) $(LIBMEMENV):
+ 	@echo "Building LevelDB ..." && $(MAKE) -C $(@D) $(@F) CXX="$(CXX)" \
+-	  CC="$(CC)" PLATFORM=$(TARGET_OS) AR="$(AR)" $(LEVELDB_TARGET_FLAGS) \
+-          OPT="$(CXXFLAGS) $(CPPFLAGS)"
++	CC="$(CC)" PLATFORM=$(TARGET_OS) AR="$(AR)" $(LEVELDB_TARGET_FLAGS) \
++	OPT="$(CXXFLAGS) $(CPPFLAGS)"
++
+ endif
+ 
+ BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 @@ -49,22 +48,26 @@ BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
  EXTRA_LIBRARIES += libbitcoin_wallet.a
  endif
@@ -144,28 +162,40 @@ index 81b16d1..b64eb24 100644
  libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
  
  # server: shared between bitcoind and bitcoin-qt
-@@ -305,15 +309,19 @@ if ENABLE_WALLET
+@@ -305,15 +309,30 @@ if ENABLE_WALLET
  bitcoind_LDADD += libbitcoin_wallet.a
  endif
  bitcoind_SOURCES = bitcoind.cpp
 -#
 +libbitcoind_la_SOURCES = bitcoind.cpp
++libbitcoind_la_SOURCES += $(libbitcoin_util_a_SOURCES)
++libbitcoind_la_SOURCES += $(libbitcoin_univalue_a_SOURCES)
++libbitcoind_la_SOURCES += $(libbitcoin_crypto_a_SOURCES)
++libbitcoind_la_SOURCES += $(libbitcoin_common_a_SOURCES)
++libbitcoind_la_SOURCES += $(libbitcoin_server_a_SOURCES)
++libbitcoind_la_SOURCES += $(crypto_libbitcoin_crypto_a_SOURCES)
++libbitcoind_la_SOURCES += $(univalue_libbitcoin_univalue_a_SOURCES)
  
  if TARGET_WINDOWS
  bitcoind_SOURCES += bitcoind-res.rc
 +libbitcoind_la_SOURCES += bitcoind-res.rc
++endif
++if TARGET_DARWIN
++libbitcoind_la_LDFLAGS = $(RELDFLAGS) -no-undefined -Wl,-force_load,$(LIBLEVELDB),$(LIBMEMENV)
++else
++libbitcoind_la_LDFLAGS = $(RELDFLAGS) -no-undefined -Wl,-whole-archive $(LIBLEVELDB) $(LIBMEMENV) -Wl,-no-whole-archive
  endif
- 
+-
  bitcoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS)
-+libbitcoind_la_LIBADD = $(bitcoind_LDADD)
++libbitcoind_la_LIBADD = $(BOOST_LIBS) $(SSL_LIBS) $(LIBSECP256K1) $(CRYPTO_LIBS)
  bitcoind_CPPFLAGS = $(BITCOIN_INCLUDES)
 +libbitcoind_la_CPPFLAGS = $(BITCOIN_INCLUDES)
  bitcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
-+libbitcoind_la_LDFLAGS = $(RELDFLAGS) -no-undefined
++libbitcoind_la_DEPENDENCIES = $(LIBSECP256K1) $(LIBLEVELDB) $(LIBMEMENV)
  
  # bitcoin-cli binary #
  bitcoin_cli_LDADD = \
-@@ -386,7 +394,6 @@ CLEANFILES = leveldb/libleveldb.a leveldb/libmemenv.a *.gcda *.gcno
+@@ -386,7 +405,6 @@ CLEANFILES = leveldb/libleveldb.a leveldb/libmemenv.a *.gcda *.gcno
  DISTCLEANFILES = obj/build.h
  
  EXTRA_DIST = leveldb

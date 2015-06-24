@@ -14,6 +14,7 @@ if test x"$1" = x'btcdir'; then
 fi
 
 os=
+ext=so
 
 if test -f /etc/centos-release \
   || grep -q 'CentOS' /etc/redhat-release \
@@ -26,6 +27,7 @@ elif test -f /etc/redhat_release \
   os=rhel
 elif uname -a | grep -q '^Darwin'; then
   os=osx
+  ext=dylib
 elif test -f /etc/SuSE-release; then
   os=suse
 elif test -f /etc/mandrake-release \
@@ -64,12 +66,12 @@ if test x"$1" = x'osdir'; then
   echo -n "$(pwd)/platform/${os}"
   exit 0
 fi
-
+echo $ext
 if test -z "$1" -o x"$1" = x'lib'; then
-  if test -n "$BITCOIN_DIR" -a -e "${BITCOIN_DIR}/src/libbitcoind.so"; then
-    echo -n "${BITCOIN_DIR}/src/libbitcoind.so"
+  if test -n "$BITCOIN_DIR" -a -e "${BITCOIN_DIR}/src/.libs/libbitcoind.${ext}"; then
+    echo -n "$(pwd)/libbitcoind/src/.libs/libbitcoind.${ext}"
   else
-    echo -n "$(pwd)/platform/${os}/libbitcoind.dylib"
+    echo -n "$(pwd)/platform/${os}/libbitcoind.${ext}"
   fi
   exit 0
 fi

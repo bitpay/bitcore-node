@@ -2185,15 +2185,10 @@ NAN_METHOD(HookPackets) {
       NanNew<String>(pfrom->cleanSubVer));
 
     if (strCommand == "version") {
-      // Each connection can only send one version message
-      if (pfrom->nVersion != 0) {
-        NanReturnValue(Undefined(isolate));
-      }
 
       bool fRelayTxes = false;
       int nStartingHeight = 0;
       int cleanSubVer = 0;
-      //std::string strSubVer(strdup(pfrom->strSubVer.c_str()));
       std::string strSubVer = pfrom->strSubVer;
       int nVersion = pfrom->nVersion;
       uint64_t nServices = pfrom->nServices;
@@ -2733,9 +2728,6 @@ cblock_to_jsblock(const CBlock& cblock, CBlockIndex* cblock_index, Local<Object>
   uint256 blockhash = cblock.GetHash();
 
   jsblock->Set(NanNew<String>("hash"), NanNew<String>(blockhash.GetHex()));
-  CMerkleTx txGen(cblock.vtx[0]);
-  txGen.SetMerkleBranch(cblock);
-  jsblock->Set(NanNew<String>("confirmations"), NanNew<Number>((int)txGen.GetDepthInMainChain())->ToInt32());
   jsblock->Set(NanNew<String>("size"),
     NanNew<Number>((int)::GetSerializeSize(cblock, SER_NETWORK, PROTOCOL_VERSION))->ToInt32());
 
