@@ -2,14 +2,17 @@
 
 exec 2> /dev/null
 
-if test x"$1" = x'btcdir'; then
-  if test -n "$BITCOIN_DIR"; then
-    echo "$BITCOIND_DIR"
-  elif test -d "$(pwd)/libbitcoind"; then
-    echo "$(pwd)/libbitcoind"
+btcdir() {
+  if test -d "$(pwd)/libbitcoind"; then
+    BITCOIN_DIR="$(pwd)/libbitcoind"
   elif test -d "${HOME}/bitcoin"; then
-    echo "${HOME}/bitcoin"
+    BITCOIN_DIR="${HOME}/bitcoin"
   fi
+}
+
+if test x"$1" = x'btcdir'; then
+  btcdir
+  echo $BITCOIN_DIR
   exit 0
 fi
 
@@ -66,10 +69,10 @@ if test x"$1" = x'osdir'; then
   echo -n "$(pwd)/platform/${os}"
   exit 0
 fi
-echo $ext
 if test -z "$1" -o x"$1" = x'lib'; then
-  if test -n "$BITCOIN_DIR" -a -e "${BITCOIN_DIR}/src/.libs/libbitcoind.${ext}"; then
-    echo -n "$(pwd)/libbitcoind/src/.libs/libbitcoind.${ext}"
+  btcdir
+  if test -n "${BITCOIN_DIR}" -a -e "${BITCOIN_DIR}/src/.libs/libbitcoind.${ext}"; then
+    echo -n "${BITCOIN_DIR}/src/.libs/libbitcoind.${ext}"
   else
     echo -n "$(pwd)/platform/${os}/libbitcoind.${ext}"
   fi

@@ -159,7 +159,6 @@
 #define USE_LDB_ADDR 0
 #define USE_LDB_TX 0
 
-#define SHUTTING_DOWN() (ShutdownRequested() || shutdown_complete)
 
 /**
  * Node.js Exposed Function Templates

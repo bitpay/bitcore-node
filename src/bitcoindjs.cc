@@ -6,9 +6,7 @@
  *   A bitcoind node.js binding.
  */
 
-
 #include "bitcoindjs.h"
-
 
 using namespace std;
 using namespace boost;
@@ -536,7 +534,9 @@ start_node_thread(void) {
 
     detectShutdownThread = new boost::thread(
       boost::bind(&DetectShutdownThread, &threadGroup));
+
     fRet = AppInit2(threadGroup);
+
   } catch (std::exception& e) {
      if (set_cooked()) {
        fprintf(stderr, "bitcoind.js: AppInit(): std::exception\n");
@@ -572,6 +572,7 @@ start_node_thread(void) {
  */
 
 NAN_METHOD(StopBitcoind) {
+  fprintf(stderr, "Stopping Bitcoind please wait!");
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
@@ -746,6 +747,7 @@ async_get_block(uv_work_t *req) {
   std::string strHash = data->hash;
   uint256 hash(strHash);
   CBlock cblock;
+
   CBlockIndex* pblockindex = mapBlockIndex[hash];
 
   if (ReadBlockFromDisk(cblock, pblockindex)) {

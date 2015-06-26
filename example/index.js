@@ -135,12 +135,10 @@ bitcoind.on('open', function(status) {
   bitcoind.log('status="%s"', status);
 
   if (argv.list) {
-    bitcoind.log('args list true');
-    return bitcoind.log(bitcoind.wallet.listAccounts());
+    return;
   }
 
   if (argv.blocks) {
-    bitcoind.log('args block true');
     return getBlocks(bitcoind);
   }
 

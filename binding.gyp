@@ -20,7 +20,6 @@
       '<(BOOST_INCLUDE)',
       '<(LEVELDB_INCLUDE)',
       '<(BITCOIN_DIR)/src',
-      '/usr/local/Cellar/openssl/1.0.2a-1/include',
       './libbitcoind/src/secp256k1/include',
       './libbitcoind/src/leveldb/helpers/memenv',
       '<!(node -e "require(\'nan\')")',
@@ -34,8 +33,15 @@
             'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
             'GCC_ENABLE_CPP_RTTI': 'YES',
             'MACOSX_DEPLOYMENT_TARGET': '10.9'
+          },
+          'libraries': {
+            '-lboost_thread-mt'
           }
-        }]
+        },
+        'OS=="linux"', {
+            '-lboost_thread'
+        }
+      ]
     ],
     'cflags_cc': [
       '-fexceptions',
@@ -49,7 +55,6 @@
       '-lboost_system',
       '-lboost_filesystem',
       '-lboost_program_options',
-      '-lboost_thread-mt',
       '-lboost_chrono',
       '<(LIBBITCOIND)',
     ]
