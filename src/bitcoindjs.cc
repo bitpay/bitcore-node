@@ -2816,8 +2816,6 @@ get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx) {
 static inline void
 ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
   // Find block hash if it's in our wallet
-  bool is_mine = false;
-  CWalletTx cwtx;
 
   jstx->Set(NanNew<String>("current_version"),
     NanNew<Number>((int)ctx.CURRENT_VERSION)->ToInt32());
@@ -2935,8 +2933,6 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
   }
   jstx->Set(NanNew<String>("vout"), vout);
 
-  jstx->Set(NanNew<String>("ismine"), NanNew<Boolean>(is_mine));
-
   if (blockhash != 0) {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(blockhash.GetHex()));
     if (ctx.IsCoinBase()) {
@@ -2966,22 +2962,7 @@ ctx_to_jstx(const CTransaction& ctx, uint256 blockhash, Local<Object> jstx) {
       jstx->Set(NanNew<String>("time"), NanNew<Number>(0));
       jstx->Set(NanNew<String>("timereceived"), NanNew<Number>(0));
     }
-    if (!is_mine) {
-      jstx->Set(NanNew<String>("walletconflicts"), NanNew<Array>());
-    } else {
-      // XXX If the tx is ours
-      int confirms = cwtx.GetDepthInMainChain();
-      jstx->Set(NanNew<String>("confirmations"), NanNew<Number>(confirms));
-      Local<Array> conflicts = NanNew<Array>();
-      int co = 0;
-      BOOST_FOREACH(const uint256& conflict, cwtx.GetConflicts()) {
-        conflicts->Set(co++, NanNew<String>(conflict.GetHex()));
-      }
-      jstx->Set(NanNew<String>("walletconflicts"), conflicts);
-      jstx->Set(NanNew<String>("time"), NanNew<Number>(cwtx.GetTxTime()));
-      jstx->Set(NanNew<String>("timereceived"),
-        NanNew<Number>((int64_t)cwtx.nTimeReceived));
-    }
+    jstx->Set(NanNew<String>("walletconflicts"), NanNew<Array>());
   } else {
     jstx->Set(NanNew<String>("blockhash"), NanNew<String>(uint256(0).GetHex()));
     jstx->Set(NanNew<String>("generated"), NanNew<Boolean>(false));

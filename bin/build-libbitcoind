@@ -1,8 +1,8 @@
 #!/bin/bash
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
-#root_dir="$(readlink -f "$(dirname "$0")")/.."
 cd "$root_dir"
+
 os_dir=$(./platform/os.sh osdir)
 
 if test -e "${os_dir}/libbitcoind.so"; then
@@ -48,15 +48,6 @@ if ! test -d .git; then
   exit 1
 fi
 
-bdb_compat=0
-if cat /usr/include/db.h | grep -i DB_VERSION_STRING | grep -q 'DB 4.8' \
-  || test -e /usr/include/db4.8 \
-  || test -e /usr/include/db4.8.h; then
-  bdb_compat=1
-fi
-if test $bdb_compat -eq 0; then
-  set -- "--with-incompatible-bdb" "$@"
-fi
 
 echo './autogen.sh'
 ./autogen.sh || exit 1
