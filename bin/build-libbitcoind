@@ -1,68 +1,67 @@
 #!/bin/bash
+set -e 
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 cd "$root_dir"
 
 os_dir=$(./platform/os.sh osdir)
 
-if test -e "${os_dir}/libbitcoind.so"; then
-  read -r -p 'libbitcoind.so already built. Rebuild? (Y/n): ' choice
+if test -e "${os_dir}/libbitcoind.so" || test -e "${os_dir}/libbitcoind.dylib"; then
+  read -r -p 'libbitcoind already built. Rebuild? (Y/n): ' choice
   if test x"$choice" != x'y' -a x"$choice" != x'Y'; then
-    echo 'libbitcoind.so ready.'
+    echo 'libbitcoind ready.'
     exit 0
   fi
   rm -rf libbitcoind
-  rm -f "${os_dir}/libbitcoind.so"
+  rm -f "${os_dir}/libbitcoind.*"
 fi
 
-if test -n "$1"; then
-  if test "$1" = 'remote'; then
-    echo 'git clone'
-    git clone git://github.com/bitcoin/bitcoin.git libbitcoind || exit 1
-    btc_dir="${root_dir}/libbitcoind"
+if [ -d "${root_dir}/libbitcoind" ]; then
+  read -r -p "libbitcoind (bitcoind repo) exists, would you like to remove it? (Y/n): " choice
+  if [ "$choice" = "y" -o "$choice" = "Y" ]; then
+    rm -rf "${root_dir}/libbitcoind"
   else
-    btc_dir=$1
-    if ! test -d "$btc_dir"; then
-      "$0" remote
-      exit 0
-    fi
-  fi
-  shift
-else
-  btc_dir="${HOME}/bitcoin"
-  if ! test -d "$btc_dir"; then
-    "$0" remote
-    exit 0
+    echo "ok you chose not to remove the bitcoin repo, exiting...bu bye!"
   fi
 fi
+#read the PATCH VERSION
+if test -e "${root_dir/PATCH_VERSION}"; then
+  tag=`cat "$root_dir/PATCH_VERSION" | xargs`
+else
+  echo "no tag file found, please create it in the root of the project as so: 'echo \"v0.10.2\" > PATCH_VERSION'"
+  exit 0
+fi
+
+echo "attempting to checkout tag: $tag of bitcoin from github..."
+git clone --depth 1 --branch "${tag}" git://github.com/bitcoin/bitcoin.git libbitcoind
+btc_dir="${root_dir}/libbitcoind"
 
 echo "Found BTC directory: $btc_dir"
 
 echo './patch-bitcoin.sh' "$btc_dir"
-./bin/patch-bitcoin "$btc_dir" || exit 1
+./bin/patch-bitcoin "$btc_dir"
 
-cd "$btc_dir" || exit 1
+cd "$btc_dir"
 
 if ! test -d .git; then
   echo 'Please point this script to an upstream bitcoin git repo.'
   exit 1
 fi
 
-
 echo './autogen.sh'
-./autogen.sh || exit 1
-if test -n "$1"; then
-  echo './configure --enable-daemonlib' "$@"
-  ./configure --enable-daemonlib "$@" || exit 1
-else
-  echo './configure --enable-daemonlib'
-  ./configure --enable-daemonlib || exit 1
-fi
-echo 'make'
-make || exit 1
+./autogen.sh
+options=`cat ${root_dir}/bin/config_options.sh`
+full_options="${options}${os_dir}"
+echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
+$full_options
+echo 'make V=1'
+make V=1 
 
-echo 'Copying libbitcoind.so to its appropriate location.'
-mv src/libbitcoind.so "${os_dir}/libbitcoind.so" || exit 1
+echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
+if test -e "${os_dir}/libbitcoind.so" 
+  mv src/libbitcoind.so "${os_dir}/libbitcoind.so"
+elif test -e "${os_dir}/libbitcoind.dylib"; then
+  mv src/libbitcoind.dylib "${os_dir}/libbitcoind.dylib"
+fi
 
 echo 'Build finished successfully.'
-exit 0
