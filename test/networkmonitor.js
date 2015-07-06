@@ -79,8 +79,9 @@ describe('NetworkMonitor', function() {
     nm.start();
   });
 
-  it('sends getdatas when receiving invs', function() {
+  it('sends getdatas when receiving invs and ignoreInv is false', function() {
     var nm = new NetworkMonitor(busMock, peerMock);
+    nm.ignoreInv = false;
     nm.start();
     peerMock.sendMessage.calledOnce.should.equal(true);
   });
