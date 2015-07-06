@@ -85,9 +85,7 @@ describe('TransactionService', function() {
           key: 'txo-4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b-0',
           value: {
             satoshis: 5000000000,
-            script: '65 0x04678afdb0fe5548271967f1a67130b7105cd6a828e03909' +
-              'a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7b' +
-              'a0b8d578a4c702b6bf11d5f OP_CHECKSIG'
+            script: '4104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac'
           }
         }]);
         callback();
@@ -113,11 +111,11 @@ describe('TransactionService', function() {
         }, {
           type: 'put',
           key: 'txo-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-0',
-          value: '{"satoshis":1000000000,"script":"65 0x04ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c OP_CHECKSIG"}'
+          value: '{"satoshis":1000000000,"script":"4104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac"}'
         }, {
           type: 'put',
           key: 'txo-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-1',
-          value: '{"satoshis":4000000000,"script":"65 0x0411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3 OP_CHECKSIG"}'
+          value: '{"satoshis":4000000000,"script":"410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac"}'
         }, {
           type: 'put',
           key: 'txo-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16-0',
