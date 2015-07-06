@@ -2,22 +2,11 @@
 
 exec 2> /dev/null
 
-btcdir() {
-  if test -d "$(pwd)/libbitcoind"; then
-    BITCOIN_DIR="$(pwd)/libbitcoind"
-  elif test -d "${HOME}/bitcoin"; then
-    BITCOIN_DIR="${HOME}/bitcoin"
-  fi
-}
-
-if test x"$1" = x'btcdir'; then
-  btcdir
-  echo $BITCOIN_DIR
-  exit 0
-fi
-
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
+BITCOIN_DIR="${root_dir}/libbitcoind"
 os=
 ext=so
+thread=-lboost_thread
 
 if test -f /etc/centos-release \
   || grep -q 'CentOS' /etc/redhat-release \
@@ -31,6 +20,7 @@ elif test -f /etc/redhat_release \
 elif uname -a | grep -q '^Darwin'; then
   os=osx
   ext=dylib
+  thread=-lboost_thread-mt
 elif test -f /etc/SuSE-release; then
   os=suse
 elif test -f /etc/mandrake-release \
@@ -56,8 +46,9 @@ elif test -d /system && test -d /data/data; then
   os=android
 fi
 
+os_dir=${root_dir}/platform/${os}
+
 if test -z "$os" -o x"$os" = x'android' -o x"$os" = x'aix'; then
-  # Maybe someday...
   if test "$os" = 'android' -o "$os" = 'aix'; then
     echo 'Android or AIX detected!' >& 2
   fi
@@ -69,12 +60,16 @@ if test x"$1" = x'osdir'; then
   echo -n "$(pwd)/platform/${os}"
   exit 0
 fi
+
+if test -z "$1" -o x"$1" = x'thread'; then
+  echo -n "${thread}"
+fi
+
 if test -z "$1" -o x"$1" = x'lib'; then
-  btcdir
-  if test -n "${BITCOIN_DIR}" -a -e "${BITCOIN_DIR}/src/.libs/libbitcoind.${ext}"; then
-    echo -n "${BITCOIN_DIR}/src/.libs/libbitcoind.${ext}"
-  else
+  if test -e "${os_dir}/libbitcoind.${ext}"; then
     echo -n "$(pwd)/platform/${os}/libbitcoind.${ext}"
+  else
+    echo -n "${BITCOIN_DIR}/src/.libs/libbitcoind.${ext}"
   fi
   exit 0
 fi

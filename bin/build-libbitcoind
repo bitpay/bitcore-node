@@ -2,9 +2,12 @@
 set -e 
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
-cd "$root_dir"
+cd "${root_dir}"
 
 os_dir=$(./platform/os.sh osdir)
+
+#set the LD_LIBRARY_PATH for the linux clients.
+export LD_LIBRARY_PATH="${root_dir}/libbitcoind/src/leveldb":"${os_dir}":$LD_LIBRARY_PATH
 
 if test -e "${os_dir}/libbitcoind.so" || test -e "${os_dir}/libbitcoind.dylib"; then
   read -r -p 'libbitcoind already built. Rebuild? (Y/n): ' choice
@@ -59,9 +62,14 @@ make V=1
 
 echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
 if test -e "${os_dir}/libbitcoind.so" 
-  mv src/libbitcoind.so "${os_dir}/libbitcoind.so"
+  mv src/libbitcoind.so "${os_dir}/libbitcoind.so.0.0.0"
+  cd "${os_dir}"
+  ln -s libbitcoind.so.0.0.0 libbitcoind.so.0
+  ln -s libbitcoind.so.0.0.0 libbitcoind.so
 elif test -e "${os_dir}/libbitcoind.dylib"; then
-  mv src/libbitcoind.dylib "${os_dir}/libbitcoind.dylib"
+  mv src/libbitcoind.dylib "${os_dir}/libbitcoind.0.dylib"
+  cd "${os_dir}"
+  ln -s libbitcoind.0.dylib libbitcoind.dylib
 fi
 
 echo 'Build finished successfully.'

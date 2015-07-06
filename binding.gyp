@@ -27,8 +27,8 @@
     ],
     'libraries': [
       '-lboost_filesystem',
-      '-lboost_thread',
-      '-lbitcoind'
+      '<!(./platform/os.sh thread)',
+      '<!(./platform/os.sh lib)'
     ]
   }]
 }
