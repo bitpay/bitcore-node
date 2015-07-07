@@ -64,11 +64,14 @@ echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
 if test -e "${os_dir}/libbitcoind.so" 
   mv src/libbitcoind.so "${os_dir}/libbitcoind.so.0.0.0"
   cd "${os_dir}"
+  rm libbitcoind.so.0
+  rm libbitcoind.so
   ln -s libbitcoind.so.0.0.0 libbitcoind.so.0
   ln -s libbitcoind.so.0.0.0 libbitcoind.so
 elif test -e "${os_dir}/libbitcoind.dylib"; then
   mv src/libbitcoind.dylib "${os_dir}/libbitcoind.0.dylib"
   cd "${os_dir}"
+  rm libbitcoind.dylib
   ln -s libbitcoind.0.dylib libbitcoind.dylib
 fi
 
