@@ -44,6 +44,12 @@ static void
 async_start_node_after(uv_work_t *req);
 
 static void
+async_blocks_ready(uv_work_t *req);
+
+static void
+async_blocks_ready_after(uv_work_t *req);
+
+static void
 async_stop_node(uv_work_t *req);
 
 static void
@@ -148,6 +154,17 @@ static bool g_txindex = false;
  * Private Structs
  * Used for async functions and necessary linked lists at points.
  */
+
+/**
+ * async_node_data
+ * Where the uv async request data resides.
+ */
+
+struct async_block_ready_data {
+  std::string err_msg;
+  std::string result;
+  Eternal<Function> callback;
+};
 
 /**
  * async_node_data
@@ -291,6 +308,82 @@ set_cooked(void);
 /**
  * Functions
  */
+
+NAN_METHOD(OnBlocksReady) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  Local<Function> callback;
+  callback = Local<Function>::Cast(args[0]);
+
+  async_block_ready_data *data = new async_block_ready_data();
+  data->err_msg = std::string("");
+  data->result = std::string("");
+
+  Eternal<Function> eternal(isolate, callback);
+
+  data->callback = eternal;
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_blocks_ready,
+    (uv_after_work_cb)async_blocks_ready_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined(isolate));
+
+}
+
+/**
+ * async_start_node()
+ * Call start_node() and start all our boost threads.
+ */
+
+static void
+async_blocks_ready(uv_work_t *req) {
+  async_block_ready_data *data = static_cast<async_block_ready_data*>(req->data);
+  data->result = std::string("");
+
+  while(!chainActive.Tip()) {
+    usleep(1E4);
+  }
+
+}
+
+static void
+async_blocks_ready_after(uv_work_t *req) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  async_block_ready_data *data = static_cast<async_block_ready_data*>(req->data);
+
+  Local<Function> cb = data->callback.Get(isolate);
+  if (data->err_msg != "") {
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+     v8::Null(isolate),
+     Local<Value>::New(isolate, NanNew<String>(data->result))
+    };
+    TryCatch try_catch;
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+
+  delete data;
+  delete req;
+}
 
 /**
  * StartBitcoind()
@@ -746,15 +839,20 @@ async_get_block(uv_work_t *req) {
 
   std::string strHash = data->hash;
   uint256 hash(strHash);
-  CBlock cblock;
 
-  CBlockIndex* pblockindex = mapBlockIndex[hash];
-
-  if (ReadBlockFromDisk(cblock, pblockindex)) {
-    data->cblock = cblock;
-    data->cblock_index = pblockindex;
+  if (mapBlockIndex.count(hash) == 0) {
+      data->err_msg = std::string("Block not found.");
   } else {
-    data->err_msg = std::string("Block not found.");
+
+    CBlock block;
+    CBlockIndex* pblockindex = mapBlockIndex[hash];
+
+    if(!ReadBlockFromDisk(block, pblockindex)) {
+      data->err_msg = std::string("Can't read block from disk");
+    } else {
+      data->cblock = block;
+      data->cblock_index = pblockindex;
+    }
   }
 }
 
@@ -3494,6 +3592,7 @@ init(Handle<Object> target) {
   NanScope();
 
   NODE_SET_METHOD(target, "start", StartBitcoind);
+  NODE_SET_METHOD(target, "onBlocksReady", OnBlocksReady);
   NODE_SET_METHOD(target, "stop", StopBitcoind);
   NODE_SET_METHOD(target, "stopping", IsStopping);
   NODE_SET_METHOD(target, "stopped", IsStopped);
