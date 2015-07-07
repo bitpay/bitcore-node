@@ -67,7 +67,9 @@ if test -e "${root_dir}/libbitcoind/src/.libs/libbitcoind.${ext}"; then
     cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.0.dylib" "${os_dir}/"
     cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.dylib" "${os_dir}/"
   else
-    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.so*" "${os_dir}/"
+    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.so" "${os_dir}/"
+    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.so.0" "${os_dir}/"
+    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.so.0.0.0" "${os_dir}/"
   fi
 fi
 

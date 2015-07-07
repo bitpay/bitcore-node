@@ -746,15 +746,20 @@ async_get_block(uv_work_t *req) {
 
   std::string strHash = data->hash;
   uint256 hash(strHash);
-  CBlock cblock;
 
-  CBlockIndex* pblockindex = mapBlockIndex[hash];
-
-  if (ReadBlockFromDisk(cblock, pblockindex)) {
-    data->cblock = cblock;
-    data->cblock_index = pblockindex;
+  if (mapBlockIndex.count(hash) == 0) {
+      data->err_msg = std::string("Block not found.");
   } else {
-    data->err_msg = std::string("Block not found.");
+
+    CBlock block;
+    CBlockIndex* pblockindex = mapBlockIndex[hash];
+
+    if(!ReadBlockFromDisk(block, pblockindex)) {
+      data->err_msg = std::string("Can't read block from disk");
+    } else {
+      data->cblock = block;
+      data->cblock_index = pblockindex;
+    }
   }
 }
 
