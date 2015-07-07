@@ -61,6 +61,10 @@ if test x"$1" = x'osdir'; then
   exit 0
 fi
 
+if test -z "$1" -o x"$1" = x'ext'; then
+  echo -n "${ext}"
+fi
+
 if test -z "$1" -o x"$1" = x'thread'; then
   echo -n "${thread}"
 fi
