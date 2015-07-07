@@ -13,12 +13,10 @@ making all useful bitcoind functions asynchronous (with the exception of the wal
 ##### Dependencies
 
 - Boost
-  - Bost Header Files (`/usr/include/boost`)
-  - NOTE: These are now included in the repo if they're not present.
+  - Boost Header Files (`/usr/include/boost`)
+  - The Boost header files can be from your distro (like Debian or Ubuntu), just be sure to install the "-dev" versions of Boost.
 
-- secp256k1
-
-- OpenSSL headers and libraries (-lcrypto and -lssl)
+- OpenSSL headers and libraries (-lcrypto and -lssl), this is used to compile Bitcoin.
 
 - If target platform is Mac OS X, then OS X >= 10.9, Clang and associated linker.
 
@@ -51,8 +49,8 @@ Without `--enable-daemonlib`, the Makefile with compile bitcoind with -fPIE
 ### bitcoind.js
 
 ``` bash
-$ cd ~/node_modules/bitcoind.js
-$ BITCOIN_DIR=~/libbitcoind BOOST_INCLUDE=/usr/include/boost PYTHON=/usr/bin/python2.7 make
+$ cd bitcoind.js
+$ node-gyp rebuild
 ```
 
 #### Running bitcoind.js
