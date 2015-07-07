@@ -11,7 +11,7 @@
   },
   "scripts": {
     "preinstall": "./bin/build-libbitcoind remote",
-    "start": "node example"
+    "start": "export LD_LIBRARY_PATH=`./platform/os.sh osdir` && node example"
   },
   "tags": [
     "bitcoin",
