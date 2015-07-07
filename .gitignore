@@ -19,3 +19,10 @@ Makefile.gyp
 *.user
 *.project
 test.js
+**/*.dylib
+**/*.so
+**/*.old
+libbitcoind
+**/*.files
+**/*.config
+**/*.creator

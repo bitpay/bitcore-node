@@ -1,59 +1,47 @@
 # bitcoind.js
 
 __bitcoind.js__ as a node.js module which dynamically loads a node.js C++
-modules which links to libbitcoind.so (bitcoind compiled as a shared library),
-making all useful bitcoind functions asynchronous.
+modules which links to libbitcoind.{so|dylib}. Unix/Linux use the file extension "so" whereas Mac OSX uses "dylib" (bitcoind compiled as a shared library),
+making all useful bitcoind functions asynchronous (with the exception of the wallet functionality).
 
 ## Building
 
-### libbitcoind.so
+### libbitcoind.{so|dylib}
 
 #### Compiling bitcoind as a library
 
 ##### Dependencies
 
 - Boost
-  - Bost Header Files (`/usr/include/boost`)
-  - NOTE: These are now included in the repo if they're not present.
+  - Boost Header Files (`/usr/include/boost`)
+  - The Boost header files can be from your distro (like Debian or Ubuntu), just be sure to install the "-dev" versions of Boost.
 
-- Berkeley DB
+- OpenSSL headers and libraries (-lcrypto and -lssl), this is used to compile Bitcoin.
 
-- LevelDB Header Files (included in bitcoin source repo, leveldb itself
-  unnecessary, libbitcoind.so is already linked to them)
-  - NOTE: These also are now included in the repo if they're not present.
-
-- Protobuf
-
-- secp256k1
+- If target platform is Mac OS X, then OS X >= 10.9, Clang and associated linker.
 
 ##### Building
 
 ``` bash
 $ cd ~/node_modules/bitcoind.js
-$ ./bin/build-libbitcoind remote
+$ ./bin/build-libbitcoind
 ```
 
 NOTE: This script will run automatically on an `npm install`, along with the
 compilation below.
 
-`remote` will clone the latest bitcoin upstream, apply a patch to it, compile
-libbitcoind.so, and place it in the appropriate directory. The first argument
-can also be a bitcoin repo directory you already have on your disk, otherwise
-it will check for ~/bitcoin by default.
+The first argument can also be a bitcoin repo directory you already have on your disk, otherwise
+it will check for ~/bitcoin by default. The `PATCH_VERSION` file dictates what version/tag the patch goes clean against.
 
-NOTE: libbitcoind.so is currently unsupported on OSX due to OSX's mess of
-header files and libraries. Special magic is required to make this work that
-has not been implemented yet. This will only compile on a real unix (linux is
-recommended).
 
 ###### In the build-libbitcoind.sh script:
 
 `--enable-daemonlib` will compile all object files with `-fPIC` (Position
 Independent Code - needed to create a shared object).
 
-`make` will then compile `./src/libbitcoind.so` (with `-shared -fPIC`), linking
+`make` will then compile `./src/libbitcoind.{so|dylib}` (with `-shared -fPIC`), linking
 to all the freshly compiled PIC object files. This will completely ignore
-compiling tests and the QT object files.
+compiling tests, QT object files and the wallet features in bitcoind/libbitcoind.{so|dylib}.
 
 Without `--enable-daemonlib`, the Makefile with compile bitcoind with -fPIE
 (Position Independent for Executable), this allows compiling of bitcoind.
@@ -61,8 +49,8 @@ Without `--enable-daemonlib`, the Makefile with compile bitcoind with -fPIE
 ### bitcoind.js
 
 ``` bash
-$ cd ~/node_modules/bitcoind.js
-$ BITCOIN_DIR=~/libbitcoind BOOST_INCLUDE=/usr/include/boost PYTHON=/usr/bin/python2.7 make
+$ cd bitcoind.js
+$ node-gyp rebuild
 ```
 
 #### Running bitcoind.js
@@ -106,8 +94,7 @@ bitcoind.on('addr', function(addr) {
 });
 
 bitcoind.on('open', function() {
-  console.log('Your Wallet:');
-  console.log(bitcoind.wallet.getAccounts());
+  console.log('Whatever you want from the open signal');
 });
 
 bitcoind.start();
@@ -116,15 +103,6 @@ bitcoind.start();
 ``` bash
 $ node ./my-example.js
 bitcoind.js: status="start_node(): bitcoind opened."
-Your Wallet:
-{ '':
-   { balance: 0,
-     addresses:
-      [ { address: '16PvEk4NggaCyfR2keZaP9nPufJvDb2ATZ',
-          privkeycompressed: true,
-          privkey: 'L47MC7gtB5UdWYsmxT6czzGophFm6Zj99PYVQWDNkJG6Mf12GGyi',
-          pubkeycompressed: true,
-          pubkey: '02bf636e7a3ad48ea2cf0c8dbdf992792e617a4f92f2e161f20f3c038883647f0d' } ] } }
 ^C
 bitcoind.js: stop_node(): bitcoind shutdown.
 bitcoind.js: shutting down...
@@ -134,7 +112,7 @@ bitcoind.js: shut down.
 
 ## Documentation
 
-**bitcoind.js** is a node.js module which links to libbitcoind.so (bitcoind
+**bitcoind.js** is a node.js module which links to libbitcoind.{so|dylib} (bitcoind
 complied as a shared library).
 
 ### Javascript API
@@ -300,102 +278,6 @@ be your own transaction or a transaction relayed to you.
 
 Static method to broadcast a transaction.
 
-
-#### Wallet Object/Class (Singleton)
-
-##### `Wallet::createAddress(options)`
-
-Create a new address for the global wallet.
-
-##### `Wallet::getAccountAddress(options)`
-
-Get the main address associated with the provided account.
-
-##### `Wallet::setAccount(options)`
-
-Associate account name with address.
-
-##### `Wallet::getAccount(options)`
-
-Get account name by address.
-
-##### `Wallet::sendTo(options)`
-
-Automatically create a transaction and fill/sign it with any available unspent
-outputs/inputs and broadcast it.
-
-##### `Wallet::signMessage(options)`
-
-Sign any piece of text using the private key associated with the provided
-address.
-
-##### `Wallet::verifyMessage(options)`
-
-Verify any signed piece of text using the public key associated with signing
-private key.
-
-##### `Wallet::createMultiSigAddress(options)`
-
-Create a multi-signature for the global wallet.
-
-##### `Wallet::getBalance(options)`
-
-Get the total balance of the global wallet in satoshis.
-
-##### `Wallet::getUnconfirmedBalance(options)`
-
-Get the total unconfirmed balance of the global wallet in satoshis
-
-##### `Wallet::sendFrom(options)`
-
-Automatically create a transaction and fill/sign it with any available unspent
-outputs/inputs and broadcast it. This method will also select unspent outputs
-from the provided account name to fill the transaction.
-
-##### `Wallet::listTransactions(options)`
-
-List transactions associated with the global wallet - NOT YET IMPLEMENTED.
-
-##### `Wallet::listAccounts(options)`
-
-Return a javascript object containing account names, addresses, public keys,
-private keys, balances, and whether the keys are in compressed format.
-
-##### `Wallet::getTransaction(options)`
-
-Return any transaction associated with the global wallet - NOT YET IMPLEMENTED.
-
-##### `Wallet::backup(options)`
-
-Backup wallet.dat to provided path.
-
-##### `Wallet::decrypt(options), Wallet::passphrase(options)`
-
-Temporarily decrypt the wallet using the provided passphrase.
-
-##### `Wallet::passphraseChange(options)`
-
-Change passphrase for the global encrypted wallet.
-
-##### `Wallet::forgetPassphrase(options), Wallet::lock(options)`
-
-Forget the current passphrase so the wallet is once again encrypted and
-unusuable for any meaningful purpose.
-
-##### `Wallet::encrypt(options)`
-
-Encrypt the global wallet with the provided passphrase.
-
-##### `Wallet::setTxFee(options)`
-
-The the default transaction fee for the global wallet in satoshis.
-
-##### `Wallet::importKey(options)`
-
-Import a private key to global wallet in the standard bitcoind compressed
-format.
-
-
 #### Utils Object (Singleton)
 
 ##### `utils.forEach(obj, iter, done)`
@@ -435,6 +317,20 @@ The bitcoind.js Wallet singleton.
 
 The bitcoind.js utils object.
 
+## Discussion about the patch to Bitcoin to allow the shared library creation
+
+To provide native bindings to JavaScript (or any other language for that matter), Bitcoin code, itself, must be linkable. Currently, Bitcoind achieves this by providing an JSON RPC interface to bitcoind. The major drawbacks to this interface are:
+
+1. JSON RPC interfaces are much slower than linking natively to the C++ code.
+2. There can be errors in the interface that prevent clients from using bitcoind's functionality.
+3. Functionality can be limited or otherwise unavailable to clients through this interface.
+
+Linking C++ binding code directly to bitcoind can mitigate all of the above disadvantage, but has its own disadavantages:
+
+1. The original authors are not explicitly (or implicitly) providing ANY API support to the C++ bindings written here. This means that in subsequent releases of bitcoind, the bindings could fail and this project's authors will need to update the bindings retroactively.
+2. As such, there is likely a lag in support for newer versions of bitcoind.
+
+Due to the pros and cons listed above. The patch to Bitcoin will not be merged by the core devs due to the attitude that the cons outweigh the pros. Every effort will be made to ensure that this project stays up-to-date with the latest release of Bitcoin. At the very least, this project began supporting Bitcoin v0.10.2.
 
 ## Contribution and License Agreement
 
@@ -445,6 +341,6 @@ all code is your original work. `</legalese>`
 
 ## License
 
-- bitcoind.js: Copyright (c) 2014, BitPay (MIT License).
-- bitcoin: Copyright (c) 2009-2013 Bitcoin Core Developers (MIT License)
+- bitcoind.js: Copyright (c) 2015, BitPay (MIT License).
+- bitcoin: Copyright (c) 2009-2015 Bitcoin Core Developers (MIT License)
 - bcoin (some code borrowed temporarily): Copyright Fedor Indutny, 2014.
