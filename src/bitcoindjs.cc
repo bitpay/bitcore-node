@@ -347,7 +347,14 @@ async_blocks_ready(uv_work_t *req) {
   data->result = std::string("");
 
   while(!chainActive.Tip()) {
-    usleep(1E4);
+    usleep(1E6);
+  }
+
+  CBlockIndex* tip = chainActive.Tip();
+  uint256 tipHash = tip->GetBlockHash();
+
+  while(mapBlockIndex.count(tipHash) == 0) {
+    usleep(1E6);
   }
 
 }
@@ -876,8 +883,11 @@ async_get_block_after(uv_work_t *req) {
     const CBlock& cblock = data->cblock;
     CBlockIndex* cblock_index = data->cblock_index;
 
-    Local<Object> jsblock = NanNew<Object>();
-    cblock_to_jsblock(cblock, cblock_index, jsblock, false);
+    CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+    ssBlock << cblock;
+    std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
+
+    Local<String> jsblock = NanNew<String>(strHex);
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
