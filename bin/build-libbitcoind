@@ -14,31 +14,18 @@ if test x"$1" = x'debug'; then
   debug=--enable-debug
 fi
 
-only_make=false
-libbitcoind=`find "${os_dir}" -iname "libbitcoind*"`
-if [ "$libbitcoind" != "" ]; then
-  read -r -p 'libbitcoind already built.  Remove and reinstall/Re-make only/Do Nothing? (r/m/D): ' choice
-  if test x"$choice" = x'r' -o x"$choice" = x'R'; then
-    echo "Removing libbitcoind and recloning, patching, and building..."
-    rm -rf "${root_dir}/libbitcoind"
-    rm -f "${os_dir}/libbitcoind.*"
-  elif test x"$choice" = x'm' -o x"$choice" = x'M'; then
-    echo "Running make inside libbitcoind..."
-    rm -f "${os_dir}/libbitcoind.*"
-    if [ -d "${root_dir}/libbitcoind" ]; then
-      only_make=true
-    else
-      echo "can not seem to find the build directory, we must do the whole shebang, bummer..."
-    fi
-  else
-    echo 'libbitcoind ready.'
-    exit 0
-  fi
-fi
-
 btc_dir="${root_dir}/libbitcoind"
-echo "Found BTC directory: ${btc_dir}"
-cd "${btc_dir}"
+echo "Using BTC directory: ${btc_dir}"
+
+rm -f "${os_dir}/libbitcoind.*"
+only_make=false
+if [ -d "${root_dir}/libbitcoind" ]; then
+  echo "Running make inside libbitcoind (assuming you've previously patched and configured libbitcoind)..."
+  cd "${btc_dir}"
+  only_make=true
+else
+  echo "Removing cloning, patching, and building libbitcoind..."
+fi
 
 if [ "${only_make}" = false ]; then
   if test -e "${root_dir/PATCH_VERSION}"; then
@@ -51,8 +38,10 @@ if [ "${only_make}" = false ]; then
   echo "attempting to checkout tag: ${tag} of bitcoin from github..."
   git clone --depth 1 --branch "${tag}" git://github.com/bitcoin/bitcoin.git libbitcoind
 
-  echo './patch-bitcoin.sh' "${btc_dir}"
-  ./bin/patch-bitcoin "${btc_dir}"
+  cd "${btc_dir}"
+
+  echo '../patch-bitcoin.sh' "${btc_dir}"
+  ../bin/patch-bitcoin "${btc_dir}"
 
   if ! test -d .git; then
     echo 'Please point this script to an upstream bitcoin git repo.'
