@@ -672,7 +672,7 @@ start_node_thread(void) {
  */
 
 NAN_METHOD(StopBitcoind) {
-  fprintf(stderr, "Stopping Bitcoind please wait!");
+  fprintf(stderr, "Stopping Bitcoind please wait!\n");
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 

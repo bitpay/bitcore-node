@@ -10,6 +10,7 @@ var should = chai.should();
 var assert = chai.assert;
 var sinon = require('sinon');
 var blockData = require('./livenet-block-data.json');
+var testBlockData = require('./testnet-block-data.json');
 
 describe('Basic Functionality', function() {
 
