@@ -906,6 +906,9 @@ async_get_block_after(uv_work_t *req) {
 
     Local<Value> rawNodeBuffer = node::Buffer::New(isolate, data->buffer, data->size);
 
+    delete data->buffer;
+    data->buffer = NULL;
+
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(isolate, NanNull()),

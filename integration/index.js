@@ -78,4 +78,22 @@ describe('Basic Functionality', function() {
     });
   });
 
+  describe.skip('get the chain', function() {
+
+    var heights = [];
+    for (var i = 364599; i >= 0 ; i--) {
+      heights.push(i);
+    }
+
+    heights.forEach(function(height) {
+      it('block at height ' + height, function(done) {
+        bitcoind.getBlock(height, function(err, response) {
+          var block = bitcore.Block.fromBuffer(response);
+          console.log(block.hash);
+          done();
+        });
+      });
+    });
+  });
+
 });
