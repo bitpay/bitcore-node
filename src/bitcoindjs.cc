@@ -672,7 +672,7 @@ start_node_thread(void) {
  */
 
 NAN_METHOD(StopBitcoind) {
-  fprintf(stderr, "Stopping Bitcoind please wait!");
+  fprintf(stderr, "Stopping Bitcoind please wait!\n");
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
@@ -716,6 +716,9 @@ async_stop_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
   unhook_packets();
   StartShutdown();
+  while(!shutdown_complete) {
+    usleep(1E6);
+  }
   data->result = std::string("bitcoind shutdown.");
 }
 

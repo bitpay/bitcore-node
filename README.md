@@ -16,6 +16,10 @@ bitcoind.getBlock(blockHash, function(err, block) {
 }
 ```
 
+bitcoind.stop(function(err, result) {
+  // bitcoind is stopped
+});
+
 You can log output from the daemon using:
 
 ``` bash
