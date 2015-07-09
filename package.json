@@ -1,31 +1,45 @@
 {
   "name": "bitcoind.js",
   "description": "Node binding for bitcoind",
-  "author": "Christopher Jeffrey",
+  "author": "BitPay <dev@bitpay.com>",
   "version": "0.0.8",
   "main": "./index.js",
-  "repository": "git://github.com/chjj/bitcoind.js.git",
-  "homepage": "https://github.com/chjj/bitcoind.js",
+  "repository": "git://github.com/bitpay/bitcoind.js.git",
+  "homepage": "https://github.com/bitpay/bitcoind.js",
   "bugs": {
-    "url": "https://github.com/chjj/bitcoind.js/issues"
+    "url": "https://github.com/bitpay/bitcoind.js/issues"
   },
+  "contributors": [
+    {
+      "name": "Christopher Jeffrey"
+    },
+    {
+      "name": "Braydon Fuller",
+      "email": "braydon@bitpay.com"
+    },
+    {
+      "name": "Chris Kleeschulte",
+      "email": "chrisk@bitpay.com"
+    }
+  ],
   "scripts": {
-    "preinstall": "./bin/build-libbitcoind remote",
-    "start": "export LD_LIBRARY_PATH=`./platform/os.sh osdir` && node example"
+    "preinstall": "./bin/build-libbitcoind",
+    "install": "./bin/build-bindings",
+    "start": "export LD_LIBRARY_PATH=`./platform/os.sh osdir` && node example",
+    "debug_install": "./bin/build-libbitcoind debug && ./bin/build-bindings debug"
   },
   "tags": [
     "bitcoin",
     "bitcoind"
   ],
   "dependencies": {
-    "nan": "1.3.0",
+    "bindings": "^1.2.1",
     "mkdirp": "0.5.0",
+    "nan": "1.3.0",
     "tiny": "0.0.10"
   },
   "devDependencies": {
     "mocha": "~1.16.2",
-    "optimist": "0.6.0",
-    "rimraf": "2.2.8",
     "async": "1.2.1",
     "benchmark": "1.0.0"
   }
