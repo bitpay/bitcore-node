@@ -38,6 +38,13 @@ describe('Basic Functionality', function() {
 
   });
 
+  after(function(done) {
+    this.timeout(20000);
+    bitcoind.stop(function(err, result) {
+      done();
+    });
+  });
+
   describe('will get correct block data', function() {
 
     blockData.forEach(function(data) {
