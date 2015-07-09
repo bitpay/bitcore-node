@@ -63,8 +63,11 @@ ext=$($root_dir/platform/os.sh ext)
 echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
 if test -e "${root_dir}/libbitcoind/src/.libs/libbitcoind.${ext}"; then
   if [ "$ext" = "dylib" ]; then
-    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.0.dylib" "${os_dir}/"
-    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.dylib" "${os_dir}/"
+    if [ ! -d "${os_dir}/lib" ]; then
+      mkdir -p "${os_dir}/lib"
+    fi 
+    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.0.dylib" "${os_dir}/lib/"
+    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.dylib" "${os_dir}/lib/"
   else
     cp -P "${root_dir}"/libbitcoind/src/.libs/libbitcoind.so* "${os_dir}/"
   fi
