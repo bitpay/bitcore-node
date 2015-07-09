@@ -1,0 +1,6 @@
+language: node_js
+node_js:
+  - "0.12"
+before_install:
+  - git config --global user.email "dev@bitpay.com"
+  - git config --global user.name "BitPay, Inc."
