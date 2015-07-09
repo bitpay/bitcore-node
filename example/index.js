@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+'use strict';
+
 /**
  * bitcoind.js example
  */
@@ -9,10 +11,9 @@ process.title = 'bitcoind.js';
 /**
  * bitcoind
  */
-var bitcoindjsConf = process.env('BITCOINDJS_DIR');
 
 var bitcoind = require('../')({
-  directory: '~/.libbitcoind-example'
+  directory: process.env.BITCOINDJS_DIR || '~/.bitcoin'
 });
 
 bitcoind.on('error', function(err) {
