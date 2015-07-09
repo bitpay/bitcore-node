@@ -23,7 +23,8 @@
     }
   ],
   "scripts": {
-    "preinstall": "./bin/build-libbitcoind && ./bin/build-bindings",
+    "preinstall": "./bin/build-libbitcoind",
+    "install": "./bin/build-bindings",
     "start": "export LD_LIBRARY_PATH=`./platform/os.sh osdir` && node example",
     "debug_install": "./bin/build-libbitcoind debug && ./bin/build-bindings debug"
   },
