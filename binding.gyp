@@ -25,10 +25,15 @@
       '-frtti',
       '-fpermissive',
     ],
-    'libraries': [
-      '-lboost_filesystem',
-      '<!(./platform/os.sh thread)',
-      '<!(./platform/os.sh lib)'
-    ]
+    'link_settings': {
+      'libraries': [
+        '-lboost_filesystem',
+        '<!(./platform/os.sh thread)',
+        '<!(./platform/os.sh lib)'
+      ],
+      'ldflags': [
+        '-Wl,-rpath,<!(./platform/os.sh osdir)'
+      ]
+    }
   }]
 }
