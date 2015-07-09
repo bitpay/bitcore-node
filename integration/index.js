@@ -51,7 +51,7 @@ describe('Basic Functionality', function() {
       var block = bitcore.Block.fromString(data);
       it('block ' + block.hash, function(done) {
         bitcoind.getBlock(block.hash, function(err, response) {
-          assert(response === data, 'incorrect block data for ' + block.hash);
+          assert(response.toString('hex') === data, 'incorrect block data for ' + block.hash);
           done();
         });
       });

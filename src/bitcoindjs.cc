@@ -869,7 +869,7 @@ async_get_block(uv_work_t *req) {
     fread(&size, sizeof(uint32_t), 1, blockFile);
 
     // Read block
-    char buffer[size];
+    char* buffer = (char *)malloc(sizeof(char) * size);
     fread((void *)buffer, sizeof(char), size, blockFile);
     fclose(blockFile);
 
