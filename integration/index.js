@@ -1,6 +1,8 @@
 'use strict';
 
 // These tests require a fully synced Bitcore Code data directory.
+// To run the tests: $ mocha -R spec index.js
+
 var chai = require('chai');
 var bitcore = require('bitcore');
 var bitcoind;
