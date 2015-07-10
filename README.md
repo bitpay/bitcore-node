@@ -114,9 +114,18 @@ There is a config_options.sh that has the configure options used to build libbit
 
 Or you can also manually compile using:
 
+configure and make (Linux/Unix)
+
 ```bash
 $ cd libbitcoind
 $ ./configure --enable-tests=no --enable-daemonlib --with-gui=no --without-qt --without-miniupnpc --without-bdb --enable-debug --disable-wallet --without-utils
+$ make
+```
+configure and make (Mac OS X) --note the addition of prefix to the location where the libbitcoind library will be installed.
+
+```bash
+$ cd libbitcoind
+$ ./configure --enable-tests=no --enable-daemonlib --with-gui=no --without-qt --without-miniupnpc --without-bdb --enable-debug --disable-wallet --without-utils --prefix=<os_dir/lib>
 $ make
 ```
 And then copy the files (with Unix/Linux):
