@@ -17,7 +17,7 @@
             'GCC_ENABLE_CPP_RTTI': 'YES',
             'MACOSX_DEPLOYMENT_TARGET': '10.9'
           }
-	}
+        }
       ]
     ],
     'cflags_cc': [
@@ -32,7 +32,7 @@
         '<!(./platform/os.sh lib)'
       ],
       'ldflags': [
-        '-Wl,-rpath,<!(./platform/os.sh osdir)'
+        '-Wl,-rpath,<!(./platform/os.sh osdir),-rpath,<!(./platform/os.sh btcdir)/src/leveldb'
       ]
     }
   }]
