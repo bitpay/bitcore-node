@@ -41,6 +41,7 @@
   "devDependencies": {
     "async": "1.2.1",
     "benchmark": "1.0.0",
+    "bitcoin": "^2.3.2",
     "bitcore": "^0.12.12",
     "chai": "^3.0.0",
     "mocha": "~1.16.2",
