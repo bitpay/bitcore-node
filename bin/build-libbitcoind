@@ -66,8 +66,7 @@ if test -e "${root_dir}/libbitcoind/src/.libs/libbitcoind.${ext}"; then
     if [ ! -d "${os_dir}/lib" ]; then
       mkdir -p "${os_dir}/lib"
     fi 
-    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.0.dylib" "${os_dir}/lib/"
-    cp "${root_dir}/libbitcoind/src/.libs/libbitcoind.dylib" "${os_dir}/lib/"
+    cp -R "${root_dir}"/libbitcoind/src/.libs/libbitcoind.*dylib "${os_dir}/lib/"
   else
     cp -P "${root_dir}"/libbitcoind/src/.libs/libbitcoind.so* "${os_dir}/"
   fi

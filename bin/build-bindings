@@ -6,7 +6,7 @@ cd "${root_dir}"
 
 debug=
 if test x"$1" = x'debug'; then
-  debug=--d  
+  debug=--debug
 fi
 
 node-gyp ${debug} rebuild

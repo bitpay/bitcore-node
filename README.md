@@ -1,45 +1,48 @@
 # bitcoind.js
 
-A Node.js module that adds a native interface to Bitcoin Core for querying information about the bitcoin blockchain. Bindings are linked to Bitcore Core compiled as a shared library.
+A Node.js module that adds a native interface to Bitcoin Core for querying information about the Bitcoin blockchain. Bindings are linked to Bitcore Core compiled as a shared library.
 
 ## Example Usage
 
 ``` js
 var bitcoind = require('bitcoind.js')({
-  directory: '~/.libbitcoind-example',
-  testnet: false,
-  rpc: false
+  directory: '~/.bitcoin',
+  testnet: true
 });
 
-bitcoind.getBlock(blockHash, function(err, block) {
-  // block is a node buffer
-}
+bitcoind.on('ready', function() {
+
+  bitcoind.getBlock(blockHash, function(err, block) {
+    // block is a node buffer
+  }
+
+  bitcoind.close(function(err, result) {
+    // bitcoind is stopped
+  });
+});
+
 ```
-
-bitcoind.stop(function(err, result) {
-  // bitcoind is stopped
-});
 
 You can log output from the daemon using:
 
 ``` bash
-$ tail -f ~/.libbitcoind-example/debug.log
+$ tail -f ~/.bitcoin/debug.log
 ```
 
 ^C (SIGINT) will call `StartShutdown()` in bitcoind on the node thread pool.
 
 ## Documentation
 
-- `Bitcoin::start([options], [callback])` - Start the javascript bitcoin node.
-- `Bitcoin::getBlock(blockHash, callback)` - Get any block asynchronously by reading it from disk.
-- `Bitcoin::getTransaction(txid, blockhash, callback)` - Get any tx asynchronously by reading it from disk.
-- `Bitcoin::log(), Bitcoin::info()` -Log to standard output.
-- `Bitcoin::error()` - Log to stderr.
-- `Bitcoin::close` - Stop the javascript bitcoin node safely. This will be done automatically on `process.exit` also. It also takes the bitcoin node off the libuv event loop. If the bitcoin object is the only thing on the event loop. Node will simply close.
+- `bitcoind.start([options], [callback])` - Start the JavaScript Bitcoin node.
+- `bitcoind.getBlock(blockHash|blockHeight, callback)` - Get any block asynchronously by block hash or height as a node buffer.
+- `bitcoind.getTransaction(txid, blockhash, callback)` - Get any tx asynchronously by reading it from disk.
+- `bitcoind.log(message), bitcoind.info(message)` - Log to standard output.
+- `bitcoind.error(message)` - Log to stderr.
+- `bitcoind.close([callback])` - Stop the JavaScript bitcoin node safely, the callback will be called when bitcoind is closed. This will also be done automatically on `process.exit`. It also takes the bitcoind node off the libuv event loop. If the bitcoind object is the only thing on the event loop. Node will simply close.
 
 ## Building
 
-There are two main parts of build, compiling Bitcoin Core and the Node.js bindings.
+There are two main parts of the build, compiling Bitcoin Core and the Node.js bindings. You can run both by using `npm install` and `npm run debug_install`.
 
 ### Node.js Bindings
 
@@ -53,21 +56,36 @@ And then with debug:
 $ node-gyp -d rebuild
 ```
 
-To be able to debug you'll need to have `gdb` and `node` compiled for debugging, and you can then run:
+To be able to debug you'll need to have `gdb` and `node` compiled for debugging with gdb using `--gdb` (node_g), and you can then run:
 
 ```bash
-$ gdb --args node path/to/example.js
+$ gdb --args node_g path/to/example.js
+```
+
+To run integration tests against testnet or livenet data:
+
+```bash
+$ cd integration
+// modify index.js configuration, and then run mocha
+$ mocha -R spec index.js
+```
+
+To run the benchmarks (also with livenet or testnet data):
+
+```bash
+$ cd benchmarks
+$ node index.js
 ```
 
 ### Bitcoin Core
 
 #### Dependencies
 
-All of the dependencies for building Bitcoin Core are needed, for more information please see the build notes for [Unix](https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md) and [Mac OS X](https://github.com/bitcoin/bitcoin/blob/master/doc/build-osx.md).
+Most of all the dependencies for building Bitcoin Core are needed, for more information please see the build notes for [Unix](https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md) and [Mac OS X](https://github.com/bitcoin/bitcoin/blob/master/doc/build-osx.md). These dependencies are needed:
 
 - Boost
   - Boost Header Files (`/usr/include/boost`)
-  - The Boost header files can be from your distro (like Debian or Ubuntu), just be sure to install the "-dev" versions of Boost.
+  - The Boost header files can be from your distro (like Debian or Ubuntu), just be sure to install the "-dev" versions of Boost (`sudo apt-get install libboost-all-dev`).
 
 - OpenSSL headers and libraries (-lcrypto and -lssl), this is used to compile Bitcoin.
 
@@ -75,35 +93,41 @@ All of the dependencies for building Bitcoin Core are needed, for more informati
 
 #### Shared Library Patch
 
-To provide native bindings to JavaScript *(or any other language for that matter)*, Bitcoin code, itself, must be linkable. Currently, Bitcoin Core achieves this by providing an JSON RPC interface to bitcoind as well as a shared library for script validation *(and hopefully more)* called libbitcoinconsensus. There is also a node module, ([node-libbitcoinconsensus](https://github.com/bitpay/node-libbitcoinconsensus), that exposes these methods. While these interfaces are useful for several use cases, there are additional use cases that are not fulfilled, and being able to implement customized interfaces is necessary. To be able to do this a few simple changes that need to be made to Bitcoin Core to compile as a shared library. 
+To provide native bindings to JavaScript *(or any other language for that matter)*, Bitcoin code, itself, must be linkable. Currently, Bitcoin Core provides a JSON RPC interface to bitcoind as well as a shared library for script validation *(and hopefully more)* called libbitcoinconsensus. There is a node module, [node-libbitcoinconsensus](https://github.com/bitpay/node-libbitcoinconsensus), that exposes these methods. While these interfaces are useful for several use cases, there are additional use cases that are not fulfilled, and being able to implement customized interfaces is necessary. To be able to do this a few simple changes need to be made to Bitcoin Core to compile as a shared library. 
 
-You can view the patch at: `etc/bitcoin.patch`
+The patch is located at `etc/bitcoin.patch` and adds a configure option `--enable-daemonlib` to compile all object files with `-fPIC` (Position Independent Code - needed to create a shared object), exposes leveldb variables and objects, exposes the threadpool to the bindings, and conditionally includes the main function.
 
 Every effort will be made to ensure that this patch stays up-to-date with the latest release of Bitcoin. At the very least, this project began supporting Bitcoin Core v0.10.2.
 
 #### Building
 
-There is a build script that will download Bitcoin Core v10.2 and apply the necessary patch (`/etc/bitcoin.patch`), compile `libbitcoind.{so|dylib}`. Unix/Linux use the file extension "so" whereas Mac OSX uses "dylib" *(bitcoind compiled as a shared library)* and copy into `platform/<os_dir>`. *Note:* This script will run automatically with `npm install`.
+There is a build script that will download Bitcoin Core v0.10.2 and apply the necessary patch, compile `libbitcoind.{so|dylib}` and copy the artifact into `platform/<os_dir>`. Unix/Linux uses the file extension "so" whereas Mac OSX uses "dylib" *(bitcoind compiled as a shared library)*.
 
 ```bash
 $ cd /path/to/bitcoind.js
 $ ./bin/build-libbitcoind
 ```
 
-The first argument can also be a bitcoin repo directory you already have on your disk, otherwise it will check for ~/bitcoin by default. The `PATCH_VERSION` file dictates what version/tag the patch goes clean against.
+The first argument is 'debug', this will compile node bindings and bitcoind with debug flags. The `PATCH_VERSION` file dictates what version/tag the patch goes clean against.
 
-`--enable-daemonlib` will compile all object files with `-fPIC` (Position Independent Code - needed to create a shared object).
-
-`make` will then compile `./src/libbitcoind.{so|dylib}` (with `-shared -fPIC`), linking to all the freshly compiled PIC object files. This will completely ignore compiling tests, QT object files and the wallet features in bitcoind/libbitcoind.{so|dylib}.
-
-Without `--enable-daemonlib`, the Makefile with compile bitcoind with -fPIE (Position Independent for Executable), this allows compiling of bitcoind.
+There is a config_options.sh that has the configure options used to build libbitcoind. `make` will then compile `libbitcoind/src/.libs/libbitcoind.{so|dylib}`. This will completely ignore compiling tests, QT object files and the wallet features in `bitcoind/libbitcoind.{so|dylib}`.
 
 Or you can also manually compile using:
+
 ```bash
 $ cd libbitcoind
-$ ./configure --enable-tests=no --enable-daemonlib --with-gui=no --without-qt --without-miniupnpc --without-bdb --enable-debug --disable-wallet --without-utils --prefix=
+$ ./configure --enable-tests=no --enable-daemonlib --with-gui=no --without-qt --without-miniupnpc --without-bdb --enable-debug --disable-wallet --without-utils
 $ make
-$ cp src/libs/libbitcoind.so* ../platform/<os_dir>
+```
+And then copy the files (with Unix/Linux):
+
+```bash
+$ cp -P libbitcoind/src/.libs/libbitcoind.so* platform/<os_dir>
+```
+
+With Mac OS X:
+```bash
+$ cp -R libbitcoind/src/.libs/libbitcoind.*dylib platform/osx/lib
 ```
 
 ## License
