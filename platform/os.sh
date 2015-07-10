@@ -61,6 +61,11 @@ if test x"$1" = x'osdir'; then
   exit 0
 fi
 
+if test x"$1" = x'btcdir'; then
+  echo -n "${BITCOIN_DIR}"
+  exit 0
+fi
+
 if test -z "$1" -o x"$1" = x'ext'; then
   echo -n "${ext}"
 fi
