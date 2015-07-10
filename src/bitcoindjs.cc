@@ -189,6 +189,8 @@ struct async_block_data {
   std::string err_msg;
   std::string hash;
   int64_t height;
+  char* buffer;
+  uint32_t size;
   CBlock cblock;
   CBlockIndex* cblock_index;
   Eternal<Function> callback;
@@ -835,35 +837,52 @@ static void
 async_get_block(uv_work_t *req) {
   async_block_data* data = static_cast<async_block_data*>(req->data);
 
-  if (data->height != -1) {
-    CBlockIndex* pblockindex = chainActive[data->height];
-    CBlock cblock;
-    if (ReadBlockFromDisk(cblock, pblockindex)) {
-      data->cblock = cblock;
-      data->cblock_index = pblockindex;
-    } else {
-      data->err_msg = std::string("Block not found.");
-    }
-    return;
-  }
-
+  CBlockIndex* pblockindex;
   std::string strHash = data->hash;
   uint256 hash(strHash);
 
-  if (mapBlockIndex.count(hash) == 0) {
-      data->err_msg = std::string("Block not found.");
+  if (data->height != -1) {
+    pblockindex = chainActive[data->height];
   } else {
-
-    CBlock block;
-    CBlockIndex* pblockindex = mapBlockIndex[hash];
-
-    if(!ReadBlockFromDisk(block, pblockindex)) {
-      data->err_msg = std::string("Can't read block from disk");
+    if (mapBlockIndex.count(hash) == 0) {
+      data->err_msg = std::string("Block not found.");
+      return;
     } else {
-      data->cblock = block;
-      data->cblock_index = pblockindex;
+      pblockindex = mapBlockIndex[hash];
     }
   }
+
+  const CDiskBlockPos& pos = pblockindex->GetBlockPos();
+
+  // We can read directly from the file, and pass that, we don't need to
+  // deserialize the entire block only for it to then be serialized
+  // and then deserialized again in JavaScript
+
+  // Open history file to read
+  CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+  if (filein.IsNull()) {
+    data->err_msg = std::string("ReadBlockFromDisk: OpenBlockFile failed");
+    return;
+  }
+
+  // Get the actual file, seeked position and rewind a uint32_t
+  FILE* blockFile = filein.release();
+  long int filePos = ftell(blockFile);
+  fseek(blockFile, filePos - sizeof(uint32_t), SEEK_SET);
+
+  // Read the size of the block
+  uint32_t size = 0;
+  fread(&size, sizeof(uint32_t), 1, blockFile);
+
+  // Read block
+  char* buffer = (char *)malloc(sizeof(char) * size);
+  fread((void *)buffer, sizeof(char), size, blockFile);
+  fclose(blockFile);
+
+  data->buffer = buffer;
+  data->size = size;
+  data->cblock_index = pblockindex;
+
 }
 
 static void
@@ -883,19 +902,17 @@ async_get_block_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
-    const CBlock& cblock = data->cblock;
     CBlockIndex* cblock_index = data->cblock_index;
 
-    CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-    ssBlock << cblock;
-    std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
+    Local<Value> rawNodeBuffer = node::Buffer::New(isolate, data->buffer, data->size);
 
-    Local<String> jsblock = NanNew<String>(strHex);
+    delete data->buffer;
+    data->buffer = NULL;
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(isolate, NanNull()),
-      Local<Value>::New(isolate, jsblock)
+      rawNodeBuffer
     };
     TryCatch try_catch;
     cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);

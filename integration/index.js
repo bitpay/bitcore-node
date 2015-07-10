@@ -45,13 +45,51 @@ describe('Basic Functionality', function() {
     });
   });
 
-  describe('will get correct block data', function() {
+  describe('get blocks by hash', function() {
 
     blockData.forEach(function(data) {
       var block = bitcore.Block.fromString(data);
       it('block ' + block.hash, function(done) {
         bitcoind.getBlock(block.hash, function(err, response) {
-          assert(response === data, 'incorrect block data for ' + block.hash);
+          assert(response.toString('hex') === data, 'incorrect block data for ' + block.hash);
+          done();
+        });
+      });
+    });
+  });
+
+  describe('get blocks by height', function() {
+
+    var knownHeights = [
+      [0, '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'],
+      [1, '00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048'],
+      [100000,'000000000003ba27aa200b1cecaad478d2b00432346c3f1f3986da1afd33e506'],
+      [314159, '00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45']
+    ];
+
+    knownHeights.forEach(function(data) {
+      it('block at height ' + data[0], function(done) {
+        bitcoind.getBlock(data[0], function(err, response) {
+          var block = bitcore.Block.fromBuffer(response);
+          block.hash.should.equal(data[1]);
+          done();
+        });
+      });
+    });
+  });
+
+  describe.skip('get the chain', function() {
+
+    var heights = [];
+    for (var i = 364599; i >= 0 ; i--) {
+      heights.push(i);
+    }
+
+    heights.forEach(function(height) {
+      it('block at height ' + height, function(done) {
+        bitcoind.getBlock(height, function(err, response) {
+          var block = bitcore.Block.fromBuffer(response);
+          console.log(block.hash);
           done();
         });
       });
