@@ -7,6 +7,8 @@
  */
 
 #include "nan.h"
+#include "scheduler.h"
+#include "main.h"
 #include "addrman.h"
 #include "alert.h"
 #include "base58.h"
@@ -24,25 +26,4 @@ NAN_METHOD(IsStopped);
 NAN_METHOD(StopBitcoind);
 NAN_METHOD(GetBlock);
 NAN_METHOD(GetTransaction);
-NAN_METHOD(BroadcastTx);
-NAN_METHOD(VerifyBlock);
-NAN_METHOD(VerifyTransaction);
 NAN_METHOD(GetInfo);
-NAN_METHOD(GetPeerInfo);
-NAN_METHOD(GetAddresses);
-NAN_METHOD(GetProgress);
-NAN_METHOD(GetMiningInfo);
-NAN_METHOD(GetAddrTransactions);
-NAN_METHOD(GetBestBlock);
-NAN_METHOD(GetChainHeight);
-NAN_METHOD(GetBlockByTx);
-NAN_METHOD(GetBlocksByTime);
-NAN_METHOD(GetFromTx);
-NAN_METHOD(GetLastFileIndex);
-NAN_METHOD(GetBlockHex);
-NAN_METHOD(GetTxHex);
-NAN_METHOD(BlockFromHex);
-NAN_METHOD(TxFromHex);
-NAN_METHOD(HookPackets);
-
-
