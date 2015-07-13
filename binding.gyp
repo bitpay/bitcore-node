@@ -3,6 +3,7 @@
     'target_name': 'bitcoindjs',
     'include_dirs' : [
       '/usr/include/boost',
+      '/usr/local/include',
       './libbitcoind/src/leveldb/include',
       './libbitcoind/src',
       '<!(node -e "require(\'nan\')")'
@@ -28,6 +29,7 @@
     'link_settings': {
       'libraries': [
         '-lboost_filesystem',
+        '-L/usr/local/lib',
         '<!(./platform/os.sh thread)',
         '<!(./platform/os.sh lib)'
       ],
