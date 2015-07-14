@@ -117,7 +117,7 @@ struct async_node_data {
 
 struct async_block_data {
   std::string err_msg;
-  const char* hash;
+  std::string hash;
   int64_t height;
   char* buffer;
   uint32_t size;
@@ -132,8 +132,8 @@ struct async_block_data {
 
 struct async_tx_data {
   std::string err_msg;
-  const char* txid;
-  const char* blockhash;
+  std::string txid;
+  std::string blockhash;
   CTransaction ctx;
   Eternal<Function> callback;
 };
@@ -708,12 +708,13 @@ NAN_METHOD(GetBlock) {
   if (args[0]->IsNumber()) {
     int64_t height = args[0]->IntegerValue();
     data->err_msg = std::string("");
-    data->hash = NULL;
+    data->hash = std::string("");
     data->height = height;
   } else {
     String::Utf8Value hash_(args[0]->ToString());
+    std::string hash = std::string(*hash_);
     data->err_msg = std::string("");
-    data->hash = *hash_;
+    data->hash = hash;
     data->height = -1;
   }
 
@@ -847,15 +848,17 @@ NAN_METHOD(GetTransaction) {
   async_tx_data *data = new async_tx_data();
 
   data->err_msg = std::string("");
-  data->txid = *txid_;
+  data->txid = std::string("");
+
+  std::string txid = std::string(*txid_);
+  std::string blockhash = std::string(*blockhash_);
+
+  data->txid = txid;
   Eternal<Function> eternal(isolate, callback);
   data->callback = eternal;
 
-  if (blockhash_.length() == 0) {
-    data->blockhash = uint256().GetHex().c_str();
-  }
-  else {
-    data->blockhash = *blockhash_;
+  if (blockhash == "") {
+    data->blockhash = uint256().GetHex();
   }
 
   uv_work_t *req = new uv_work_t();
