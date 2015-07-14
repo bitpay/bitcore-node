@@ -6,8 +6,6 @@
  *   A bitcoind node.js binding header file.
  */
 
-#include "nan.h"
-#include "scheduler.h"
 #include "main.h"
 #include "addrman.h"
 #include "alert.h"
@@ -18,6 +16,8 @@
 #include "txdb.h"
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
+#include "nan.h"
+#include "scheduler.h"
 
 NAN_METHOD(StartBitcoind);
 NAN_METHOD(OnBlocksReady);
