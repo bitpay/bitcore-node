@@ -1,33 +1,33 @@
-From d354526706953a6f77800f9c77f854e062fda635 Mon Sep 17 00:00:00 2001
+From 05084f2a640b862132588b322461ec8e13058fc3 Mon Sep 17 00:00:00 2001
 From: Chris Kleeschulte <chrisk@bitpay.com>
-Date: Tue, 7 Jul 2015 11:20:20 -0400
-Subject: [PATCH] added support for libbitcoind.so/dylib
+Date: Mon, 13 Jul 2015 12:49:30 -0400
+Subject: [PATCH] libbitcoind
 
 ---
  config_me.sh         |  1 +
- configure.ac         | 31 +++++++++++++++++++++++++++++--
+ configure.ac         | 37 ++++++++++++++++++++++++++++++++-----
  src/Makefile.am      | 42 ++++++++++++++++++++++++++++++++++--------
- src/bitcoind.cpp     |  5 +++++
+ src/bitcoind.cpp     |  6 ++++++
  src/init.h           |  5 +++++
  src/leveldb/Makefile |  6 +++++-
  src/leveldbwrapper.h | 12 ++++++++++++
- 7 files changed, 91 insertions(+), 11 deletions(-)
+ 7 files changed, 95 insertions(+), 14 deletions(-)
  create mode 100644 config_me.sh
 
 diff --git a/config_me.sh b/config_me.sh
 new file mode 100644
-index 0000000..9623c59
+index 0000000..19e9a1b
 --- /dev/null
 +++ b/config_me.sh
 @@ -0,0 +1 @@
 +./configure --enable-tests=no --enable-daemonlib --with-gui=no --without-qt --without-miniupnpc --without-bdb --enable-debug --disable-wallet --without-utils
 diff --git a/configure.ac b/configure.ac
-index 579035f..cd20489 100644
+index 37fe47e..27a9b9a 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -126,6 +126,12 @@ AC_ARG_ENABLE([reduce-exports],
+@@ -119,6 +119,12 @@ AC_ARG_ENABLE([reduce-exports],
    [use_reduce_exports=$enableval],
-   [use_reduce_exports=auto])
+   [use_reduce_exports=no])
 
 +AC_ARG_ENABLE([daemonlib],
 +  [AS_HELP_STRING([--enable-daemonlib],
@@ -38,7 +38,7 @@ index 579035f..cd20489 100644
  AC_ARG_ENABLE([ccache],
    [AS_HELP_STRING([--enable-ccache],
    [use ccache for building (default is yes if ccache is found)])],
-@@ -409,6 +415,9 @@ fi
+@@ -402,6 +408,9 @@ fi
  if test x$use_hardening != xno; then
    AX_CHECK_COMPILE_FLAG([-Wstack-protector],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -Wstack-protector"])
    AX_CHECK_COMPILE_FLAG([-fstack-protector-all],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fstack-protector-all"])
@@ -48,7 +48,7 @@ index 579035f..cd20489 100644
 
    AX_CHECK_PREPROC_FLAG([-D_FORTIFY_SOURCE=2],[
      AX_CHECK_PREPROC_FLAG([-U_FORTIFY_SOURCE],[
-@@ -422,7 +431,7 @@ if test x$use_hardening != xno; then
+@@ -415,7 +424,7 @@ if test x$use_hardening != xno; then
    AX_CHECK_LINK_FLAG([[-Wl,-z,relro]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,relro"])
    AX_CHECK_LINK_FLAG([[-Wl,-z,now]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,now"])
 
@@ -57,7 +57,7 @@ index 579035f..cd20489 100644
      # All windows code is PIC, forcing it on just adds useless compile warnings
      AX_CHECK_COMPILE_FLAG([-fPIE],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fPIE"])
      AX_CHECK_LINK_FLAG([[-pie]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -pie"])
-@@ -440,6 +449,17 @@ if test x$use_hardening != xno; then
+@@ -433,6 +442,17 @@ if test x$use_hardening != xno; then
    OBJCXXFLAGS="$CXXFLAGS"
  fi
 
@@ -75,17 +75,14 @@ index 579035f..cd20489 100644
  dnl this flag screws up non-darwin gcc even when the check fails. special-case it.
  if test x$TARGET_OS = xdarwin; then
    AX_CHECK_LINK_FLAG([[-Wl,-dead_strip]], [LDFLAGS="$LDFLAGS -Wl,-dead_strip"])
-@@ -485,7 +505,7 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([
+@@ -483,11 +503,18 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([
    ]
  )
 
--if test x$use_reduce_exports != xno; then
-+if test x$use_reduce_exports != xno -a x$use_daemonlib = xno; then
+-if test x$use_reduce_exports = xyes; then
++if test x$use_reduce_exports = xyes -a x$use_daemonlib = xno; then
    AX_CHECK_COMPILE_FLAG([-fvisibility=hidden],[RE_CXXFLAGS="-fvisibility=hidden"],
-   [
-     if test x$use_reduce_exports = xyes; then
-@@ -496,6 +516,13 @@ if test x$use_reduce_exports != xno; then
-   ])
+   [AC_MSG_ERROR([Cannot set default symbol visibility. Use --disable-reduce-exports.])])
  fi
 
 +AC_MSG_CHECKING([whether to compile as daemonlib])
@@ -99,7 +96,7 @@ index 579035f..cd20489 100644
  LIBLEVELDB=
  LIBMEMENV=
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 81b16d1..d05c91a 100644
+index 1c2f770..632f608 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
 @@ -1,6 +1,7 @@
@@ -113,7 +110,7 @@ index 81b16d1..d05c91a 100644
 @@ -15,6 +16,10 @@ $(LIBLEVELDB) $(LIBMEMENV):
  	@echo "Building LevelDB ..." && $(MAKE) -C $(@D) $(@F) CXX="$(CXX)" \
  	  CC="$(CC)" PLATFORM=$(TARGET_OS) AR="$(AR)" $(LEVELDB_TARGET_FLAGS) \
-           OPT="$(CXXFLAGS) $(CPPFLAGS)"
+           OPT="$(CXXFLAGS) $(CPPFLAGS) -D__STDC_LIMIT_MACROS"
 +
 +LIBLEVELDB_SHARED:
 +	@echo "Building the LevelDB shared library..." && $(MAKE) -C ./leveldb
@@ -155,7 +152,7 @@ index 81b16d1..d05c91a 100644
 
  .PHONY: FORCE
  # bitcoin core #
-@@ -156,8 +164,9 @@ obj/build.h: FORCE
+@@ -169,8 +177,9 @@ obj/build.h: FORCE
  	@$(MKDIR_P) $(builddir)/obj
  	@$(top_srcdir)/share/genbuild.sh $(abs_top_builddir)/src/obj/build.h \
  	  $(abs_top_srcdir)
@@ -166,16 +163,10 @@ index 81b16d1..d05c91a 100644
  # server: shared between bitcoind and bitcoin-qt
  libbitcoin_server_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS)
  libbitcoin_server_a_SOURCES = \
-@@ -304,16 +313,33 @@ bitcoind_LDADD = \
- if ENABLE_WALLET
- bitcoind_LDADD += libbitcoin_wallet.a
- endif
-+MEMOBJ = helpers/memenv/memenv.lo
-+$(MEMOBJ):
-+	@echo "Building the Memenv shared library..." && $(MAKE) -C ./leveldb $@
-+
+@@ -309,9 +318,18 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
  bitcoind_SOURCES = bitcoind.cpp
- #
+ bitcoind_CPPFLAGS = $(BITCOIN_INCLUDES)
+ bitcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 +libbitcoind_la_SOURCES = bitcoind.cpp
 +libbitcoind_la_SOURCES += $(libbitcoin_util_a_SOURCES)
 +libbitcoind_la_SOURCES += $(libbitcoin_univalue_a_SOURCES)
@@ -190,31 +181,39 @@ index 81b16d1..d05c91a 100644
 +libbitcoind_la_SOURCES += bitcoind-res.rc
  endif
 
+ bitcoind_LDADD = \
+@@ -328,7 +346,15 @@ if ENABLE_WALLET
+ bitcoind_LDADD += libbitcoin_wallet.a
+ endif
+
++MEMOBJ = helpers/memenv/memenv.lo
++$(MEMOBJ):
++	@echo "Building the Memenv shared library..." && $(MAKE) -C ./leveldb $@
++
  bitcoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS)
- bitcoind_CPPFLAGS = $(BITCOIN_INCLUDES)
- bitcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 +libbitcoind_la_LIBADD = $(BOOST_LIBS) $(SSL_LIBS) $(LIBSECP256K1) $(CRYPTO_LIBS) leveldb/$(MEMOBJ)
 +libbitcoind_la_CPPFLAGS = $(BITCOIN_INCLUDES)
 +libbitcoind_la_LDFLAGS = -lleveldb -L./leveldb $(RELDFLAGS) -no-undefined
 +libbitcoind_la_DEPENDENCIES = $(LIBSECP256K1) LIBLEVELDB_SHARED $(MEMOBJ)
+ #
 
  # bitcoin-cli binary #
- bitcoin_cli_LDADD = \
 diff --git a/src/bitcoind.cpp b/src/bitcoind.cpp
-index be7757b..0eb62d8 100644
+index cce687a..0f162ff 100644
 --- a/src/bitcoind.cpp
 +++ b/src/bitcoind.cpp
-@@ -15,6 +15,9 @@
- #include <boost/filesystem.hpp>
- #include <boost/thread.hpp>
+@@ -33,6 +33,10 @@
+
+ static bool fDaemon;
 
 +#if ENABLE_DAEMONLIB
-+extern void DetectShutdownThread(boost::thread_group* threadGroup);
++extern void WaitForShutdown(boost::thread_group* threadGroup);
 +#endif
- /* Introduction text for doxygen: */
-
- /*! \mainpage Developer documentation
-@@ -175,6 +178,7 @@ bool AppInit(int argc, char* argv[])
++
+ void WaitForShutdown(boost::thread_group* threadGroup)
+ {
+     bool fShutdown = ShutdownRequested();
+@@ -166,6 +170,7 @@ bool AppInit(int argc, char* argv[])
      return fRet;
  }
 
@@ -222,16 +221,16 @@ index be7757b..0eb62d8 100644
  int main(int argc, char* argv[])
  {
      SetupEnvironment();
-@@ -184,3 +188,4 @@ int main(int argc, char* argv[])
+@@ -175,3 +180,4 @@ int main(int argc, char* argv[])
 
      return (AppInit(argc, argv) ? 0 : 1);
  }
 +#endif
 diff --git a/src/init.h b/src/init.h
-index f2f7ac6..9106580 100644
+index dcb2b29..5ce68ba 100644
 --- a/src/init.h
 +++ b/src/init.h
-@@ -17,6 +17,11 @@ class thread_group;
+@@ -18,6 +18,11 @@ class thread_group;
 
  extern CWallet* pwalletMain;
 
@@ -268,7 +267,7 @@ index 2bd2cad..490ba66 100644
  	$(CXX) $(LDFLAGS) helpers/memenv/memenv_test.o $(MEMENVLIBRARY) $(LIBRARY) $(TESTHARNESS) -o $@ $(LIBS)
 
 diff --git a/src/leveldbwrapper.h b/src/leveldbwrapper.h
-index 4247920..c75c63c 100644
+index c65e842..0e44bb5 100644
 --- a/src/leveldbwrapper.h
 +++ b/src/leveldbwrapper.h
 @@ -29,10 +29,16 @@ class CLevelDBBatch
