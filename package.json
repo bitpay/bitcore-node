@@ -20,6 +20,10 @@
     {
       "name": "Chris Kleeschulte",
       "email": "chrisk@bitpay.com"
+    },
+    {
+      "name": "Patrick Nagurny",
+      "email": "patrick@bitpay.com"
     }
   ],
   "scripts": {
@@ -36,10 +40,13 @@
     "bindings": "^1.2.1",
     "mkdirp": "0.5.0",
     "nan": "1.3.0",
-    "tiny": "0.0.10"
+    "tiny": "0.0.10",
+    "chainlib": "^0.1.1",
+    "libbitcoinconsensus": "^0.0.3",
+    "errno": "^0.1.2",
+    "async": "1.3.0"
   },
   "devDependencies": {
-    "async": "1.2.1",
     "benchmark": "1.0.0",
     "bitcoin": "^2.3.2",
     "bitcore": "^0.12.12",
