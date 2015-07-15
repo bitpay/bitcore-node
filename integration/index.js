@@ -64,15 +64,15 @@ describe('Basic Functionality', function() {
     
   describe.only('determine if outpoint is unspent/spent', function() {
     spentData.forEach(function(data) {
-      it('for txid ' + data.txid + ' and output ' + data.outputIndex, function() {
+      it('for spent txid ' + data.txid + ' and output ' + data.outputIndex, function() {
         var spent = bitcoind.isSpent(data.txid, data.outputIndex, true);
         spent.should.equal(true);
       });
     });
 
     unspentData.forEach(function(data) {
-      it('for txid ' + data.txid + ' and output ' + data.outputIndex, function() {
-        var spent = bitcoind.isSapent(data.txid, data.outputIndex, true);
+      it('for unspent txid ' + data.txid + ' and output ' + data.outputIndex, function() {
+        var spent = bitcoind.isSpent(data.txid, data.outputIndex, true);
         spent.should.equal(false);
       });
     });

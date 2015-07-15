@@ -22,6 +22,7 @@ using namespace v8;
 
 extern void WaitForShutdown(boost::thread_group* threadGroup);
 static termios orig_termios;
+extern CTxMemPool mempool;
 
 /**
  * Node.js Internal Function Templates
@@ -951,19 +952,19 @@ NAN_METHOD(IsSpent) {
   int outputIndex = args[1]->IntegerValue();
   bool queryMempool = args[2]->BooleanValue();
 
-  CCoinsViewCache &view = *pcoinsTip;
+  CCoinsView dummy;
+  CCoinsViewCache view(&dummy);
+
+  CCoinsViewMemPool viewMemPool(pcoinsTip, mempool);
+  view.SetBackend(viewMemPool);
 
   if (view.HaveCoins(txid)) {
     const CCoins* coins = view.AccessCoins(txid);
-    if (!coins || !coins->IsAvailable(outputIndex)) {
+    if (coins && coins->IsAvailable(outputIndex)) {
       NanReturnValue(NanNew<Boolean>(false));
       return;
     }
-  } else {
-    NanReturnValue(NanNew<Boolean>(false));
-    return;
   }
-
   NanReturnValue(NanNew<Boolean>(true));
 };
 
