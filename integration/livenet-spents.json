@@ -3,6 +3,14 @@
     {
       "txid": "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098",
       "outputIndex": 0
+    },
+    {
+      "txid": "64b2da257d93ab44d19ef9b374788d82b6885bc3fb3c17704f42f09b1096e982",
+      "outputIndex": 0
+    },
+    {
+      "txid": "226bbc4b1f851857f37aa96e9eb702946fc128b055e4decc684740005f5044cf",
+      "outputIndex": 0
     }
   ],
   "spent": [

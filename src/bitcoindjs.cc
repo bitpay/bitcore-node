@@ -939,18 +939,15 @@ async_get_tx_after(uv_work_t *req) {
 NAN_METHOD(IsSpent) {
   NanScope();
 
-  if (args.Length() > 3) {
+  if (args.Length() > 2) {
     return NanThrowError(
-      "Usage: bitcoindjs.isSpent(txid, outputIndex, queryMempool)");
+      "Usage: bitcoindjs.isSpent(txid, outputIndex)");
   }
-
-  // XXX: include the mempool in the coins viewcache
 
   String::Utf8Value arg(args[0]->ToString());
   std::string argStr = std::string(*arg);
   const uint256 txid = uint256S(argStr);
   int outputIndex = args[1]->IntegerValue();
-  bool queryMempool = args[2]->BooleanValue();
 
   CCoinsView dummy;
   CCoinsViewCache view(&dummy);
