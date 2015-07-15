@@ -14,6 +14,8 @@ var sinon = require('sinon');
 var txData = require('./livenet-tx-data.json');
 var blockData = require('./livenet-block-data.json');
 var testTxData = require('./livenet-tx-data.json');
+var spentData = require('./livenet-spents.json').spent;
+var unspentData = require('./livenet-spents.json').unspent;
 var testBlockData = require('./testnet-block-data.json');
 
 describe('Basic Functionality', function() {
@@ -59,9 +61,25 @@ describe('Basic Functionality', function() {
       });
     });
   });
+    
+  describe.only('determine if outpoint is unspent/spent', function() {
+    spentData.forEach(function(data) {
+      it('for txid ' + data.txid + ' and output ' + data.outputIndex, function() {
+        var spent = bitcoind.isSpent(data.txid, data.outputIndex, true);
+        spent.should.equal(true);
+      });
+    });
+
+    unspentData.forEach(function(data) {
+      it('for txid ' + data.txid + ' and output ' + data.outputIndex, function() {
+        var spent = bitcoind.isSapent(data.txid, data.outputIndex, true);
+        spent.should.equal(false);
+      });
+    });
+  });
 
   describe('get blocks by hash', function() {
-
+    
     blockData.forEach(function(data) {
       var block = bitcore.Block.fromString(data);
       it('block ' + block.hash, function(done) {

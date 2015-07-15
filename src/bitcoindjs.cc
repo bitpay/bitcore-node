@@ -931,6 +931,43 @@ async_get_tx_after(uv_work_t *req) {
 }
 
 /**
+ * IsSpent()
+ * bitcoindjs.isSpent()
+ * Determine if an outpoint is spent
+ */
+NAN_METHOD(IsSpent) {
+  NanScope();
+
+  if (args.Length() > 3) {
+    return NanThrowError(
+      "Usage: bitcoindjs.isSpent(txid, outputIndex, queryMempool)");
+  }
+
+  // XXX: include the mempool in the coins viewcache
+
+  String::Utf8Value arg(args[0]->ToString());
+  std::string argStr = std::string(*arg);
+  const uint256 txid = uint256S(argStr);
+  int outputIndex = args[1]->IntegerValue();
+  bool queryMempool = args[2]->BooleanValue();
+
+  CCoinsViewCache &view = *pcoinsTip;
+
+  if (view.HaveCoins(txid)) {
+    const CCoins* coins = view.AccessCoins(txid);
+    if (!coins || !coins->IsAvailable(outputIndex)) {
+      NanReturnValue(NanNew<Boolean>(false));
+      return;
+    }
+  } else {
+    NanReturnValue(NanNew<Boolean>(false));
+    return;
+  }
+
+  NanReturnValue(NanNew<Boolean>(true));
+};
+
+/**
  * GetInfo()
  * bitcoindjs.getInfo()
  * Get miscellaneous information
@@ -997,6 +1034,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getBlock", GetBlock);
   NODE_SET_METHOD(target, "getTransaction", GetTransaction);
   NODE_SET_METHOD(target, "getInfo", GetInfo);
+  NODE_SET_METHOD(target, "isSpent", IsSpent);
 
 }
 
