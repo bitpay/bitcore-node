@@ -11,7 +11,9 @@ var bitcoind;
 var should = chai.should();
 var assert = chai.assert;
 var sinon = require('sinon');
+var txData = require('./livenet-tx-data.json');
 var blockData = require('./livenet-block-data.json');
+var testTxData = require('./livenet-tx-data.json');
 var testBlockData = require('./testnet-block-data.json');
 
 describe('Basic Functionality', function() {
@@ -45,6 +47,19 @@ describe('Basic Functionality', function() {
     });
   });
 
+  describe('get transactions by hash', function() {
+    txData.forEach(function(data) {
+      var tx = bitcore.Transaction();
+      tx.fromString(data);
+      it('for tx ' + tx.hash, function(done) {
+        bitcoind.getTransaction(tx.hash, function(err, response) {
+          assert(response.toString('hex') === data, 'incorrect tx data for ' + tx.hash);
+          done();
+        });
+      });
+    });
+  });
+
   describe('get blocks by hash', function() {
 
     blockData.forEach(function(data) {
@@ -72,24 +87,6 @@ describe('Basic Functionality', function() {
         bitcoind.getBlock(data[0], function(err, response) {
           var block = bitcore.Block.fromBuffer(response);
           block.hash.should.equal(data[1]);
-          done();
-        });
-      });
-    });
-  });
-
-  describe.skip('get the chain', function() {
-
-    var heights = [];
-    for (var i = 364599; i >= 0 ; i--) {
-      heights.push(i);
-    }
-
-    heights.forEach(function(height) {
-      it('block at height ' + height, function(done) {
-        bitcoind.getBlock(height, function(err, response) {
-          var block = bitcore.Block.fromBuffer(response);
-          console.log(block.hash);
           done();
         });
       });
