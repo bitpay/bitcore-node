@@ -23,7 +23,7 @@ describe('Basic Functionality', function() {
   before(function(done) {
     this.timeout(30000);
     bitcoind = require('../')({
-      directory: '~/.bitcoin',
+      directory: process.env.BITCOINDJS_DIR || '~/.bitcoin',
     });
 
     bitcoind.on('error', function(err) {
@@ -55,13 +55,16 @@ describe('Basic Functionality', function() {
       tx.fromString(data);
       it('for tx ' + tx.hash, function(done) {
         bitcoind.getTransaction(tx.hash, function(err, response) {
+          if (err) {
+            throw err;
+          }
           assert(response.toString('hex') === data, 'incorrect tx data for ' + tx.hash);
           done();
         });
       });
     });
   });
-    
+
   describe('determine if outpoint is unspent/spent', function() {
     spentData.forEach(function(data) {
       it('for spent txid ' + data.txid + ' and output ' + data.outputIndex, function() {
@@ -79,7 +82,7 @@ describe('Basic Functionality', function() {
   });
 
   describe('get blocks by hash', function() {
-    
+
     blockData.forEach(function(data) {
       var block = bitcore.Block.fromString(data);
       it('block ' + block.hash, function(done) {

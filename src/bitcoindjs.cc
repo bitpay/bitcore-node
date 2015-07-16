@@ -64,9 +64,6 @@ async_get_tx(uv_work_t *req);
 static void
 async_get_tx_after(uv_work_t *req);
 
-static int
-get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx);
-
 extern "C" void
 init(Handle<Object>);
 
@@ -139,83 +136,6 @@ struct async_tx_data {
   Eternal<Function> callback;
 };
 
-/**
- * async_block_tx_data
- */
-
-struct async_block_tx_data {
-  std::string err_msg;
-  std::string txid;
-  CBlock cblock;
-  CBlockIndex* cblock_index;
-  CTransaction ctx;
-  Eternal<Function> callback;
-};
-
-/**
- * async_block_time_data
- */
-
-typedef struct _cblocks_list {
-  CBlock cblock;
-  CBlockIndex* cblock_index;
-  struct _cblocks_list *next;
-  std::string err_msg;
-} cblocks_list;
-
-struct async_block_time_data {
-  std::string err_msg;
-  uint32_t gte;
-  uint32_t lte;
-  int64_t limit;
-  cblocks_list *cblocks;
-  Eternal<Function> callback;
-};
-
-/**
- * async_addrtx_data
- */
-
-typedef struct _ctx_list {
-  CTransaction ctx;
-  uint256 blockhash;
-  struct _ctx_list *next;
-  std::string err_msg;
-} ctx_list;
-
-struct async_addrtx_data {
-  std::string err_msg;
-  std::string addr;
-  ctx_list *ctxs;
-  int64_t blockheight;
-  int64_t blocktime;
-  Eternal<Function> callback;
-};
-
-/**
- * async_broadcast_tx_data
- */
-
-struct async_broadcast_tx_data {
-  std::string err_msg;
-  Eternal<Object> jstx;
-  CTransaction ctx;
-  std::string txid;
-  bool override_fees;
-  bool own_only;
-  Eternal<Function> callback;
-};
-
-/**
- * async_from_tx_data
- */
-
-struct async_from_tx_data {
-  std::string err_msg;
-  std::string txid;
-  ctx_list *ctxs;
-  Eternal<Function> callback;
-};
 
 /**
  * Helpers
@@ -276,6 +196,9 @@ async_blocks_ready(uv_work_t *req) {
     usleep(1E6);
   }
 
+  while(chainActive[0] == NULL) {
+    usleep(1E6);
+  }
 }
 
 static void
