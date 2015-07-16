@@ -743,6 +743,10 @@ async_get_block(uv_work_t *req) {
 
   if (data->height != -1) {
     pblockindex = chainActive[data->height];
+    if (pblockindex == NULL) {
+      data->err_msg = std::string("Block not found.");
+      return;
+    }
   } else {
     if (mapBlockIndex.count(hash) == 0) {
       data->err_msg = std::string("Block not found.");

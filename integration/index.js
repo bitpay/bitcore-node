@@ -85,6 +85,9 @@ describe('Basic Functionality', function() {
     knownHeights.forEach(function(data) {
       it('block at height ' + data[0], function(done) {
         bitcoind.getBlock(data[0], function(err, response) {
+          if (err) {
+            throw err;
+          }
           var block = bitcore.Block.fromBuffer(response);
           block.hash.should.equal(data[1]);
           done();
