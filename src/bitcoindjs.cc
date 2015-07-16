@@ -193,13 +193,25 @@ async_blocks_ready(uv_work_t *req) {
   CBlockIndex* tip = chainActive.Tip();
   uint256 tipHash = tip->GetBlockHash();
 
+  // Wait to be able to query for blocks by hash
   while(mapBlockIndex.count(tipHash) == 0) {
     usleep(1E6);
   }
 
+  // Wait for chainActive to be able to get the hash
+  // for the genesis block for querying blocks by height
   while(chainActive[0] == NULL) {
     usleep(1E6);
   }
+
+  // Wait until we can get a lock on cs_main
+  // And therefore ready to be able to quickly
+  // query for transactions from the mempool.
+  LOCK(cs_main);
+  {
+    return;
+  }
+
 }
 
 static void
