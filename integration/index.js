@@ -54,7 +54,7 @@ describe('Basic Functionality', function() {
       var tx = bitcore.Transaction();
       tx.fromString(data);
       it('for tx ' + tx.hash, function(done) {
-        bitcoind.getTransaction(tx.hash, function(err, response) {
+        bitcoind.getTransaction(tx.hash, true, function(err, response) {
           if (err) {
             throw err;
           }
