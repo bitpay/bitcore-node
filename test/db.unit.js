@@ -254,35 +254,21 @@ describe('Bitcoin DB', function() {
     it('should create the correct operations when updating/adding outputs', function(done) {
       db._updateOutputs({height: 345003, timestamp: new Date(1424836934000)}, true, function(err, operations) {
         should.not.exist(err);
-        operations.length.should.equal(81);
+        operations.length.should.equal(11);
         operations[0].type.should.equal('put');
         var expected0 = ['outs', key0.address, key0.timestamp, key0.txid, key0.outputIndex].join('-');
         operations[0].key.should.equal(expected0);
         operations[0].value.should.equal([value0.satoshis, value0.script, value0.blockHeight].join(':'));
-        operations[3].type.should.equal('put');
-        var expected3 = ['sp', key3.prevTxId, key3.prevOutputIndex].join('-');
-        operations[3].key.should.equal(expected3);
-        operations[3].value.should.equal([value3.txid, value3.inputIndex, value3.timestamp].join(':'));
-        operations[64].type.should.equal('put');
-        var expected64 = ['outs', key64.address, key64.timestamp, key64.txid, key64.outputIndex].join('-');
-        operations[64].key.should.equal(expected64);
-        operations[64].value.should.equal([value64.satoshis, value64.script, value64.blockHeight].join(':'));
         done();
       });
     });
     it('should create the correct operations when removing outputs', function(done) {
       db._updateOutputs({height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
         should.not.exist(err);
-        operations.length.should.equal(81);
+        operations.length.should.equal(11);
         operations[0].type.should.equal('del');
         operations[0].key.should.equal(['outs', key0.address, key0.timestamp, key0.txid, key0.outputIndex].join('-'));
         operations[0].value.should.equal([value0.satoshis, value0.script, value0.blockHeight].join(':'));
-        operations[3].type.should.equal('del');
-        operations[3].key.should.equal(['sp', key3.prevTxId, key3.prevOutputIndex].join('-'));
-        operations[3].value.should.equal([value3.txid, value3.inputIndex, value3.timestamp].join(':'));
-        operations[64].type.should.equal('del');
-        operations[64].key.should.equal(['outs', key64.address, key64.timestamp, key64.txid, key64.outputIndex].join('-'));
-        operations[64].value.should.equal([value64.satoshis, value64.script, value64.blockHeight].join(':'));
         done();
       });
     });
