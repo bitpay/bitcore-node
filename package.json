@@ -44,7 +44,6 @@
     "nan": "1.3.0",
     "tiny": "0.0.10",
     "chainlib": "^0.1.1",
-    "libbitcoinconsensus": "^0.0.3",
     "errno": "^0.1.2",
     "async": "1.3.0",
     "memdown": "^1.0.0"

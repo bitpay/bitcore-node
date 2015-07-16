@@ -11,6 +11,7 @@
 #include "nan.h"
 #include "scheduler.h"
 #include "core_io.h"
+#include "script/bitcoinconsensus.h"
 
 NAN_METHOD(StartBitcoind);
 NAN_METHOD(OnBlocksReady);
@@ -24,3 +25,4 @@ NAN_METHOD(IsSpent);
 NAN_METHOD(GetChainWork);
 NAN_METHOD(GetMempoolOutputs);
 NAN_METHOD(AddMempoolUncheckedTransaction);
+NAN_METHOD(VerifyScript);

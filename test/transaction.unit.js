@@ -62,7 +62,7 @@ describe('Bitcoin Transaction', function() {
       sinon.stub(tx, '_checkSpent', function(db, input, poolTransactions, callback) {
         return callback();
       });
-      sinon.stub(tx, '_checkScript', function(input, index, callback) {
+      sinon.stub(tx, '_checkScript', function(db, input, index, callback) {
         return callback();
       });
 
@@ -222,8 +222,13 @@ describe('Bitcoin Transaction', function() {
       tx.fromString(transactionData[1].hex);
       var input = tx.inputs[0];
       input.output = prevTx.outputs[0];
+      var db = {
+        bitcoind: {
+          verifyScript: sinon.stub().returns(true)
+        }
+      };
 
-      tx._checkScript(input, 0, function(err) {
+      tx._checkScript(db, input, 0, function(err) {
         should.not.exist(err);
         done();
       });
@@ -235,8 +240,13 @@ describe('Bitcoin Transaction', function() {
       tx.fromString(transactionData[2].hex);
       var input = tx.inputs[0];
       input.output = prevTx.outputs[0];
+      var db = {
+        bitcoind: {
+          verifyScript: sinon.stub().returns(false)
+        }
+      };
 
-      tx._checkScript(input, 0, function(err) {
+      tx._checkScript(db, input, 0, function(err) {
         should.exist(err);
         done();
       });
