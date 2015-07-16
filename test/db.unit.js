@@ -69,9 +69,7 @@ describe('Bitcoin DB', function() {
   describe('#buildCoinbaseTransaction', function() {
     it('should correctly build a coinbase transaction with no fees', function() {
       var db = new DB({path: 'path', store: memdown});
-      db.wallet = {
-        getAddress: sinon.stub().returns('mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L')
-      };
+      db.coinbaseAddress = 'mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L';
       db.coinbaseAmount = coinbaseAmount;
       var coinbaseTx = db.buildCoinbaseTransaction();
       coinbaseTx.inputs.length.should.equal(1);
@@ -88,9 +86,7 @@ describe('Bitcoin DB', function() {
 
     it('should correctly build a coinbase transaction with fees', function() {
       var db = new DB({path: 'path', store: memdown});
-      db.wallet = {
-        getAddress: sinon.stub().returns('mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L')
-      };
+      db.coinbaseAddress = 'mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L';
       db.coinbaseAmount = coinbaseAmount;
       var transactions = [
         {
@@ -117,18 +113,16 @@ describe('Bitcoin DB', function() {
       output.satoshis.should.equal(coinbaseAmount + 2000);
     });
 
-    it('should throw an error if wallet not included', function() {
+    it('should throw an error if coinbaseAddress not included', function() {
       var db = new DB({path: 'path', store: memdown});
       (function() {
         db.buildCoinbaseTransaction();
-      }).should.throw('Wallet required to build coinbase');
+      }).should.throw('coinbaseAddress required to build coinbase');
     });
 
     it('will build a coinbase database with different data', function() {
       var db = new DB({path: 'path', store: memdown});
-      db.wallet = {
-        getAddress: sinon.stub().returns('mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L')
-      };
+      db.coinbaseAddress = 'mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L';
       var tx1 = db.buildCoinbaseTransaction().uncheckedSerialize();
       var tx2 = db.buildCoinbaseTransaction().uncheckedSerialize();
       tx1.should.not.equal(tx2);
@@ -136,9 +130,7 @@ describe('Bitcoin DB', function() {
 
     it('can pass in custom data', function() {
       var db = new DB({path: 'path', store: memdown});
-      db.wallet = {
-        getAddress: sinon.stub().returns('mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L')
-      };
+      db.coinbaseAddress = 'mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L';
       var tx1 = db.buildCoinbaseTransaction(null, new Buffer('abcdef', 'hex'));
       var data = tx1.inputs[0]._script.getData();
       data.should.deep.equal(new Buffer('abcdef', 'hex'));
