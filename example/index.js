@@ -12,7 +12,7 @@ process.title = 'bitcoind.js';
  * bitcoind
  */
 
-var bitcoind = require('../')({
+var bitcoind = require('../').bitcoind({
   directory: process.env.BITCOINDJS_DIR || '~/.bitcoin'
 });
 

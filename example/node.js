@@ -1,9 +1,10 @@
 'use strict';
 
-var BitcoinNode = require('../lib/node');
+var BitcoindJS = require('..');
+var BitcoinNode = BitcoindJS.Node;
 var chainlib = require('chainlib');
 var log = chainlib.log;
-log.debug = function() {};
+//log.debug = function() {};
 
 var privkey = 'tprv8ZgxMBicQKsPdj1QowoT9z1tY5Et38qaMjCHZVoPdPFb6narfmYkqTygEVHfUmY78k3HcaEpkyNCAQDANaXtwNe1HLFvcA7nqYj1B7wTSTo';
 
