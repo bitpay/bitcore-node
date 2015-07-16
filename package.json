@@ -30,7 +30,9 @@
     "preinstall": "./bin/build-libbitcoind",
     "install": "./bin/build-bindings",
     "start": "export LD_LIBRARY_PATH=`./platform/os.sh osdir` && node example",
-    "debug_install": "./bin/build-libbitcoind debug && ./bin/build-bindings debug"
+    "debug_install": "./bin/build-libbitcoind debug && ./bin/build-bindings debug",
+    "test": "NODE_ENV=test mocha --recursive",
+    "coverage": "istanbul cover _mocha -- --recursive"
   },
   "tags": [
     "bitcoin",
@@ -44,7 +46,8 @@
     "chainlib": "^0.1.1",
     "libbitcoinconsensus": "^0.0.3",
     "errno": "^0.1.2",
-    "async": "1.3.0"
+    "async": "1.3.0",
+    "memdown": "^1.0.0"
   },
   "devDependencies": {
     "benchmark": "1.0.0",
@@ -52,6 +55,7 @@
     "bitcore": "^0.12.12",
     "chai": "^3.0.0",
     "mocha": "~1.16.2",
-    "sinon": "^1.15.4"
+    "sinon": "^1.15.4",
+    "proxyquire": "^1.3.1"
   }
 }
