@@ -132,6 +132,7 @@ struct async_tx_data {
   std::string err_msg;
   std::string txid;
   std::string blockhash;
+  bool queryMempool;
   CTransaction ctx;
   Eternal<Function> callback;
 };
@@ -425,10 +426,8 @@ start_node_thread(void) {
     argc++;
   }
 
-  if (g_txindex) {
-    argv[argc] = (char *)"-txindex";
-    argc++;
-  }
+  argv[argc] = (char *)"-txindex";
+  argc++;
 
   argv[argc] = NULL;
 
@@ -754,7 +753,7 @@ async_get_block_after(uv_work_t *req) {
 
 /**
  * GetTransaction()
- * bitcoind.getTransaction(txid, [blockhash], callback)
+ * bitcoind.getTransaction(txid, callback)
  * Read any transaction from disk asynchronously.
  */
 
@@ -763,14 +762,14 @@ NAN_METHOD(GetTransaction) {
   HandleScope scope(isolate);
   if (args.Length() < 3
       || !args[0]->IsString()
-      || !args[1]->IsString()
+      || !args[1]->IsBoolean()
       || !args[2]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getTransaction(txid, [blockhash], callback)");
+      "Usage: bitcoindjs.getTransaction(txid, callback)");
   }
 
   String::Utf8Value txid_(args[0]->ToString());
-  String::Utf8Value blockhash_(args[1]->ToString());
+  bool queryMempool = args[1]->BooleanValue();
   Local<Function> callback = Local<Function>::Cast(args[2]);
 
   async_tx_data *data = new async_tx_data();
@@ -779,15 +778,11 @@ NAN_METHOD(GetTransaction) {
   data->txid = std::string("");
 
   std::string txid = std::string(*txid_);
-  std::string blockhash = std::string(*blockhash_);
 
   data->txid = txid;
+  data->queryMempool = queryMempool;
   Eternal<Function> eternal(isolate, callback);
   data->callback = eternal;
-
-  if (blockhash == "") {
-    data->blockhash = uint256().GetHex();
-  }
 
   uv_work_t *req = new uv_work_t();
   req->data = data;
@@ -808,12 +803,42 @@ async_get_tx(uv_work_t *req) {
   uint256 hash = uint256S(data->txid);
   uint256 blockhash;
   CTransaction ctx;
-  
-  if (!GetTransaction(hash, ctx, blockhash, true)) {
-    data->err_msg = std::string("Transaction not found.");
-  } else {
-    data->ctx = ctx;
-    data->blockhash = blockhash.GetHex();
+
+  {
+
+    if (data->queryMempool) {
+      LOCK(cs_main);
+      {
+        if (mempool.lookup(hash, ctx))
+        {
+          return;
+        }
+      }
+    }
+
+    CDiskTxPos postx;
+    if (pblocktree->ReadTxIndex(hash, postx)) {
+
+      CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
+
+      if (file.IsNull()) {
+        data->err_msg = std::string("%s: OpenBlockFile failed", __func__);
+        return;
+      }
+
+      const int HEADER_SIZE = sizeof(int32_t) + sizeof(uint32_t) * 3 + sizeof(char) * 64;
+
+      try {
+        fseek(file.Get(), postx.nTxOffset + HEADER_SIZE, SEEK_CUR);
+        file >> ctx;
+        data->ctx = ctx;
+      } catch (const std::exception& e) {
+        data->err_msg = std::string("Deserialize or I/O error - %s", __func__);
+        return;
+      }
+
+    }
+
   }
 
 }
@@ -842,7 +867,7 @@ async_get_tx_after(uv_work_t *req) {
     ssTx << ctx;
     std::string stx = ssTx.str();
     Local<Value> rawNodeBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
-    
+
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(isolate, NanNull()),
