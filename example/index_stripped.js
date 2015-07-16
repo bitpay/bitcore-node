@@ -7,17 +7,17 @@
 process.title = 'bitcoind_stripped.js';
 
 /**
- * bitcoind
+ * daemon
  */
 
-var bitcoind = require('../index_stripped.js')({
+var daemon = require('../index_stripped.js')({
   directory: '~/.libbitcoind-example'
 });
 
-bitcoind.on('error', function(err) {
-  bitcoind.log('error="%s"', err.message);
+daemon.on('error', function(err) {
+  daemon.log('error="%s"', err.message);
 });
 
-bitcoind.on('open', function(status) {
-  bitcoind.log('status="%s"', status);
+daemon.on('open', function(status) {
+  daemon.log('status="%s"', status);
 });

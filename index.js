@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {};
-module.exports.bitcoind = require('./lib/bitcoind');
+module.exports.daemon = require('./lib/daemon');
 module.exports.Node = require('./lib/node');
 module.exports.Block = require('./lib/block');
 module.exports.Chain = require('./lib/chain');

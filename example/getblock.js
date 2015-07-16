@@ -7,21 +7,21 @@
 process.title = 'bitcoind.js';
 
 /**
- * bitcoind
+ * daemon
  */
 
-var bitcoind = require('../index.js').bitcoind({
-  directory: '~/.bitcoin'
+var daemon = require('../index.js').daemon({
+  directory: process.env.BITCOINDJS_DIR || '~/.bitcoin'
 });
 
-bitcoind.on('error', function(err) {
-  bitcoind.log('error="%s"', err.message);
+daemon.on('error', function(err) {
+  daemon.log('error="%s"', err.message);
 });
 
-bitcoind.on('ready', function(err, result) {
+daemon.on('ready', function(err, result) {
   console.log('Ready!');
 
-  bitcoind.getBlock('000000000000000082ccf8f1557c5d40b21edabb18d2d691cfbf87118bac7254', function(err, block) {
+  daemon.getBlock('000000000000000082ccf8f1557c5d40b21edabb18d2d691cfbf87118bac7254', function(err, block) {
     if (err) {
       console.log(err);
     }
@@ -30,6 +30,6 @@ bitcoind.on('ready', function(err, result) {
 
 });
 
-bitcoind.on('open', function(status) {
-  bitcoind.log('status="%s"', status);
+daemon.on('open', function(status) {
+  daemon.log('status="%s"', status);
 });
