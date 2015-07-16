@@ -90,7 +90,7 @@ bitcoind.on('ready', function() {
           c = 0;
         }
         var hash = fixtureData.txHashes[c];
-        bitcoind.getTransaction(hash, function(err, tx) {
+        bitcoind.getTransaction(hash, true, function(err, tx) {
           if (err) {
             throw err;
           }

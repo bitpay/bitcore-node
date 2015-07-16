@@ -804,39 +804,35 @@ async_get_tx(uv_work_t *req) {
   uint256 blockhash;
   CTransaction ctx;
 
-  {
-
-    if (data->queryMempool) {
-      LOCK(cs_main);
+  if (data->queryMempool) {
+    LOCK(cs_main);
+    {
+      if (mempool.lookup(hash, ctx))
       {
-        if (mempool.lookup(hash, ctx))
-        {
-          return;
-        }
+        return;
       }
     }
+  }
 
-    CDiskTxPos postx;
-    if (pblocktree->ReadTxIndex(hash, postx)) {
+  CDiskTxPos postx;
+  if (pblocktree->ReadTxIndex(hash, postx)) {
 
-      CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
+    CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
 
-      if (file.IsNull()) {
-        data->err_msg = std::string("%s: OpenBlockFile failed", __func__);
-        return;
-      }
+    if (file.IsNull()) {
+      data->err_msg = std::string("%s: OpenBlockFile failed", __func__);
+      return;
+    }
 
-      const int HEADER_SIZE = sizeof(int32_t) + sizeof(uint32_t) * 3 + sizeof(char) * 64;
+    const int HEADER_SIZE = sizeof(int32_t) + sizeof(uint32_t) * 3 + sizeof(char) * 64;
 
-      try {
-        fseek(file.Get(), postx.nTxOffset + HEADER_SIZE, SEEK_CUR);
-        file >> ctx;
-        data->ctx = ctx;
-      } catch (const std::exception& e) {
-        data->err_msg = std::string("Deserialize or I/O error - %s", __func__);
-        return;
-      }
-
+    try {
+      fseek(file.Get(), postx.nTxOffset + HEADER_SIZE, SEEK_CUR);
+      file >> ctx;
+      data->ctx = ctx;
+    } catch (const std::exception& e) {
+      data->err_msg = std::string("Deserialize or I/O error - %s", __func__);
+      return;
     }
 
   }
