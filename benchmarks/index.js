@@ -11,22 +11,14 @@ console.log('-------------------------------------------------------------------
 // To run the benchmarks a fully synced Bitcore Core directory is needed. The RPC comands
 // can be modified to match the settings in bitcoin.conf.
 
-// The primary methods that are needed:
-// getInfo === works
-// getRawTransaction === getrawtransaction "txid" ( verbose )
-// sendRawTransaction === sendrawtransaction "hexstring" ( allowhighfees )
-// getTransaction === either I need txindex turned on -or- the wallet turned on
-// Wallet functionality isn't needed, and libbitcoind.so could be compiled with the --disable-wallet flag.
-
-var blockHashes = [
-  '00000000fa7a4acea40e5d0591d64faf48fd862fa3561d111d967fc3a6a94177',
-  '000000000017e9e0afc4bc55339f60ffffb9cbe883f7348a9fbc198a486d5488',
-  '000000000019ddb889b534c5d85fca2c91a73feef6fd775cd228dea45353bae1',
-  '0000000000977ac3d9f5261efc88a3c2d25af92a91350750d00ad67744fa8d03'
-];
-
 var fixtureData = {
-  transactions: [
+  blockHashes: [
+    '00000000fa7a4acea40e5d0591d64faf48fd862fa3561d111d967fc3a6a94177',
+    '000000000017e9e0afc4bc55339f60ffffb9cbe883f7348a9fbc198a486d5488',
+    '000000000019ddb889b534c5d85fca2c91a73feef6fd775cd228dea45353bae1',
+    '0000000000977ac3d9f5261efc88a3c2d25af92a91350750d00ad67744fa8d03'
+  ],
+  txHashes: [
     '5523b432c1bd6c101bee704ad6c560fd09aefc483f8a4998df6741feaa74e6eb',
     'ff48393e7731507c789cfa9cbfae045b10e023ce34ace699a63cdad88c8b43f8',
     '5d35c5eebf704877badd0a131b0a86588041997d40dbee8ccff21ca5b7e5e333',
@@ -62,13 +54,14 @@ bitcoind.on('ready', function() {
     function(next) {
 
       var c = 0;
-      var hashesLength = blockHashes.length;
+      var hashesLength = fixtureData.blockHashes.length;
+      var txLength = fixtureData.txHashes.length;
 
       function bitcoindGetBlockNative(deffered) {
         if (c >= hashesLength) {
           c = 0;
         }
-        var hash = blockHashes[c];
+        var hash = fixtureData.blockHashes[c];
         bitcoind.getBlock(hash, function(err, block) {
           if (err) {
             throw err;
@@ -82,8 +75,36 @@ bitcoind.on('ready', function() {
         if (c >= hashesLength) {
           c = 0;
         }
-        var hash = blockHashes[c];
+        var hash = fixtureData.blockHashes[c];
         client.getBlock(hash, false, function(err, block) {
+          if (err) {
+            throw err;
+          }
+          deffered.resolve();
+        });
+        c++;
+      }
+
+      function bitcoinGetTransactionNative(deffered) {
+        if (c >= txLength) {
+          c = 0;
+        }
+        var hash = fixtureData.txHashes[c];
+        bitcoind.getTransaction(hash, function(err, tx) {
+          if (err) {
+            throw err;
+          }
+          deffered.resolve();
+        });
+        c++;
+      }
+
+      function bitcoinGetTransactionJsonRpc(deffered) {
+        if (c >= txLength) {
+          c = 0;
+        }
+        var hash = fixtureData.txHashes[c];
+        client.getRawTransaction(hash, function(err, tx) {
           if (err) {
             throw err;
           }
@@ -100,6 +121,16 @@ bitcoind.on('ready', function() {
       });
 
       suite.add('bitcoind getblock (json rpc)', bitcoindGetBlockJsonRpc, {
+        defer: true,
+        maxTime: maxTime
+      });
+
+      suite.add('bitcoind gettransaction (native)', bitcoinGetTransactionNative, {
+        defer: true,
+        maxTime: maxTime
+      });
+
+      suite.add('bitcoind gettransaction (json rpc)', bitcoinGetTransactionJsonRpc, {
         defer: true,
         maxTime: maxTime
       });

@@ -878,15 +878,16 @@ async_get_tx(uv_work_t *req) {
   async_tx_data* data = static_cast<async_tx_data*>(req->data);
 
   uint256 hash = uint256S(data->txid);
-  uint256 blockhash = uint256S(data->blockhash);
+  uint256 blockhash;
   CTransaction ctx;
-
-  if (get_tx(hash, blockhash, ctx)) {
-    data->ctx = ctx;
-    data->blockhash = blockhash.GetHex().c_str();
-  } else {
+  
+  if (!GetTransaction(hash, ctx, blockhash, true)) {
     data->err_msg = std::string("Transaction not found.");
+  } else {
+    data->ctx = ctx;
+    data->blockhash = blockhash.GetHex();
   }
+
 }
 
 static void
@@ -908,12 +909,16 @@ async_get_tx_after(uv_work_t *req) {
       node::FatalException(try_catch);
     }
   } else {
-    Local<Object> jstx = NanNew<Object>();
 
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    ssTx << ctx;
+    std::string stx = ssTx.str();
+    Local<Value> rawNodeBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
+    
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(isolate, NanNull()),
-      Local<Value>::New(isolate, jstx)
+      rawNodeBuffer
     };
     TryCatch try_catch;
     cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
@@ -956,27 +961,6 @@ NAN_METHOD(GetInfo) {
 
   NanReturnValue(obj);
 }
-
-static int
-get_tx(uint256 txid, uint256& blockhash, CTransaction& ctx) {
-  if (GetTransaction(txid, ctx, blockhash, true)) {
-    return 1;
-  } else if (blockhash.IsNull()) {
-    CBlock block;
-    CBlockIndex* pblockindex = mapBlockIndex[blockhash];
-    if (ReadBlockFromDisk(block, pblockindex)) {
-      BOOST_FOREACH(const CTransaction& tx, block.vtx) {
-        if (tx.GetHash() == txid) {
-          ctx = tx;
-          blockhash = block.GetHash();
-          return -1;
-        }
-      }
-    }
-  }
-  return 0;
-}
-
 
 /**
  * Helpers
