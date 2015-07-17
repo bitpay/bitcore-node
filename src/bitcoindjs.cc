@@ -926,6 +926,32 @@ NAN_METHOD(IsSpent) {
 };
 
 /**
+ * GetChainWork()
+ * bitcoindjs.getChainWork()
+ * Get the total amount of work (expected number of hashes) in the chain up to
+ * and including this block.
+ */
+NAN_METHOD(GetChainWork) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  String::Utf8Value hash_(args[0]->ToString());
+  std::string hashStr = std::string(*hash_);
+  uint256 hash = uint256S(hashStr);
+
+  CBlockIndex* blockIndex;
+
+  if (mapBlockIndex.count(hash) == 0) {
+    NanReturnValue(Undefined(isolate));
+  } else {
+    blockIndex = mapBlockIndex[hash];
+    arith_uint256 cw = blockIndex->nChainWork;
+    NanReturnValue(Local<Value>::New(isolate, NanNew<String>(cw.GetHex())));
+  }
+
+};
+
+/**
  * GetInfo()
  * bitcoindjs.getInfo()
  * Get miscellaneous information
@@ -993,6 +1019,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getTransaction", GetTransaction);
   NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "isSpent", IsSpent);
+  NODE_SET_METHOD(target, "getChainWork", GetChainWork);
 
 }
 
