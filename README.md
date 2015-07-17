@@ -1,25 +1,87 @@
-# bitcoind.js
+bitcoind.js
+=======
+[![Build Status](https://img.shields.io/travis/bitpay/bitcoind.js.svg?branch=master&style=flat-square)](https://travis-ci.org/bitpay/bitcoind.js)
+[![Coverage Status](https://img.shields.io/coveralls/bitpay/bitcoind.js.svg?style=flat-square)](https://coveralls.io/r/bitpay/bitcoind.js)
 
 A Node.js module that adds a native interface to Bitcoin Core for querying information about the Bitcoin blockchain. Bindings are linked to Bitcore Core compiled as a shared library.
 
+## Install
+
+```bash
+git clone git@github.com:bitpay/bitcoind.js.git
+cd bitcoind.js
+npm install
+```
+
 ## Example Usage
 
-``` js
-var bitcoind = require('bitcoind.js')({
+```js
+
+var BitcoinNode = require('bitcoind.js');
+
+var configuration = {
   directory: '~/.bitcoin',
   testnet: true
+};
+
+var node = new BitcoinNode(configuration);
+
+node.chain.on('addblock', function(block) {
+  console.log('New Best Tip:', block.hash);
 });
 
-bitcoind.on('ready', function() {
+```
 
-  bitcoind.getBlock(blockHash, function(err, block) {
-    // block is a node buffer
-  }
+## API Documentation
 
-  bitcoind.close(function(err, result) {
-    // bitcoind is stopped
-  });
+Get Unspent Outputs
+
+```js
+var address = '15vkcKf7gB23wLAnZLmbVuMiiVDc1Nm4a2';
+var includeMempool = true;
+node.getUnspentOutputs(address, includeMempool, function(err, unspentOutputs) {
+  //...
 });
+```
+
+View Balances
+
+```js
+var address = '15vkcKf7gB23wLAnZLmbVuMiiVDc1Nm4a2';
+var includeMempool = true;
+node.getBalance(address, includeMempool, function(err, balance) {
+  //...
+});
+```
+
+Get Outputs
+
+```js
+var address = '15vkcKf7gB23wLAnZLmbVuMiiVDc1Nm4a2';
+var includeMempool = true;
+node.getOutputs(address, includeMempool, function(err, outputs) {
+  //...
+});
+```
+
+Get Transaction
+
+```js
+var txid = 'c349b124b820fe6e32136c30e99f6c4f115fce4d750838edf0c46d3cb4d7281e';
+var includeMempool = true;
+node.getTransaction(txid, includeMempool, function(err, transaction) {
+  //...
+});
+```
+
+Get Block
+
+```js
+var blockHash = '00000000d17332a156a807b25bc5a2e041d2c730628ceb77e75841056082a2c2';
+node.getBlock(blockHash, function(err, block) {
+  //...
+});
+```
 
 ```
 
@@ -31,14 +93,14 @@ $ tail -f ~/.bitcoin/debug.log
 
 ^C (SIGINT) will call `StartShutdown()` in bitcoind on the node thread pool.
 
-## Documentation
+## Daemon Documentation
 
-- `bitcoind.start([options], [callback])` - Start the JavaScript Bitcoin node.
-- `bitcoind.getBlock(blockHash|blockHeight, callback)` - Get any block asynchronously by block hash or height as a node buffer.
-- `bitcoind.getTransaction(txid, blockhash, callback)` - Get any tx asynchronously by reading it from disk.
-- `bitcoind.log(message), bitcoind.info(message)` - Log to standard output.
-- `bitcoind.error(message)` - Log to stderr.
-- `bitcoind.close([callback])` - Stop the JavaScript bitcoin node safely, the callback will be called when bitcoind is closed. This will also be done automatically on `process.exit`. It also takes the bitcoind node off the libuv event loop. If the bitcoind object is the only thing on the event loop. Node will simply close.
+- `daemon.start([options], [callback])` - Start the JavaScript Bitcoin node.
+- `daemon.getBlock(blockHash|blockHeight, callback)` - Get any block asynchronously by block hash or height as a node buffer.
+- `daemon.getTransaction(txid, blockhash, callback)` - Get any tx asynchronously by reading it from disk.
+- `daemon.log(message), daemon.info(message)` - Log to standard output.
+- `daemon.error(message)` - Log to stderr.
+- `daemon.close([callback])` - Stop the JavaScript bitcoin node safely, the callback will be called when bitcoind is closed. This will also be done automatically on `process.exit`. It also takes the bitcoind node off the libuv event loop. If the daemon object is the only thing on the event loop. Node will simply close.
 
 ## Building
 
@@ -147,3 +209,4 @@ Copyright 2013-2015 BitPay, Inc.
 
 - bitcoin: Copyright (c) 2009-2015 Bitcoin Core Developers (MIT License)
 - bcoin (some code borrowed temporarily): Copyright Fedor Indutny, 2014.
+
