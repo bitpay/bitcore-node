@@ -135,6 +135,39 @@ describe('Basic Functionality', function() {
     });
   });
 
+  describe('add to mempool', function() {
+    it('will add an uncheckedTransaction', function() {
+      var fromAddress = 'mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1';
+      var utxo = {
+        address: fromAddress,
+        txId: 'a477af6b2667c29670467e4e0728b685ee07b240235771862318e29ddbe58458',
+        outputIndex: 0,
+        script: Script.buildPublicKeyHashOut(fromAddress).toString(),
+        satoshis: 100000
+      };
+      var toAddress = 'mrU9pEmAx26HcbKVrABvgL7AwA5fjNFoDc';
+      var changeAddress = 'mgBCJAsvzgT2qNNeXsoECg2uPKrUsZ76up';
+      var changeAddressP2SH = '2N7T3TAetJrSCruQ39aNrJvYLhG1LJosujf';
+      var privateKey = 'cSBnVM4xvxarwGQuAfQFwqDg9k5tErHUHzgWsEfD4zdwUasvqRVY';
+      var private1 = '6ce7e97e317d2af16c33db0b9270ec047a91bff3eff8558afb5014afb2bb5976';
+      var private2 = 'c9b26b0f771a0d2dad88a44de90f05f416b3b385ff1d989343005546a0032890';
+      var tx = new bitcore.Transaction();
+      tx.from(utxo);
+      tx.to(toAddress, 50000);
+      tx.change(changeAddress);
+      tx.sign(privateKey);
+      var added = bitcoind.addMempoolUncheckedTransaction(tx.toBuffer());
+      added.should.equal(true);
+      bitcoind.getTransaction(tx.hash, true, function(err, tx) {
+        if(err) {
+          throw err;
+        }
+        tx.toString('hex').should.equal(tx.toBuffer().toString('hex'));
+      });
+
+    });
+  });
+
   describe('get outputs by address from the mempool', function() {
     it('will do it', function() {
       var outputs = bitcoind.getMempoolOutputs('n28S35tqEMbt6vNad7A5K3mZ7vdn8dZ86X');
@@ -142,4 +175,6 @@ describe('Basic Functionality', function() {
     });
   });
 
+
 });
+

@@ -1040,6 +1040,26 @@ NAN_METHOD(GetMempoolOutputs) {
 }
 
 /**
+  * AddMempoolUncheckedTransaction
+  */
+NAN_METHOD(AddMempoolUncheckedTransaction) {
+    if (!node::Buffer::HasInstance(args[0])) {
+        return NanThrowTypeError("First argument should be a Buffer.");
+    }
+
+    CTransaction tx;
+    const char *arg = node::Buffer::Data(args[0]);
+    std::string strArg = std::string(arg);
+
+    if (!DecodeHexTx(tx, strArg)) {
+        return NanThrowError("could not decode tx");
+    }
+    bool added = mempool.addUnchecked(tx.GetHash(), CTxMemPoolEntry(tx, 0, 0, 0.0, 1));
+    NanReturnValue(NanNew<Boolean>(added));
+
+}
+
+/**
  * Helpers
  */
 
@@ -1077,6 +1097,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "isSpent", IsSpent);
   NODE_SET_METHOD(target, "getChainWork", GetChainWork);
   NODE_SET_METHOD(target, "getMempoolOutputs", GetMempoolOutputs);
+  NODE_SET_METHOD(target, "addMempoolUncheckedTransaction", AddMempoolUncheckedTransaction);
 }
 
 NODE_MODULE(bitcoindjs, init)
