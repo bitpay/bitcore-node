@@ -23,36 +23,6 @@ describe('Bitcoin Block', function() {
     });
   });
 
-  describe('#validate', function() {
-    it('rejects with invalid proof of work because hash is greater', function(done) {
-      var block = new Block(chainData[1]);
-      block.validProofOfWork = sinon.stub().returns(false);
-      block.validate({
-        db: {
-          getBlock: sinon.stub().callsArgWith(1, null, {})
-        }
-      }, function(err) {
-        should.exist(err);
-        err.message.should.match(/Invalid proof of work/);
-        done();
-      });
-    });
-    it('rejects with unexpected bits for chain', function(done) {
-      var block = new Block(chainData[1]);
-      block.validProofOfWork = sinon.stub().returns(true);
-      block.validate({
-        db: {
-          getBlock: sinon.stub().callsArgWith(1, null, {})
-        },
-        getNextWorkRequired: sinon.stub().callsArgWith(1, null, 0x1d00ffff)
-      }, function(err) {
-        should.exist(err);
-        err.message.should.match(/Invalid proof of work, expected block bits/);
-        done();
-      });
-    });
-  });
-
   describe('#validProofOfWork', function() {
     it('returns false if block hash is greater than target from bits', function() {
       var block = new Block(chainData[1]);

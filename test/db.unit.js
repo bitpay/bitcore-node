@@ -385,7 +385,7 @@ describe('Bitcoin DB', function() {
     it('should return the correct methods', function() {
       var db = new DB({path: 'path', store: memdown});
       var methods = db.getAPIMethods();
-      methods.length.should.equal(6);
+      methods.length.should.equal(5);
     });
   });
 
