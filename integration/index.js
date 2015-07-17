@@ -133,7 +133,13 @@ describe('Basic Functionality', function() {
       var work = bitcoind.getChainWork(hash);
       should.equal(work, undefined);
     });
+  });
 
+  describe('get outputs by address from the mempool', function() {
+    it('will do it', function() {
+      var outputs = bitcoind.getMempoolOutputs('n28S35tqEMbt6vNad7A5K3mZ7vdn8dZ86X');
+      Array.isArray(outputs).should.equal(true);
+    });
   });
 
 });

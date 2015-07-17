@@ -984,6 +984,62 @@ NAN_METHOD(GetInfo) {
 }
 
 /**
+ * GetMempoolOutputs
+ * bitcoindjs.getMempoolOutputs()
+ * Will return outputs by address from the mempool.
+ */
+NAN_METHOD(GetMempoolOutputs) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  Local<Array> outputs = Array::New(isolate);
+  int arrayIndex = 0;
+
+  std::map<uint256, CTxMemPoolEntry> mapTx = mempool.mapTx;
+
+  for(std::map<uint256, CTxMemPoolEntry>::iterator it = mapTx.begin(); it != mapTx.end(); it++) {
+    uint256 txid = it->first;
+    CTxMemPoolEntry entry = it->second;
+
+    const CTransaction tx = entry.GetTx();
+
+    int outputIndex = 0;
+
+    BOOST_FOREACH(const CTxOut& txout, tx.vout) {
+
+      CScript script = txout.scriptPubKey;
+
+      txnouttype type;
+      vector<vector<unsigned char> > hash;
+
+      if (Solver(script, type, hash)) {
+        if (type == TX_PUBKEYHASH || type == TX_SCRIPTHASH) {
+
+          Local<Object> output = NanNew<Object>();
+
+          // todo: include the script
+          output->Set(NanNew<String>("script"), NanNew<String>(""));
+
+          uint64_t satoshis = txout.nValue;
+          output->Set(NanNew<String>("satoshis"), NanNew<Number>(satoshis)); // can't go above 2 ^ 53 -1
+          output->Set(NanNew<String>("txid"), NanNew<String>(txid.GetHex()));
+
+          output->Set(NanNew<String>("outputIndex"), NanNew<Number>(outputIndex));
+
+          outputs->Set(arrayIndex, output);
+          arrayIndex++;
+        }
+      }
+
+      outputIndex++;
+    }
+  }
+
+  NanReturnValue(outputs);
+
+}
+
+/**
  * Helpers
  */
 
@@ -1020,7 +1076,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "isSpent", IsSpent);
   NODE_SET_METHOD(target, "getChainWork", GetChainWork);
-
+  NODE_SET_METHOD(target, "getMempoolOutputs", GetMempoolOutputs);
 }
 
 NODE_MODULE(bitcoindjs, init)
