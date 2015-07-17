@@ -26,7 +26,7 @@ var fixtureData = {
   ]
 };
 
-var bitcoind = require('../')({
+var bitcoind = require('../').daemon({
   directory: '~/.bitcoin',
   testnet: true
 });
