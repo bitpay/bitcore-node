@@ -821,6 +821,7 @@ async_get_tx(uv_work_t *req) {
     {
       if (mempool.lookup(hash, ctx))
       {
+        data->ctx = ctx;
         return;
       }
     }
@@ -995,6 +996,13 @@ NAN_METHOD(GetMempoolOutputs) {
   Local<Array> outputs = Array::New(isolate);
   int arrayIndex = 0;
 
+  v8::String::Utf8Value param1(args[0]->ToString());
+  std::string *input = new std::string(*param1);
+  const char* psz = input->c_str();
+  std::vector<unsigned char> vAddress;
+  DecodeBase58(psz, vAddress);
+  vector<unsigned char> hashBytes(vAddress.begin()+1, vAddress.begin()+21);
+
   std::map<uint256, CTxMemPoolEntry> mapTx = mempool.mapTx;
 
   for(std::map<uint256, CTxMemPoolEntry>::iterator it = mapTx.begin(); it != mapTx.end(); it++) {
@@ -1010,24 +1018,31 @@ NAN_METHOD(GetMempoolOutputs) {
       CScript script = txout.scriptPubKey;
 
       txnouttype type;
-      vector<vector<unsigned char> > hash;
+      std::vector<std::vector<unsigned char> > hashResults;
 
-      if (Solver(script, type, hash)) {
+      if (Solver(script, type, hashResults)) {
+
         if (type == TX_PUBKEYHASH || type == TX_SCRIPTHASH) {
 
-          Local<Object> output = NanNew<Object>();
+          vector<unsigned char> scripthashBytes = hashResults.front();
 
-          // todo: include the script
-          output->Set(NanNew<String>("script"), NanNew<String>(""));
+          if(equal(hashBytes.begin(), hashBytes.end(), scripthashBytes.begin())) {
 
-          uint64_t satoshis = txout.nValue;
-          output->Set(NanNew<String>("satoshis"), NanNew<Number>(satoshis)); // can't go above 2 ^ 53 -1
-          output->Set(NanNew<String>("txid"), NanNew<String>(txid.GetHex()));
+            Local<Object> output = NanNew<Object>();
 
-          output->Set(NanNew<String>("outputIndex"), NanNew<Number>(outputIndex));
+            // todo: include the script
+            output->Set(NanNew<String>("script"), NanNew<String>(script.ToString()));
 
-          outputs->Set(arrayIndex, output);
-          arrayIndex++;
+            uint64_t satoshis = txout.nValue;
+            output->Set(NanNew<String>("satoshis"), NanNew<Number>(satoshis)); // can't go above 2 ^ 53 -1
+            output->Set(NanNew<String>("txid"), NanNew<String>(txid.GetHex()));
+
+            output->Set(NanNew<String>("outputIndex"), NanNew<Number>(outputIndex));
+
+            outputs->Set(arrayIndex, output);
+            arrayIndex++;
+
+          }
         }
       }
 
@@ -1043,19 +1058,17 @@ NAN_METHOD(GetMempoolOutputs) {
   * AddMempoolUncheckedTransaction
   */
 NAN_METHOD(AddMempoolUncheckedTransaction) {
-    if (!node::Buffer::HasInstance(args[0])) {
-        return NanThrowTypeError("First argument should be a Buffer.");
-    }
+  NanScope();
 
-    CTransaction tx;
-    const char *arg = node::Buffer::Data(args[0]);
-    std::string strArg = std::string(arg);
+  v8::String::Utf8Value param1(args[0]->ToString());
+  std::string *input = new std::string(*param1);
 
-    if (!DecodeHexTx(tx, strArg)) {
-        return NanThrowError("could not decode tx");
-    }
-    bool added = mempool.addUnchecked(tx.GetHash(), CTxMemPoolEntry(tx, 0, 0, 0.0, 1));
-    NanReturnValue(NanNew<Boolean>(added));
+  CTransaction tx;
+  if (!DecodeHexTx(tx, *input)) {
+    return NanThrowError("could not decode tx");
+  }
+  bool added = mempool.addUnchecked(tx.GetHash(), CTxMemPoolEntry(tx, 0, 0, 0.0, 1));
+  NanReturnValue(NanNew<Boolean>(added));
 
 }
 
