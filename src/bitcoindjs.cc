@@ -993,9 +993,13 @@ NAN_METHOD(GetMempoolOutputs) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
+  // Instatiate an empty array that we will fill later
+  // with matching outputs.
   Local<Array> outputs = Array::New(isolate);
   int arrayIndex = 0;
 
+  // Decode the input address into the hash bytes
+  // that we can then match to the scriptPubKeys data
   v8::String::Utf8Value param1(args[0]->ToString());
   std::string *input = new std::string(*param1);
   const char* psz = input->c_str();
@@ -1003,16 +1007,18 @@ NAN_METHOD(GetMempoolOutputs) {
   DecodeBase58(psz, vAddress);
   vector<unsigned char> hashBytes(vAddress.begin()+1, vAddress.begin()+21);
 
+  // Iterate through the entire mempool
   std::map<uint256, CTxMemPoolEntry> mapTx = mempool.mapTx;
 
   for(std::map<uint256, CTxMemPoolEntry>::iterator it = mapTx.begin(); it != mapTx.end(); it++) {
+
     uint256 txid = it->first;
     CTxMemPoolEntry entry = it->second;
-
     const CTransaction tx = entry.GetTx();
 
     int outputIndex = 0;
 
+    // Iterate through each output
     BOOST_FOREACH(const CTxOut& txout, tx.vout) {
 
       CScript script = txout.scriptPubKey;
@@ -1022,15 +1028,16 @@ NAN_METHOD(GetMempoolOutputs) {
 
       if (Solver(script, type, hashResults)) {
 
+        // See if the script is any of the standard address types
         if (type == TX_PUBKEYHASH || type == TX_SCRIPTHASH) {
 
           vector<unsigned char> scripthashBytes = hashResults.front();
 
+          // Compare the hash bytes with the input hash bytes
           if(equal(hashBytes.begin(), hashBytes.end(), scripthashBytes.begin())) {
 
             Local<Object> output = NanNew<Object>();
 
-            // todo: include the script
             output->Set(NanNew<String>("script"), NanNew<String>(script.ToString()));
 
             uint64_t satoshis = txout.nValue;
@@ -1039,6 +1046,8 @@ NAN_METHOD(GetMempoolOutputs) {
 
             output->Set(NanNew<String>("outputIndex"), NanNew<Number>(outputIndex));
 
+            // We have a match and push the results to the array
+            // that is returned as the result
             outputs->Set(arrayIndex, output);
             arrayIndex++;
 
