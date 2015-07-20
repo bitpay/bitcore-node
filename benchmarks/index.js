@@ -28,7 +28,7 @@ var fixtureData = {
 
 var bitcoind = require('../').daemon({
   datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
-  testnet: true
+  network: 'testnet'
 });
 
 bitcoind.on('error', function(err) {

@@ -76,6 +76,7 @@ static volatile bool shutdown_complete = false;
 static char *g_data_dir = NULL;
 static bool g_rpc = false;
 static bool g_testnet = false;
+static bool g_regtest = false;
 static bool g_txindex = false;
 
 /**
@@ -105,6 +106,7 @@ struct async_node_data {
   std::string datadir;
   bool rpc;
   bool testnet;
+  bool regtest;
   bool txindex;
   Eternal<Function> callback;
 };
@@ -298,6 +300,7 @@ NAN_METHOD(StartBitcoind) {
   std::string datadir = std::string("");
   bool rpc = false;
   bool testnet = false;
+  bool regtest = false;
   bool txindex = false;
 
   if (args.Length() >= 2 && args[0]->IsObject() && args[1]->IsFunction()) {
@@ -309,8 +312,14 @@ NAN_METHOD(StartBitcoind) {
     if (options->Get(NanNew<String>("rpc"))->IsBoolean()) {
       rpc = options->Get(NanNew<String>("rpc"))->ToBoolean()->IsTrue();
     }
-    if (options->Get(NanNew<String>("testnet"))->IsBoolean()) {
-      testnet = options->Get(NanNew<String>("testnet"))->ToBoolean()->IsTrue();
+    if (options->Get(NanNew<String>("network"))->IsString()) {
+      String::Utf8Value network_(options->Get(NanNew<String>("network"))->ToString());
+      std::string network = std::string(*network_);
+      if (network == "testnet") {
+          testnet = true;
+      } else if (network == "regtest") {
+          regtest = true;
+      }
     }
     if (options->Get(NanNew<String>("txindex"))->IsBoolean()) {
       txindex = options->Get(NanNew<String>("txindex"))->ToBoolean()->IsTrue();
@@ -337,6 +346,7 @@ NAN_METHOD(StartBitcoind) {
   data->datadir = datadir;
   data->rpc = rpc;
   data->testnet = testnet;
+  data->regtest = regtest;
   data->txindex = txindex;
 
   Eternal<Function> eternal(isolate, callback);
@@ -370,6 +380,7 @@ async_start_node(uv_work_t *req) {
   }
   g_rpc = (bool)data->rpc;
   g_testnet = (bool)data->testnet;
+  g_regtest = (bool)data->regtest;
   g_txindex = (bool)data->txindex;
   tcgetattr(STDIN_FILENO, &orig_termios);
   start_node();
@@ -472,6 +483,11 @@ start_node_thread(void) {
 
   if (g_testnet) {
     argv[argc] = (char *)"-testnet";
+    argc++;
+  }
+
+  if (g_regtest) {
+    argv[argc] = (char *)"-regtest";
     argc++;
   }
 

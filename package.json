@@ -30,7 +30,6 @@
     "preinstall": "./bin/build-libbitcoind",
     "install": "./bin/build-bindings",
     "start": "node example",
-    "debug_install": "./bin/build-libbitcoind debug && ./bin/build-bindings debug",
     "test": "NODE_ENV=test mocha --recursive",
     "coverage": "istanbul cover _mocha -- --recursive"
   },

@@ -21,7 +21,7 @@ var BitcoinNode = require('bitcoind.js');
 
 var configuration = {
   datadir: '~/.bitcoin',
-  testnet: true
+  network: 'testnet'
 };
 
 var node = new BitcoinNode(configuration);
@@ -110,7 +110,7 @@ $ tail -f ~/.bitcoin/debug.log
 
 ## Building
 
-There are two main parts of the build, compiling Bitcoin Core and the Node.js bindings. You can run both by using `npm install` and `npm run debug_install`.
+There are two main parts of the build, compiling Bitcoin Core and the Node.js bindings. You can run both by using `npm install` and set environment variable, $BITCOINDJS_ENV to 'test' or 'debug'. Both 'test' and 'debug' build libbitcoind with debug symbols whereas 'test' adds wallet capability so that regtest can be used.
 
 ### Node.js Bindings
 
@@ -128,6 +128,11 @@ To be able to debug you'll need to have `gdb` and `node` compiled for debugging 
 
 ```bash
 $ gdb --args node_g path/to/example.js
+```
+
+To run mocha from within gdb (notice _mocha and not mocha so that the tests run in the same process):
+```bash
+$ gdb --args node /path/to/_mocha -R spec integration/index.js
 ```
 
 To run integration tests against testnet or livenet data:
@@ -161,7 +166,7 @@ Most of all the dependencies for building Bitcoin Core are needed, for more info
 
 #### Shared Library Patch
 
-To provide native bindings to JavaScript *(or any other language for that matter)*, Bitcoin code, itself, must be linkable. Currently, Bitcoin Core provides a JSON RPC interface to bitcoind as well as a shared library for script validation *(and hopefully more)* called libbitcoinconsensus. There is a node module, [node-libbitcoinconsensus](https://github.com/bitpay/node-libbitcoinconsensus), that exposes these methods. While these interfaces are useful for several use cases, there are additional use cases that are not fulfilled, and being able to implement customized interfaces is necessary. To be able to do this a few simple changes need to be made to Bitcoin Core to compile as a shared library. 
+To provide native bindings to JavaScript *(or any other language for that matter)*, Bitcoin code, itself, must be linkable. Currently, Bitcoin Core provides a JSON RPC interface to bitcoind as well as a shared library for script validation *(and hopefully more)* called libbitcoinconsensus. There is a node module, [node-libbitcoinconsensus](https://github.com/bitpay/node-libbitcoinconsensus), that exposes these methods. While these interfaces are useful for several use cases, there are additional use cases that are not fulfilled, and being able to implement customized interfaces is necessary. To be able to do this a few simple changes need to be made to Bitcoin Core to compile as a shared library.
 
 The patch is located at `etc/bitcoin.patch` and adds a configure option `--enable-daemonlib` to compile all object files with `-fPIC` (Position Independent Code - needed to create a shared object), exposes leveldb variables and objects, exposes the threadpool to the bindings, and conditionally includes the main function.
 
@@ -176,7 +181,7 @@ $ cd /path/to/bitcoind.js
 $ ./bin/build-libbitcoind
 ```
 
-The first argument is 'debug', this will compile node bindings and bitcoind with debug flags. The `PATCH_VERSION` file dictates what version/tag the patch goes clean against.
+The `PATCH_VERSION` file dictates what version/tag the patch goes clean against.
 
 There is a config_options.sh that has the configure options used to build libbitcoind. `make` will then compile `libbitcoind/src/.libs/libbitcoind.{so|dylib}`. This will completely ignore compiling tests, QT object files and the wallet features in `bitcoind/libbitcoind.{so|dylib}`.
 
