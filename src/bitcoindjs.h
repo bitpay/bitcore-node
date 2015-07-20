@@ -1,11 +1,3 @@
-/**
- * bitcoind.js
- * Copyright (c) 2015, BitPay (MIT License)
- *
- * bitcoindjs.h:
- *   A bitcoind node.js binding header file.
- */
-
 #include "main.h"
 #include "addrman.h"
 #include "alert.h"
@@ -18,6 +10,7 @@
 #include <boost/filesystem.hpp>
 #include "nan.h"
 #include "scheduler.h"
+#include "core_io.h"
 
 NAN_METHOD(StartBitcoind);
 NAN_METHOD(OnBlocksReady);
@@ -29,3 +22,5 @@ NAN_METHOD(GetTransaction);
 NAN_METHOD(GetInfo);
 NAN_METHOD(IsSpent);
 NAN_METHOD(GetChainWork);
+NAN_METHOD(GetMempoolOutputs);
+NAN_METHOD(AddMempoolUncheckedTransaction);
