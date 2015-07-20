@@ -28,3 +28,4 @@ NAN_METHOD(GetBlock);
 NAN_METHOD(GetTransaction);
 NAN_METHOD(GetInfo);
 NAN_METHOD(IsSpent);
+NAN_METHOD(GetChainWork);

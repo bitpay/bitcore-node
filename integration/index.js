@@ -117,4 +117,23 @@ describe('Basic Functionality', function() {
     });
   });
 
+  describe('get chain work', function() {
+    it('will get the total work for the genesis block via hash', function() {
+      var hash = '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f';
+      var work = bitcoind.getChainWork(hash);
+      work.should.equal('0000000000000000000000000000000000000000000000000000000100010001');
+    });
+    it('will get the total work for block #300000 via hash', function() {
+      var hash = '000000000000000082ccf8f1557c5d40b21edabb18d2d691cfbf87118bac7254';
+      var work = bitcoind.getChainWork(hash);
+      work.should.equal('000000000000000000000000000000000000000000005a7b3c42ea8b844374e9');
+    });
+    it('will return undefined for unknown block', function() {
+      var hash = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+      var work = bitcoind.getChainWork(hash);
+      should.equal(work, undefined);
+    });
+
+  });
+
 });
