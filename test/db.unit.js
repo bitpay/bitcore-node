@@ -424,9 +424,22 @@ describe('Bitcoin DB', function() {
       db.store = {
         createReadStream: sinon.stub().returns(readStream1)
       };
+      var mempoolOutputs = [
+        {
+          address: '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W',
+          txid: 'aa2db23f670596e96ed94c405fd11848c8f236d266ee96da37ecd919e53b4371',
+          satoshis: 307627737,
+          script: 'OP_DUP OP_HASH160 f6db95c81dea3d10f0ff8d890927751bf7b203c1 OP_EQUALVERIFY OP_CHECKSIG',
+          blockHeight: 352532
+        }
+      ];
+      db.bitcoind = {
+        getMempoolOutputs: sinon.stub().returns(mempoolOutputs)
+      };
+
       db.getOutputs(address, true, function(err, outputs) {
         should.not.exist(err);
-        outputs.length.should.equal(2);
+        outputs.length.should.equal(3);
         outputs[0].address.should.equal(address);
         outputs[0].txid.should.equal('125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf87');
         outputs[0].outputIndex.should.equal(1);
@@ -439,6 +452,10 @@ describe('Bitcoin DB', function() {
         outputs[1].satoshis.should.equal(10000);
         outputs[1].script.should.equal('OP_DUP OP_HASH160 038a213afdfc551fc658e9a2a58a86e98d69b687 OP_EQUALVERIFY OP_CHECKSIG');
         outputs[1].blockHeight.should.equal(345004);
+        outputs[2].address.should.equal(address);
+        outputs[2].txid.should.equal('aa2db23f670596e96ed94c405fd11848c8f236d266ee96da37ecd919e53b4371');
+        outputs[2].script.should.equal('OP_DUP OP_HASH160 f6db95c81dea3d10f0ff8d890927751bf7b203c1 OP_EQUALVERIFY OP_CHECKSIG');
+        outputs[2].blockHeight.should.equal(352532);
         done();
       });
 
