@@ -23,26 +23,6 @@ describe('Bitcoin Block', function() {
     });
   });
 
-  describe('#validProofOfWork', function() {
-    it('returns false if block hash is greater than target from bits', function() {
-      var block = new Block(chainData[1]);
-      var target = new BN('00000000c4769616456f587f6744a779f19a1f9056431ad03d0949458ec85ac0', 'hex');
-      var valid = block.validProofOfWork({
-        getTargetFromBits: sinon.stub().returns(target)
-      });
-      valid.should.equal(false);
-    });
-
-    it('returns true if block hash is less than target from bits', function() {
-      var block = new Block(chainData[1]);
-      var target = new BN('f2345678c4769616456f587f6744a779f19a1f9056431ad03d0949458ec85ac0', 'hex');
-      var valid = block.validProofOfWork({
-        getTargetFromBits: sinon.stub().returns(target)
-      });
-      valid.should.equal(true);
-    });
-  });
-
   describe('#fromBuffer', function() {
     var buffer = new Buffer('010000004404c1ff5f300e5ed830b45ec9f68fbe9a0c51c4b4eaa4ce09a03ac4ddde01750000000000000000000000000000000000000000000000000000000000000000b134de547fcc071f4a020000abcdef', 'hex');
 

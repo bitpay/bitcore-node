@@ -50,24 +50,6 @@ describe('Bitcoin Chain', function() {
     });
   });
 
-  describe('#getInterval', function() {
-
-    it('get default interval', function() {
-      var chain = new Chain();
-      chain.targetTimespan.toString(10).should.equal('1209600000');
-      chain.targetSpacing.toString(10).should.equal('600000');
-      chain.getDifficultyInterval().toString(10).should.equal('2016');
-    });
-
-    it('get custom interval', function() {
-      var chain = new Chain({
-        targetTimespan: 30 * 60 * 1000
-      });
-      chain.getDifficultyInterval().toString(10).should.equal('3');
-    });
-
-  });
-
   describe('#buildGenesisBlock', function() {
     it('can handle no options', function() {
       var db = {
@@ -106,133 +88,27 @@ describe('Bitcoin Chain', function() {
 
   });
 
-  describe('#getRetargetedBits', function() {
-    it('should get the correct bits', function() {
-      var chain = new Chain();
-      var bits = chain.getRetargetedBits(486604799, 12 * 24 * 60 * 60 * 1000);
-      bits.should.equal(484142299);
-    });
-    it('should get the correct bits if actual timespan was really small', function() {
-      var chain = new Chain();
-      var bits1 = chain.getRetargetedBits(486604799, 2 * 24 * 60 * 60 * 1000);
-      bits1.should.equal(473956288);
-      var bits2 = chain.getRetargetedBits(486604799, 1 * 24 * 60 * 60 * 1000);
-      bits2.should.equal(473956288);
-    });
-    it('should get the correct bits if actual timespan was really large', function() {
-      var chain = new Chain();
-      var bits1 = chain.getRetargetedBits(436567560, 60 * 24 * 60 * 60 * 1000);
-      bits1.should.equal(437647392);
-      var bits2 = chain.getRetargetedBits(436567560, 70 * 24 * 60 * 60 * 1000);
-      bits2.should.equal(437647392);
-    });
-    it('should not give higher than max bits', function() {
-      var chain = new Chain();
-      var bits = chain.getRetargetedBits(486604799, 16 * 24 * 60 * 60 * 1000);
-      bits.should.equal(486604799);
-    });
-  });
+  describe('#getWeight', function() {
+    var work = '000000000000000000000000000000000000000000005a7b3c42ea8b844374e9';
+    var chain = new Chain();
+    chain.db = {
+      bitcoind: {
+        getChainWork: sinon.stub().returns(work)
+      }
+    };
 
-  describe('#getTargetFromBits/#getBitsFromTarget', function() {
-
-    var target1;
-    var target2;
-    var target3;
-
-    it('should calculate the target correctly', function() {
-      var chain = new Chain();
-      var target1 = chain.getTargetFromBits(0x1b0404cb);
-      var expected = '00000000000404cb000000000000000000000000000000000000000000000000';
-      target1.toString('hex', 32).should.equal(expected);
-    });
-
-    it('should error if bits is too small', function() {
-      var chain = new Chain();
-      (function(){
-        var target1 = chain.getTargetFromBits(Chain.DEFAULTS.MIN_BITS - 1);
-      }).should.throw('bits is too small');
-    });
-
-    it('should error if bits is too large', function() {
-      var chain = new Chain();
-      (function(){
-        var target1 = chain.getTargetFromBits(Chain.DEFAULTS.MAX_BITS + 1);
-      }).should.throw('bits is too big');
-    });
-
-    it('should get the bits', function() {
-      var chain = new Chain();
-      var expected = '00000000000404cb000000000000000000000000000000000000000000000000';
-      var bits = chain.getBitsFromTarget(expected);
-      bits.should.equal(0x1b0404cb);
-    });
-
-  });
-
-  describe('#getDifficultyFromBits', function() {
-    it('should return the correct difficulty', function() {
-      var genesis = {bits: 0x1d00ffff};
-      var chain = new Chain({genesis: genesis});
-
-      var difficulty = chain.getDifficultyFromBits(0x1818bb87);
-      difficulty.toString(10).should.equal('44455415962');
-    });
-  });
-
-  describe('#getBlockWeight', function() {
-    it('should return the correct block weight for normal targets', function(done) {
-      var block = {bits: 0x1d00ffff};
-      var db = {
-        getBlock: sinon.stub().callsArgWith(1, null, block)
-      };
-      var chain = new Chain({db: db});
-      chain.getBlockWeight(block, function(err, weight) {
-        weight.toString(16).should.equal('100010001');
-        done();
-      });
-    });
-    it('should correctly report an error if it happens', function(done) {
-      var block = {bits: 0x1d00ffff};
-      var db = {
-        getBlock: sinon.stub().callsArgWith(1, new Error('fake error'))
-      };
-      var chain = new Chain({db: db});
-      chain.getBlockWeight(block, function(err, weight) {
-        should.exist(err);
-        err.message.should.equal('fake error');
-        done();
-      });
-    });
-    it('should correctly report an error for a null block', function(done) {
-      var block = {bits: 0x1d00ffff};
-      var db = {
-        getBlock: sinon.stub().callsArgWith(1, null, null)
-      };
-      var chain = new Chain({db: db});
-      chain.getBlockWeight(block, function(err, weight) {
-        should.exist(err);
-        err.message.should.match(/Block not found/);
-        done();
-      });
-    });
-  });
-
-  describe('Bitcoin POW', function() {
-    it('should calculate correct difficulty for block 201600', function(done) {
-      var chain = new Chain();
-      var beginBlock = {
-        timestamp: new Date(1348092851000),
-        bits: 436591499
-      };
-      var lastBlock = {
-        timestamp: new Date(1349227021000),
-        bits: 436591499
-      };
-      chain.getHeightForBlock = sinon.stub().callsArgWith(1, null, 201599);
-      chain.getBlockAtHeight = sinon.stub().callsArgWith(2, null, beginBlock);
-      chain.getNextWorkRequired(lastBlock, function(err, bits) {
+    it('should give the weight as a BN', function(done) {
+      chain.getWeight('hash', function(err, weight) {
         should.not.exist(err);
-        bits.should.equal(436567560);
+        weight.toString(16).should.equal('5a7b3c42ea8b844374e9');
+        done();
+      });
+    });
+
+    it('should give an error if the weight is undefined', function(done) {
+      chain.db.bitcoind.getChainWork = sinon.stub().returns(undefined);
+      chain.getWeight('hash2', function(err, weight) {
+        should.exist(err);
         done();
       });
     });
