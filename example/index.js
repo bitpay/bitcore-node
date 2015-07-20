@@ -9,17 +9,17 @@
 process.title = 'bitcoind.js';
 
 /**
- * bitcoind
+ * daemon
  */
 
-var bitcoind = require('../')({
+var daemon = require('../').daemon({
   directory: process.env.BITCOINDJS_DIR || '~/.bitcoin'
 });
 
-bitcoind.on('error', function(err) {
-  bitcoind.log('error="%s"', err.message);
+daemon.on('error', function(err) {
+  daemon.log('error="%s"', err.message);
 });
 
-bitcoind.on('open', function(status) {
-  bitcoind.log('status="%s"', status);
+daemon.on('open', function(status) {
+  daemon.log('status="%s"', status);
 });
