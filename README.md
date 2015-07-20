@@ -83,8 +83,6 @@ node.getBlock(blockHash, function(err, block) {
 });
 ```
 
-```
-
 You can log output from the daemon using:
 
 ``` bash
