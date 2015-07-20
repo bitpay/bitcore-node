@@ -1038,6 +1038,66 @@ NAN_METHOD(GetInfo) {
 }
 
 /**
+ * Send Transaction
+ * bitcoindjs.sendTransaction()
+ * Will add a transaction to the mempool and broadcast to connected peers.
+ * @param {string} - The serialized hex string of the transaction.
+ * @param {boolean} - Skip absurdly high fee checks
+ */
+NAN_METHOD(SendTransaction) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  LOCK(cs_main);
+
+  // Decode the transaction
+  v8::String::Utf8Value param1(args[0]->ToString());
+  std::string *input = new std::string(*param1);
+  CTransaction tx;
+  if (!DecodeHexTx(tx, *input)) {
+    return NanThrowError("TX decode failed");
+  }
+  uint256 hashTx = tx.GetHash();
+
+  // Skip absurdly high fee check
+  bool allowAbsurdFees = false;
+  if (args.Length() > 1) {
+    allowAbsurdFees = args[1]->BooleanValue();
+  }
+
+  CCoinsViewCache &view = *pcoinsTip;
+  const CCoins* existingCoins = view.AccessCoins(hashTx);
+  bool fHaveMempool = mempool.exists(hashTx);
+  bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
+  if (!fHaveMempool && !fHaveChain) {
+    CValidationState state;
+    bool fMissingInputs;
+    char *errorMessage;
+
+    // Attempt to add the transaction to the mempool
+    if (!AcceptToMemoryPool(mempool, state, tx, false, &fMissingInputs, !allowAbsurdFees)) {
+      if (state.IsInvalid()) {
+        sprintf(errorMessage, "%i: %s", state.GetRejectCode(), state.GetRejectReason().c_str());
+        return NanThrowError(errorMessage);
+      } else {
+        if (fMissingInputs) {
+          return NanThrowError("Missing inputs");
+        }
+        sprintf(errorMessage, "%s", state.GetRejectReason());
+        return NanThrowError(errorMessage);
+      }
+    }
+  } else if (fHaveChain) {
+    return NanThrowError("transaction already in block chain");
+  }
+
+  // Relay the transaction connect peers
+  RelayTransaction(tx);
+
+  return NanReturnValue(NanNew<String>(hashTx.GetHex()));
+}
+
+/**
  * GetMempoolOutputs
  * bitcoindjs.getMempoolOutputs()
  * Will return outputs by address from the mempool.
@@ -1174,7 +1234,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getMempoolOutputs", GetMempoolOutputs);
   NODE_SET_METHOD(target, "addMempoolUncheckedTransaction", AddMempoolUncheckedTransaction);
   NODE_SET_METHOD(target, "verifyScript", VerifyScript);
-
+  NODE_SET_METHOD(target, "sendTransaction", SendTransaction);
 }
 
 NODE_MODULE(bitcoindjs, init)
