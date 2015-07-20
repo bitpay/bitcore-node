@@ -1072,19 +1072,18 @@ NAN_METHOD(SendTransaction) {
   if (!fHaveMempool && !fHaveChain) {
     CValidationState state;
     bool fMissingInputs;
-    char *errorMessage;
 
     // Attempt to add the transaction to the mempool
     if (!AcceptToMemoryPool(mempool, state, tx, false, &fMissingInputs, !allowAbsurdFees)) {
       if (state.IsInvalid()) {
+        char *errorMessage;
         sprintf(errorMessage, "%i: %s", state.GetRejectCode(), state.GetRejectReason().c_str());
         return NanThrowError(errorMessage);
       } else {
         if (fMissingInputs) {
           return NanThrowError("Missing inputs");
         }
-        sprintf(errorMessage, "%s", state.GetRejectReason());
-        return NanThrowError(errorMessage);
+        return NanThrowError(state.GetRejectReason().c_str());
       }
     }
   } else if (fHaveChain) {
@@ -1094,7 +1093,7 @@ NAN_METHOD(SendTransaction) {
   // Relay the transaction connect peers
   RelayTransaction(tx);
 
-  return NanReturnValue(NanNew<String>(hashTx.GetHex()));
+  NanReturnValue(Local<Value>::New(isolate, NanNew<String>(hashTx.GetHex())));
 }
 
 /**
