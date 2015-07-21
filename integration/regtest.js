@@ -19,14 +19,16 @@ describe('Basic Functionality', function() {
   before(function(done) {
     this.timeout(30000);
 
-    rimraf('./data/regtest', function(err) {
+    var datadir = __dirname + '/data';
+
+    rimraf(datadir + '/regtest', function(err) {
 
       if (err) {
         throw err;
       }
 
       bitcoind = require('../').daemon({
-        datadir: './data',
+        datadir: datadir,
         network: 'regtest'
       });
 
