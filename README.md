@@ -130,7 +130,7 @@ To be able to debug you'll need to have `gdb` and `node` compiled for debugging 
 $ gdb --args node_g path/to/example.js
 ```
 
-To run mocha from within gdb (notice _mocha and not mocha so that the tests run in the same process):
+To run mocha from within gdb (notice `_mocha` and not `mocha` so that the tests run in the same process):
 ```bash
 $ gdb --args node /path/to/_mocha -R spec integration/index.js
 ```
