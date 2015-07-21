@@ -12,3 +12,4 @@ before_install:
   - git config --global user.name "BitPay, Inc."
 script:
   - _mocha -R spec integration/regtest.js
+  - _mocha -R spec --recursive
