@@ -8,7 +8,7 @@ A Node.js module that adds a native interface to Bitcoin Core for querying infor
 ## Install
 
 ```bash
-git clone git@github.com:bitpay/bitcoind.js.git
+git clone https://github.com/bitpay/bitcoind.js.git
 cd bitcoind.js
 npm install
 ```
