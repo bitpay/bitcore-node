@@ -11,12 +11,7 @@ var bitcoind;
 var should = chai.should();
 var assert = chai.assert;
 var sinon = require('sinon');
-var txData = require('./livenet-tx-data.json');
-var blockData = require('./livenet-block-data.json');
-var testTxData = require('./livenet-tx-data.json');
-var spentData = require('./livenet-spents.json').spent;
-var unspentData = require('./livenet-spents.json').unspent;
-var testBlockData = require('./testnet-block-data.json');
+var BitcoinRPC = require('bitcoind-rpc');
 
 describe('Basic Functionality', function() {
 
@@ -24,6 +19,11 @@ describe('Basic Functionality', function() {
     this.timeout(30000);
     bitcoind = require('../').daemon({
       datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
+      network: 'regtest',
+      server: true,
+      rpcuser: 'bitcoin',
+      rpcpassword: 'local321',
+      rpcallowip: '127.0.0.1'
     });
 
     bitcoind.on('error', function(err) {
@@ -37,7 +37,21 @@ describe('Basic Functionality', function() {
     console.log('Waiting for Bitcoin Core to initialize...');
 
     bitcoind.on('ready', function() {
-      done();
+
+      var client = new BitcoinRPC({
+        protocol: 'http',
+        host: '127.0.0.1',
+        port: 18332,
+        user: 'bitcoin',
+        pass: 'local321'
+      });
+
+      client.generate(100, function(err, result) {
+        console.log('err', err);
+        console.log('result', result);
+        done();
+      });
+
     });
 
   });
@@ -46,92 +60,6 @@ describe('Basic Functionality', function() {
     this.timeout(20000);
     bitcoind.stop(function(err, result) {
       done();
-    });
-  });
-
-  describe('get transactions by hash', function() {
-    txData.forEach(function(data) {
-      var tx = bitcore.Transaction();
-      tx.fromString(data);
-      it('for tx ' + tx.hash, function(done) {
-        bitcoind.getTransaction(tx.hash, true, function(err, response) {
-          if (err) {
-            throw err;
-          }
-          assert(response.toString('hex') === data, 'incorrect tx data for ' + tx.hash);
-          done();
-        });
-      });
-    });
-  });
-
-  describe('determine if outpoint is unspent/spent', function() {
-    spentData.forEach(function(data) {
-      it('for spent txid ' + data.txid + ' and output ' + data.outputIndex, function() {
-        var spent = bitcoind.isSpent(data.txid, data.outputIndex, true);
-        spent.should.equal(true);
-      });
-    });
-
-    unspentData.forEach(function(data) {
-      it('for unspent txid ' + data.txid + ' and output ' + data.outputIndex, function() {
-        var spent = bitcoind.isSpent(data.txid, data.outputIndex, true);
-        spent.should.equal(false);
-      });
-    });
-  });
-
-  describe('get blocks by hash', function() {
-
-    blockData.forEach(function(data) {
-      var block = bitcore.Block.fromString(data);
-      it('block ' + block.hash, function(done) {
-        bitcoind.getBlock(block.hash, function(err, response) {
-          assert(response.toString('hex') === data, 'incorrect block data for ' + block.hash);
-          done();
-        });
-      });
-    });
-  });
-
-  describe('get blocks by height', function() {
-
-    var knownHeights = [
-      [0, '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'],
-      [1, '00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048'],
-      [100000,'000000000003ba27aa200b1cecaad478d2b00432346c3f1f3986da1afd33e506'],
-      [314159, '00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45']
-    ];
-
-    knownHeights.forEach(function(data) {
-      it('block at height ' + data[0], function(done) {
-        bitcoind.getBlock(data[0], function(err, response) {
-          if (err) {
-            throw err;
-          }
-          var block = bitcore.Block.fromBuffer(response);
-          block.hash.should.equal(data[1]);
-          done();
-        });
-      });
-    });
-  });
-
-  describe('get chain work', function() {
-    it('will get the total work for the genesis block via hash', function() {
-      var hash = '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f';
-      var work = bitcoind.getChainWork(hash);
-      work.should.equal('0000000000000000000000000000000000000000000000000000000100010001');
-    });
-    it('will get the total work for block #300000 via hash', function() {
-      var hash = '000000000000000082ccf8f1557c5d40b21edabb18d2d691cfbf87118bac7254';
-      var work = bitcoind.getChainWork(hash);
-      work.should.equal('000000000000000000000000000000000000000000005a7b3c42ea8b844374e9');
-    });
-    it('will return undefined for unknown block', function() {
-      var hash = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
-      var work = bitcoind.getChainWork(hash);
-      should.equal(work, undefined);
     });
   });
 
@@ -186,4 +114,3 @@ describe('Basic Functionality', function() {
   });
 
 });
-
