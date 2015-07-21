@@ -10,3 +10,5 @@ before_install:
   - sudo apt-get install libdb4.8-dev libdb4.8++-dev
   - git config --global user.email "dev@bitpay.com"
   - git config --global user.name "BitPay, Inc."
+script:
+  - mocha -R spec integration/regtest.js
