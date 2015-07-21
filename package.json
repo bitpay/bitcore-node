@@ -29,7 +29,7 @@
   "scripts": {
     "preinstall": "./bin/build-libbitcoind",
     "install": "./bin/build-bindings",
-    "start": "export LD_LIBRARY_PATH=`./platform/os.sh osdir` && node example",
+    "start": "node example",
     "debug_install": "./bin/build-libbitcoind debug && ./bin/build-bindings debug",
     "test": "NODE_ENV=test mocha --recursive",
     "coverage": "istanbul cover _mocha -- --recursive"

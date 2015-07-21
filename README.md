@@ -20,11 +20,19 @@ npm install
 var BitcoinNode = require('bitcoind.js');
 
 var configuration = {
-  directory: '~/.bitcoin',
+  datadir: '~/.bitcoin',
   testnet: true
 };
 
 var node = new BitcoinNode(configuration);
+
+node.on('ready', function() {
+  console.log('Bitcoin Node Ready');
+});
+
+node.on('error', function(err) {
+  console.error(err);
+});
 
 node.chain.on('addblock', function(block) {
   console.log('New Best Tip:', block.hash);

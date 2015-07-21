@@ -11,6 +11,8 @@ var Block = require('../lib/block');
 var proxyquire = require('proxyquire');
 var chainlib = require('chainlib');
 var OriginalNode = chainlib.Node;
+var fs = require('fs');
+var bitcoinConfBuffer = fs.readFileSync('./test/data/bitcoin.conf');
 
 var BaseNode = function() {};
 util.inherits(BaseNode, EventEmitter);
@@ -19,16 +21,23 @@ BaseNode.prototype._loadConfiguration = sinon.spy();
 BaseNode.prototype._initialize = sinon.spy();
 chainlib.Node = BaseNode;
 
-var Node = proxyquire('../lib/node', {chainlib: chainlib});
+var Node = proxyquire('../lib/node', {
+  chainlib: chainlib,
+  fs: {
+    readFileSync: sinon.stub().returns(bitcoinConfBuffer)
+  }
+});
 chainlib.Node = OriginalNode;
 
 describe('Bitcoind Node', function() {
   describe('#_loadConfiguration', function() {
     it('should call the necessary methods', function() {
       var node = new Node({});
+      node._loadBitcoinConf = sinon.spy();
       node._loadBitcoind = sinon.spy();
       node._loadConfiguration({});
       node._loadBitcoind.called.should.equal(true);
+      node._loadBitcoinConf.called.should.equal(true);
       BaseNode.prototype._loadConfiguration.called.should.equal(true);
     });
   });
@@ -54,6 +63,22 @@ describe('Bitcoind Node', function() {
       (function(){
         node.setSyncStrategy('unknown');
       }).should.throw('Strategy "unknown" is unknown');
+    });
+  });
+  describe('#_loadBitcoinConf', function() {
+    it('will parse a bitcoin.conf file', function() {
+      var node = new Node({});
+      node._loadBitcoinConf({datadir: '~/.bitcoin'});
+      should.exist(node.bitcoinConfiguration);
+      node.bitcoinConfiguration.should.deep.equal({
+        server: 1,
+        whitelist: '127.0.0.1',
+        txindex: 1,
+        port: 20000,
+        rpcallowip: '127.0.0.1',
+        rpcuser: 'bitcoin',
+        rpcpassword: 'local321'
+      });
     });
   });
   describe('#_loadBitcoind', function() {
@@ -182,14 +207,43 @@ describe('Bitcoind Node', function() {
   });
   describe('#_loadDB', function() {
     it('should load the db', function() {
-      var DB = function() {};
+      var DB = function(config) {
+        config.path.should.equal(process.env.HOME + '/.bitcoin/bitcoindjs.db');
+      };
       var config = {
-        DB: DB
+        DB: DB,
+        datadir: '~/.bitcoin'
       };
 
       var node = new Node(config);
+      node.network = Networks.livenet;
       node._loadDB(config);
       node.db.should.be.instanceof(DB);
+    });
+    it('should load the db for testnet', function() {
+      var DB = function(config) {
+        config.path.should.equal(process.env.HOME + '/.bitcoin/testnet3/bitcoindjs.db');
+      };
+      var config = {
+        DB: DB,
+        datadir: '~/.bitcoin'
+      };
+
+      var node = new Node(config);
+      node.network = Networks.testnet;
+      node._loadDB(config);
+      node.db.should.be.instanceof(DB);
+    });
+    it('error with unknown network', function() {
+      var config = {
+        datadir: '~/.bitcoin'
+      };
+
+      var node = new Node(config);
+      node.network = 'not a network';
+      (function() {
+        node._loadDB(config);
+      }).should.throw('Unknown network');
     });
   });
   describe('#_loadP2P', function() {
