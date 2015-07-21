@@ -13,6 +13,7 @@ var should = chai.should();
 var assert = chai.assert;
 var sinon = require('sinon');
 var BitcoinRPC = require('bitcoind-rpc');
+var blockHashes = [];
 
 describe('Basic Functionality', function() {
 
@@ -52,10 +53,13 @@ describe('Basic Functionality', function() {
           pass: 'local321'
         });
 
-        client.generate(100, function(err) {
+        console.log('Generating 100 blocks...');
+
+        client.generate(100, function(err, response) {
           if (err) {
             throw err;
           }
+          blockHashes = response.result;
           done();
         });
 
@@ -120,6 +124,23 @@ describe('Basic Functionality', function() {
       outputs.should.deep.equal(expected);
     });
 
+  });
+
+  describe('get blocks by hash', function() {
+
+    [0,1,2,3,5,6,7,8,9].forEach(function(i) {
+      it('generated block ' + i, function(done) {
+        bitcoind.getBlock(blockHashes[i], function(err, response) {
+          if (err) {
+            throw err;
+          }
+          should.exist(response);
+          var block = bitcore.Block.fromBuffer(response);
+          block.hash.should.equal(blockHashes[i]);
+          done();
+        });
+      });
+    });
   });
 
 });
