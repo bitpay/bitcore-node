@@ -5,6 +5,7 @@
 
 var chai = require('chai');
 var bitcore = require('bitcore');
+var rimraf = require('rimraf');
 var bitcoind;
 
 /* jshint unused: false */
@@ -17,39 +18,45 @@ describe('Basic Functionality', function() {
 
   before(function(done) {
     this.timeout(30000);
-    bitcoind = require('../').daemon({
-      datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
-      network: 'regtest',
-      server: true,
-      rpcuser: 'bitcoin',
-      rpcpassword: 'local321',
-      rpcallowip: '127.0.0.1'
-    });
 
-    bitcoind.on('error', function(err) {
-      bitcoind.log('error="%s"', err.message);
-    });
+    rimraf('./data/regtest', function(err) {
 
-    bitcoind.on('open', function(status) {
-      bitcoind.log('status="%s"', status);
-    });
+      if (err) {
+        throw err;
+      }
 
-    console.log('Waiting for Bitcoin Core to initialize...');
-
-    bitcoind.on('ready', function() {
-
-      var client = new BitcoinRPC({
-        protocol: 'http',
-        host: '127.0.0.1',
-        port: 18332,
-        user: 'bitcoin',
-        pass: 'local321'
+      bitcoind = require('../').daemon({
+        datadir: './data',
+        network: 'regtest'
       });
 
-      client.generate(100, function(err, result) {
-        console.log('err', err);
-        console.log('result', result);
-        done();
+      bitcoind.on('error', function(err) {
+        bitcoind.log('error="%s"', err.message);
+      });
+
+      bitcoind.on('open', function(status) {
+        bitcoind.log('status="%s"', status);
+      });
+
+      console.log('Waiting for Bitcoin Core to initialize...');
+
+      bitcoind.on('ready', function() {
+
+        var client = new BitcoinRPC({
+          protocol: 'http',
+          host: '127.0.0.1',
+          port: 18332,
+          user: 'bitcoin',
+          pass: 'local321'
+        });
+
+        client.generate(100, function(err) {
+          if (err) {
+            throw err;
+          }
+          done();
+        });
+
       });
 
     });

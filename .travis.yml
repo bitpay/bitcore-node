@@ -11,4 +11,4 @@ before_install:
   - git config --global user.email "dev@bitpay.com"
   - git config --global user.name "BitPay, Inc."
 script:
-  - mocha -R spec integration/regtest.js
+  - _mocha -R spec integration/regtest.js
