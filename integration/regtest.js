@@ -143,4 +143,23 @@ describe('Basic Functionality', function() {
     });
   });
 
+  describe('get blocks by height', function() {
+
+    [0,1,2,3,5,6,7,8,9].forEach(function(i) {
+      it('generated block ' + i, function(done) {
+        // add the genesis block
+        var height = i + 1;
+        bitcoind.getBlock(i + 1, function(err, response) {
+          if (err) {
+            throw err;
+          }
+          should.exist(response);
+          var block = bitcore.Block.fromBuffer(response);
+          block.hash.should.equal(blockHashes[i]);
+          done();
+        });
+      });
+    });
+  });
+
 });
