@@ -11,6 +11,8 @@ var Block = require('../lib/block');
 var proxyquire = require('proxyquire');
 var chainlib = require('chainlib');
 var OriginalNode = chainlib.Node;
+var fs = require('fs');
+var bitcoinConfBuffer = fs.readFileSync('./test/data/bitcoin.conf');
 
 var BaseNode = function() {};
 util.inherits(BaseNode, EventEmitter);
@@ -19,7 +21,12 @@ BaseNode.prototype._loadConfiguration = sinon.spy();
 BaseNode.prototype._initialize = sinon.spy();
 chainlib.Node = BaseNode;
 
-var Node = proxyquire('../lib/node', {chainlib: chainlib});
+var Node = proxyquire('../lib/node', {
+  chainlib: chainlib,
+  fs: {
+    readFileSync: sinon.stub().returns(bitcoinConfBuffer)
+  }
+});
 chainlib.Node = OriginalNode;
 
 describe('Bitcoind Node', function() {
@@ -56,6 +63,22 @@ describe('Bitcoind Node', function() {
       (function(){
         node.setSyncStrategy('unknown');
       }).should.throw('Strategy "unknown" is unknown');
+    });
+  });
+  describe('#_loadBitcoinConf', function() {
+    it('will parse a bitcoin.conf file', function() {
+      var node = new Node({});
+      node._loadBitcoinConf({datadir: '~/.bitcoin'});
+      should.exist(node.bitcoinConfiguration);
+      node.bitcoinConfiguration.should.deep.equal({
+        server: 1,
+        whitelist: '127.0.0.1',
+        txindex: 1,
+        port: 20000,
+        rpcallowip: '127.0.0.1',
+        rpcuser: 'bitcoin',
+        rpcpassword: 'local321'
+      });
     });
   });
   describe('#_loadBitcoind', function() {
