@@ -1,7 +1,7 @@
 'use strict';
 
 // These tests require a fully synced Bitcore Code data directory.
-// To run the tests: $ mocha -R spec index.js
+// To run the tests: $ mocha -R spec livenet.js
 
 var chai = require('chai');
 var bitcore = require('bitcore');
@@ -23,7 +23,7 @@ describe('Basic Functionality', function() {
   before(function(done) {
     this.timeout(30000);
     bitcoind = require('../').daemon({
-      directory: process.env.BITCOINDJS_DIR || '~/.bitcoin',
+      datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
     });
 
     bitcoind.on('error', function(err) {

@@ -3,6 +3,7 @@ set -e
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 cd "${root_dir}"
+options=`cat ${root_dir}/bin/config_options.sh`
 
 os_dir=$(./platform/os.sh osdir)
 
@@ -10,8 +11,13 @@ os_dir=$(./platform/os.sh osdir)
 export LD_LIBRARY_PATH="${root_dir}/libbitcoind/src/leveldb":"${os_dir}":$LD_LIBRARY_PATH
 
 debug=
-if test x"$1" = x'debug'; then
-  debug=--enable-debug
+if [ "${BITCOINDJS_ENV}" == "debug" ]; then
+  options=`cat ${root_dir}/bin/config_options_debug.sh`
+fi
+
+test=
+if [ "${BITCOINDJS_ENV}" == "test" ]; then
+  options=`cat ${root_dir}/bin/config_options_test.sh`
 fi
 
 btc_dir="${root_dir}/libbitcoind"
@@ -50,12 +56,11 @@ if [ "${only_make}" = false ]; then
 
   echo './autogen.sh'
   ./autogen.sh
-  options=`cat ${root_dir}/bin/config_options.sh`
-  full_options="${options}${os_dir} ${debug}"
-  echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
-  ${full_options}
 fi
 
+full_options="${options}${os_dir}"
+echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
+${full_options}
 echo 'make V=1'
 make V=1
 

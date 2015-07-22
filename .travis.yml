@@ -1,7 +1,15 @@
 language: node_js
+env:
+- BITCOINDJS_ENV=test
 node_js:
   - "0.12"
 before_install:
   - sudo apt-get install libboost1.48-all-dev
+  - sudo add-apt-repository -y ppa:bitcoin/bitcoin
+  - sudo apt-get update
+  - sudo apt-get install libdb4.8-dev libdb4.8++-dev
   - git config --global user.email "dev@bitpay.com"
   - git config --global user.name "BitPay, Inc."
+script:
+  - _mocha -R spec integration/regtest.js
+  - _mocha -R spec --recursive

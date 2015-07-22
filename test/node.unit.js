@@ -168,38 +168,24 @@ describe('Bitcoind Node', function() {
     });
   });
   describe('#_loadNetwork', function() {
-    it('should add the network that was listed in the config', function() {
-      var config = {
-        network: {
-          name: 'chainlib',
-          alias: 'chainlib',
-          pubkeyhash: 0x1c,
-          privatekey: 0x1e,
-          scripthash: 0x28,
-          xpubkey: 0x02e8de8f,
-          xprivkey: 0x02e8da54,
-          networkMagic: 0x0c110907,
-          port: 9333
-        }
-      };
-      var node = new Node(config);
-      node._loadNetwork(config);
-      var network = Networks.get('chainlib');
-      should.exist(network);
-      node.network.name.should.equal('chainlib');
-    });
     it('should use the testnet network if testnet is specified', function() {
       var config = {
-        testnet: true
+        network: 'testnet'
       };
-
       var node = new Node(config);
       node._loadNetwork(config);
       node.network.name.should.equal('testnet');
     });
+    it('should use the regtest network if regtest is specified', function() {
+      var config = {
+        network: 'regtest'
+      };
+      var node = new Node(config);
+      node._loadNetwork(config);
+      node.network.name.should.equal('regtest');
+    });
     it('should use the livenet network if nothing is specified', function() {
       var config = {};
-
       var node = new Node(config);
       node._loadNetwork(config);
       node.network.name.should.equal('livenet');
@@ -244,6 +230,54 @@ describe('Bitcoind Node', function() {
       (function() {
         node._loadDB(config);
       }).should.throw('Unknown network');
+    });
+    it('should load the db with regtest', function() {
+      var DB = function(config) {
+        config.path.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcoindjs.db');
+      };
+      var config = {
+        DB: DB,
+        datadir: '~/.bitcoin'
+      };
+
+      var node = new Node(config);
+      // Switch to use regtest
+      Networks.remove(Networks.testnet);
+      Networks.add({
+        name: 'regtest',
+        alias: 'regtest',
+        pubkeyhash: 0x6f,
+        privatekey: 0xef,
+        scripthash: 0xc4,
+        xpubkey: 0x043587cf,
+        xprivkey: 0x04358394,
+        networkMagic: 0xfabfb5da,
+        port: 18444,
+        dnsSeeds: [ ]
+      });
+      var regtest = Networks.get('regtest');
+      node.network = regtest;
+      node._loadDB(config);
+      node.db.should.be.instanceof(DB);
+      Networks.remove(regtest);
+      // Add testnet back
+      Networks.add({
+        name: 'testnet',
+        alias: 'testnet',
+        pubkeyhash: 0x6f,
+        privatekey: 0xef,
+        scripthash: 0xc4,
+        xpubkey: 0x043587cf,
+        xprivkey: 0x04358394,
+        networkMagic: 0x0b110907,
+        port: 18333,
+        dnsSeeds: [
+          'testnet-seed.bitcoin.petertodd.org',
+          'testnet-seed.bluematt.me',
+          'testnet-seed.alexykot.me',
+          'testnet-seed.bitcoin.schildbach.de'
+        ]
+      });
     });
   });
   describe('#_loadP2P', function() {
