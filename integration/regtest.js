@@ -103,7 +103,7 @@ describe('Daemon Binding Functionality', function() {
             }
 
             var amount = response.result;
-            var fee = 0.0001;
+            var fee = 0.01;
             var network = bitcore.Networks.get('regtest');
             var address = privateKey.toAddress(network);
 
