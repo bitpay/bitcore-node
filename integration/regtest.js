@@ -1,7 +1,14 @@
 'use strict';
 
-// These tests require a fully synced Bitcore Code data directory.
-// To run the tests: $ mocha -R spec index.js
+// These tests require bitcoind.js Bitcoin Core bindings to be compiled with
+// the environment variable BITCOINDJS_ENV=test. This enables the use of regtest
+// functionality by including the wallet in the build.
+// To run the tests: $ mocha -R spec integration/regtest.js
+
+if (process.env.BITCOINDJS_ENV !== 'test') {
+  console.log('Please set the environment variable BITCOINDJS_ENV=test and make sure bindings are compiled for testing');
+  process.exit();
+}
 
 var chai = require('chai');
 var bitcore = require('bitcore');
