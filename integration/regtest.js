@@ -21,11 +21,30 @@ var assert = chai.assert;
 var sinon = require('sinon');
 var BitcoinRPC = require('bitcoind-rpc');
 var blockHashes = [];
+var unspentTransactions = [];
+var coinbasePrivateKey;
+var privateKey = bitcore.PrivateKey();
+var destKey = bitcore.PrivateKey();
 
-describe('Basic Functionality', function() {
+describe('Daemon Binding Functionality', function() {
 
   before(function(done) {
     this.timeout(30000);
+
+    // Add the regtest network
+    bitcore.Networks.remove(bitcore.Networks.testnet);
+    bitcore.Networks.add({
+      name: 'regtest',
+      alias: 'regtest',
+      pubkeyhash: 0x6f,
+      privatekey: 0xef,
+      scripthash: 0xc4,
+      xpubkey: 0x043587cf,
+      xprivkey: 0x04358394,
+      networkMagic: 0xfabfb5da,
+      port: 18444,
+      dnsSeeds: [ ]
+    });
 
     var datadir = __dirname + '/data';
 
@@ -62,18 +81,63 @@ describe('Basic Functionality', function() {
 
         console.log('Generating 100 blocks...');
 
-        client.generate(100, function(err, response) {
+        // Generate enough blocks so that the initial coinbase transactions
+        // can be spent.
+
+        client.generate(150, function(err, response) {
           if (err) {
             throw err;
           }
           blockHashes = response.result;
-          done();
+
+          // The original coinbase transactions when using regtest spend to
+          // a non-standard pubkeyout instead of a pubkeyhashout.
+          // We'll construct a new transaction that will send funds
+          // to a new address with pubkeyhashout for later testing.
+
+          console.log('Preparing unspent outputs...');
+
+          client.getBalance(function(err, response) {
+            if (err) {
+              throw err;
+            }
+
+            var amount = response.result;
+            var fee = 0.0001;
+            var network = bitcore.Networks.get('regtest');
+            var address = privateKey.toAddress(network);
+
+            client.sendToAddress(address, amount - fee, '', '', function(err, response) {
+              if (err) {
+                throw err;
+              }
+
+              var txid = response.result;
+              client.getTransaction(txid, function(err, response) {
+                if (err) {
+                  throw err;
+                }
+
+                var tx = bitcore.Transaction();
+                tx.fromString(response.result.hex);
+                unspentTransactions.push(tx);
+
+                // Include this transaction in a block so that it can
+                // be spent in tests
+                client.generate(1, function(err, response) {
+                  if (err) {
+                    throw err;
+                  }
+
+                  console.log('Testing setup complete!');
+                  done();
+                });
+              });
+            });
+          });
         });
-
       });
-
     });
-
   });
 
   after(function(done) {
@@ -167,6 +231,34 @@ describe('Basic Functionality', function() {
         });
       });
     });
+  });
+
+  describe('send transaction functionality', function() {
+
+    it('will not error and return the transaction hash', function() {
+
+      var unspentTx = unspentTransactions.shift();
+
+      var utxo = {
+        txid: unspentTx.hash,
+        outputIndex: 1,
+        script: unspentTx.outputs[1].script,
+        satoshis: unspentTx.outputs[1].satoshis
+      };
+
+      // create and sign the transaction
+      var tx = bitcore.Transaction();
+      tx.from(utxo);
+      tx.change(privateKey.toAddress());
+      tx.to(destKey.toAddress(), 100000);
+      tx.sign(privateKey);
+
+      // test sending the transaction
+      var hash = bitcoind.sendTransaction(tx.serialize());
+      hash.should.equal(tx.hash);
+
+    });
+
   });
 
 });
