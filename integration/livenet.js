@@ -167,7 +167,6 @@ describe('Basic Functionality', function() {
         var expected = tx.toBuffer().toString('hex');
         txBuffer.toString('hex').should.equal(expected);
       });
-
     });
 
     it('get outputs by address', function() {
