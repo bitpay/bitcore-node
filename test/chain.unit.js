@@ -93,20 +93,22 @@ describe('Bitcoin Chain', function() {
     var chain = new Chain();
     chain.db = {
       bitcoind: {
-        getChainWork: sinon.stub().returns(work)
+        getBlockIndex: sinon.stub().returns({
+          chainWork: work
+        })
       }
     };
 
     it('should give the weight as a BN', function(done) {
       chain.getWeight('hash', function(err, weight) {
         should.not.exist(err);
-        weight.toString(16).should.equal('5a7b3c42ea8b844374e9');
+        weight.toString(16, 64).should.equal(work);
         done();
       });
     });
 
     it('should give an error if the weight is undefined', function(done) {
-      chain.db.bitcoind.getChainWork = sinon.stub().returns(undefined);
+      chain.db.bitcoind.getBlockIndex = sinon.stub().returns(undefined);
       chain.getWeight('hash2', function(err, weight) {
         should.exist(err);
         done();

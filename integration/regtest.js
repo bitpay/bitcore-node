@@ -12,6 +12,7 @@ if (process.env.BITCOINDJS_ENV !== 'test') {
 
 var chai = require('chai');
 var bitcore = require('bitcore');
+var BN = bitcore.crypto.BN;
 var rimraf = require('rimraf');
 var bitcoind;
 
@@ -259,6 +260,22 @@ describe('Daemon Binding Functionality', function() {
 
     });
 
+  });
+
+  describe('get block index', function() {
+    var expectedWork = new BN(6);
+    [1,2,3,4,5,6,7,8,9].forEach(function(i) {
+      it('generate block ' + i, function() {
+        var blockIndex = bitcoind.getBlockIndex(blockHashes[i]);
+        should.exist(blockIndex);
+        should.exist(blockIndex.chainWork);
+        var work = new BN(blockIndex.chainWork, 'hex');
+        work.cmp(expectedWork).should.equal(0);
+        expectedWork = expectedWork.add(new BN(2));
+        should.exist(blockIndex.prevHash);
+        blockIndex.prevHash.should.equal(blockHashes[i - 1]);
+      });
+    });
   });
 
 });

@@ -23,7 +23,7 @@ NAN_METHOD(GetBlock);
 NAN_METHOD(GetTransaction);
 NAN_METHOD(GetInfo);
 NAN_METHOD(IsSpent);
-NAN_METHOD(GetChainWork);
+NAN_METHOD(GetBlockIndex);
 NAN_METHOD(GetMempoolOutputs);
 NAN_METHOD(AddMempoolUncheckedTransaction);
 NAN_METHOD(VerifyScript);
