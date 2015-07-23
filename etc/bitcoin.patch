@@ -1,9 +1,3 @@
-commit 29c1ca452ba6178d6b17be0a0b5a65567ba846af
-Author: Chris Kleeschulte <chrisk@bitpay.com>
-Date:   Mon Jul 13 16:35:37 2015 -0400
-
-    allow compiling of libbitcoind.so.
-
 diff --git a/config_me.sh b/config_me.sh
 new file mode 100644
 index 0000000..19e9a1b
@@ -18,7 +12,7 @@ index 37fe47e..83cfe70 100644
 @@ -119,6 +119,12 @@ AC_ARG_ENABLE([reduce-exports],
    [use_reduce_exports=$enableval],
    [use_reduce_exports=no])
- 
+
 +AC_ARG_ENABLE([daemonlib],
 +  [AS_HELP_STRING([--enable-daemonlib],
 +  [compile all of bitcoind as a library (default is no)])],
@@ -35,13 +29,13 @@ index 37fe47e..83cfe70 100644
 +  if test x$use_daemonlib = xno; then
 +    AX_CHECK_COMPILE_FLAG([-fPIE],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fPIE"])
 +  fi
- 
+
    AX_CHECK_PREPROC_FLAG([-D_FORTIFY_SOURCE=2],[
      AX_CHECK_PREPROC_FLAG([-U_FORTIFY_SOURCE],[
 @@ -415,7 +424,7 @@ if test x$use_hardening != xno; then
    AX_CHECK_LINK_FLAG([[-Wl,-z,relro]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,relro"])
    AX_CHECK_LINK_FLAG([[-Wl,-z,now]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -Wl,-z,now"])
- 
+
 -  if test x$TARGET_OS != xwindows; then
 +  if test x$TARGET_OS != xwindows -a x$use_daemonlib = xno; then
      # All windows code is PIC, forcing it on just adds useless compile warnings
@@ -50,7 +44,7 @@ index 37fe47e..83cfe70 100644
 @@ -433,6 +442,17 @@ if test x$use_hardening != xno; then
    OBJCXXFLAGS="$CXXFLAGS"
  fi
- 
+
 +AC_DEFINE([ENABLE_DAEMONLIB],[0],[Enable daemonlib.])
 +AM_CONDITIONAL([ENABLE_DAEMONLIB],[false])
 +if test x$use_daemonlib != xno; then
@@ -68,13 +62,13 @@ index 37fe47e..83cfe70 100644
 @@ -483,11 +503,18 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([
    ]
  )
- 
+
 -if test x$use_reduce_exports = xyes; then
 +if test x$use_reduce_exports = xyes -a x$use_daemonlib = xno; then
    AX_CHECK_COMPILE_FLAG([-fvisibility=hidden],[RE_CXXFLAGS="-fvisibility=hidden"],
    [AC_MSG_ERROR([Cannot set default symbol visibility. Use --disable-reduce-exports.])])
  fi
- 
+
 +AC_MSG_CHECKING([whether to compile as daemonlib])
 +if test x$use_daemonlib != xno; then
 +  AC_MSG_RESULT([yes])
@@ -92,10 +86,10 @@ index 1c2f770..ddcae0f 100644
 @@ -1,6 +1,8 @@
  DIST_SUBDIRS = secp256k1
  AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS)
- 
+
 +lib_LTLIBRARIES =
 +libbitcoind_la_LIBADD =
- 
+
  if EMBEDDED_LEVELDB
  LEVELDB_CPPFLAGS += -I$(srcdir)/leveldb/include
 @@ -15,6 +17,10 @@ $(LIBLEVELDB) $(LIBMEMENV):
@@ -107,12 +101,12 @@ index 1c2f770..ddcae0f 100644
 +	@echo "Building the LevelDB shared library..." && $(MAKE) -C ./leveldb
 +
  endif
- 
+
  BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 @@ -49,16 +55,16 @@ BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
  EXTRA_LIBRARIES += libbitcoin_wallet.a
  endif
- 
+
 -if BUILD_BITCOIN_LIBS
 -lib_LTLIBRARIES = libbitcoinconsensus.la
 -LIBBITCOIN_CONSENSUS=libbitcoinconsensus.la
@@ -123,7 +117,7 @@ index 1c2f770..ddcae0f 100644
 +LIBBITCOIN_CONSENSUS =
  bin_PROGRAMS =
  TESTS =
- 
+
 +if BUILD_BITCOIN_LIBS
 +lib_LTLIBRARIES += libbitcoinconsensus.la
 +LIBBITCOIN_CONSENSUS += libbitcoinconsensus.la
@@ -140,7 +134,7 @@ index 1c2f770..ddcae0f 100644
 +else
 +lib_LTLIBRARIES += libbitcoind.la
 +endif
- 
+
  .PHONY: FORCE
  # bitcoin core #
 @@ -169,8 +178,9 @@ obj/build.h: FORCE
@@ -148,7 +142,7 @@ index 1c2f770..ddcae0f 100644
  	@$(top_srcdir)/share/genbuild.sh $(abs_top_builddir)/src/obj/build.h \
  	  $(abs_top_srcdir)
 -libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
- 
+
 +libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 +clientversion.cpp: obj/build.h
  # server: shared between bitcoind and bitcoin-qt
@@ -166,21 +160,21 @@ index 1c2f770..ddcae0f 100644
 +libbitcoind_la_SOURCES += $(libbitcoin_server_a_SOURCES)
 +libbitcoind_la_SOURCES += $(crypto_libbitcoin_crypto_a_SOURCES)
 +libbitcoind_la_SOURCES += $(univalue_libbitcoin_univalue_a_SOURCES)
- 
+
  if TARGET_WINDOWS
  bitcoind_SOURCES += bitcoind-res.rc
 +libbitcoind_la_SOURCES += bitcoind-res.rc
  endif
- 
+
  bitcoind_LDADD = \
 @@ -326,9 +345,19 @@ bitcoind_LDADD = \
- 
+
  if ENABLE_WALLET
  bitcoind_LDADD += libbitcoin_wallet.a
 +libbitcoind_la_LIBADD += $(BDB_LIBS)
 +libbitcoind_la_SOURCES += $(libbitcoin_wallet_a_SOURCES)
  endif
- 
+
 +MEMOBJ = helpers/memenv/memenv.lo
 +$(MEMOBJ):
 +	@echo "Building the Memenv shared library..." && $(MAKE) -C ./leveldb $@
@@ -191,16 +185,16 @@ index 1c2f770..ddcae0f 100644
 +libbitcoind_la_LDFLAGS = -lleveldb -L./leveldb $(RELDFLAGS) -no-undefined
 +libbitcoind_la_DEPENDENCIES = $(LIBSECP256K1) LIBLEVELDB_SHARED $(MEMOBJ)
  #
- 
+
  # bitcoin-cli binary #
 diff --git a/src/bitcoind.cpp b/src/bitcoind.cpp
 index cce687a..0f162ff 100644
 --- a/src/bitcoind.cpp
 +++ b/src/bitcoind.cpp
 @@ -33,6 +33,10 @@
- 
+
  static bool fDaemon;
- 
+
 +#if ENABLE_DAEMONLIB
 +extern void WaitForShutdown(boost::thread_group* threadGroup);
 +#endif
@@ -211,13 +205,13 @@ index cce687a..0f162ff 100644
 @@ -166,6 +170,7 @@ bool AppInit(int argc, char* argv[])
      return fRet;
  }
- 
+
 +#if !ENABLE_DAEMONLIB
  int main(int argc, char* argv[])
  {
      SetupEnvironment();
 @@ -175,3 +180,4 @@ int main(int argc, char* argv[])
- 
+
      return (AppInit(argc, argv) ? 0 : 1);
  }
 +#endif
@@ -226,9 +220,9 @@ index dcb2b29..5ce68ba 100644
 --- a/src/init.h
 +++ b/src/init.h
 @@ -18,6 +18,11 @@ class thread_group;
- 
+
  extern CWallet* pwalletMain;
- 
+
 +#if ENABLE_DAEMONLIB
 +#include <boost/filesystem/path.hpp>
 +#include <boost/thread/mutex.hpp>
@@ -243,24 +237,24 @@ index 2bd2cad..490ba66 100644
 +++ b/src/leveldb/Makefile
 @@ -103,7 +103,7 @@ check: all $(PROGRAMS) $(TESTS)
  	for t in $(TESTS); do echo "***** Running $$t"; ./$$t || exit 1; done
- 
+
  clean:
 -	-rm -f $(PROGRAMS) $(BENCHMARKS) $(LIBRARY) $(SHARED) $(MEMENVLIBRARY) */*.o */*/*.o ios-x86/*/*.o ios-arm/*/*.o build_config.mk
 +	-rm -f $(PROGRAMS) $(BENCHMARKS) $(LIBRARY) $(SHARED) $(MEMENVLIBRARY) */*.o */*/*.lo helpers/memenv/.deps/*.Plo helpers/memenv/.deps/*.Tpo */*/*.o ios-x86/*/*.o ios-arm/*/*.o build_config.mk
  	-rm -rf ios-x86/* ios-arm/*
- 
+
  $(LIBRARY): $(LIBOBJECTS)
 @@ -192,6 +192,10 @@ $(MEMENVLIBRARY) : $(MEMENVOBJECTS)
  	rm -f $@
  	$(AR) -rs $@ $(MEMENVOBJECTS)
- 
+
 +helpers/memenv/memenv.lo: helpers/memenv/memenv.cc
 +	-mkdir -p helpers/memenv/.deps
 +	/bin/bash ../../libtool  --tag=CXX --mode=compile $(CXX) $(CXXFLAGS) $(CFLAGS) -fPIC -MT $@ -MD -MP -MF helpers/memenv/.deps/memenv.Tpo -c -o $@ $<
 +
  memenv_test : helpers/memenv/memenv_test.o $(MEMENVLIBRARY) $(LIBRARY) $(TESTHARNESS)
  	$(CXX) $(LDFLAGS) helpers/memenv/memenv_test.o $(MEMENVLIBRARY) $(LIBRARY) $(TESTHARNESS) -o $@ $(LIBS)
- 
+
 diff --git a/src/leveldbwrapper.h b/src/leveldbwrapper.h
 index c65e842..0e44bb5 100644
 --- a/src/leveldbwrapper.h
@@ -268,14 +262,14 @@ index c65e842..0e44bb5 100644
 @@ -29,10 +29,16 @@ class CLevelDBBatch
  {
      friend class CLevelDBWrapper;
- 
+
 +#if ENABLE_DAEMONLIB
 +public:
 +#else
  private:
 +#endif
      leveldb::WriteBatch batch;
- 
+
 +#if !ENABLE_DAEMONLIB
  public:
 +#endif
@@ -283,7 +277,7 @@ index c65e842..0e44bb5 100644
      void Write(const K& key, const V& value)
      {
 @@ -63,7 +69,11 @@ public:
- 
+
  class CLevelDBWrapper
  {
 +#if ENABLE_DAEMONLIB
@@ -293,14 +287,14 @@ index c65e842..0e44bb5 100644
 +#endif
      //! custom environment this database is using (may be NULL in case of default environment)
      leveldb::Env* penv;
- 
+
 @@ -85,7 +95,9 @@ private:
      //! the database itself
      leveldb::DB* pdb;
- 
+
 +#if !ENABLE_DAEMONLIB
  public:
 +#endif
      CLevelDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory = false, bool fWipe = false);
      ~CLevelDBWrapper();
- 
+

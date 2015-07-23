@@ -1,12 +1,26 @@
 #!/bin/bash
-set -e
-
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 cd "${root_dir}"
 options=`cat ${root_dir}/bin/config_options.sh`
 
 os_dir=$(./platform/os.sh osdir)
 
+get_patch_file () {
+  if test -e "${root_dir/PATCH_VERSION}"; then
+    tag=`cat "${root_dir}/PATCH_VERSION" | xargs`
+  else
+    echo "no tag file found, please create it in the root of the project as so: 'echo \"v0.10.2\" > PATCH_VERSION'"
+    exit 1
+  fi
+}
+
+compare_patch () {
+  cd "${root_dir}/libbitcoind"
+  get_patch_file
+  echo "running the diff command from HEAD to ${tag}"
+  git diff ${tag}..HEAD > /tmp/tmp.patch #uncommitted changes won't affect things here
+  matching_patch=`diff -w /tmp/tmp.patch "${root_dir}/etc/bitcoin.patch"` 
+}
 #set the LD_LIBRARY_PATH for the linux clients.
 export LD_LIBRARY_PATH="${root_dir}/libbitcoind/src/leveldb":"${os_dir}":$LD_LIBRARY_PATH
 
@@ -26,23 +40,41 @@ echo "Using BTC directory: ${btc_dir}"
 rm -f "${os_dir}/libbitcoind.*"
 only_make=false
 if [ -d "${root_dir}/libbitcoind" ]; then
-  echo "Running make inside libbitcoind (assuming you've previously patched and configured libbitcoind)..."
-  cd "${btc_dir}"
-  only_make=true
-else
-  echo "Removing cloning, patching, and building libbitcoind..."
+  echo "running compare patch..."
+  compare_patch
+  repatch=false
+  if [[ "${matching_patch}" =~ [^\s\\] ]]; then
+    echo "Warning! libbitcoind is not patched with:\
+  ${root_dir}/etc/bitcoin.patch."
+    echo -n "Would you like to remove the current patch, checkout the tag: ${tag} and \
+apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
+    if [ "${BITCOINDJS_ASSUME_YES}" = true ]; then
+      input=y
+      echo ""
+    else
+      read input
+    fi
+    if [[ "${input}" =~ ^y|^Y ]]; then
+      repatch=true
+      echo "Removing directory: \"${root_dir}/libbitcoind\" and starting over!"
+      rm -fr "${root_dir}"/libbitcoind
+    fi
+  fi
+  if [ "${repatch}" = false ]; then
+    echo "Running make inside libbitcoind (assuming you've previously patched and configured libbitcoind)..."
+    cd "${btc_dir}"
+    only_make=true
+  fi
 fi
 
-if [ "${only_make}" = false ]; then
-  if test -e "${root_dir/PATCH_VERSION}"; then
-    tag=`cat "${root_dir}/PATCH_VERSION" | xargs`
-  else
-    echo "no tag file found, please create it in the root of the project as so: 'echo \"v0.10.2\" > PATCH_VERSION'"
-    exit 0
-  fi
+set -e
 
+if [ "${only_make}" = false ]; then
+  echo "Removing cloning, patching, and building libbitcoind..."
+  get_patch_file
   echo "attempting to checkout tag: ${tag} of bitcoin from github..."
-  git clone --depth 1 --branch "${tag}" git://github.com/bitcoin/bitcoin.git libbitcoind
+  cd "${root_dir}"
+  git clone --depth 1 --branch "${tag}" https://github.com/bitcoin/bitcoin.git libbitcoind
 
   cd "${btc_dir}"
 
@@ -54,10 +86,10 @@ if [ "${only_make}" = false ]; then
     exit 1
   fi
 
-  echo './autogen.sh'
-  ./autogen.sh
 fi
 
+echo './autogen.sh'
+./autogen.sh
 full_options="${options}${os_dir}"
 echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
 ${full_options}
