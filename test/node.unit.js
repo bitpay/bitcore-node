@@ -41,30 +41,6 @@ describe('Bitcoind Node', function() {
       BaseNode.prototype._loadConfiguration.called.should.equal(true);
     });
   });
-  describe('#setSyncStrategy', function() {
-    it('will call p2p.startSync', function() {
-      var node = new Node({});
-      node.p2p = {
-        startSync: sinon.spy()
-      };
-      node.setSyncStrategy(Node.SYNC_STRATEGIES.P2P);
-      node.p2p.startSync.callCount.should.equal(1);
-    });
-    it('will call this._syncBitcoind and disable p2p sync', function() {
-      var node = new Node({});
-      node.p2p = {};
-      node._syncBitcoind = sinon.spy();
-      node.setSyncStrategy(Node.SYNC_STRATEGIES.BITCOIND);
-      node._syncBitcoind.callCount.should.equal(1);
-      node.p2p.disableSync.should.equal(true);
-    });
-    it('will error with an unknown strategy', function() {
-      var node = new Node({});
-      (function(){
-        node.setSyncStrategy('unknown');
-      }).should.throw('Strategy "unknown" is unknown');
-    });
-  });
   describe('#_loadBitcoinConf', function() {
     it('will parse a bitcoin.conf file', function() {
       var node = new Node({});
@@ -84,53 +60,48 @@ describe('Bitcoind Node', function() {
   describe('#_loadBitcoind', function() {
     it('should initialize', function() {
       var node = new Node({});
-      node._loadBitcoind({});
+      node._loadBitcoind({datadir: './test'});
       should.exist(node.bitcoind);
     });
     it('should initialize with testnet', function() {
       var node = new Node({});
-      node._loadBitcoind({testnet: true});
+      node._loadBitcoind({datadir: './test', testnet: true});
       should.exist(node.bitcoind);
     });
   });
   describe('#_syncBitcoind', function() {
     it('will get and add block up to the tip height', function(done) {
       var node = new Node({});
-      node.p2p = {
-        synced: false
-      };
       node.Block = Block;
-      node.syncStrategy = Node.SYNC_STRATEGIES.BITCOIND;
-      node.setSyncStrategy = sinon.stub();
+      node.bitcoindHeight = 1;
+      var blockBuffer = new Buffer(blockData);
+      var block = Block.fromBuffer(blockBuffer);
       node.bitcoind = {
-        getInfo: sinon.stub().returns({blocks: 2}),
-        getBlock: sinon.stub().callsArgWith(1, null, new Buffer(blockData))
+        getBlock: sinon.stub().callsArgWith(1, null, blockBuffer)
       };
       node.chain = {
         tip: {
-          __height: 0
+          __height: 0,
+          hash: block.prevHash
         },
-        addBlock: function(block, callback) {
+        saveMetadata: sinon.stub(),
+        emit: sinon.stub()
+      };
+      node.db = {
+        _onChainAddBlock: function(block, callback) {
           node.chain.tip.__height += 1;
           callback();
         }
       };
       node.on('synced', function() {
-        node.p2p.synced.should.equal(true);
-        node.setSyncStrategy.callCount.should.equal(1);
         done();
       });
       node._syncBitcoind();
     });
     it('will exit and emit error with error from bitcoind.getBlock', function(done) {
       var node = new Node({});
-      node.p2p = {
-        synced: false
-      };
-      node.syncStrategy = Node.SYNC_STRATEGIES.BITCOIND;
-      node.setSyncStrategy = sinon.stub();
+      node.bitcoindHeight = 1;
       node.bitcoind = {
-        getInfo: sinon.stub().returns({blocks: 2}),
         getBlock: sinon.stub().callsArgWith(1, new Error('test error'))
       };
       node.chain = {
@@ -140,28 +111,6 @@ describe('Bitcoind Node', function() {
       };
       node.on('error', function(err) {
         err.message.should.equal('test error');
-        done();
-      });
-      node._syncBitcoind();
-    });
-    it('will exit if sync strategy is changed to bitcoind', function(done) {
-      var node = new Node({});
-      node.p2p = {
-        synced: false
-      };
-      node.syncStrategy = Node.SYNC_STRATEGIES.P2P;
-      node.setSyncStrategy = sinon.stub();
-      node.bitcoind = {
-        getInfo: sinon.stub().returns({blocks: 2})
-      };
-      node.chain = {
-        tip: {
-          __height: 0
-        }
-      };
-      node.on('synced', function() {
-        node.p2p.synced.should.equal(true);
-        node.setSyncStrategy.callCount.should.equal(1);
         done();
       });
       node._syncBitcoind();
@@ -280,22 +229,6 @@ describe('Bitcoind Node', function() {
       });
     });
   });
-  describe('#_loadP2P', function() {
-    it('should load p2p', function() {
-      var config = {};
-
-      var node = new Node(config);
-      node.db = {
-        Transaction: bitcore.Transaction
-      };
-      node.network = Networks.get('testnet');
-      node._loadP2P(config);
-      should.exist(node.p2p);
-      node.p2p.noListen.should.equal(true);
-      node.p2p.pool.network.should.deep.equal(node.network);
-      node.db.Transaction.should.equal(bitcore.Transaction);
-    });
-  });
   describe('#_loadConsensus', function() {
     var node = new Node({});
 
@@ -327,6 +260,7 @@ describe('Bitcoind Node', function() {
     it('will call db.initialize() on ready event', function(done) {
       var node = new Node({});
       node.bitcoind = new EventEmitter();
+      node.bitcoind.getInfo = sinon.stub().returns({blocks: 10});
       node.db = {
         initialize: sinon.spy()
       };
@@ -336,6 +270,7 @@ describe('Bitcoind Node', function() {
           chainlib.log.info.callCount.should.equal(1);
           chainlib.log.info.restore();
           node.db.initialize.callCount.should.equal(1);
+          node.bitcoindHeight.should.equal(10);
           done();
         });
       });
@@ -388,24 +323,6 @@ describe('Bitcoind Node', function() {
   });
 
   describe('#_initializeChain', function() {
-    it('will call p2p.initialize() on ready event', function(done) {
-      var node = new Node({});
-      node.chain = new EventEmitter();
-      node.p2p = {
-        initialize: sinon.spy()
-      };
-      sinon.stub(chainlib.log, 'info');
-      node.chain.on('ready', function() {
-        setImmediate(function() {
-          chainlib.log.info.callCount.should.equal(1);
-          chainlib.log.info.restore();
-          node.p2p.initialize.callCount.should.equal(1);
-          done();
-        });
-      });
-      node._initializeChain();
-      node.chain.emit('ready');
-    });
     it('will call emit an error from chain', function(done) {
       var node = new Node({});
       node.chain = new EventEmitter();
@@ -419,41 +336,6 @@ describe('Bitcoind Node', function() {
     });
   });
 
-  describe('#_initializeP2P', function() {
-    it('will emit node "ready" when p2p is ready', function(done) {
-      var node = new Node({});
-      node.p2p = new EventEmitter();
-      sinon.stub(chainlib.log, 'info');
-      node.on('ready', function() {
-        chainlib.log.info.callCount.should.equal(1);
-        chainlib.log.info.restore();
-        done();
-      });
-      node._initializeP2P();
-      node.p2p.emit('ready');
-    });
-    it('will call emit an error from p2p', function(done) {
-      var node = new Node({});
-      node.p2p = new EventEmitter();
-      node.on('error', function(err) {
-        should.exist(err);
-        err.message.should.equal('test error');
-        done();
-      });
-      node._initializeP2P();
-      node.p2p.emit('error', new Error('test error'));
-    });
-    it('will relay synced event from p2p to node', function(done) {
-      var node = new Node({});
-      node.p2p = new EventEmitter();
-      node.on('synced', function() {
-        done();
-      });
-      node._initializeP2P();
-      node.p2p.emit('synced');
-    });
-  });
-
   describe('#_initialize', function() {
 
     it('should initialize', function(done) {
@@ -461,13 +343,11 @@ describe('Bitcoind Node', function() {
       node.chain = {};
       node.Block = 'Block';
       node.bitcoind = 'bitcoind';
-      node.p2p = {};
       node.db = {};
 
       node._initializeBitcoind = sinon.spy();
       node._initializeDatabase = sinon.spy();
       node._initializeChain = sinon.spy();
-      node._initializeP2P = sinon.spy();
       node._initialize();
 
       // references
@@ -475,21 +355,16 @@ describe('Bitcoind Node', function() {
       node.db.Block.should.equal(node.Block);
       node.db.bitcoind.should.equal(node.bitcoind);
       node.chain.db.should.equal(node.db);
-      node.chain.p2p.should.equal(node.p2p);
       node.chain.db.should.equal(node.db);
-      node.p2p.db.should.equal(node.db);
-      node.p2p.chain.should.equal(node.chain);
 
       // events
       node._initializeBitcoind.callCount.should.equal(1);
       node._initializeDatabase.callCount.should.equal(1);
       node._initializeChain.callCount.should.equal(1);
-      node._initializeP2P.callCount.should.equal(1);
 
       // start syncing
       node.setSyncStrategy = sinon.spy();
       node.on('ready', function() {
-        node.setSyncStrategy.callCount.should.equal(1);
         done();
       });
       node.emit('ready');
