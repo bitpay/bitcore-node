@@ -301,15 +301,11 @@ describe('Bitcoin DB', function() {
       inherits(Module1, BaseModule);
 
       var db = new DB({store: memdown});
-      db.bitcoind = {};
-      db.network = {};
       db.modules = [];
       db.addModule(Module1);
 
       db.modules.length.should.equal(1);
       should.exist(db.modules[0].db);
-      should.exist(db.modules[0].bitcoind);
-      should.exist(db.modules[0].network);
     });
 
     it('should throw an error if module is not an instance of BaseModule', function() {

@@ -77,7 +77,7 @@ describe('AddressModule', function() {
     var value64 = data[2].value;
 
     it('should create the correct operations when updating/adding outputs', function(done) {
-      am.blockHandler({height: 345003, timestamp: new Date(1424836934000)}, true, function(err, operations) {
+      am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, true, function(err, operations) {
         should.not.exist(err);
         operations.length.should.equal(11);
         operations[0].type.should.equal('put');
@@ -88,7 +88,7 @@ describe('AddressModule', function() {
       });
     });
     it('should create the correct operations when removing outputs', function(done) {
-      am.blockHandler({height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
+      am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
         should.not.exist(err);
         operations.length.should.equal(11);
         operations[0].type.should.equal('del');
@@ -118,7 +118,7 @@ describe('AddressModule', function() {
 
       var am = new AddressModule({db: db, network: 'livenet'});
 
-      am.blockHandler({height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
+      am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
         should.not.exist(err);
         operations.length.should.equal(0);
         done();
@@ -170,7 +170,7 @@ describe('AddressModule', function() {
           blockHeight: 352532
         }
       ];
-      am.bitcoind = {
+      am.db.bitcoind = {
         getMempoolOutputs: sinon.stub().returns(mempoolOutputs)
       };
 
@@ -313,8 +313,8 @@ describe('AddressModule', function() {
   });
 
   describe('#isSpent', function() {
-    var am = new AddressModule({});
-    am.bitcoind = {
+    var am = new AddressModule({db: {}});
+    am.db.bitcoind = {
       isSpent: sinon.stub().returns(true)
     };
 
