@@ -99,6 +99,94 @@ $ tail -f ~/.bitcoin/debug.log
 
 ^C (SIGINT) will call `StartShutdown()` in bitcoind on the node thread pool.
 
+## Modules
+
+Bitcoind.js has a module system where additional information can be indexed and queried from 
+the blockchain. One built-in module is the address module which exposes the API methods for getting balances and outputs.
+
+### Writing a module
+
+A new module can be created by inheriting from `BitcoindJS.Module`, implementing the methods() and blockHandler() methods, and any additional methods for querying the data. Here is an example:
+
+```js
+var inherits = require('util').inherits;
+var BitcoindJS = require('bitcoind.js');
+
+var MyModule = function(options) {
+  BitcoindJS.Module.call(this, options);
+};
+
+inherits(MyModule, BitcoindJS.Module);
+
+/**
+ * blockHandler
+ * @param {Block} block - the block being added or removed from the chain
+ * @param {Boolean} add - whether the block is being added or removed
+ * @param {Function} callback - call with the leveldb database operations to perform
+ */
+MyModule.prototype.blockHandler = function(block, add, callback) {
+  var transactions = this.db.getTransactionsFromBlock(block);
+  // loop through transactions and outputs
+  // call the callback with leveldb database operations
+  var operations = [];
+  if(add) {
+    operations.push({
+      type: 'put',
+      key: 'key',
+      value: 'value'
+    });
+  } else {
+    operations.push({
+      type: 'del',
+      key: 'key'
+    });
+  }
+
+  // If your function is not asynchronous, it is important to use setImmediate.
+  setImmediate(function() {
+    callback(null, operations);
+  });
+};
+
+/**
+ * the API methods to expose
+ * @return {Array} return array of methods
+ */
+MyModule.prototype.methods = function() {
+  return [
+    ['getData', this, this.getData, 1]
+  ];
+};
+
+MyModule.prototype.getData = function(arg1, callback) {
+  // You can query the data by reading from the leveldb store on db
+  this.db.store.get(arg1, callback);
+};
+
+module.exports = MyModule;
+```
+
+The module can then be used when running a node:
+
+```js
+var configuration = {
+  datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
+  db: {
+    modules: [MyModule]
+  }
+};
+
+var node = new BitcoindJS.Node(configuration);
+
+node.on('ready', function() {
+  node.getData('key', function(err, value) {
+    console.log(err || value);
+  });
+});
+```
+
+Note that if you already have a bitcoind.js database, and you want to query data from previous blocks in the blockchain, you will need to reindex. Reindexing right now means deleting your bitcoind.js database and resyncing.
+
 ## Daemon Documentation
 
 - `daemon.start([options], [callback])` - Start the JavaScript Bitcoin node.
