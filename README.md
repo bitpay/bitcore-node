@@ -104,9 +104,9 @@ $ tail -f ~/.bitcoin/debug.log
 Bitcoind.js has a module system where additional information can be indexed and queried from 
 the blockchain. One built-in module is the address module which exposes the API methods for getting balances and outputs.
 
-### Writing a module
+### Writing a Module
 
-A new module can be created by inheriting from `BitcoindJS.Module`, implementing the methods() and blockHandler() methods, and any additional methods for querying the data. Here is an example:
+A new module can be created by inheriting from `BitcoindJS.Module`, implementing the methods `blockHandler()` and `getAPIMethods()`, and any additional methods for querying the data. Here is an example:
 
 ```js
 var inherits = require('util').inherits;
@@ -152,7 +152,7 @@ MyModule.prototype.blockHandler = function(block, add, callback) {
  * the API methods to expose
  * @return {Array} return array of methods
  */
-MyModule.prototype.methods = function() {
+MyModule.prototype.getAPIMethods = function() {
   return [
     ['getData', this, this.getData, 1]
   ];

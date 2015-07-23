@@ -13,10 +13,10 @@ var errors = bitcoindjs.errors;
 
 describe('AddressModule', function() {
 
-  describe('#methods', function() {
+  describe('#getAPIMethods', function() {
     it('should return the correct methods', function() {
       var am = new AddressModule({});
-      var methods = am.methods();
+      var methods = am.getAPIMethods();
       methods.length.should.equal(4);
     });
   });

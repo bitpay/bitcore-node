@@ -265,12 +265,12 @@ describe('Bitcoin DB', function() {
       var db = new DB({store: memdown});
       db.modules = [];
       var methods = db.getAPIMethods();
-      methods.length.should.equal(1);
+      methods.length.should.equal(2);
     });
 
-    it('should also return modules methods', function() {
+    it('should also return modules API methods', function() {
       var module1 = {
-        methods: function() {
+        getAPIMethods: function() {
           return [
             ['module1-one', module1, module1, 2],
             ['module1-two', module1, module1, 2]
@@ -278,7 +278,7 @@ describe('Bitcoin DB', function() {
         }
       };
       var module2 = {
-        methods: function() {
+        getAPIMethods: function() {
           return [
             ['moudle2-one', module2, module2, 1]
           ];
@@ -289,7 +289,7 @@ describe('Bitcoin DB', function() {
       db.modules = [module1, module2];
 
       var methods = db.getAPIMethods();
-      methods.length.should.equal(4);
+      methods.length.should.equal(5);
     });
   });
 
