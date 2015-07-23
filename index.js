@@ -9,5 +9,8 @@ module.exports.DB = require('./lib/db');
 module.exports.Transaction = require('./lib/transaction');
 module.exports.errors = require('./lib/errors');
 
+module.exports.modules = {};
+module.exports.modules.AddressModule = require('./lib/modules/address');
+
 module.exports.deps = {};
 module.exports.deps.chainlib = require('chainlib');
