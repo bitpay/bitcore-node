@@ -309,7 +309,7 @@ describe('Bitcoind Node', function() {
     });
     it('should use the testnet genesis if testnet is specified', function() {
       var config = {
-        testnet: true
+        network: 'testnet'
       };
       node._loadConsensus(config);
       should.exist(node.chain);

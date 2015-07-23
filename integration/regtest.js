@@ -12,6 +12,7 @@ if (process.env.BITCOINDJS_ENV !== 'test') {
 
 var chai = require('chai');
 var bitcore = require('bitcore');
+var BN = bitcore.crypto.BN;
 var rimraf = require('rimraf');
 var bitcoind;
 
@@ -21,7 +22,7 @@ var assert = chai.assert;
 var sinon = require('sinon');
 var BitcoinRPC = require('bitcoind-rpc');
 var blockHashes = [];
-var unspentTransactions = [];
+var utxo;
 var coinbasePrivateKey;
 var privateKey = bitcore.PrivateKey();
 var destKey = bitcore.PrivateKey();
@@ -118,9 +119,22 @@ describe('Daemon Binding Functionality', function() {
                   throw err;
                 }
 
-                var tx = bitcore.Transaction();
-                tx.fromString(response.result.hex);
-                unspentTransactions.push(tx);
+                var unspentTransaction = bitcore.Transaction();
+                var outputIndex;
+                unspentTransaction.fromString(response.result.hex);
+                for (var i = 0; i < unspentTransaction.outputs.length; i++) {
+                  var output = unspentTransaction.outputs[i];
+                  if (output.script.toAddress(network).toString() === address.toString(network)) {
+                    outputIndex = i;
+                  }
+                }
+
+                utxo = {
+                  txid: unspentTransaction.hash,
+                  outputIndex: outputIndex,
+                  script: unspentTransaction.outputs[outputIndex].script,
+                  satoshis: unspentTransaction.outputs[outputIndex].satoshis
+                };
 
                 // Include this transaction in a block so that it can
                 // be spent in tests
@@ -150,7 +164,7 @@ describe('Daemon Binding Functionality', function() {
   describe('mempool functionality', function() {
 
     var fromAddress = 'mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1';
-    var utxo = {
+    var utxo1 = {
       address: fromAddress,
       txId: 'a477af6b2667c29670467e4e0728b685ee07b240235771862318e29ddbe58458',
       outputIndex: 0,
@@ -160,14 +174,14 @@ describe('Daemon Binding Functionality', function() {
     var toAddress = 'mrU9pEmAx26HcbKVrABvgL7AwA5fjNFoDc';
     var changeAddress = 'mgBCJAsvzgT2qNNeXsoECg2uPKrUsZ76up';
     var changeAddressP2SH = '2N7T3TAetJrSCruQ39aNrJvYLhG1LJosujf';
-    var privateKey = 'cSBnVM4xvxarwGQuAfQFwqDg9k5tErHUHzgWsEfD4zdwUasvqRVY';
+    var privateKey1 = 'cSBnVM4xvxarwGQuAfQFwqDg9k5tErHUHzgWsEfD4zdwUasvqRVY';
     var private1 = '6ce7e97e317d2af16c33db0b9270ec047a91bff3eff8558afb5014afb2bb5976';
     var private2 = 'c9b26b0f771a0d2dad88a44de90f05f416b3b385ff1d989343005546a0032890';
     var tx = new bitcore.Transaction();
-    tx.from(utxo);
+    tx.from(utxo1);
     tx.to(toAddress, 50000);
     tx.change(changeAddress);
-    tx.sign(privateKey);
+    tx.sign(privateKey1);
 
     it('will add an unchecked transaction', function() {
       var added = bitcoind.addMempoolUncheckedTransaction(tx.serialize());
@@ -233,18 +247,25 @@ describe('Daemon Binding Functionality', function() {
     });
   });
 
+  describe('get block index', function() {
+    var expectedWork = new BN(6);
+    [1,2,3,4,5,6,7,8,9].forEach(function(i) {
+      it('generate block ' + i, function() {
+        var blockIndex = bitcoind.getBlockIndex(blockHashes[i]);
+        should.exist(blockIndex);
+        should.exist(blockIndex.chainWork);
+        var work = new BN(blockIndex.chainWork, 'hex');
+        work.cmp(expectedWork).should.equal(0);
+        expectedWork = expectedWork.add(new BN(2));
+        should.exist(blockIndex.prevHash);
+        blockIndex.prevHash.should.equal(blockHashes[i - 1]);
+      });
+    });
+  });
+
   describe('send transaction functionality', function() {
 
     it('will not error and return the transaction hash', function() {
-
-      var unspentTx = unspentTransactions.shift();
-
-      var utxo = {
-        txid: unspentTx.hash,
-        outputIndex: 1,
-        script: unspentTx.outputs[1].script,
-        satoshis: unspentTx.outputs[1].satoshis
-      };
 
       // create and sign the transaction
       var tx = bitcore.Transaction();

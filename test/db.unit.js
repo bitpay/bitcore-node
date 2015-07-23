@@ -42,12 +42,10 @@ describe('Bitcoin DB', function() {
   });
 
   describe('#putBlock', function() {
-    it('should call _updatePrevHashIndex', function(done) {
+    it('should call callback', function(done) {
       var db = new DB({store: memdown});
-      db._updatePrevHashIndex = sinon.stub().callsArg(1);
       db.putBlock('block', function(err) {
         should.not.exist(err);
-        db._updatePrevHashIndex.called.should.equal(true);
         done();
       });
     });

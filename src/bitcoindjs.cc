@@ -980,12 +980,14 @@ NAN_METHOD(IsSpent) {
 };
 
 /**
- * GetChainWork()
- * bitcoindjs.getChainWork()
- * Get the total amount of work (expected number of hashes) in the chain up to
- * and including this block.
+ * GetBlockIndex()
+ * bitcoindjs.getBlockIndex()
+ * Get index information about a block by hash including:
+ * - the total amount of work (expected number of hashes) in the chain up to
+ *   and including this block.
+ * - the previous hash of the block
  */
-NAN_METHOD(GetChainWork) {
+NAN_METHOD(GetBlockIndex) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
@@ -1000,7 +1002,15 @@ NAN_METHOD(GetChainWork) {
   } else {
     blockIndex = mapBlockIndex[hash];
     arith_uint256 cw = blockIndex->nChainWork;
-    NanReturnValue(Local<Value>::New(isolate, NanNew<String>(cw.GetHex())));
+    CBlockIndex* prevBlockIndex = blockIndex->pprev;
+    const uint256* prevHash = prevBlockIndex->phashBlock;
+
+    Local<Object> obj = NanNew<Object>();
+
+    obj->Set(NanNew<String>("chainWork"), NanNew<String>(cw.GetHex()));
+    obj->Set(NanNew<String>("prevHash"), NanNew<String>(prevHash->GetHex()));
+
+    NanReturnValue(obj);
   }
 
 };
@@ -1229,7 +1239,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getTransaction", GetTransaction);
   NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "isSpent", IsSpent);
-  NODE_SET_METHOD(target, "getChainWork", GetChainWork);
+  NODE_SET_METHOD(target, "getBlockIndex", GetBlockIndex);
   NODE_SET_METHOD(target, "getMempoolOutputs", GetMempoolOutputs);
   NODE_SET_METHOD(target, "addMempoolUncheckedTransaction", AddMempoolUncheckedTransaction);
   NODE_SET_METHOD(target, "verifyScript", VerifyScript);

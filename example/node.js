@@ -4,22 +4,22 @@ var BitcoindJS = require('..');
 var BitcoinNode = BitcoindJS.Node;
 var chainlib = require('chainlib');
 var log = chainlib.log;
-//log.debug = function() {};
+log.debug = function() {};
 
 var configuration = {
-  datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
-  network: 'testnet'
+  datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin'
 };
 
 var node = new BitcoinNode(configuration);
 
-var startHeight;
-var count = 100;
-var times = new Array(count);
+var count = 0;
+var interval;
 
 node.on('ready', function() {
-  times[node.chain.tip.__height % count] = Date.now();
-  startHeight = node.chain.tip.__height;
+  interval = setInterval(function() {
+    log.info('Sync Status: Tip:', node.chain.tip.hash, 'Height:', node.chain.tip.__height, 'Rate:', count/10, 'blocks per second');
+    count = 0;
+  }, 10000);
 });
 
 node.on('error', function(err) {
@@ -27,13 +27,5 @@ node.on('error', function(err) {
 });
 
 node.chain.on('addblock', function(block) {
-  console.log('New Best Tip:', block.hash);
-  var startTime = times[node.chain.tip.__height % count];
-
-  if(startTime) {
-    var timeElapsed = (Date.now() - startTime) / 1000;
-    console.log(Math.round(count / timeElapsed) + ' blocks per second');
-  }
-
-  times[node.chain.tip.__height % count] = Date.now();
+  count++;
 });
