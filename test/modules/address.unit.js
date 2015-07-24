@@ -15,7 +15,7 @@ describe('AddressModule', function() {
     it('should return the correct methods', function() {
       var am = new AddressModule({});
       var methods = am.getAPIMethods();
-      methods.length.should.equal(4);
+      methods.length.should.equal(6);
     });
   });
 
@@ -111,21 +111,35 @@ describe('AddressModule', function() {
     it('should create the correct operations when updating/adding outputs', function(done) {
       am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, true, function(err, operations) {
         should.not.exist(err);
-        operations.length.should.equal(11);
+        operations.length.should.equal(81);
         operations[0].type.should.equal('put');
         var expected0 = ['outs', key0.address, key0.timestamp, key0.txid, key0.outputIndex].join('-');
         operations[0].key.should.equal(expected0);
         operations[0].value.should.equal([value0.satoshis, value0.script, value0.blockHeight].join(':'));
+        operations[3].type.should.equal('put');
+        var expected3 = ['sp', key3.prevTxId, key3.prevOutputIndex].join('-');
+        operations[3].key.should.equal(expected3);
+        operations[3].value.should.equal([value3.txid].join(':'));
+        operations[64].type.should.equal('put');
+        var expected64 = ['outs', key64.address, key64.timestamp, key64.txid, key64.outputIndex].join('-');
+        operations[64].key.should.equal(expected64);
+        operations[64].value.should.equal([value64.satoshis, value64.script, value64.blockHeight].join(':'));
         done();
       });
     });
     it('should create the correct operations when removing outputs', function(done) {
       am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
         should.not.exist(err);
-        operations.length.should.equal(11);
+        operations.length.should.equal(81);
         operations[0].type.should.equal('del');
         operations[0].key.should.equal(['outs', key0.address, key0.timestamp, key0.txid, key0.outputIndex].join('-'));
         operations[0].value.should.equal([value0.satoshis, value0.script, value0.blockHeight].join(':'));
+        operations[3].type.should.equal('del');
+        operations[3].key.should.equal(['sp', key3.prevTxId, key3.prevOutputIndex].join('-'));
+        operations[3].value.should.equal([value3.txid].join(':'));
+        operations[64].type.should.equal('del');
+        operations[64].key.should.equal(['outs', key64.address, key64.timestamp, key64.txid, key64.outputIndex].join('-'));
+        operations[64].value.should.equal([value64.satoshis, value64.script, value64.blockHeight].join(':'));
         done();
       });
     });
@@ -476,6 +490,71 @@ describe('AddressModule', function() {
     it('should give true if bitcoind.isSpent gives true', function(done) {
       am.isSpent('output', true, function(spent) {
         spent.should.equal(true);
+        done();
+      });
+    });
+  });
+
+  describe('#getSpendTxForOutput', function() {
+    it('should call store.get and db.getTransaction with the right values', function(done) {
+      var db = {
+        store: {
+          get: sinon.stub().callsArgWith(1, null, 'spendtxid')
+        },
+        getTransaction: sinon.stub().callsArgWith(2, null, 'spendtx')
+      };
+      var am = new AddressModule({db: db});
+      am.getSpendTxForOutput('txid', 'outputindex', true, function(err, tx) {
+        should.not.exist(err);
+        tx.should.equal('spendtx');
+        db.store.get.args[0][0].should.equal('sp-txid-outputindex');
+        db.getTransaction.args[0][0].should.equal('spendtxid');
+        db.getTransaction.args[0][1].should.equal(true);
+        done();
+      });
+    });
+  });
+
+  describe('#getTransactionsForAddress', function() {
+    var outputs = [
+      {
+        txid: 'tx1',
+        outputIndex: 0,
+        spentTx: 'tx2'
+      },
+      {
+        txid: 'tx3',
+        outputIndex: 1
+      },
+      {
+        txid: 'tx4',
+        outputIndex: 2,
+        spentTx: 'tx5'
+      }
+    ];
+
+    var db = {
+      getTransaction: function(txid, queryMempool, callback) {
+        callback(null, txid);
+      }
+    };
+    var am = new AddressModule({db: db});
+
+    am.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
+    am.getSpendTxForOutput = function(txid, outputIndex, queryMempool, callback) {
+      for(var i = 0; i < outputs.length; i++) {
+        if(outputs[i].txid === txid && outputs[i].outputIndex === outputIndex && outputs[i].spentTx) {
+          return callback(null, outputs[i].spentTx);
+        }
+      }
+
+      callback(new levelup.errors.NotFoundError());
+    };
+
+    it('should give transactions containing address as an output and an input', function(done) {
+      am.getTransactionsForAddress('address', true, function(err, txs) {
+        should.not.exist(err);
+        txs.should.deep.equal(['tx1', 'tx2', 'tx3', 'tx4', 'tx5']);
         done();
       });
     });
