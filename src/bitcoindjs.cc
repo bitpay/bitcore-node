@@ -229,9 +229,9 @@ static void
 async_tip_update(uv_work_t *req) {
   async_tip_update_data *data = static_cast<async_tip_update_data*>(req->data);
 
-  int64_t nLastBest = nTimeBestReceived;
+  size_t lastHeight = chainActive.Height();
 
-  while(nLastBest == nTimeBestReceived && !shutdown_complete) {
+  while(lastHeight == (size_t)chainActive.Height() && !shutdown_complete) {
     usleep(1E6);
   }
 
@@ -246,10 +246,13 @@ async_tip_update_after(uv_work_t *req) {
   async_tip_update_data *data = static_cast<async_tip_update_data*>(req->data);
 
   Local<Function> cb = data->callback.Get(isolate);
-  const unsigned argc = 2;
+  const unsigned argc = 1;
+  Local<Value> result = Undefined(isolate);
+  if (!shutdown_complete) {
+    result = NanNew<Number>(data->result);
+  }
   Local<Value> argv[argc] = {
-    v8::Null(isolate),
-    Local<Value>::New(isolate, NanNew<Number>(data->result))
+    Local<Value>::New(isolate, result)
   };
   TryCatch try_catch;
   cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
@@ -259,7 +262,6 @@ async_tip_update_after(uv_work_t *req) {
 
   delete data;
   delete req;
-
 }
 
 NAN_METHOD(OnBlocksReady) {

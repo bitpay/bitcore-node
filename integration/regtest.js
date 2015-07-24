@@ -235,7 +235,7 @@ describe('Daemon Binding Functionality', function() {
   describe('tip updates', function() {
     it('will get an event when the tip is new', function(done) {
       this.timeout(4000);
-      bitcoind.once('tip', function(height) {
+      bitcoind.on('tip', function(height) {
         height.should.equal(152);
         done();
       });
