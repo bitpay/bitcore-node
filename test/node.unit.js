@@ -116,6 +116,51 @@ describe('Bitcoind Node', function() {
       });
     });
   });
+  describe('#_syncBitcoindRewind', function() {
+    it('will undo blocks 6 deep', function() {
+      var node = new Node({});
+      var ancestorHash = chainHashes[chainHashes.length - 6];
+      node.chain = {
+        tip: {
+          __height: 10,
+          hash: chainHashes[chainHashes.length],
+          prevHash: chainHashes[chainHashes.length - 1]
+        },
+        saveMetadata: sinon.stub(),
+        emit: sinon.stub()
+      };
+      node.getBlock = function(hash, callback) {
+        setImmediate(function() {
+          for(var i = chainHashes.length; i > 0; i--) {
+            if (chainHashes[i] === hash) {
+              callback(null, {
+                hash: chainHashes[i],
+                prevHash: chainHashes[i - 1]
+              });
+            }
+          }
+        });
+      };
+      node.db = {
+        _onChainRemoveBlock: function(block, callback) {
+          setImmediate(callback);
+        }
+      };
+      node._syncBitcoindAncestor = function(block, callback) {
+        setImmediate(function() {
+          callback(null, ancestorHash);
+        });
+      };
+      var forkedBlock = {};
+      node._syncBitcoindRewind(forkedBlock, function(err) {
+        if (err) {
+          throw err;
+        }
+        node.chain.tip.__height.should.equal(4);
+        node.chain.tip.hash.should.equal(ancestorHash);
+      });
+    });
+  });
   describe('#_syncBitcoind', function() {
     it('will get and add block up to the tip height', function(done) {
       var node = new Node({});
