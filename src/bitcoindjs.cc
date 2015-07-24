@@ -231,7 +231,7 @@ async_tip_update(uv_work_t *req) {
 
   int64_t nLastBest = nTimeBestReceived;
 
-  while(nLastBest == nTimeBestReceived) {
+  while(nLastBest == nTimeBestReceived && !shutdown_complete) {
     usleep(1E6);
   }
 
