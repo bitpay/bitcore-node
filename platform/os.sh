@@ -6,7 +6,10 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 BITCOIN_DIR="${root_dir}/libbitcoind"
 os=
 ext=so
-thread=-lboost_thread
+
+boost_dir="${root_dir}"/libbitcoind/depends/x86_64-linux/lib
+thread="${boost_dir}"/libboost_thread-mt.so
+filesystem="${boost_dir}"/libboost_filesystem.so
 
 if test -f /etc/centos-release \
   || grep -q 'CentOS' /etc/redhat-release \
@@ -20,7 +23,9 @@ elif test -f /etc/redhat_release \
 elif uname -a | grep -q '^Darwin'; then
   os=osx
   ext=dylib
-  thread=-lboost_thread-mt
+  boost_dir="${root_dir}"/libbitcoind/depends/x86_64-darwin/lib
+  thread="${boost_dir}"/libboost_thread-mt.dylib
+  filesystem="${boost_dir}"/libboost_filesystem.dylib
 elif test -f /etc/SuSE-release; then
   os=suse
 elif test -f /etc/mandrake-release \
@@ -72,6 +77,14 @@ fi
 
 if test -z "$1" -o x"$1" = x'thread'; then
   echo -n "${thread}"
+fi
+
+if test -z "$1" -o x"$1" = x'filesystem'; then
+  echo -n "${filesystem}"
+fi
+
+if test -z "$1" -o x"$1" = x'boost_dir'; then
+  echo -n "${boost_dir}"
 fi
 
 if test -z "$1" -o x"$1" = x'lib'; then

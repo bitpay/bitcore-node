@@ -28,13 +28,12 @@
     ],
     'link_settings': {
       'libraries': [
-        '-lboost_filesystem',
-        '-L/usr/local/lib',
+        '<!(./platform/os.sh filesystem)',
         '<!(./platform/os.sh thread)',
         '<!(./platform/os.sh lib)'
       ],
       'ldflags': [
-        '-Wl,-rpath,<!(./platform/os.sh osdir),-rpath,<!(./platform/os.sh btcdir)/src/leveldb'
+        '-Wl,-rpath,<!(./platform/os.sh osdir),-rpath,<!(./platform/os.sh btcdir)/src/leveldb,-rpath,<!(./platform/os.sh boost_dir)'
       ]
     }
   }]

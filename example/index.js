@@ -14,7 +14,6 @@ process.title = 'bitcoind.js';
 
 var daemon = require('../').daemon({
   datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
-  network: 'regtest'
 });
 
 daemon.on('error', function(err) {
