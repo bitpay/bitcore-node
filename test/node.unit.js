@@ -177,7 +177,10 @@ describe('Bitcoind Node', function() {
           hash: block.prevHash
         },
         saveMetadata: sinon.stub(),
-        emit: sinon.stub()
+        emit: sinon.stub(),
+        cache: {
+          hashes: {}
+        }
       };
       node.db = {
         _onChainAddBlock: function(block, callback) {
