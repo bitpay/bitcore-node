@@ -9,7 +9,11 @@ build_dependencies () {
   if [ -d "${btc_dir}" ]; then
     pushd "${btc_dir}"/depends
     echo "using host for dependencies: ${host}"
-    make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1 #host is arch-os, e.g. x86_64-linux 
+    if [ "${test}" = true ]; then
+      make HOST=${host} NO_QT=1 NO_UPNP=1 
+    else
+      make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1 
+    fi
     popd
   fi 
 }
@@ -40,6 +44,7 @@ fi
 
 test=
 if [ "${BITCOINDJS_ENV}" == "test" ]; then
+  test=true
   options=`cat ${root_dir}/bin/config_options_test.sh`
 fi
 
