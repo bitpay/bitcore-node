@@ -16,6 +16,7 @@
 
 NAN_METHOD(StartBitcoind);
 NAN_METHOD(OnBlocksReady);
+NAN_METHOD(OnTipUpdate);
 NAN_METHOD(IsStopping);
 NAN_METHOD(IsStopped);
 NAN_METHOD(StopBitcoind);
@@ -28,4 +29,3 @@ NAN_METHOD(GetMempoolOutputs);
 NAN_METHOD(AddMempoolUncheckedTransaction);
 NAN_METHOD(VerifyScript);
 NAN_METHOD(SendTransaction);
-

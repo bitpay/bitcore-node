@@ -23,10 +23,17 @@ using namespace v8;
 extern void WaitForShutdown(boost::thread_group* threadGroup);
 static termios orig_termios;
 extern CTxMemPool mempool;
+extern int64_t nTimeBestReceived;
 
 /**
  * Node.js Internal Function Templates
  */
+
+static void
+async_tip_update(uv_work_t *req);
+
+static void
+async_tip_update_after(uv_work_t *req);
 
 static void
 async_start_node(uv_work_t *req);
@@ -83,6 +90,11 @@ static bool g_txindex = false;
  * Private Structs
  * Used for async functions and necessary linked lists at points.
  */
+
+struct async_tip_update_data {
+  size_t result;
+  Eternal<Function> callback;
+};
 
 /**
  * async_node_data
@@ -188,6 +200,70 @@ set_cooked(void);
  * Functions
  */
 
+NAN_METHOD(OnTipUpdate) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  Local<Function> callback;
+  callback = Local<Function>::Cast(args[0]);
+
+  async_tip_update_data *data = new async_tip_update_data();
+
+  Eternal<Function> eternal(isolate, callback);
+
+  data->callback = eternal;
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_tip_update,
+    (uv_after_work_cb)async_tip_update_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined(isolate));
+
+}
+
+static void
+async_tip_update(uv_work_t *req) {
+  async_tip_update_data *data = static_cast<async_tip_update_data*>(req->data);
+
+  size_t lastHeight = chainActive.Height();
+
+  while(lastHeight == (size_t)chainActive.Height() && !shutdown_complete) {
+    usleep(1E6);
+  }
+
+  data->result = chainActive.Height();
+
+}
+
+static void
+async_tip_update_after(uv_work_t *req) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  async_tip_update_data *data = static_cast<async_tip_update_data*>(req->data);
+
+  Local<Function> cb = data->callback.Get(isolate);
+  const unsigned argc = 1;
+  Local<Value> result = Undefined(isolate);
+  if (!shutdown_complete) {
+    result = NanNew<Number>(data->result);
+  }
+  Local<Value> argv[argc] = {
+    Local<Value>::New(isolate, result)
+  };
+  TryCatch try_catch;
+  cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+  if (try_catch.HasCaught()) {
+    node::FatalException(try_catch);
+  }
+
+  delete data;
+  delete req;
+}
+
 NAN_METHOD(OnBlocksReady) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
@@ -212,7 +288,6 @@ NAN_METHOD(OnBlocksReady) {
   assert(status == 0);
 
   NanReturnValue(Undefined(isolate));
-
 }
 
 /**
@@ -291,7 +366,6 @@ async_blocks_ready_after(uv_work_t *req) {
  * bitcoind.start(callback)
  * Start the bitcoind node with AppInit2() on a separate thread.
  */
-
 NAN_METHOD(StartBitcoind) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
@@ -1232,6 +1306,7 @@ init(Handle<Object> target) {
 
   NODE_SET_METHOD(target, "start", StartBitcoind);
   NODE_SET_METHOD(target, "onBlocksReady", OnBlocksReady);
+  NODE_SET_METHOD(target, "onTipUpdate", OnTipUpdate);
   NODE_SET_METHOD(target, "stop", StopBitcoind);
   NODE_SET_METHOD(target, "stopping", IsStopping);
   NODE_SET_METHOD(target, "stopped", IsStopped);

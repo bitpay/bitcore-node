@@ -23,6 +23,7 @@ var sinon = require('sinon');
 var BitcoinRPC = require('bitcoind-rpc');
 var blockHashes = [];
 var utxo;
+var client;
 var coinbasePrivateKey;
 var privateKey = bitcore.PrivateKey();
 var destKey = bitcore.PrivateKey();
@@ -72,7 +73,7 @@ describe('Daemon Binding Functionality', function() {
 
       bitcoind.on('ready', function() {
 
-        var client = new BitcoinRPC({
+        client = new BitcoinRPC({
           protocol: 'http',
           host: '127.0.0.1',
           port: 18332,
@@ -161,56 +162,6 @@ describe('Daemon Binding Functionality', function() {
     });
   });
 
-  describe('mempool functionality', function() {
-
-    var fromAddress = 'mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1';
-    var utxo1 = {
-      address: fromAddress,
-      txId: 'a477af6b2667c29670467e4e0728b685ee07b240235771862318e29ddbe58458',
-      outputIndex: 0,
-      script: bitcore.Script.buildPublicKeyHashOut(fromAddress).toString(),
-      satoshis: 100000
-    };
-    var toAddress = 'mrU9pEmAx26HcbKVrABvgL7AwA5fjNFoDc';
-    var changeAddress = 'mgBCJAsvzgT2qNNeXsoECg2uPKrUsZ76up';
-    var changeAddressP2SH = '2N7T3TAetJrSCruQ39aNrJvYLhG1LJosujf';
-    var privateKey1 = 'cSBnVM4xvxarwGQuAfQFwqDg9k5tErHUHzgWsEfD4zdwUasvqRVY';
-    var private1 = '6ce7e97e317d2af16c33db0b9270ec047a91bff3eff8558afb5014afb2bb5976';
-    var private2 = 'c9b26b0f771a0d2dad88a44de90f05f416b3b385ff1d989343005546a0032890';
-    var tx = new bitcore.Transaction();
-    tx.from(utxo1);
-    tx.to(toAddress, 50000);
-    tx.change(changeAddress);
-    tx.sign(privateKey1);
-
-    it('will add an unchecked transaction', function() {
-      var added = bitcoind.addMempoolUncheckedTransaction(tx.serialize());
-      added.should.equal(true);
-      bitcoind.getTransaction(tx.hash, true, function(err, txBuffer) {
-        if(err) {
-          throw err;
-        }
-        var expected = tx.toBuffer().toString('hex');
-        txBuffer.toString('hex').should.equal(expected);
-      });
-
-    });
-
-    it('get outputs by address', function() {
-      var outputs = bitcoind.getMempoolOutputs(changeAddress);
-      var expected = [
-        {
-          script: 'OP_DUP OP_HASH160 073b7eae2823efa349e3b9155b8a735526463a0f OP_EQUALVERIFY OP_CHECKSIG',
-          satoshis: 40000,
-          txid: tx.hash,
-          outputIndex: 1
-        }
-      ];
-      outputs.should.deep.equal(expected);
-    });
-
-  });
-
   describe('get blocks by hash', function() {
 
     [0,1,2,3,5,6,7,8,9].forEach(function(i) {
@@ -277,7 +228,71 @@ describe('Daemon Binding Functionality', function() {
       // test sending the transaction
       var hash = bitcoind.sendTransaction(tx.serialize());
       hash.should.equal(tx.hash);
+    });
 
+  });
+
+  describe('tip updates', function() {
+    it('will get an event when the tip is new', function(done) {
+      this.timeout(4000);
+      bitcoind.on('tip', function(height) {
+        height.should.equal(152);
+        done();
+      });
+      client.generate(1, function(err, response) {
+        if (err) {
+          throw err;
+        }
+      });
+    });
+  });
+
+  describe('mempool functionality', function() {
+
+    var fromAddress = 'mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1';
+    var utxo1 = {
+      address: fromAddress,
+      txId: 'a477af6b2667c29670467e4e0728b685ee07b240235771862318e29ddbe58458',
+      outputIndex: 0,
+      script: bitcore.Script.buildPublicKeyHashOut(fromAddress).toString(),
+      satoshis: 100000
+    };
+    var toAddress = 'mrU9pEmAx26HcbKVrABvgL7AwA5fjNFoDc';
+    var changeAddress = 'mgBCJAsvzgT2qNNeXsoECg2uPKrUsZ76up';
+    var changeAddressP2SH = '2N7T3TAetJrSCruQ39aNrJvYLhG1LJosujf';
+    var privateKey1 = 'cSBnVM4xvxarwGQuAfQFwqDg9k5tErHUHzgWsEfD4zdwUasvqRVY';
+    var private1 = '6ce7e97e317d2af16c33db0b9270ec047a91bff3eff8558afb5014afb2bb5976';
+    var private2 = 'c9b26b0f771a0d2dad88a44de90f05f416b3b385ff1d989343005546a0032890';
+    var tx = new bitcore.Transaction();
+    tx.from(utxo1);
+    tx.to(toAddress, 50000);
+    tx.change(changeAddress);
+    tx.sign(privateKey1);
+
+    it('will add an unchecked transaction', function() {
+      var added = bitcoind.addMempoolUncheckedTransaction(tx.serialize());
+      added.should.equal(true);
+      bitcoind.getTransaction(tx.hash, true, function(err, txBuffer) {
+        if(err) {
+          throw err;
+        }
+        var expected = tx.toBuffer().toString('hex');
+        txBuffer.toString('hex').should.equal(expected);
+      });
+
+    });
+
+    it('get outputs by address', function() {
+      var outputs = bitcoind.getMempoolOutputs(changeAddress);
+      var expected = [
+        {
+          script: 'OP_DUP OP_HASH160 073b7eae2823efa349e3b9155b8a735526463a0f OP_EQUALVERIFY OP_CHECKSIG',
+          satoshis: 40000,
+          txid: tx.hash,
+          outputIndex: 1
+        }
+      ];
+      outputs.should.deep.equal(expected);
     });
 
   });
