@@ -7,9 +7,10 @@ BITCOIN_DIR="${root_dir}/libbitcoind"
 os=
 ext=so
 
-boost_dir="${root_dir}"/libbitcoind/depends/x86_64-linux/lib
-thread="${boost_dir}"/libboost_thread-mt.so
-filesystem="${boost_dir}"/libboost_filesystem.so
+host=`uname -m`-`uname -a | awk '{print tolower($1)}'`
+boost_dir="${root_dir}"/libbitcoind/depends/${host}/lib
+thread="${boost_dir}"/libboost_thread-mt.a
+filesystem="${boost_dir}"/libboost_filesystem-mt.a
 
 if test -f /etc/centos-release \
   || grep -q 'CentOS' /etc/redhat-release \
@@ -24,8 +25,6 @@ elif uname -a | grep -q '^Darwin'; then
   os=osx
   ext=dylib
   boost_dir="${root_dir}"/libbitcoind/depends/x86_64-darwin/lib
-  thread="${boost_dir}"/libboost_thread-mt.dylib
-  filesystem="${boost_dir}"/libboost_filesystem.dylib
 elif test -f /etc/SuSE-release; then
   os=suse
 elif test -f /etc/mandrake-release \
@@ -85,6 +84,18 @@ fi
 
 if test -z "$1" -o x"$1" = x'boost_dir'; then
   echo -n "${boost_dir}"
+fi
+
+if test -z "$1" -o x"$1" = x'host'; then
+  echo -n "${host}"
+fi
+
+if test -z "$1" -o x"$1" = x'load_archive'; then
+  if [ "${os}"  == "osx" ]; then
+    echo -n "-Wl,-all_load"
+  else
+    echo -n "-Wl,--whole-archive ${filesystem} ${thread} -Wl,--no-whole-archive"
+  fi
 fi
 
 if test -z "$1" -o x"$1" = x'lib'; then

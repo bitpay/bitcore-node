@@ -4,11 +4,10 @@ cd "${root_dir}"
 options=`cat ${root_dir}/bin/config_options.sh`
 
 os_dir=$(./platform/os.sh osdir)
-
+host=$(./platform/os.sh host)
 build_dependencies () {
   if [ -d "${btc_dir}" ]; then
     pushd "${btc_dir}"/depends
-    host=`uname -m`-`uname -a | awk '{print tolower($1)}'`
     echo "using host for dependencies: ${host}"
     make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1 #host is arch-os, e.g. x86_64-linux 
     popd

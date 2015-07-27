@@ -33,7 +33,8 @@
         '<!(./platform/os.sh lib)'
       ],
       'ldflags': [
-        '-Wl,-rpath,<!(./platform/os.sh osdir),-rpath,<!(./platform/os.sh btcdir)/src/leveldb,-rpath,<!(./platform/os.sh boost_dir)'
+        '-Wl,-rpath,<!(./platform/os.sh osdir)',
+        '<!(./platform/os.sh load_archive)'
       ]
     }
   }]
