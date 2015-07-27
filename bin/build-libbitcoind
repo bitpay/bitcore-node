@@ -104,6 +104,7 @@ fi
 build_dependencies
 echo './autogen.sh'
 ./autogen.sh
+export CPPFLAGS="-I${btc_dir}/depends/${host}/include/boost -I${btc_dir}/depends/${host}/include -L${btc_dir}/depends/${host}/lib"
 full_options="${options}${os_dir}"
 echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
 ${full_options}

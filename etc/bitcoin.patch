@@ -79,10 +79,20 @@ index 37fe47e..83cfe70 100644
  LEVELDB_CPPFLAGS=
  LIBLEVELDB=
  LIBMEMENV=
+diff --git a/depends/packages/bdb.mk b/depends/packages/bdb.mk
+index 68841af..65a105b 100644
+--- a/depends/packages/bdb.mk
++++ b/depends/packages/bdb.mk
+@@ -9,6 +9,7 @@ define $(package)_set_vars
+ $(package)_config_opts=--disable-shared --enable-cxx --disable-replication
+ $(package)_config_opts_mingw32=--enable-mingw
+ $(package)_config_opts_linux=--with-pic
++$(package)_cxxflags_darwin=-stdlib=libc++
+ endef
+
+ define $(package)_preprocess_cmds
 diff --git a/depends/packages/boost.mk b/depends/packages/boost.mk
-old mode 100644
-new mode 100755
-index e7aa48d..8447e79
+index e7aa48d..df0f7ae 100644
 --- a/depends/packages/boost.mk
 +++ b/depends/packages/boost.mk
 @@ -1,9 +1,8 @@
@@ -129,23 +139,23 @@ index e7aa48d..8447e79
  endef
 
 diff --git a/src/Makefile.am b/src/Makefile.am
-old mode 100644
-new mode 100755
-index 1c2f770..427bb14
+index 1c2f770..d2eca15 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -1,6 +1,10 @@
+@@ -1,6 +1,12 @@
  DIST_SUBDIRS = secp256k1
  AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS)
 
 +lib_LTLIBRARIES =
 +libbitcoind_la_LIBADD =
-+libbitcoind_la_LDFLAGS =
++libbitcoind_la_LDFLAGS = -no-undefined
 +STATIC_BOOST_LIBS =
++STATIC_BDB_LIBS =
++STATIC_EXTRA_LIBS = $(STATIC_BOOST_LIBS) $(LIBLEVELDB) $(LIBMEMENV)
 
  if EMBEDDED_LEVELDB
  LEVELDB_CPPFLAGS += -I$(srcdir)/leveldb/include
-@@ -15,6 +19,7 @@ $(LIBLEVELDB) $(LIBMEMENV):
+@@ -15,6 +21,7 @@ $(LIBLEVELDB) $(LIBMEMENV):
  	@echo "Building LevelDB ..." && $(MAKE) -C $(@D) $(@F) CXX="$(CXX)" \
  	  CC="$(CC)" PLATFORM=$(TARGET_OS) AR="$(AR)" $(LEVELDB_TARGET_FLAGS) \
            OPT="$(CXXFLAGS) $(CPPFLAGS) -D__STDC_LIMIT_MACROS"
@@ -153,7 +163,7 @@ index 1c2f770..427bb14
  endif
 
  BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
-@@ -49,16 +54,16 @@ BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
+@@ -49,16 +56,16 @@ BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
  EXTRA_LIBRARIES += libbitcoin_wallet.a
  endif
 
@@ -177,7 +187,7 @@ index 1c2f770..427bb14
  if BUILD_BITCOIND
    bin_PROGRAMS += bitcoind
  endif
-@@ -66,6 +71,9 @@ endif
+@@ -66,6 +73,9 @@ endif
  if BUILD_BITCOIN_UTILS
    bin_PROGRAMS += bitcoin-cli bitcoin-tx
  endif
@@ -187,7 +197,7 @@ index 1c2f770..427bb14
 
  .PHONY: FORCE
  # bitcoin core #
-@@ -169,8 +177,11 @@ obj/build.h: FORCE
+@@ -169,8 +179,11 @@ obj/build.h: FORCE
  	@$(MKDIR_P) $(builddir)/obj
  	@$(top_srcdir)/share/genbuild.sh $(abs_top_builddir)/src/obj/build.h \
  	  $(abs_top_srcdir)
@@ -200,7 +210,7 @@ index 1c2f770..427bb14
  # server: shared between bitcoind and bitcoin-qt
  libbitcoin_server_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS)
  libbitcoin_server_a_SOURCES = \
-@@ -309,9 +320,18 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
+@@ -309,9 +322,18 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
  bitcoind_SOURCES = bitcoind.cpp
  bitcoind_CPPFLAGS = $(BITCOIN_INCLUDES)
  bitcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
@@ -219,24 +229,25 @@ index 1c2f770..427bb14
  endif
 
  bitcoind_LDADD = \
-@@ -326,10 +346,20 @@ bitcoind_LDADD = \
+@@ -326,10 +348,21 @@ bitcoind_LDADD = \
 
  if ENABLE_WALLET
  bitcoind_LDADD += libbitcoin_wallet.a
-+libbitcoind_la_LIBADD += $(BDB_LIBS)
++STATIC_EXTRA_LIBS += $(STATIC_BDB_LIBS)
 +libbitcoind_la_SOURCES += $(libbitcoin_wallet_a_SOURCES)
  endif
 
 +STATIC_BOOST_LIBS += ../depends/$(ARCH_PLATFORM)/lib/libboost_filesystem-mt.a ../depends/$(ARCH_PLATFORM)/lib/libboost_system-mt.a ../depends/$(ARCH_PLATFORM)/lib/libboost_chrono-mt.a ../depends/$(ARCH_PLATFORM)/lib/libboost_thread-mt.a ../depends/$(ARCH_PLATFORM)/lib/libboost_program_options-mt.a
++STATIC_BDB_LIBS += ../depends/$(ARCH_PLATFORM)/lib/libdb_cxx.a
 +
  bitcoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS)
 -#
-+libbitcoind_la_LIBADD += $(SSL_LIBS) $(LIBSECP256K1) $(CRYPTO_LIBS) $(LIBLEVELDB) $(LIBMEMENV) $(STATIC_BOOST_LIBS) 
++libbitcoind_la_LIBADD += $(SSL_LIBS) $(LIBSECP256K1) $(CRYPTO_LIBS) $(STATIC_EXTRA_LIBS)
 +libbitcoind_la_CPPFLAGS = $(BITCOIN_INCLUDES)
 +if TARGET_DARWIN
 +libbitcoind_la_LDFLAGS += -Wl,-all_load
 +else
-+libbitcoind_la_LDFLAGS += -Wl,--whole-archive $(BOOST_LIBS) -Wl,--no-whole-archive
++libbitcoind_la_LDFLAGS += -Wl,--whole-archive $(STATIC_EXTRA_LIBS) -Wl,--no-whole-archive
 +endif
 
  # bitcoin-cli binary #
