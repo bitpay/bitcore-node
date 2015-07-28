@@ -6,6 +6,7 @@ depends_dir=$($root_dir/platform/os.sh depends_dir)
 os_dir=$(${root_dir}/platform/os.sh osdir)
 host=$(${root_dir}/platform/os.sh host)
 btc_dir="${root_dir}/libbitcoind"
+ext=$($root_dir/platform/os.sh ext)
 echo "Using BTC directory: ${btc_dir}"
 
 cd "${root_dir}"
@@ -61,84 +62,100 @@ if [ "${BITCOINDJS_ENV}" == "test" ]; then
   options=`cat ${root_dir}/bin/config_options_test.sh`
 fi
 
-only_make=false
-if [ -d "${btc_dir}" ]; then
-  echo "running compare patch..."
-  compare_patch
-  repatch=false
-  if [[ "${matching_patch}" =~ [^\s\\] ]]; then
-    echo "Warning! libbitcoind is not patched with:\
-  ${root_dir}/etc/bitcoin.patch."
-    echo -n "Would you like to remove the current patch, checkout the tag: ${tag} and \
+patch_file_sha=$(shasum -a 256 "${root_dir}/etc/bitcoin.patch" | awk '{print $1}')
+if [ "${ext}" == "dylib" ]; then
+  last_patch_file_sha=$(cat "${os_dir}"/lib/patch_sha.txt)
+else
+  last_patch_file_sha=$(cat "${os_dir}"/patch_sha.txt)
+fi
+shared_file_built=false
+if [ "${last_patch_file_sha}" == "${patch_file_sha}" ]; then
+  shared_file_built=true
+fi
+
+if [ "${shared_file_built}" = false ]; then
+  only_make=false
+  if [ -d "${btc_dir}" ]; then
+    echo "running compare patch..."
+    compare_patch
+    repatch=false
+    if [[ "${matching_patch}" =~ [^\s\\] ]]; then
+      echo "Warning! libbitcoind is not patched with:\
+        ${root_dir}/etc/bitcoin.patch."
+      echo -n "Would you like to remove the current patch, checkout the tag: ${tag} and \
 apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
-    if [ "${BITCOINDJS_ASSUME_YES}" = true ]; then
-      input=y
-      echo ""
-    else
-      read input
+      if [ "${BITCOINDJS_ASSUME_YES}" = true ]; then
+        input=y
+        echo ""
+      else
+        read input
+      fi
+      if [[ "${input}" =~ ^y|^Y ]]; then
+        repatch=true
+        rm -f "${os_dir}/libbitcoind.*"
+        echo "Removing directory: \"${btc_dir}\" and starting over!"
+        rm -fr "${btc_dir}"
+      fi
     fi
-    if [[ "${input}" =~ ^y|^Y ]]; then
-      repatch=true
-      rm -f "${os_dir}/libbitcoind.*"
-      echo "Removing directory: \"${btc_dir}\" and starting over!"
-      rm -fr "${btc_dir}"
+    if [ "${repatch}" = false ]; then
+      echo "Running make inside libbitcoind (assuming you've previously patched and configured libbitcoind)..."
+      cd "${btc_dir}"
+      only_make=true
     fi
   fi
-  if [ "${repatch}" = false ]; then
-    echo "Running make inside libbitcoind (assuming you've previously patched and configured libbitcoind)..."
+
+  set -e
+
+  if [ "${only_make}" = false ]; then
+    echo "Cloning, patching, and building libbitcoind..."
+    get_patch_file
+    echo "attempting to checkout tag: ${tag} of bitcoin from github..."
+    cd "${root_dir}"
+    git clone --depth 1 --branch "${tag}" https://github.com/bitcoin/bitcoin.git libbitcoind
+
     cd "${btc_dir}"
-    only_make=true
-  fi
-fi
 
-set -e
+    echo '../patch-bitcoin.sh' "${btc_dir}"
+    ../bin/patch-bitcoin "${btc_dir}"
 
-if [ "${only_make}" = false ]; then
-  echo "Removing cloning, patching, and building libbitcoind..."
-  get_patch_file
-  echo "attempting to checkout tag: ${tag} of bitcoin from github..."
-  cd "${root_dir}"
-  git clone --depth 1 --branch "${tag}" https://github.com/bitcoin/bitcoin.git libbitcoind
-
-  cd "${btc_dir}"
-
-  echo '../patch-bitcoin.sh' "${btc_dir}"
-  ../bin/patch-bitcoin "${btc_dir}"
-
-  if ! test -d .git; then
-    echo 'Please point this script to an upstream bitcoin git repo.'
-    exit 1
-  fi
-
-fi
-build_dependencies
-echo './autogen.sh'
-./autogen.sh
-
-export CPPFLAGS="-I${h_and_a_dir}/include/boost -I${h_and_a_dir}/include -L${h_and_a_dir}/lib"
-boost_libdir="--with-boost-libdir=${h_and_a_dir}/lib"
-
-full_options="${options} ${boost_libdir} --prefix=${os_dir}"
-echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
-${full_options}
-
-echo 'make V=1'
-make V=1
-
-ext=$($root_dir/platform/os.sh ext)
-echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
-if test -e "${btc_dir}/src/.libs/libbitcoind.${ext}"; then
-  if [ "$ext" = "dylib" ]; then
-    if [ ! -d "${os_dir}/lib" ]; then
-      mkdir -p "${os_dir}/lib"
-    fi 
-    cp -R "${btc_dir}"/src/.libs/libbitcoind.*dylib "${os_dir}/lib/"
-  else
-    if [ ! -d "${os_dir}" ]; then
-      mkdir -p "${os_dir}"
+    if ! test -d .git; then
+      echo 'Please point this script to an upstream bitcoin git repo.'
+      exit 1
     fi
-    cp -P "${btc_dir}"/src/.libs/libbitcoind.so* "${os_dir}/"
+
   fi
+  build_dependencies
+  echo './autogen.sh'
+  ./autogen.sh
+
+  export CPPFLAGS="-I${h_and_a_dir}/include/boost -I${h_and_a_dir}/include -L${h_and_a_dir}/lib"
+  boost_libdir="--with-boost-libdir=${h_and_a_dir}/lib"
+
+  full_options="${options} ${boost_libdir} --prefix=${os_dir}"
+  echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
+  ${full_options}
+
+  echo 'make V=1'
+  make V=1
+
+  echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
+  if test -e "${btc_dir}/src/.libs/libbitcoind.${ext}"; then
+    if [ "$ext" = "dylib" ]; then
+      if [ ! -d "${os_dir}/lib" ]; then
+        mkdir -p "${os_dir}/lib"
+      fi
+      cp -R "${btc_dir}"/src/.libs/libbitcoind.*dylib "${os_dir}/lib/"
+    else
+      if [ ! -d "${os_dir}" ]; then
+        mkdir -p "${os_dir}"
+      fi
+      cp -P "${btc_dir}"/src/.libs/libbitcoind.so* "${os_dir}/"
+    fi
+    echo "Creating the sha marker for the patching in libbitcoind..."
+    echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${os_dir}"/patch_sha.txt
+  fi
+  echo 'Build finished successfully.'
+else
+  echo 'Using existing shared library.'
 fi
 
-echo 'Build finished successfully.'
