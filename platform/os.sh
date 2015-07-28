@@ -8,9 +8,10 @@ os=
 ext=so
 
 host=`uname -m`-`uname -a | awk '{print tolower($1)}'`
-depends_dir="${BITCOIN_DIR}"/depends/${host}
-thread="${depends_dir}"/lib/libboost_thread-mt.a
-filesystem="${depends_dir}"/lib/libboost_filesystem-mt.a
+depends_dir="${BITCOIN_DIR}"/depends
+h_and_a_dir="${depends_dir}"/"${host}"
+thread="${h_and_a_dir}"/lib/libboost_thread-mt.a
+filesystem="${h_and_a_dir}"/lib/libboost_filesystem-mt.a
 
 if test -f /etc/centos-release \
   || grep -q 'CentOS' /etc/redhat-release \
@@ -83,6 +84,10 @@ fi
 
 if test -z "$1" -o x"$1" = x'depends_dir'; then
   echo -n "${depends_dir}"
+fi
+
+if test -z "$1" -o x"$1" = x'h_and_a_dir'; then
+  echo -n "${h_and_a_dir}"
 fi
 
 if test -z "$1" -o x"$1" = x'host'; then

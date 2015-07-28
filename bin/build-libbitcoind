@@ -1,20 +1,33 @@
 #!/bin/bash
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 options=`cat ${root_dir}/bin/config_options.sh`
+h_and_a_dir=$($root_dir/platform/os.sh h_and_a_dir)
 depends_dir=$($root_dir/platform/os.sh depends_dir)
-os_dir=$(./platform/os.sh osdir)
-host=$(./platform/os.sh host)
+os_dir=$(${root_dir}/platform/os.sh osdir)
+host=$(${root_dir}/platform/os.sh host)
+btc_dir="${root_dir}/libbitcoind"
+echo "Using BTC directory: ${btc_dir}"
 
 cd "${root_dir}"
 
 build_dependencies () {
   if [ -d "${btc_dir}" ]; then
-    pushd "${btc_dir}"/depends
+    pushd "${depends_dir}"
     echo "using host for dependencies: ${host}"
-    if [ "${test}" = true ]; then
-      make HOST=${host} NO_QT=1 NO_UPNP=1 
+    boost_files_count=`find "${h_and_a_dir}"/lib -iname "libboost_*-mt.a" | wc -l | xargs`
+    db_files_count=`find "${h_and_a_dir}"/lib -iname "libdb*.a" | wc -l | xargs`
+    should_rebuild=false
+    if [[ "${boost_files_count}" -lt 5 || ( "${db_files_count}" -lt 1  && "${test}" = true ) ]]; then
+      should_rebuild=true
+    fi
+    if [ "${should_rebuild}" = true ]; then
+      if [ "${test}" = true ]; then
+        make HOST=${host} NO_QT=1 NO_UPNP=1 
+      else
+        make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1 
+      fi
     else
-      make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1 
+      echo "Looks like libs are already built, so we won't rebuild them. Incidentally, we found: ${boost_files_count} boost libraries and: ${db_files_count} Berkeley DB libraries and you have test mode set to: ${test}"
     fi
     popd
   fi 
@@ -30,30 +43,26 @@ get_patch_file () {
 }
 
 compare_patch () {
-  cd "${root_dir}/libbitcoind"
+  cd "${btc_dir}"
   get_patch_file
   echo "running the diff command from HEAD to ${tag}"
   git diff ${tag}..HEAD > /tmp/tmp.patch #uncommitted changes won't affect things here
   matching_patch=`diff -w /tmp/tmp.patch "${root_dir}/etc/bitcoin.patch"` 
 }
-#set the LD_LIBRARY_PATH for the linux clients.
+
 debug=
 if [ "${BITCOINDJS_ENV}" == "debug" ]; then
   options=`cat ${root_dir}/bin/config_options_debug.sh`
 fi
 
-test=
+test=false
 if [ "${BITCOINDJS_ENV}" == "test" ]; then
   test=true
   options=`cat ${root_dir}/bin/config_options_test.sh`
 fi
 
-btc_dir="${root_dir}/libbitcoind"
-echo "Using BTC directory: ${btc_dir}"
-
-rm -f "${os_dir}/libbitcoind.*"
 only_make=false
-if [ -d "${root_dir}/libbitcoind" ]; then
+if [ -d "${btc_dir}" ]; then
   echo "running compare patch..."
   compare_patch
   repatch=false
@@ -70,8 +79,9 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
     fi
     if [[ "${input}" =~ ^y|^Y ]]; then
       repatch=true
-      echo "Removing directory: \"${root_dir}/libbitcoind\" and starting over!"
-      rm -fr "${root_dir}"/libbitcoind
+      rm -f "${os_dir}/libbitcoind.*"
+      echo "Removing directory: \"${btc_dir}\" and starting over!"
+      rm -fr "${btc_dir}"
     fi
   fi
   if [ "${repatch}" = false ]; then
@@ -105,8 +115,8 @@ build_dependencies
 echo './autogen.sh'
 ./autogen.sh
 
-export CPPFLAGS="-I${depends_dir}/include/boost -I${depends_dir}/include -L${depends_dir}/lib"
-boost_libdir="--with-boost-libdir=${depends_dir}/lib"
+export CPPFLAGS="-I${h_and_a_dir}/include/boost -I${h_and_a_dir}/include -L${h_and_a_dir}/lib"
+boost_libdir="--with-boost-libdir=${h_and_a_dir}/lib"
 
 full_options="${options} ${boost_libdir} --prefix=${os_dir}"
 echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
@@ -117,17 +127,17 @@ make V=1
 
 ext=$($root_dir/platform/os.sh ext)
 echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
-if test -e "${root_dir}/libbitcoind/src/.libs/libbitcoind.${ext}"; then
+if test -e "${btc_dir}/src/.libs/libbitcoind.${ext}"; then
   if [ "$ext" = "dylib" ]; then
     if [ ! -d "${os_dir}/lib" ]; then
       mkdir -p "${os_dir}/lib"
     fi 
-    cp -R "${root_dir}"/libbitcoind/src/.libs/libbitcoind.*dylib "${os_dir}/lib/"
+    cp -R "${btc_dir}"/src/.libs/libbitcoind.*dylib "${os_dir}/lib/"
   else
     if [ ! -d "${os_dir}" ]; then
       mkdir -p "${os_dir}"
     fi
-    cp -P "${root_dir}"/libbitcoind/src/.libs/libbitcoind.so* "${os_dir}/"
+    cp -P "${btc_dir}"/src/.libs/libbitcoind.so* "${os_dir}/"
   fi
 fi
 

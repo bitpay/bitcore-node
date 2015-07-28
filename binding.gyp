@@ -3,7 +3,7 @@
     'target_name': 'bitcoindjs',
     'include_dirs' : [
       '<!(node -e "require(\'nan\')")',
-      '<!(./platform/os.sh depends_dir)/include',
+      '<!(./platform/os.sh h_and_a_dir)/include',
       './libbitcoind/src/leveldb/include',
       './libbitcoind/src',
     ],
