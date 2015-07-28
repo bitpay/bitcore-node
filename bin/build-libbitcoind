@@ -1,10 +1,12 @@
 #!/bin/bash
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
-cd "${root_dir}"
 options=`cat ${root_dir}/bin/config_options.sh`
-
+depends_dir=$($root_dir/platform/os.sh depends_dir)
 os_dir=$(./platform/os.sh osdir)
 host=$(./platform/os.sh host)
+
+cd "${root_dir}"
+
 build_dependencies () {
   if [ -d "${btc_dir}" ]; then
     pushd "${btc_dir}"/depends
@@ -35,8 +37,6 @@ compare_patch () {
   matching_patch=`diff -w /tmp/tmp.patch "${root_dir}/etc/bitcoin.patch"` 
 }
 #set the LD_LIBRARY_PATH for the linux clients.
-export LD_LIBRARY_PATH="${root_dir}/libbitcoind/src/leveldb":"${os_dir}":$LD_LIBRARY_PATH
-
 debug=
 if [ "${BITCOINDJS_ENV}" == "debug" ]; then
   options=`cat ${root_dir}/bin/config_options_debug.sh`
@@ -104,10 +104,14 @@ fi
 build_dependencies
 echo './autogen.sh'
 ./autogen.sh
-export CPPFLAGS="-I${btc_dir}/depends/${host}/include/boost -I${btc_dir}/depends/${host}/include -L${btc_dir}/depends/${host}/lib"
-full_options="${options}${os_dir}"
+
+export CPPFLAGS="-I${depends_dir}/include/boost -I${depends_dir}/include -L${depends_dir}/lib"
+boost_libdir="--with-boost-libdir=${depends_dir}/lib"
+
+full_options="${options} ${boost_libdir} --prefix=${os_dir}"
 echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
 ${full_options}
+
 echo 'make V=1'
 make V=1
 
