@@ -29,3 +29,4 @@ NAN_METHOD(GetMempoolOutputs);
 NAN_METHOD(AddMempoolUncheckedTransaction);
 NAN_METHOD(VerifyScript);
 NAN_METHOD(SendTransaction);
+NAN_METHOD(EstimateFee);
