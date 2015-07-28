@@ -8,9 +8,9 @@ os=
 ext=so
 
 host=`uname -m`-`uname -a | awk '{print tolower($1)}'`
-boost_dir="${root_dir}"/libbitcoind/depends/${host}/lib
-thread="${boost_dir}"/libboost_thread-mt.a
-filesystem="${boost_dir}"/libboost_filesystem-mt.a
+depends_dir="${BITCOIN_DIR}"/depends/${host}
+thread="${depends_dir}"/lib/libboost_thread-mt.a
+filesystem="${depends_dir}"/lib/libboost_filesystem-mt.a
 
 if test -f /etc/centos-release \
   || grep -q 'CentOS' /etc/redhat-release \
@@ -24,7 +24,6 @@ elif test -f /etc/redhat_release \
 elif uname -a | grep -q '^Darwin'; then
   os=osx
   ext=dylib
-  boost_dir="${root_dir}"/libbitcoind/depends/x86_64-darwin/lib
 elif test -f /etc/SuSE-release; then
   os=suse
 elif test -f /etc/mandrake-release \
@@ -82,8 +81,8 @@ if test -z "$1" -o x"$1" = x'filesystem'; then
   echo -n "${filesystem}"
 fi
 
-if test -z "$1" -o x"$1" = x'boost_dir'; then
-  echo -n "${boost_dir}"
+if test -z "$1" -o x"$1" = x'depends_dir'; then
+  echo -n "${depends_dir}"
 fi
 
 if test -z "$1" -o x"$1" = x'host'; then
