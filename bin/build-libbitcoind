@@ -17,6 +17,8 @@ copy_header_files () {
     mkdir -p "${artifacts_dir}/include" > /dev/null 2>&1
     pushd "${root_dir}"
     find libbitcoind -type f \( -name "*.h" -or -name "*.hpp" -or -name "*.ipp" \) -print0 | xargs -0 -I{} rsync -R {} "${artifacts_dir}"/include
+    mkdir -p "${artifacts_dir}/lib" > /dev/null 2>&1
+    cp -r "${h_and_a_dir}"/lib/libboost_filesystem-mt.a "${h_and_a_dir}"/lib/libboost_thread-mt.a "${artifacts_dir}"/lib/ 
     popd
   fi
 }
@@ -163,6 +165,9 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
     echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${artifacts_dir}"/patch_sha.txt
     echo "Copying the header files in order to be cached..."
     copy_header_files
+  else
+    echo "Could not find the shared libraries after they should have been built, please run make clean inside the libbitcoind dir and run npm install again."
+    exit 1
   fi
   echo 'Build finished successfully.'
 else

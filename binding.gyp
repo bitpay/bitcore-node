@@ -5,7 +5,7 @@
       '<!(node -e "require(\'nan\')")',
       '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src',
       '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/depends/<!(./platform/os.sh host)/include',
-      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src/leveldb'
+      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src/leveldb/include'
     ],
     'sources': [
       './src/bitcoindjs.cc',
@@ -27,8 +27,8 @@
     ],
     'link_settings': {
       'libraries': [
-        '<!(./platform/os.sh filesystem)',
-        '<!(./platform/os.sh thread)',
+        '<!(./platform/os.sh artifacts_dir)/lib/libboost_filesystem-mt.a',
+        '<!(./platform/os.sh artifacts_dir)/lib/libboost_thread-mt.a',
         '<!(./platform/os.sh lib)'
       ],
       'ldflags': [
