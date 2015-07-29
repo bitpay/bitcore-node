@@ -10,8 +10,6 @@ ext=so
 host=`uname -m`-`uname -a | awk '{print tolower($1)}'`
 depends_dir="${BITCOIN_DIR}"/depends
 h_and_a_dir="${depends_dir}"/"${host}"
-thread="${h_and_a_dir}"/lib/libboost_thread-mt.a
-filesystem="${h_and_a_dir}"/lib/libboost_filesystem-mt.a
 
 if test -f /etc/centos-release \
   || grep -q 'CentOS' /etc/redhat-release \
@@ -51,6 +49,15 @@ elif test -d /system && test -d /data/data; then
 fi
 
 os_dir=${root_dir}/platform/${os}
+
+if [ "${os}"  == "osx" ]; then
+  artifacts_dir="${os_dir}/lib"
+else
+  artifacts_dir="${os_dir}"
+fi
+
+thread="${artifacts_dir}"/lib/libboost_thread-mt.a
+filesystem="${artifacts_dir}"/lib/libboost_filesystem-mt.a
 
 if test -z "$os" -o x"$os" = x'android' -o x"$os" = x'aix'; then
   if test "$os" = 'android' -o "$os" = 'aix'; then
@@ -103,11 +110,7 @@ if test -z "$1" -o x"$1" = x'load_archive'; then
 fi
 
 if test -z "$1" -o x"$1" = x'artifacts_dir'; then
-  if [ "${os}"  == "osx" ]; then
-    echo -n "${os_dir}/lib"
-  else
-    echo -n "${os_dir}"
-  fi
+  echo -n "${artifacts_dir}" 
 fi
 
 if test -z "$1" -o x"$1" = x'lib'; then

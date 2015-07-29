@@ -27,8 +27,8 @@
     ],
     'link_settings': {
       'libraries': [
-        '<!(./platform/os.sh artifacts_dir)/lib/libboost_filesystem-mt.a',
-        '<!(./platform/os.sh artifacts_dir)/lib/libboost_thread-mt.a',
+        '<!(./platform/os.sh filesystem)',
+        '<!(./platform/os.sh thread)',
         '<!(./platform/os.sh lib)'
       ],
       'ldflags': [
