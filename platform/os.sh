@@ -102,6 +102,14 @@ if test -z "$1" -o x"$1" = x'load_archive'; then
   fi
 fi
 
+if test -z "$1" -o x"$1" = x'artifacts_dir'; then
+  if [ "${os}"  == "osx" ]; then
+    echo -n "${os_dir}/lib"
+  else
+    echo -n "${os_dir}"
+  fi
+fi
+
 if test -z "$1" -o x"$1" = x'lib'; then
   if test -e "${os_dir}/libbitcoind.${ext}" -o -e "${os_dir}/lib/libbitcoind.${ext}"; then
     if test -e "${os_dir}/lib/libbitcoind.${ext}"; then

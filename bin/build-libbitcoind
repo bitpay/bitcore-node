@@ -7,9 +7,19 @@ os_dir=$(${root_dir}/platform/os.sh osdir)
 host=$(${root_dir}/platform/os.sh host)
 btc_dir="${root_dir}/libbitcoind"
 ext=$($root_dir/platform/os.sh ext)
+artifacts_dir=$($root_dir/platform/os.sh artifacts_dir)
 echo "Using BTC directory: ${btc_dir}"
 
 cd "${root_dir}"
+
+copy_header_files () {
+  if [[ -d "${artifacts_dir}" && -d "${h_and_a_dir}" && -d "${btc_dir}" ]]; then
+    mkdir -p "${artifacts_dir}/include" > /dev/null 2>&1
+    pushd "${root_dir}"
+    find libbitcoind -name \*.h -print0 | xargs -0 -I{} rsync -R {} "${artifacts_dir}"/include
+    popd
+  fi
+}
 
 build_dependencies () {
   if [ -d "${btc_dir}" ]; then
@@ -69,7 +79,7 @@ else
   last_patch_file_sha=$(cat "${os_dir}"/patch_sha.txt)
 fi
 shared_file_built=false
-if [ "${last_patch_file_sha}" == "${patch_file_sha}" ]; then
+if [[ "${last_patch_file_sha}" == "${patch_file_sha}" && -d "${artifacts_dir}/include" ]]; then
   shared_file_built=true
 fi
 
@@ -103,8 +113,6 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
       only_make=true
     fi
   fi
-
-  set -e
 
   if [ "${only_make}" = false ]; then
     echo "Cloning, patching, and building libbitcoind..."
@@ -152,7 +160,9 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
       cp -P "${btc_dir}"/src/.libs/libbitcoind.so* "${os_dir}/"
     fi
     echo "Creating the sha marker for the patching in libbitcoind..."
-    echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${os_dir}"/patch_sha.txt
+    echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${artifacts_dir}"/patch_sha.txt
+    echo "Copying the header files in order to be cached..."
+    copy_header_files
   fi
   echo 'Build finished successfully.'
 else

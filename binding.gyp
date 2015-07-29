@@ -3,9 +3,9 @@
     'target_name': 'bitcoindjs',
     'include_dirs' : [
       '<!(node -e "require(\'nan\')")',
-      '<!(./platform/os.sh h_and_a_dir)/include',
-      './libbitcoind/src/leveldb/include',
-      './libbitcoind/src',
+      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src',
+      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/depends/<!(./platform/os.sh host)/include',
+      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src/leveldb'
     ],
     'sources': [
       './src/bitcoindjs.cc',
