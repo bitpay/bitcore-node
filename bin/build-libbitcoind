@@ -16,7 +16,7 @@ copy_header_files () {
   if [[ -d "${artifacts_dir}" && -d "${h_and_a_dir}" && -d "${btc_dir}" ]]; then
     mkdir -p "${artifacts_dir}/include" > /dev/null 2>&1
     pushd "${root_dir}"
-    find libbitcoind -type f \( -name "*.h" -or -name "*.hpp" \) -print0 | xargs -0 -I{} rsync -R {} "${artifacts_dir}"/include
+    find libbitcoind -type f \( -name "*.h" -or -name "*.hpp" -or -name "*.ipp" \) -print0 | xargs -0 -I{} rsync -R {} "${artifacts_dir}"/include
     popd
   fi
 }
