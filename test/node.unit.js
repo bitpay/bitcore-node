@@ -31,6 +31,15 @@ var Node = proxyquire('../lib/node', {
 chainlib.Node = OriginalNode;
 
 describe('Bitcoind Node', function() {
+  describe('#openBus', function() {
+    it('will create a new bus', function() {
+      var node = new Node({});
+      var db = {};
+      node.db = db;
+      var bus = node.openBus();
+      bus.db.should.equal(db);
+    });
+  });
   describe('#_loadConfiguration', function() {
     it('should call the necessary methods', function() {
       var node = new Node({});

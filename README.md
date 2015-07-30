@@ -106,7 +106,7 @@ the blockchain. One built-in module is the address module which exposes the API 
 
 ### Writing a Module
 
-A new module can be created by inheriting from `BitcoindJS.Module`, implementing the methods `blockHandler()` and `getAPIMethods()`, and any additional methods for querying the data. Here is an example:
+A new module can be created by inheriting from `BitcoindJS.Module`, implementing the methods `blockHandler()`, `getAPIMethods()`, `getPublishEvents()` and any additional methods for querying the data. Here is an example:
 
 ```js
 var inherits = require('util').inherits;
@@ -157,6 +157,31 @@ MyModule.prototype.getAPIMethods = function() {
     ['getData', this, this.getData, 1]
   ];
 };
+
+/**
+ * the bus events available for subscription
+ * @return {Array} array of events
+ */
+MyModule.prototype.getPublishEvents = function() {
+  return [
+    {
+      name: 'custom',
+      scope: this,
+      subscribe: this.subscribeCustom,
+      unsubscribe: this.unsubscribeCustom
+    }
+  ]
+};
+
+/**
+ * Will keep track of event listeners to later publish and emit events.
+ */
+MyModule.prototype.subscribeCustom = function(emitter, param) {
+  if(!this.subscriptions[param]) {
+    this.subscriptions[param] = [];
+  }
+  this.subscriptions[param].push(emitter);
+}
 
 MyModule.prototype.getData = function(arg1, callback) {
   // You can query the data by reading from the leveldb store on db

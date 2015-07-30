@@ -2,8 +2,6 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
-var chainlib = require('chainlib');
-var levelup = chainlib.deps.levelup;
 var bitcoindjs = require('../../');
 var AddressModule = bitcoindjs.modules.AddressModule;
 var blockData = require('../data/livenet-345003.json');
@@ -18,6 +16,40 @@ describe('AddressModule', function() {
       var am = new AddressModule({});
       var methods = am.getAPIMethods();
       methods.length.should.equal(4);
+    });
+  });
+
+  describe('#getPublishEvents', function() {
+    it('will return an array of publish event objects', function() {
+      var am = new AddressModule({});
+      am.subscribe = sinon.spy();
+      am.unsubscribe = sinon.spy();
+      var events = am.getPublishEvents();
+
+      var callCount = 0;
+      function testName(event, name) {
+        event.name.should.equal(name);
+        event.scope.should.equal(am);
+        var emitter = new EventEmitter();
+        var addresses = [];
+        event.subscribe(emitter, addresses);
+        am.subscribe.callCount.should.equal(callCount + 1);
+        am.subscribe.args[callCount][0].should.equal(name);
+        am.subscribe.args[callCount][1].should.equal(emitter);
+        am.subscribe.args[callCount][2].should.equal(addresses);
+        am.subscribe.thisValues[callCount].should.equal(am);
+        event.unsubscribe(emitter, addresses);
+        am.unsubscribe.callCount.should.equal(callCount + 1);
+        am.unsubscribe.args[callCount][0].should.equal(name);
+        am.unsubscribe.args[callCount][1].should.equal(emitter);
+        am.unsubscribe.args[callCount][2].should.equal(addresses);
+        am.unsubscribe.thisValues[callCount].should.equal(am);
+        callCount++;
+      }
+      events.forEach(function(event) {
+        testName(event, event.name);
+      });
+
     });
   });
 
@@ -123,6 +155,129 @@ describe('AddressModule', function() {
         operations.length.should.equal(0);
         done();
       });
+    });
+    it('will call event handlers', function() {
+      var block = bitcore.Block.fromString(blockData);
+      var db = {
+        getTransactionsFromBlock: function() {
+          return block.transactions.slice(0, 8);
+        }
+      };
+      var am = new AddressModule({db: db, network: 'livenet'});
+      am.transactionEventHandler = sinon.spy();
+      am.balanceEventHandler = sinon.spy();
+      am.blockHandler(
+        {
+          __height: 345003,
+          timestamp: new Date(1424836934000)
+        },
+        true,
+        function(err) {
+          if (err) {
+            throw err;
+          }
+          am.transactionEventHandler.callCount.should.equal(11);
+          am.balanceEventHandler.callCount.should.equal(11);
+        }
+      );
+    });
+  });
+
+  describe('#transactionEventHandler', function() {
+    it('will emit a transaction if there is a subscriber', function(done) {
+      var am = new AddressModule({});
+      var emitter = new EventEmitter();
+      am.subscriptions.transaction = {
+        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
+      };
+      var block = {};
+      var tx = {};
+      emitter.on('transaction', function(address, t, b) {
+        address.should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+        t.should.equal(tx);
+        b.should.equal(block);
+        done();
+      });
+      am.transactionEventHandler(block, '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N', tx);
+    });
+  });
+
+  describe('#balanceEventHandler', function() {
+    it('will emit a balance if there is a subscriber', function(done) {
+      var am = new AddressModule({});
+      var emitter = new EventEmitter();
+      am.subscriptions.balance = {
+        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
+      };
+      var block = {};
+      var balance = 1000;
+      am.getBalance = sinon.stub().callsArgWith(2, null, balance);
+      emitter.on('balance', function(address, bal, b) {
+        address.should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+        bal.should.equal(balance);
+        b.should.equal(block);
+        done();
+      });
+      am.balanceEventHandler(block, '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+    });
+  });
+
+  describe('#subscribe', function() {
+    it('will add emitters to the subscribers array (transaction)', function() {
+      var am = new AddressModule({});
+      var emitter = new EventEmitter();
+
+      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      var name = 'transaction';
+      am.subscribe(name, emitter, [address]);
+      am.subscriptions.transaction[address].should.deep.equal([emitter]);
+
+      var address2 = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      am.subscribe(name, emitter, [address2]);
+      am.subscriptions.transaction[address2].should.deep.equal([emitter]);
+
+      var emitter2 = new EventEmitter();
+      am.subscribe(name, emitter2, [address]);
+      am.subscriptions.transaction[address].should.deep.equal([emitter, emitter2]);
+    });
+    it('will add an emitter to the subscribers array (balance)', function() {
+      var am = new AddressModule({});
+      var emitter = new EventEmitter();
+      var name = 'balance';
+      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      am.subscribe(name, emitter, [address]);
+      am.subscriptions.balance[address].should.deep.equal([emitter]);
+
+      var address2 = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      am.subscribe(name, emitter, [address2]);
+      am.subscriptions.balance[address2].should.deep.equal([emitter]);
+
+      var emitter2 = new EventEmitter();
+      am.subscribe(name, emitter2, [address]);
+      am.subscriptions.balance[address].should.deep.equal([emitter, emitter2]);
+    });
+  });
+
+  describe('#unsubscribe', function() {
+    it('will remove emitter from subscribers array (transaction)', function() {
+      var am = new AddressModule({});
+      var emitter = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      am.subscriptions.transaction[address] = [emitter, emitter2];
+      var name = 'transaction';
+      am.unsubscribe(name, emitter, [address]);
+      am.subscriptions.transaction[address].should.deep.equal([emitter2]);
+    });
+    it('will remove emitter from subscribers array (balance)', function() {
+      var am = new AddressModule({});
+      var emitter = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      var name = 'balance';
+      am.subscriptions.balance[address] = [emitter, emitter2];
+      am.unsubscribe(name, emitter, [address]);
+      am.subscriptions.balance[address].should.deep.equal([emitter2]);
     });
   });
 
