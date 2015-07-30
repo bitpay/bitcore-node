@@ -6,7 +6,10 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 BITCOIN_DIR="${root_dir}/libbitcoind"
 os=
 ext=so
-thread=-lboost_thread
+
+host=`uname -m`-`uname -a | awk '{print tolower($1)}'`
+depends_dir="${BITCOIN_DIR}"/depends
+h_and_a_dir="${depends_dir}"/"${host}"
 
 if test -f /etc/centos-release \
   || grep -q 'CentOS' /etc/redhat-release \
@@ -20,7 +23,6 @@ elif test -f /etc/redhat_release \
 elif uname -a | grep -q '^Darwin'; then
   os=osx
   ext=dylib
-  thread=-lboost_thread-mt
 elif test -f /etc/SuSE-release; then
   os=suse
 elif test -f /etc/mandrake-release \
@@ -48,6 +50,15 @@ fi
 
 os_dir=${root_dir}/platform/${os}
 
+if [ "${os}"  == "osx" ]; then
+  artifacts_dir="${os_dir}/lib"
+else
+  artifacts_dir="${os_dir}"
+fi
+
+thread="${artifacts_dir}"/lib/libboost_thread-mt.a
+filesystem="${artifacts_dir}"/lib/libboost_filesystem-mt.a
+
 if test -z "$os" -o x"$os" = x'android' -o x"$os" = x'aix'; then
   if test "$os" = 'android' -o "$os" = 'aix'; then
     echo 'Android or AIX detected!' >& 2
@@ -72,6 +83,34 @@ fi
 
 if test -z "$1" -o x"$1" = x'thread'; then
   echo -n "${thread}"
+fi
+
+if test -z "$1" -o x"$1" = x'filesystem'; then
+  echo -n "${filesystem}"
+fi
+
+if test -z "$1" -o x"$1" = x'depends_dir'; then
+  echo -n "${depends_dir}"
+fi
+
+if test -z "$1" -o x"$1" = x'h_and_a_dir'; then
+  echo -n "${h_and_a_dir}"
+fi
+
+if test -z "$1" -o x"$1" = x'host'; then
+  echo -n "${host}"
+fi
+
+if test -z "$1" -o x"$1" = x'load_archive'; then
+  if [ "${os}"  == "osx" ]; then
+    echo -n "-Wl,-all_load"
+  else
+    echo -n "-Wl,--whole-archive ${filesystem} ${thread} -Wl,--no-whole-archive"
+  fi
+fi
+
+if test -z "$1" -o x"$1" = x'artifacts_dir'; then
+  echo -n "${artifacts_dir}" 
 fi
 
 if test -z "$1" -o x"$1" = x'lib'; then

@@ -3,10 +3,9 @@
     'target_name': 'bitcoindjs',
     'include_dirs' : [
       '<!(node -e "require(\'nan\')")',
-      '/usr/include/boost',
-      '/usr/local/include',
-      './libbitcoind/src/leveldb/include',
-      './libbitcoind/src',
+      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src',
+      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/depends/<!(./platform/os.sh host)/include',
+      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src/leveldb/include'
     ],
     'sources': [
       './src/bitcoindjs.cc',
@@ -28,13 +27,13 @@
     ],
     'link_settings': {
       'libraries': [
-        '-lboost_filesystem',
-        '-L/usr/local/lib',
+        '<!(./platform/os.sh filesystem)',
         '<!(./platform/os.sh thread)',
         '<!(./platform/os.sh lib)'
       ],
       'ldflags': [
-        '-Wl,-rpath,<!(./platform/os.sh osdir),-rpath,<!(./platform/os.sh btcdir)/src/leveldb'
+        '-Wl,-rpath,<!(./platform/os.sh osdir)',
+        '<!(./platform/os.sh load_archive)'
       ]
     }
   }]

@@ -1,9 +1,50 @@
 #!/bin/bash
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
-cd "${root_dir}"
 options=`cat ${root_dir}/bin/config_options.sh`
+h_and_a_dir=$($root_dir/platform/os.sh h_and_a_dir)
+depends_dir=$($root_dir/platform/os.sh depends_dir)
+os_dir=$(${root_dir}/platform/os.sh osdir)
+host=$(${root_dir}/platform/os.sh host)
+btc_dir="${root_dir}/libbitcoind"
+ext=$($root_dir/platform/os.sh ext)
+artifacts_dir=$($root_dir/platform/os.sh artifacts_dir)
+echo "Using BTC directory: ${btc_dir}"
 
-os_dir=$(./platform/os.sh osdir)
+cd "${root_dir}"
+
+copy_header_files () {
+  if [[ -d "${artifacts_dir}" && -d "${h_and_a_dir}" && -d "${btc_dir}" ]]; then
+    mkdir -p "${artifacts_dir}/include" > /dev/null 2>&1
+    pushd "${root_dir}"
+    find libbitcoind -type f \( -name "*.h" -or -name "*.hpp" -or -name "*.ipp" \) -print0 | xargs -0 -I{} rsync -R {} "${artifacts_dir}"/include
+    mkdir -p "${artifacts_dir}/lib" > /dev/null 2>&1
+    cp -r "${h_and_a_dir}"/lib/libboost_filesystem-mt.a "${h_and_a_dir}"/lib/libboost_thread-mt.a "${artifacts_dir}"/lib/ 
+    popd
+  fi
+}
+
+build_dependencies () {
+  if [ -d "${btc_dir}" ]; then
+    pushd "${depends_dir}"
+    echo "using host for dependencies: ${host}"
+    boost_files_count=`find "${h_and_a_dir}"/lib -iname "libboost_*-mt.a" | wc -l | xargs`
+    db_files_count=`find "${h_and_a_dir}"/lib -iname "libdb*.a" | wc -l | xargs`
+    should_rebuild=false
+    if [[ "${boost_files_count}" -lt 5 || ( "${db_files_count}" -lt 1  && "${test}" = true ) ]]; then
+      should_rebuild=true
+    fi
+    if [ "${should_rebuild}" = true ]; then
+      if [ "${test}" = true ]; then
+        make HOST=${host} NO_QT=1 NO_UPNP=1 
+      else
+        make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1 
+      fi
+    else
+      echo "Looks like libs are already built, so we won't rebuild them. Incidentally, we found: ${boost_files_count} boost libraries and: ${db_files_count} Berkeley DB libraries and you have test mode set to: ${test}"
+    fi
+    popd
+  fi 
+}
 
 get_patch_file () {
   if test -e "${root_dir/PATCH_VERSION}"; then
@@ -15,101 +56,121 @@ get_patch_file () {
 }
 
 compare_patch () {
-  cd "${root_dir}/libbitcoind"
+  cd "${btc_dir}"
   get_patch_file
   echo "running the diff command from HEAD to ${tag}"
   git diff ${tag}..HEAD > /tmp/tmp.patch #uncommitted changes won't affect things here
   matching_patch=`diff -w /tmp/tmp.patch "${root_dir}/etc/bitcoin.patch"` 
 }
-#set the LD_LIBRARY_PATH for the linux clients.
-export LD_LIBRARY_PATH="${root_dir}/libbitcoind/src/leveldb":"${os_dir}":$LD_LIBRARY_PATH
 
 debug=
 if [ "${BITCOINDJS_ENV}" == "debug" ]; then
   options=`cat ${root_dir}/bin/config_options_debug.sh`
 fi
 
-test=
+test=false
 if [ "${BITCOINDJS_ENV}" == "test" ]; then
+  test=true
   options=`cat ${root_dir}/bin/config_options_test.sh`
 fi
 
-btc_dir="${root_dir}/libbitcoind"
-echo "Using BTC directory: ${btc_dir}"
-
-rm -f "${os_dir}/libbitcoind.*"
-only_make=false
-if [ -d "${root_dir}/libbitcoind" ]; then
-  echo "running compare patch..."
-  compare_patch
-  repatch=false
-  if [[ "${matching_patch}" =~ [^\s\\] ]]; then
-    echo "Warning! libbitcoind is not patched with:\
-  ${root_dir}/etc/bitcoin.patch."
-    echo -n "Would you like to remove the current patch, checkout the tag: ${tag} and \
-apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
-    if [ "${BITCOINDJS_ASSUME_YES}" = true ]; then
-      input=y
-      echo ""
-    else
-      read input
-    fi
-    if [[ "${input}" =~ ^y|^Y ]]; then
-      repatch=true
-      echo "Removing directory: \"${root_dir}/libbitcoind\" and starting over!"
-      rm -fr "${root_dir}"/libbitcoind
-    fi
-  fi
-  if [ "${repatch}" = false ]; then
-    echo "Running make inside libbitcoind (assuming you've previously patched and configured libbitcoind)..."
-    cd "${btc_dir}"
-    only_make=true
-  fi
+patch_file_sha=$(shasum -a 256 "${root_dir}/etc/bitcoin.patch" | awk '{print $1}')
+if [ "${ext}" == "dylib" ]; then
+  last_patch_file_sha=$(cat "${os_dir}"/lib/patch_sha.txt)
+else
+  last_patch_file_sha=$(cat "${os_dir}"/patch_sha.txt)
+fi
+shared_file_built=false
+if [[ "${last_patch_file_sha}" == "${patch_file_sha}" && -d "${artifacts_dir}/include" ]]; then
+  shared_file_built=true
 fi
 
-set -e
+if [ "${shared_file_built}" = false ]; then
+  only_make=false
+  if [ -d "${btc_dir}" ]; then
+    echo "running compare patch..."
+    compare_patch
+    repatch=false
+    if [[ "${matching_patch}" =~ [^\s\\] ]]; then
+      echo "Warning! libbitcoind is not patched with:\
+        ${root_dir}/etc/bitcoin.patch."
+      echo -n "Would you like to remove the current patch, checkout the tag: ${tag} and \
+apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
+      if [ "${BITCOINDJS_ASSUME_YES}" = true ]; then
+        input=y
+        echo ""
+      else
+        read input
+      fi
+      if [[ "${input}" =~ ^y|^Y ]]; then
+        repatch=true
+        rm -f "${os_dir}/libbitcoind.*"
+        echo "Removing directory: \"${btc_dir}\" and starting over!"
+        rm -fr "${btc_dir}"
+      fi
+    fi
+    if [ "${repatch}" = false ]; then
+      echo "Running make inside libbitcoind (assuming you've previously patched and configured libbitcoind)..."
+      cd "${btc_dir}"
+      only_make=true
+    fi
+  fi
 
-if [ "${only_make}" = false ]; then
-  echo "Removing cloning, patching, and building libbitcoind..."
-  get_patch_file
-  echo "attempting to checkout tag: ${tag} of bitcoin from github..."
-  cd "${root_dir}"
-  git clone --depth 1 --branch "${tag}" https://github.com/bitcoin/bitcoin.git libbitcoind
+  if [ "${only_make}" = false ]; then
+    echo "Cloning, patching, and building libbitcoind..."
+    get_patch_file
+    echo "attempting to checkout tag: ${tag} of bitcoin from github..."
+    cd "${root_dir}"
+    git clone --depth 1 --branch "${tag}" https://github.com/bitcoin/bitcoin.git libbitcoind
 
-  cd "${btc_dir}"
+    cd "${btc_dir}"
 
-  echo '../patch-bitcoin.sh' "${btc_dir}"
-  ../bin/patch-bitcoin "${btc_dir}"
+    echo '../patch-bitcoin.sh' "${btc_dir}"
+    ../bin/patch-bitcoin "${btc_dir}"
 
-  if ! test -d .git; then
-    echo 'Please point this script to an upstream bitcoin git repo.'
+    if ! test -d .git; then
+      echo 'Please point this script to an upstream bitcoin git repo.'
+      exit 1
+    fi
+
+  fi
+  build_dependencies
+  echo './autogen.sh'
+  ./autogen.sh
+
+  export CPPFLAGS="-I${h_and_a_dir}/include/boost -I${h_and_a_dir}/include -L${h_and_a_dir}/lib"
+  boost_libdir="--with-boost-libdir=${h_and_a_dir}/lib"
+
+  full_options="${options} ${boost_libdir} --prefix=${os_dir}"
+  echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
+  ${full_options}
+
+  echo 'make V=1'
+  make V=1
+
+  echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
+  if test -e "${btc_dir}/src/.libs/libbitcoind.${ext}"; then
+    if [ "$ext" = "dylib" ]; then
+      if [ ! -d "${os_dir}/lib" ]; then
+        mkdir -p "${os_dir}/lib"
+      fi
+      cp -R "${btc_dir}"/src/.libs/libbitcoind.*dylib "${os_dir}/lib/"
+    else
+      if [ ! -d "${os_dir}" ]; then
+        mkdir -p "${os_dir}"
+      fi
+      cp -P "${btc_dir}"/src/.libs/libbitcoind.so* "${os_dir}/"
+    fi
+    echo "Creating the sha marker for the patching in libbitcoind..."
+    echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${artifacts_dir}"/patch_sha.txt
+    echo "Copying the header files in order to be cached..."
+    copy_header_files
+  else
+    echo "Could not find the shared libraries after they should have been built, please run make clean inside the libbitcoind dir and run npm install again."
     exit 1
   fi
-
+  echo 'Build finished successfully.'
+else
+  echo 'Using existing shared library.'
 fi
 
-echo './autogen.sh'
-./autogen.sh
-full_options="${options}${os_dir}"
-echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
-${full_options}
-echo 'make V=1'
-make V=1
-
-ext=$($root_dir/platform/os.sh ext)
-echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
-if test -e "${root_dir}/libbitcoind/src/.libs/libbitcoind.${ext}"; then
-  if [ "$ext" = "dylib" ]; then
-    if [ ! -d "${os_dir}/lib" ]; then
-      mkdir -p "${os_dir}/lib"
-    fi 
-    cp -R "${root_dir}"/libbitcoind/src/.libs/libbitcoind.*dylib "${os_dir}/lib/"
-  else
-    if [ ! -d "${os_dir}" ]; then
-      mkdir -p "${os_dir}"
-    fi
-    cp -P "${root_dir}"/libbitcoind/src/.libs/libbitcoind.so* "${os_dir}/"
-  fi
-fi
-
-echo 'Build finished successfully.'
