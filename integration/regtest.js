@@ -232,6 +232,13 @@ describe('Daemon Binding Functionality', function() {
 
   });
 
+  describe('fee estimation', function() {
+    it('will estimate fees', function() {
+      var fees = bitcoind.estimateFee();
+      fees.should.equal(-1);
+    });
+  });
+
   describe('tip updates', function() {
     it('will get an event when the tip is new', function(done) {
       this.timeout(4000);

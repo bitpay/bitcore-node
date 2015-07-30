@@ -1122,6 +1122,33 @@ NAN_METHOD(GetInfo) {
 }
 
 /**
+ * Estimate Fee
+ * @blocks {number} - The number of blocks until confirmed
+ */
+
+NAN_METHOD(EstimateFee) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  int nBlocks = args[0]->NumberValue();
+  if (nBlocks < 1) {
+    nBlocks = 1;
+  }
+
+  CFeeRate feeRate = mempool.estimateFee(nBlocks);
+
+  if (feeRate == CFeeRate(0)) {
+    NanReturnValue(NanNew<Number>(-1.0));
+    return;
+  }
+
+  CAmount nFee = feeRate.GetFeePerK();
+
+  NanReturnValue(NanNew<Number>(nFee));
+
+}
+
+/**
  * Send Transaction
  * bitcoindjs.sendTransaction()
  * Will add a transaction to the mempool and broadcast to connected peers.
@@ -1319,6 +1346,8 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "addMempoolUncheckedTransaction", AddMempoolUncheckedTransaction);
   NODE_SET_METHOD(target, "verifyScript", VerifyScript);
   NODE_SET_METHOD(target, "sendTransaction", SendTransaction);
+  NODE_SET_METHOD(target, "estimateFee", EstimateFee);
+
 }
 
 NODE_MODULE(bitcoindjs, init)
