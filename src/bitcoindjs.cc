@@ -30,6 +30,9 @@ extern int64_t nTimeBestReceived;
  */
 
 static void
+txmon(uv_async_t *handle);
+
+static void
 async_tip_update(uv_work_t *req);
 
 static void
@@ -71,6 +74,9 @@ async_get_tx(uv_work_t *req);
 static void
 async_get_tx_after(uv_work_t *req);
 
+static bool
+process_packets(CNode* pfrom);
+
 extern "C" void
 init(Handle<Object>);
 
@@ -78,6 +84,10 @@ init(Handle<Object>);
  * Private Global Variables
  * Used only by bitcoindjs functions.
  */
+static uv_mutex_t txmon_mutex;
+static std::vector<std::string> txmon_messages;
+static uv_async_t txmon_async;
+static Eternal<Function> txmon_callback;
 
 static volatile bool shutdown_complete = false;
 static char *g_data_dir = NULL;
@@ -195,6 +205,115 @@ NAN_METHOD(VerifyScript) {
 
 static bool
 set_cooked(void);
+
+NAN_METHOD(StartTxMon) {
+  // todo: if already running give an error
+
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+  Eternal<Function> cb(isolate, callback);
+  txmon_callback = cb;
+
+  CNodeSignals& nodeSignals = GetNodeSignals();
+  nodeSignals.ProcessMessages.connect(&process_packets);
+
+  uv_async_init(uv_default_loop(), &txmon_async, txmon);
+
+  NanReturnValue(Undefined(isolate));
+};
+
+static void
+txmon(uv_async_t *handle) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  uv_mutex_lock(&txmon_mutex);
+
+  Local<Array> results = Array::New(isolate);
+  int arrayIndex = 0;
+
+  BOOST_FOREACH(const std::string& message, txmon_messages) {
+    results->Set(arrayIndex, NanNew<String>(message));
+    arrayIndex++;
+  }
+
+  const unsigned argc = 1;
+  Local<Value> argv[argc] = {
+    Local<Value>::New(isolate, results)
+  };
+
+  Local<Function> cb = txmon_callback.Get(isolate);
+
+  cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+
+  txmon_messages.clear();
+
+  uv_mutex_unlock(&txmon_mutex);
+
+}
+
+static bool
+process_packets(CNode* pfrom) {
+
+  bool fOk = true;
+
+  std::deque<CNetMessage>::iterator it = pfrom->vRecvMsg.begin();
+  while (!pfrom->fDisconnect && it != pfrom->vRecvMsg.end()) {
+    // Don't bother if send buffer is too full to respond anyway
+    if (pfrom->nSendSize >= SendBufferSize()) {
+      break;
+    }
+
+    // get next message
+    CNetMessage& msg = *it;
+
+    // end, if an incomplete message is found
+    if (!msg.complete()) {
+      break;
+    }
+
+    // at this point, any failure means we can delete the current message
+    it++;
+
+    // Scan for message start
+    if (memcmp(msg.hdr.pchMessageStart,
+               Params().MessageStart(), MESSAGE_START_SIZE) != 0) {
+      fOk = false;
+      break;
+    }
+
+    // Read header
+    CMessageHeader& hdr = msg.hdr;
+    if (!hdr.IsValid(Params().MessageStart())) {
+      continue;
+    }
+    string strCommand = hdr.GetCommand();
+
+    // Message size
+    unsigned int nMessageSize = hdr.nMessageSize;
+
+    // Checksum
+    CDataStream& vRecv = msg.vRecv;
+    uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
+    unsigned int nChecksum = 0;
+    memcpy(&nChecksum, &hash, sizeof(nChecksum));
+    if (nChecksum != hdr.nChecksum) {
+      continue;
+    }
+
+    uv_mutex_lock(&txmon_mutex);
+    txmon_messages.push_back(strCommand);
+    uv_mutex_unlock(&txmon_mutex);
+    uv_async_send(&txmon_async);
+
+    boost::this_thread::interruption_point();
+    break;
+  }
+
+  return fOk;
+}
 
 /**
  * Functions
@@ -1347,6 +1466,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "verifyScript", VerifyScript);
   NODE_SET_METHOD(target, "sendTransaction", SendTransaction);
   NODE_SET_METHOD(target, "estimateFee", EstimateFee);
+  NODE_SET_METHOD(target, "startTxMon", StartTxMon);
 
 }
 
