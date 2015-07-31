@@ -626,7 +626,6 @@ describe('AddressModule', function() {
     it('should give transaction history for an address', function(done) {
       am.getAddressHistory('address', true, function(err, history) {
         should.not.exist(err);
-        console.log(history);
         history[0].transaction.hash.should.equal('tx1');
         history[0].satoshis.should.equal(5000);
         history[0].height.should.equal(1);
