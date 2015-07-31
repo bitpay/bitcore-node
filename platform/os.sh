@@ -11,6 +11,19 @@ host=`uname -m`-`uname -a | awk '{print tolower($1)}'`
 depends_dir="${BITCOIN_DIR}"/depends
 h_and_a_dir="${depends_dir}"/"${host}"
 
+mac_response=
+check_mac_build_system () {
+  if [ "${ext}" == "dylib" ]; then
+    if [ ! -d "/usr/include" ]; then
+      if hash xcode-select 2>/dev/null; then
+        mac_response="Please run 'xcode-select --install' from the command line because it seems that you've got Xcode, but not the Xcode command line tools that are required for compiling this project from source..."
+      else
+        mac_response="please use the App Store to install Xcode and Xcode command line tools. After Xcode is installed, please run: 'xcode-select --install' from the command line"
+      fi
+    fi
+  fi
+}
+
 if test -f /etc/centos-release \
   || grep -q 'CentOS' /etc/redhat-release \
   || rpm -q --queryformat '%{VERSION}' centos-release > /dev/null; then
@@ -111,6 +124,11 @@ fi
 
 if test -z "$1" -o x"$1" = x'artifacts_dir'; then
   echo -n "${artifacts_dir}" 
+fi
+
+if test -z "$1" -o x"$1" = x'mac_dependencies'; then
+  check_mac_build_system
+  echo -n "${mac_response}"
 fi
 
 if test -z "$1" -o x"$1" = x'lib'; then

@@ -273,7 +273,7 @@ Most of all the dependencies for building Bitcoin Core are needed, for more info
 
 - OpenSSL headers and libraries (-lcrypto and -lssl), this is used to compile Bitcoin.
 
-- If target platform is Mac OS X, then OS X >= 10.9, Clang and associated linker.
+- If target platform is Mac OS X, then OS X >= 10.9, Clang and associated linker. Clang is exclusively installed via Xcode from the Apple App Store. In addition to Xcode, you will need the assoicated Xcode command line tools. First, install Xcode using the App Store app in Mac OS X. After this is installed, open a terminal and type in 'xcode-select --install'. Follow the prompts to get the command line tools installed.
 
 #### Shared Library Patch
 
