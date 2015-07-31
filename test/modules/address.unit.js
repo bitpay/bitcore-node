@@ -8,6 +8,8 @@ var blockData = require('../data/livenet-345003.json');
 var bitcore = require('bitcore');
 var EventEmitter = require('events').EventEmitter;
 var errors = bitcoindjs.errors;
+var chainlib = require('chainlib');
+var levelup = chainlib.deps.levelup;
 
 describe('AddressModule', function() {
 
@@ -15,7 +17,7 @@ describe('AddressModule', function() {
     it('should return the correct methods', function() {
       var am = new AddressModule({});
       var methods = am.getAPIMethods();
-      methods.length.should.equal(4);
+      methods.length.should.equal(5);
     });
   });
 
@@ -111,21 +113,35 @@ describe('AddressModule', function() {
     it('should create the correct operations when updating/adding outputs', function(done) {
       am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, true, function(err, operations) {
         should.not.exist(err);
-        operations.length.should.equal(11);
+        operations.length.should.equal(81);
         operations[0].type.should.equal('put');
         var expected0 = ['outs', key0.address, key0.timestamp, key0.txid, key0.outputIndex].join('-');
         operations[0].key.should.equal(expected0);
         operations[0].value.should.equal([value0.satoshis, value0.script, value0.blockHeight].join(':'));
+        operations[3].type.should.equal('put');
+        var expected3 = ['sp', key3.prevTxId, key3.prevOutputIndex].join('-');
+        operations[3].key.should.equal(expected3);
+        operations[3].value.should.equal([value3.txid, value3.inputIndex].join(':'));
+        operations[64].type.should.equal('put');
+        var expected64 = ['outs', key64.address, key64.timestamp, key64.txid, key64.outputIndex].join('-');
+        operations[64].key.should.equal(expected64);
+        operations[64].value.should.equal([value64.satoshis, value64.script, value64.blockHeight].join(':'));
         done();
       });
     });
     it('should create the correct operations when removing outputs', function(done) {
       am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
         should.not.exist(err);
-        operations.length.should.equal(11);
+        operations.length.should.equal(81);
         operations[0].type.should.equal('del');
         operations[0].key.should.equal(['outs', key0.address, key0.timestamp, key0.txid, key0.outputIndex].join('-'));
         operations[0].value.should.equal([value0.satoshis, value0.script, value0.blockHeight].join(':'));
+        operations[3].type.should.equal('del');
+        operations[3].key.should.equal(['sp', key3.prevTxId, key3.prevOutputIndex].join('-'));
+        operations[3].value.should.equal([value3.txid, value3.inputIndex].join(':'));
+        operations[64].type.should.equal('del');
+        operations[64].key.should.equal(['outs', key64.address, key64.timestamp, key64.txid, key64.outputIndex].join('-'));
+        operations[64].value.should.equal([value64.satoshis, value64.script, value64.blockHeight].join(':'));
         done();
       });
     });
@@ -476,6 +492,212 @@ describe('AddressModule', function() {
     it('should give true if bitcoind.isSpent gives true', function(done) {
       am.isSpent('output', true, function(spent) {
         spent.should.equal(true);
+        done();
+      });
+    });
+  });
+
+  describe('#getSpendInfoForOutput', function() {
+    it('should call store.get the right values', function(done) {
+      var db = {
+        store: {
+          get: sinon.stub().callsArgWith(1, null, 'spendtxid:1')
+        }
+      };
+      var am = new AddressModule({db: db});
+      am.getSpendInfoForOutput('txid', 3, function(err, info) {
+        should.not.exist(err);
+        info.txid.should.equal('spendtxid');
+        info.inputIndex.should.equal('1');
+        db.store.get.args[0][0].should.equal('sp-txid-3');
+        done();
+      });
+    });
+  });
+
+  describe('#getAddressHistory', function() {
+    var incoming = [
+      {
+        txid: 'tx1',
+        outputIndex: 0,
+        spentTx: 'tx2',
+        inputIndex: 0,
+        height: 1,
+        timestamp: 1438289011844,
+        satoshis: 5000
+      },
+      {
+        txid: 'tx3',
+        outputIndex: 1,
+        height: 3,
+        timestamp: 1438289031844,
+        satoshis: 2000
+      },
+      {
+        txid: 'tx4',
+        outputIndex: 2,
+        spentTx: 'tx5',
+        inputIndex: 1,
+        height: 4,
+        timestamp: 1438289041844,
+        satoshis: 3000
+      },
+    ];
+
+    var outgoing = [
+      {
+        txid: 'tx2',
+        height: 2,
+        timestamp: 1438289021844,
+        inputs: [
+          {
+            output: {
+              satoshis: 5000
+            }
+          }
+        ]
+      },
+      {
+        txid: 'tx5',
+        height: 5,
+        timestamp: 1438289051844,
+        inputs: [
+          {},
+          {
+            output: {
+              satoshis: 3000
+            }
+          }
+        ]
+      }
+    ];
+
+    var db = {
+      getTransactionWithBlockInfo: function(txid, queryMempool, callback) {
+        var transaction = {
+          populateInputs: sinon.stub().callsArg(2)
+        };
+        for(var i = 0; i < incoming.length; i++) {
+          if(incoming[i].txid === txid) {
+            if(incoming[i].error) {
+              return callback(new Error(incoming[i].error));
+            }
+            transaction.hash = txid;
+            transaction.__height = incoming[i].height;
+            transaction.__timestamp = incoming[i].timestamp;
+            return callback(null, transaction);
+          }
+        }
+
+        for(var i = 0; i < outgoing.length; i++) {
+          if(outgoing[i].txid === txid) {
+            if(outgoing[i].error) {
+              return callback(new Error(outgoing[i].error));
+            }
+            transaction.hash = txid;
+            transaction.__height = outgoing[i].height;
+            transaction.__timestamp = outgoing[i].timestamp;
+            transaction.inputs = outgoing[i].inputs;
+            return callback(null, transaction);
+          }
+        }
+        callback(new Error('tx ' + txid + ' not found'));
+      }
+    };
+    var am = new AddressModule({db: db});
+
+    am.getOutputs = sinon.stub().callsArgWith(2, null, incoming);
+    am.getSpendInfoForOutput = function(txid, outputIndex, callback) {
+      for(var i = 0; i < incoming.length; i++) {
+        if(incoming[i].txid === txid && incoming[i].outputIndex === outputIndex && incoming[i].spentTx) {
+          if(incoming[i].spendError) {
+            return callback(new Error(incoming[i].spendError));
+          }
+          return callback(null, {
+            txid: incoming[i].spentTx,
+            inputIndex: incoming[i].inputIndex
+          });
+        }
+      }
+
+      callback(new levelup.errors.NotFoundError());
+    };
+
+    it('should give transaction history for an address', function(done) {
+      am.getAddressHistory('address', true, function(err, history) {
+        should.not.exist(err);
+        history[0].transaction.hash.should.equal('tx1');
+        history[0].satoshis.should.equal(5000);
+        history[0].height.should.equal(1);
+        history[0].timestamp.should.equal(1438289011844);
+        history[1].transaction.hash.should.equal('tx2');
+        history[1].satoshis.should.equal(-5000);
+        history[1].height.should.equal(2);
+        history[1].timestamp.should.equal(1438289021844);
+        history[2].transaction.hash.should.equal('tx3');
+        history[2].satoshis.should.equal(2000);
+        history[2].height.should.equal(3);
+        history[2].timestamp.should.equal(1438289031844);
+        history[3].transaction.hash.should.equal('tx4');
+        history[3].satoshis.should.equal(3000);
+        history[3].height.should.equal(4);
+        history[3].timestamp.should.equal(1438289041844);
+        history[4].transaction.hash.should.equal('tx5');
+        history[4].satoshis.should.equal(-3000);
+        history[4].height.should.equal(5);
+        history[4].timestamp.should.equal(1438289051844);
+        done();
+      });
+    });
+
+    it('should give an error if the second getTransactionInfo gives an error', function(done) {
+      outgoing[0].error = 'txinfo2err';
+      am.getAddressHistory('address', true, function(err, history) {
+        should.exist(err);
+        err.message.should.equal('txinfo2err');
+        outgoing[0].error = null;
+        done();
+      });
+    });
+
+    it('should give an error if getSpendInfoForOutput gives an error', function(done) {
+      incoming[0].spendError = 'spenderr';
+      am.getAddressHistory('address', true, function(err, history) {
+        should.exist(err);
+        err.message.should.equal('spenderr');
+        incoming[0].spendError = null;
+        done();
+      });
+    });
+
+    it('should give an error if the first getTransactionInfo gives an error', function(done) {
+      incoming[1].error = 'txinfo1err';
+      am.getAddressHistory('address', true, function(err, history) {
+        should.exist(err);
+        err.message.should.equal('txinfo1err');
+        incoming[1].error = null;
+        done();
+      });
+    });
+
+    it('should give an error if populateInputs gives an error', function(done) {
+      var populateStub = sinon.stub().callsArgWith(2, new Error('populateerr'));
+      sinon.stub(db, 'getTransactionWithBlockInfo').callsArgWith(2, null, {
+        populateInputs: populateStub
+      });
+      am.getAddressHistory('address', true, function(err, history) {
+        should.exist(err);
+        err.message.should.equal('populateerr');
+        db.getTransactionWithBlockInfo.restore();
+        done();
+      });
+    });
+
+    it('should give an error if getOutputs gives an error', function(done) {
+      am.getOutputs = sinon.stub().callsArgWith(2, new Error('getoutputserr'));
+      am.getAddressHistory('address', true, function(err, history) {
+        should.exist(err);
+        err.message.should.equal('getoutputserr');
         done();
       });
     });

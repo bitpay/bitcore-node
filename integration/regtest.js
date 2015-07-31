@@ -304,4 +304,16 @@ describe('Daemon Binding Functionality', function() {
 
   });
 
+  describe('get transaction with block info', function() {
+    it('should include tx buffer, height and timestamp', function(done) {
+      bitcoind.getTransactionWithBlockInfo(utxo.txid, true, function(err, data) {
+        should.not.exist(err);
+        data.height.should.equal(151);
+        should.exist(data.timestamp);
+        should.exist(data.buffer);
+        done();
+      });
+    });
+  });
+
 });

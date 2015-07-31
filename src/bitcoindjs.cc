@@ -74,6 +74,12 @@ async_get_tx(uv_work_t *req);
 static void
 async_get_tx_after(uv_work_t *req);
 
+static void
+async_get_tx_and_info(uv_work_t *req);
+
+static void
+async_get_tx_and_info_after(uv_work_t *req);
+
 static bool
 process_messages(CNode* pfrom);
 
@@ -156,6 +162,8 @@ struct async_tx_data {
   std::string err_msg;
   std::string txid;
   std::string blockhash;
+  uint32_t nTime;
+  int64_t height;
   bool queryMempool;
   CTransaction ctx;
   Eternal<Function> callback;
@@ -1018,7 +1026,7 @@ async_get_block_after(uv_work_t *req) {
 
 /**
  * GetTransaction()
- * bitcoind.getTransaction(txid, callback)
+ * bitcoind.getTransaction(txid, queryMempool, callback)
  * Read any transaction from disk asynchronously.
  */
 
@@ -1030,7 +1038,7 @@ NAN_METHOD(GetTransaction) {
       || !args[1]->IsBoolean()
       || !args[2]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getTransaction(txid, callback)");
+      "Usage: daemon.getTransaction(txid, queryMempool, callback)");
   }
 
   String::Utf8Value txid_(args[0]->ToString());
@@ -1134,6 +1142,154 @@ async_get_tx_after(uv_work_t *req) {
     Local<Value> argv[argc] = {
       Local<Value>::New(isolate, NanNull()),
       rawNodeBuffer
+    };
+    TryCatch try_catch;
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  }
+  delete data;
+  delete req;
+}
+
+/**
+ * GetTransactionWithBlockInfo()
+ * bitcoind.getTransactionWithBlockInfo(txid, queryMempool, callback)
+ * Read any transaction from disk asynchronously with block timestamp and height.
+ */
+
+NAN_METHOD(GetTransactionWithBlockInfo) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  if (args.Length() < 3
+      || !args[0]->IsString()
+      || !args[1]->IsBoolean()
+      || !args[2]->IsFunction()) {
+    return NanThrowError(
+      "Usage: bitcoindjs.getTransactionWithBlockInfo(txid, queryMempool, callback)");
+  }
+
+  String::Utf8Value txid_(args[0]->ToString());
+  bool queryMempool = args[1]->BooleanValue();
+  Local<Function> callback = Local<Function>::Cast(args[2]);
+
+  async_tx_data *data = new async_tx_data();
+
+  data->err_msg = std::string("");
+  data->txid = std::string("");
+
+  std::string txid = std::string(*txid_);
+
+  data->txid = txid;
+  data->queryMempool = queryMempool;
+  Eternal<Function> eternal(isolate, callback);
+  data->callback = eternal;
+
+  uv_work_t *req = new uv_work_t();
+  req->data = data;
+
+  int status = uv_queue_work(uv_default_loop(),
+    req, async_get_tx_and_info,
+    (uv_after_work_cb)async_get_tx_and_info_after);
+
+  assert(status == 0);
+
+  NanReturnValue(Undefined(isolate));
+}
+
+static void
+async_get_tx_and_info(uv_work_t *req) {
+  async_tx_data* data = static_cast<async_tx_data*>(req->data);
+
+  uint256 hash = uint256S(data->txid);
+  uint256 blockHash;
+  CTransaction ctx;
+
+  if (data->queryMempool) {
+    LOCK(mempool.cs);
+    map<uint256, CTxMemPoolEntry>::const_iterator i = mempool.mapTx.find(hash);
+    if (i != mempool.mapTx.end()) {
+      data->ctx = i->second.GetTx();
+      data->nTime = i->second.GetTime();
+      data->height = -1;
+      return;
+    }
+  }
+
+  CDiskTxPos postx;
+  if (pblocktree->ReadTxIndex(hash, postx)) {
+
+    CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
+
+    if (file.IsNull()) {
+      data->err_msg = std::string("%s: OpenBlockFile failed", __func__);
+      return;
+    }
+
+    CBlockHeader blockHeader;
+
+    try {
+      // Read header first to get block timestamp and hash
+      file >> blockHeader;
+      blockHash = blockHeader.GetHash();
+      data->nTime = blockHeader.nTime;
+      fseek(file.Get(), postx.nTxOffset, SEEK_CUR);
+      file >> ctx;
+      data->ctx = ctx;
+    } catch (const std::exception& e) {
+      data->err_msg = std::string("Deserialize or I/O error - %s", __func__);
+      return;
+    }
+
+    // get block height
+    CBlockIndex* blockIndex;
+
+    if (mapBlockIndex.count(blockHash) == 0) {
+      data->height = -1;
+    } else {
+      blockIndex = mapBlockIndex[blockHash];
+      data->height = blockIndex->nHeight;
+    }
+
+  }
+
+}
+
+static void
+async_get_tx_and_info_after(uv_work_t *req) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  async_tx_data* data = static_cast<async_tx_data*>(req->data);
+
+  CTransaction ctx = data->ctx;
+  Local<Function> cb = data->callback.Get(isolate);
+  Local<Object> obj = NanNew<Object>();
+
+  if (data->err_msg != "") {
+    Local<Value> err = Exception::Error(NanNew<String>(data->err_msg));
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = { err };
+    TryCatch try_catch;
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+    if (try_catch.HasCaught()) {
+      node::FatalException(try_catch);
+    }
+  } else {
+
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    ssTx << ctx;
+    std::string stx = ssTx.str();
+    Local<Value> rawNodeBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
+
+    obj->Set(NanNew<String>("height"), NanNew<Number>(data->height));
+    obj->Set(NanNew<String>("timestamp"), NanNew<Number>(data->nTime));
+    obj->Set(NanNew<String>("buffer"), rawNodeBuffer);
+
+    const unsigned argc = 2;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(isolate, NanNull()),
+      obj
     };
     TryCatch try_catch;
     cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
@@ -1465,6 +1621,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
   NODE_SET_METHOD(target, "getTransaction", GetTransaction);
+  NODE_SET_METHOD(target, "getTransactionWithBlockInfo", GetTransactionWithBlockInfo);
   NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "isSpent", IsSpent);
   NODE_SET_METHOD(target, "getBlockIndex", GetBlockIndex);

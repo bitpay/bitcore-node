@@ -106,6 +106,7 @@ describe('Bitcoin Transaction', function() {
   describe('#populateInputs', function() {
     it('will call _populateInput with transactions', function() {
       var tx = new Transaction();
+      tx.isCoinbase = sinon.stub().returns(false);
       tx._populateInput = sinon.stub().callsArg(3);
       tx.inputs = ['input'];
       var transactions = [];
@@ -138,7 +139,7 @@ describe('Bitcoin Transaction', function() {
     it('if an error happened it should pass it along', function(done) {
       var tx = new Transaction();
       var db = {
-        getTransactionFromDB: sinon.stub().callsArgWith(1, new Error('error'))
+        getTransaction: sinon.stub().callsArgWith(2, new Error('error'))
       };
       tx._populateInput(db, input, [], function(err) {
         should.exist(err);
@@ -149,7 +150,7 @@ describe('Bitcoin Transaction', function() {
     it('should return an error if the transaction for the input does not exist', function(done) {
       var tx = new Transaction();
       var db = {
-        getTransactionFromDB: sinon.stub().callsArgWith(1, new levelup.errors.NotFoundError())
+        getTransaction: sinon.stub().callsArgWith(2, new levelup.errors.NotFoundError())
       };
       tx._populateInput(db, input, [], function(err) {
         should.exist(err);
@@ -160,7 +161,7 @@ describe('Bitcoin Transaction', function() {
     it('should look through poolTransactions if database does not have transaction', function(done) {
       var tx = new Transaction();
       var db = {
-        getTransactionFromDB: sinon.stub().callsArgWith(1, new levelup.errors.NotFoundError())
+        getTransaction: sinon.stub().callsArgWith(2, new levelup.errors.NotFoundError())
       };
       var transactions = [
         {
@@ -179,7 +180,7 @@ describe('Bitcoin Transaction', function() {
       prevTx.outputs = ['output'];
       var tx = new Transaction();
       var db = {
-        getTransactionFromDB: sinon.stub().callsArgWith(1, null, prevTx)
+        getTransaction: sinon.stub().callsArgWith(2, null, prevTx)
       };
       tx._populateInput(db, input, [], function(err) {
         should.not.exist(err);
