@@ -5,8 +5,8 @@
 // functionality by including the wallet in the build.
 // To run the tests: $ mocha -R spec integration/regtest.js
 
-if (process.env.BITCOINDJS_ENV !== 'test') {
-  console.log('Please set the environment variable BITCOINDJS_ENV=test and make sure bindings are compiled for testing');
+if (process.env.BITCORENODE_ENV !== 'test') {
+  console.log('Please set the environment variable BITCORENODE_ENV=test and make sure bindings are compiled for testing');
   process.exit();
 }
 

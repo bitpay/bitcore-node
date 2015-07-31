@@ -64,12 +64,12 @@ compare_patch () {
 }
 
 debug=
-if [ "${BITCOINDJS_ENV}" == "debug" ]; then
+if [ "${BITCORENODE_ENV}" == "debug" ]; then
   options=`cat ${root_dir}/bin/config_options_debug.sh`
 fi
 
 test=false
-if [ "${BITCOINDJS_ENV}" == "test" ]; then
+if [ "${BITCORENODE_ENV}" == "test" ]; then
   test=true
   options=`cat ${root_dir}/bin/config_options_test.sh`
 fi
@@ -96,7 +96,7 @@ if [ "${shared_file_built}" = false ]; then
         ${root_dir}/etc/bitcoin.patch."
       echo -n "Would you like to remove the current patch, checkout the tag: ${tag} and \
 apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
-      if [ "${BITCOINDJS_ASSUME_YES}" = true ]; then
+      if [ "${BITCORENODE_ASSUME_YES}" = true ]; then
         input=y
         echo ""
       else

@@ -1,7 +1,7 @@
 sudo: false
 language: node_js
 env:
-- BITCOINDJS_ENV=test BITCOINDJS_ASSUME_YES=true
+- BITCORENODE_ENV=test BITCORENODE_ASSUME_YES=true
 node_js:
   - "0.12"
 before_install:

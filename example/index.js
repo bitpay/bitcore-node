@@ -12,7 +12,7 @@ process.title = 'bitcoind.js';
  * daemon
  */
 var daemon = require('../').daemon({
-  datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
+  datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
 });
 
 daemon.on('ready', function() {

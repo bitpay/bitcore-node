@@ -1,6 +1,6 @@
 'use strict';
 
-module.exports = {};
+module.exports = require('./lib/node');
 module.exports.daemon = require('./lib/daemon');
 module.exports.Node = require('./lib/node');
 module.exports.Block = require('./lib/block');

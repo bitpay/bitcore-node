@@ -1,13 +1,13 @@
 {
-  "name": "bitcoind.js",
-  "description": "Node binding for bitcoind",
+  "name": "bitcore-node",
+  "description": "Full node with extended capabilities using Bitcore and Bitcoin Core",
   "author": "BitPay <dev@bitpay.com>",
-  "version": "0.0.8",
+  "version": "0.2.0",
   "main": "./index.js",
-  "repository": "git://github.com/bitpay/bitcoind.js.git",
-  "homepage": "https://github.com/bitpay/bitcoind.js",
+  "repository": "git://github.com/bitpay/bitcore-node.git",
+  "homepage": "https://github.com/bitpay/bitcore-node.js",
   "bugs": {
-    "url": "https://github.com/bitpay/bitcoind.js/issues"
+    "url": "https://github.com/bitpay/bitcore-node/issues"
   },
   "contributors": [
     {

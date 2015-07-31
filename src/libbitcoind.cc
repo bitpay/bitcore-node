@@ -6,7 +6,7 @@
  *   A bitcoind node.js binding.
  */
 
-#include "bitcoindjs.h"
+#include "libbitcoind.h"
 
 using namespace std;
 using namespace boost;
@@ -1634,4 +1634,4 @@ init(Handle<Object> target) {
 
 }
 
-NODE_MODULE(bitcoindjs, init)
+NODE_MODULE(libbitcoind, init)

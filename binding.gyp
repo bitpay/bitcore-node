@@ -1,6 +1,6 @@
 {
   'targets': [{
-    'target_name': 'bitcoindjs',
+    'target_name': 'libbitcoind',
     'include_dirs' : [
       '<!(node -e "require(\'nan\')")',
       '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src',
@@ -8,7 +8,7 @@
       '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src/leveldb/include'
     ],
     'sources': [
-      './src/bitcoindjs.cc',
+      './src/libbitcoind.cc',
     ],
     'conditions': [
         ['OS=="mac"', {

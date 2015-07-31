@@ -7,7 +7,7 @@ var log = chainlib.log;
 log.debug = function() {};
 
 var configuration = {
-  datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin'
+  datadir: process.env.BITCORENODE_DIR || '~/.bitcoin'
 };
 
 var node = new BitcoinNode(configuration);

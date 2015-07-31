@@ -1,15 +1,13 @@
-bitcoind.js
+Bitcore Node
 =======
-[![Build Status](https://img.shields.io/travis/bitpay/bitcoind.js.svg?branch=master&style=flat-square)](https://travis-ci.org/bitpay/bitcoind.js)
-[![Coverage Status](https://img.shields.io/coveralls/bitpay/bitcoind.js.svg?style=flat-square)](https://coveralls.io/r/bitpay/bitcoind.js)
 
 A Node.js module that adds a native interface to Bitcoin Core for querying information about the Bitcoin blockchain. Bindings are linked to Bitcore Core compiled as a shared library.
 
 ## Install
 
 ```bash
-git clone https://github.com/bitpay/bitcoind.js.git
-cd bitcoind.js
+git clone https://github.com/bitpay/bitcore-node.git
+cd bitcore-node
 npm install
 ```
 
@@ -17,7 +15,7 @@ npm install
 
 ```js
 
-var BitcoinNode = require('bitcoind.js');
+var BitcoinNode = require('bitcore-node');
 
 var configuration = {
   datadir: '~/.bitcoin',
@@ -101,22 +99,22 @@ $ tail -f ~/.bitcoin/debug.log
 
 ## Modules
 
-Bitcoind.js has a module system where additional information can be indexed and queried from 
+Bitcore Node has a module system where additional information can be indexed and queried from
 the blockchain. One built-in module is the address module which exposes the API methods for getting balances and outputs.
 
 ### Writing a Module
 
-A new module can be created by inheriting from `BitcoindJS.Module`, implementing the methods `blockHandler()`, `getAPIMethods()`, `getPublishEvents()` and any additional methods for querying the data. Here is an example:
+A new module can be created by inheriting from `Node.Module`, implementing the methods `blockHandler()`, `getAPIMethods()`, `getPublishEvents()` and any additional methods for querying the data. Here is an example:
 
 ```js
 var inherits = require('util').inherits;
-var BitcoindJS = require('bitcoind.js');
+var Node = require('bitcore-node').Node;
 
 var MyModule = function(options) {
-  BitcoindJS.Module.call(this, options);
+  Node.Module.call(this, options);
 };
 
-inherits(MyModule, BitcoindJS.Module);
+inherits(MyModule, Node.Module);
 
 /**
  * blockHandler
@@ -195,13 +193,13 @@ The module can then be used when running a node:
 
 ```js
 var configuration = {
-  datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
+  datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
   db: {
     modules: [MyModule]
   }
 };
 
-var node = new BitcoindJS.Node(configuration);
+var node = new Node(configuration);
 
 node.on('ready', function() {
   node.getData('key', function(err, value) {
@@ -210,7 +208,7 @@ node.on('ready', function() {
 });
 ```
 
-Note that if you already have a bitcoind.js database, and you want to query data from previous blocks in the blockchain, you will need to reindex. Reindexing right now means deleting your bitcoind.js database and resyncing.
+Note that if you already have a bitcore-node database, and you want to query data from previous blocks in the blockchain, you will need to reindex. Reindexing right now means deleting your bitcore-node database and resyncing.
 
 ## Daemon Documentation
 
@@ -290,7 +288,7 @@ Every effort will be made to ensure that this patch stays up-to-date with the la
 There is a build script that will download Bitcoin Core v0.10.2 and apply the necessary patch, compile `libbitcoind.{so|dylib}` and copy the artifact into `platform/<os_dir>`. Unix/Linux uses the file extension "so" whereas Mac OSX uses "dylib" *(bitcoind compiled as a shared library)*.
 
 ```bash
-$ cd /path/to/bitcoind.js
+$ cd /path/to/bitcore-node
 $ ./bin/build-libbitcoind
 ```
 
@@ -327,10 +325,9 @@ $ cp -R libbitcoind/src/.libs/libbitcoind.*dylib platform/osx/lib
 
 ## License
 
-Code released under [the MIT license](https://github.com/bitpay/bitcoind.js/blob/master/LICENSE).
+Code released under [the MIT license](https://github.com/bitpay/bitcore-node/blob/master/LICENSE).
 
 Copyright 2013-2015 BitPay, Inc.
 
 - bitcoin: Copyright (c) 2009-2015 Bitcoin Core Developers (MIT License)
 - bcoin (some code borrowed temporarily): Copyright Fedor Indutny, 2014.
-
