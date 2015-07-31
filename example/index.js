@@ -17,7 +17,10 @@ var daemon = require('../').daemon({
 
 daemon.on('ready', function() {
   console.log('ready');
-  daemon.startTxMon();
+});
+
+daemon.on('tx', function(txid) {
+  console.log('txid', txid);
 });
 
 daemon.on('error', function(err) {

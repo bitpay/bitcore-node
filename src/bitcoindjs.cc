@@ -75,7 +75,7 @@ static void
 async_get_tx_after(uv_work_t *req);
 
 static bool
-process_packets(CNode* pfrom);
+process_messages(CNode* pfrom);
 
 extern "C" void
 init(Handle<Object>);
@@ -207,8 +207,6 @@ static bool
 set_cooked(void);
 
 NAN_METHOD(StartTxMon) {
-  // todo: if already running give an error
-
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
@@ -217,7 +215,7 @@ NAN_METHOD(StartTxMon) {
   txmon_callback = cb;
 
   CNodeSignals& nodeSignals = GetNodeSignals();
-  nodeSignals.ProcessMessages.connect(&process_packets);
+  nodeSignals.ProcessMessages.connect(&process_messages);
 
   uv_async_init(uv_default_loop(), &txmon_async, txmon);
 
@@ -255,7 +253,7 @@ txmon(uv_async_t *handle) {
 }
 
 static bool
-process_packets(CNode* pfrom) {
+process_messages(CNode* pfrom) {
 
   bool fOk = true;
 
@@ -278,8 +276,7 @@ process_packets(CNode* pfrom) {
     it++;
 
     // Scan for message start
-    if (memcmp(msg.hdr.pchMessageStart,
-               Params().MessageStart(), MESSAGE_START_SIZE) != 0) {
+    if (memcmp(msg.hdr.pchMessageStart, Params().MessageStart(), MESSAGE_START_SIZE) != 0) {
       fOk = false;
       break;
     }
@@ -289,24 +286,34 @@ process_packets(CNode* pfrom) {
     if (!hdr.IsValid(Params().MessageStart())) {
       continue;
     }
-    string strCommand = hdr.GetCommand();
 
-    // Message size
-    unsigned int nMessageSize = hdr.nMessageSize;
+    std::string strCommand = hdr.GetCommand();
 
-    // Checksum
-    CDataStream& vRecv = msg.vRecv;
-    uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
-    unsigned int nChecksum = 0;
-    memcpy(&nChecksum, &hash, sizeof(nChecksum));
-    if (nChecksum != hdr.nChecksum) {
-      continue;
+    if (strCommand == (std::string)"tx") {
+
+      // Message size
+      unsigned int nMessageSize = hdr.nMessageSize;
+
+      // Checksum
+      CDataStream& vRecv = msg.vRecv;
+      uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
+      unsigned int nChecksum = 0;
+      memcpy(&nChecksum, &hash, sizeof(nChecksum));
+      if (nChecksum != hdr.nChecksum) {
+        continue;
+      }
+
+      CTransaction tx;
+      vRecv >> tx;
+
+      string txHash = tx.GetHash().GetHex();
+
+      uv_mutex_lock(&txmon_mutex);
+      txmon_messages.push_back(txHash);
+      uv_mutex_unlock(&txmon_mutex);
+      uv_async_send(&txmon_async);
+
     }
-
-    uv_mutex_lock(&txmon_mutex);
-    txmon_messages.push_back(strCommand);
-    uv_mutex_unlock(&txmon_mutex);
-    uv_async_send(&txmon_async);
 
     boost::this_thread::interruption_point();
     break;
