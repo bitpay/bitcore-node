@@ -1,5 +1,5 @@
 Bitcore Node
-=======
+===========
 
 A Node.js module that adds a native interface to Bitcoin Core for querying information about the Bitcoin blockchain. Bindings are linked to Bitcore Core compiled as a shared library.
 
