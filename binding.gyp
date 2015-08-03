@@ -27,12 +27,20 @@
     ],
     'link_settings': {
       'libraries': [
+        '<!(./platform/os.sh bitcoind)',
         '<!(./platform/os.sh filesystem)',
         '<!(./platform/os.sh thread)',
-        '<!(./platform/os.sh lib)'
+        '<!(./platform/os.sh program_options)',
+        '<!(./platform/os.sh system)',
+        '<!(./platform/os.sh chrono)',
+        '<!(./platform/os.sh libsecp256k1)',
+        '<!(./platform/os.sh leveldb)',
+        '<!(./platform/os.sh memenv)',
+        '<!(./platform/os.sh bdb)',
+        '-lssl',
+        '-lcrypto'
       ],
       'ldflags': [
-        '-Wl,-rpath,<!(./platform/os.sh osdir)',
         '<!(./platform/os.sh load_archive)'
       ]
     }

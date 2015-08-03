@@ -20,7 +20,12 @@ copy_header_files () {
     echo "Copying headers for caching purposes, this can take a while (but will only be done once), please wait..."
     find libbitcoind -type f \( -name "*.h" -or -name "*.hpp" -or -name "*.ipp" \) -print0 | xargs -0 -I{} rsync -R {} "${artifacts_dir}"/include
     mkdir -p "${artifacts_dir}/lib" > /dev/null 2>&1
-    cp -r "${h_and_a_dir}"/lib/libboost_filesystem-mt.a "${h_and_a_dir}"/lib/libboost_thread-mt.a "${artifacts_dir}"/lib/ 
+    cp -r "${h_and_a_dir}"/lib/libboost_filesystem-mt.a "${h_and_a_dir}"/lib/libboost_thread-mt.a "${h_and_a_dir}"/lib/libboost_chrono-mt.a \
+    "${h_and_a_dir}"/lib/libboost_program_options-mt.a "${h_and_a_dir}"/lib/libboost_system-mt.a  "${btc_dir}"/src/secp256k1/.libs/libsecp256k1.a \
+    "${btc_dir}"/src/.libs/libbitcoind.a "${btc_dir}"/src/leveldb/libleveldb.a "${btc_dir}"/src/leveldb/libmemenv.a "${artifacts_dir}"/lib/
+    if [ "${test}" = true ]; then
+      cp -r "${h_and_a_dir}"/lib/libdb* "${artifacts_dir}"/lib/
+    fi
     popd
   fi
 }
@@ -159,24 +164,15 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   make V=1
 
   echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
-  if test -e "${btc_dir}/src/.libs/libbitcoind.${ext}"; then
-    if [ "$ext" = "dylib" ]; then
-      if [ ! -d "${os_dir}/lib" ]; then
-        mkdir -p "${os_dir}/lib"
-      fi
-      cp -R "${btc_dir}"/src/.libs/libbitcoind.*dylib "${os_dir}/lib/"
-    else
-      if [ ! -d "${os_dir}" ]; then
-        mkdir -p "${os_dir}"
-      fi
-      cp -P "${btc_dir}"/src/.libs/libbitcoind.so* "${os_dir}/"
-    fi
+  if test -e "${btc_dir}/src/.libs/libbitcoind.a"; then
+    mkdir -p "${artifacts_dir}"
+    cp -R "${btc_dir}"/src/.libs/libbitcoind.a "${artifacts_dir}"
     echo "Creating the sha marker for the patching in libbitcoind..."
     echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${artifacts_dir}"/patch_sha.txt
     echo "Copying the header files in order to be cached..."
     copy_header_files
   else
-    echo "Could not find the shared libraries after they should have been built, please run make clean inside the libbitcoind dir and run npm install again."
+    echo "Could not find the libraries after they should have been built, please run make clean inside the libbitcoind dir and run npm install again."
     exit 1
   fi
   echo 'Build finished successfully.'

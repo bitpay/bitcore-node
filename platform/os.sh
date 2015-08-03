@@ -71,6 +71,12 @@ fi
 
 thread="${artifacts_dir}"/lib/libboost_thread-mt.a
 filesystem="${artifacts_dir}"/lib/libboost_filesystem-mt.a
+chrono="${artifacts_dir}"/lib/libboost_chrono-mt.a
+program_options="${artifacts_dir}"/lib/libboost_program_options-mt.a
+system="${artifacts_dir}"/lib/libboost_system-mt.a
+leveldb="${BITCOIN_DIR}"/src/leveldb/libleveldb.a
+memenv="${BITCOIN_DIR}"/src/leveldb/libmemenv.a
+libsecp256k1="${BITCOIN_DIR}"/src/secp256k1/.libs/libsecp256k1.a
 
 if test -z "$os" -o x"$os" = x'android' -o x"$os" = x'aix'; then
   if test "$os" = 'android' -o "$os" = 'aix'; then
@@ -102,8 +108,32 @@ if test -z "$1" -o x"$1" = x'filesystem'; then
   echo -n "${filesystem}"
 fi
 
+if test -z "$1" -o x"$1" = x'program_options'; then
+  echo -n "${program_options}"
+fi
+
+if test -z "$1" -o x"$1" = x'system'; then
+  echo -n "${system}"
+fi
+
+if test -z "$1" -o x"$1" = x'chrono'; then
+  echo -n "${chrono}"
+fi
+
 if test -z "$1" -o x"$1" = x'depends_dir'; then
   echo -n "${depends_dir}"
+fi
+
+if test -z "$1" -o x"$1" = x'leveldb'; then
+  echo -n "${leveldb}"
+fi
+
+if test -z "$1" -o x"$1" = x'memenv'; then
+  echo -n "${memenv}"
+fi
+
+if test -z "$1" -o x"$1" = x'libsecp256k1'; then
+  echo -n "${libsecp256k1}"
 fi
 
 if test -z "$1" -o x"$1" = x'h_and_a_dir'; then
@@ -114,11 +144,17 @@ if test -z "$1" -o x"$1" = x'host'; then
   echo -n "${host}"
 fi
 
+if test -z "$1" -o x"$1" = x'bdb'; then
+  if [ "${BITCOINDJS_ENV}" == "test" ]; then
+    echo -n "${artifacts_dir}/lib/libdb_cxx.a"
+  fi
+fi
+
 if test -z "$1" -o x"$1" = x'load_archive'; then
   if [ "${os}"  == "osx" ]; then
-    echo -n "-Wl,-all_load"
+    echo -n "-Wl,-all_load -Wl,--no-undefined"
   else
-    echo -n "-Wl,--whole-archive ${filesystem} ${thread} -Wl,--no-whole-archive"
+    echo -n "-Wl,--whole-archive ${filesystem} ${thread} "${BITCOIN_DIR}"/src/.libs/libbitcoind.a -Wl,--no-whole-archive"
   fi
 fi
 
@@ -129,6 +165,10 @@ fi
 if test -z "$1" -o x"$1" = x'mac_dependencies'; then
   check_mac_build_system
   echo -n "${mac_response}"
+fi
+
+if test -z "$1" -o x"$1" = x'bitcoind'; then
+  echo -n "${BITCOIN_DIR}"/src/.libs/libbitcoind.a
 fi
 
 if test -z "$1" -o x"$1" = x'lib'; then
