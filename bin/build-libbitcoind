@@ -8,6 +8,7 @@ host=$(${root_dir}/platform/os.sh host)
 btc_dir="${root_dir}/libbitcoind"
 ext=$($root_dir/platform/os.sh ext)
 artifacts_dir=$($root_dir/platform/os.sh artifacts_dir)
+export CPPFLAGS="-I${h_and_a_dir}/include/boost -I${h_and_a_dir}/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include -L${h_and_a_dir}/lib"
 echo "Using BTC directory: ${btc_dir}"
 
 cd "${root_dir}"
@@ -16,6 +17,7 @@ copy_header_files () {
   if [[ -d "${artifacts_dir}" && -d "${h_and_a_dir}" && -d "${btc_dir}" ]]; then
     mkdir -p "${artifacts_dir}/include" > /dev/null 2>&1
     pushd "${root_dir}"
+    echo "Copying headers for caching purposes, this can take a while (but will only be done once), please wait..."
     find libbitcoind -type f \( -name "*.h" -or -name "*.hpp" -or -name "*.ipp" \) -print0 | xargs -0 -I{} rsync -R {} "${artifacts_dir}"/include
     mkdir -p "${artifacts_dir}/lib" > /dev/null 2>&1
     cp -r "${h_and_a_dir}"/lib/libboost_filesystem-mt.a "${h_and_a_dir}"/lib/libboost_thread-mt.a "${artifacts_dir}"/lib/ 
@@ -35,9 +37,9 @@ build_dependencies () {
     fi
     if [ "${should_rebuild}" = true ]; then
       if [ "${test}" = true ]; then
-        make HOST=${host} NO_QT=1 NO_UPNP=1 
+        make HOST=${host} NO_QT=1 NO_UPNP=1
       else
-        make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1 
+        make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1
       fi
     else
       echo "Looks like libs are already built, so we won't rebuild them. Incidentally, we found: ${boost_files_count} boost libraries and: ${db_files_count} Berkeley DB libraries and you have test mode set to: ${test}"
@@ -59,7 +61,7 @@ compare_patch () {
   cd "${btc_dir}"
   get_patch_file
   echo "running the diff command from HEAD to ${tag}"
-  git diff ${tag}..HEAD > /tmp/tmp.patch #uncommitted changes won't affect things here
+  git diff ${tag}..HEAD > /tmp/tmp.patch
   matching_patch=`diff -w /tmp/tmp.patch "${root_dir}/etc/bitcoin.patch"` 
 }
 
@@ -75,10 +77,14 @@ if [ "${BITCORENODE_ENV}" == "test" ]; then
 fi
 
 patch_file_sha=$(shasum -a 256 "${root_dir}/etc/bitcoin.patch" | awk '{print $1}')
-if [ "${ext}" == "dylib" ]; then
-  last_patch_file_sha=$(cat "${os_dir}"/lib/patch_sha.txt)
-else
-  last_patch_file_sha=$(cat "${os_dir}"/patch_sha.txt)
+patch_sha=`find "${os_dir}" -iname patch_sha.txt`
+last_patch_file_sha=
+if [ -e "${patch_sha}" ]; then 
+  if [ "${ext}" == "dylib" ]; then
+    last_patch_file_sha=$(cat "${os_dir}"/lib/patch_sha.txt)
+  else
+    last_patch_file_sha=$(cat "${os_dir}"/patch_sha.txt)
+  fi
 fi
 shared_file_built=false
 if [[ "${last_patch_file_sha}" == "${patch_file_sha}" && -d "${artifacts_dir}/include" ]]; then
@@ -86,6 +92,11 @@ if [[ "${last_patch_file_sha}" == "${patch_file_sha}" && -d "${artifacts_dir}/in
 fi
 
 if [ "${shared_file_built}" = false ]; then
+  mac_response=$($root_dir/platform/os.sh mac_dependencies) 
+  if [ "${mac_response}" != "" ]; then
+    echo "${mac_response}" 
+    exit -1
+  fi
   only_make=false
   if [ -d "${btc_dir}" ]; then
     echo "running compare patch..."
@@ -138,7 +149,6 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   echo './autogen.sh'
   ./autogen.sh
 
-  export CPPFLAGS="-I${h_and_a_dir}/include/boost -I${h_and_a_dir}/include -L${h_and_a_dir}/lib"
   boost_libdir="--with-boost-libdir=${h_and_a_dir}/lib"
 
   full_options="${options} ${boost_libdir} --prefix=${os_dir}"
