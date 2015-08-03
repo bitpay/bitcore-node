@@ -9,6 +9,6 @@ if test x"$1" = x'debug'; then
   debug=--debug
 fi
 
-node-gyp ${debug} rebuild
+node-pre-gyp ${debug} rebuild --fallback-to-build
 
 

@@ -1,6 +1,6 @@
 {
   'targets': [{
-    'target_name': 'libbitcoind',
+    'target_name': "<(module_name)",
     'include_dirs' : [
       '<!(node -e "require(\'nan\')")',
       '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src',
@@ -44,5 +44,16 @@
         '<!(./platform/os.sh load_archive)'
       ]
     }
+  },
+  {
+    "target_name": "action_after_build",
+    "type": "none",
+    "dependencies": [ "<(module_name)" ],
+    "copies": [
+    {
+      "files": [ "<(PRODUCT_DIR)/<(module_name).node" ],
+      "destination": "<(module_path)"
+    }
+    ]
   }]
 }
