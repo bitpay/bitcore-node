@@ -21,6 +21,7 @@ var should = chai.should();
 var assert = chai.assert;
 var sinon = require('sinon');
 var BitcoinRPC = require('bitcoind-rpc');
+var transactionData = [];
 var blockHashes = [];
 var utxo;
 var client;
@@ -123,6 +124,10 @@ describe('Daemon Binding Functionality', function() {
                 var unspentTransaction = bitcore.Transaction();
                 var outputIndex;
                 unspentTransaction.fromString(response.result.hex);
+
+                // add to the list of transactions for testing later
+                transactionData.push(response.result.hex);
+
                 for (var i = 0; i < unspentTransaction.outputs.length; i++) {
                   var output = unspentTransaction.outputs[i];
                   if (output.script.toAddress(network).toString() === address.toString(network)) {
@@ -181,7 +186,7 @@ describe('Daemon Binding Functionality', function() {
 
   describe('get blocks by height', function() {
 
-    [0,1,2,3,5,6,7,8,9].forEach(function(i) {
+    [0,1,2,3,4,5,6,7,8,9].forEach(function(i) {
       it('generated block ' + i, function(done) {
         // add the genesis block
         var height = i + 1;
@@ -196,6 +201,35 @@ describe('Daemon Binding Functionality', function() {
         });
       });
     });
+  });
+
+  describe('get transactions by hash', function() {
+    [0].forEach(function(i) {
+      it('for tx ' + i, function(done) {
+        var txhex = transactionData[i];
+        var tx = new bitcore.Transaction();
+        tx.fromString(txhex);
+        bitcoind.getTransaction(tx.hash, true, function(err, response) {
+          if (err) {
+            throw err;
+          }
+          assert(response.toString('hex') === txhex, 'incorrect tx data result');
+          done();
+        });
+      });
+    });
+
+    it('will return null if the transaction does not exist', function(done) {
+      var txid = '6226c407d0e9705bdd7158e60983e37d0f5d23529086d6672b07d9238d5aa618';
+      bitcoind.getTransaction(txid, true, function(err, response) {
+        if (err) {
+          throw err;
+        }
+        should.not.exist(response);
+        done();
+      });
+    });
+
   });
 
   describe('get block index', function() {
