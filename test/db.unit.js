@@ -2,13 +2,10 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
-var chainlib = require('chainlib');
-var levelup = chainlib.deps.levelup;
 var bitcoindjs = require('../');
 var DB = bitcoindjs.DB;
 var blockData = require('./data/livenet-345003.json');
-var bitcore = require('bitcore');
-var EventEmitter = require('events').EventEmitter;
+var transactionData = require('./data/bitcoin-transactions.json');
 var errors = bitcoindjs.errors;
 var memdown = require('memdown');
 var inherits = require('util').inherits;
@@ -16,6 +13,45 @@ var BaseModule = require('../lib/module');
 
 describe('Bitcoin DB', function() {
   var coinbaseAmount = 50 * 1e8;
+
+  describe('#getTransaction', function() {
+    it('will return a NotFound error', function(done) {
+      var db = new DB({store: memdown});
+      db.bitcoind = {
+        getTransaction: sinon.stub().callsArgWith(2, null, null)
+      };
+      var txid = '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623';
+      db.getTransaction(txid, true, function(err) {
+        err.should.be.instanceof(errors.Transaction.NotFound);
+        done();
+      });
+    });
+    it('will return an error from bitcoind', function(done) {
+      var db = new DB({store: memdown});
+      db.bitcoind = {
+        getTransaction: sinon.stub().callsArgWith(2, new Error('test error'))
+      };
+      var txid = '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623';
+      db.getTransaction(txid, true, function(err) {
+        err.message.should.equal('test error');
+        done();
+      });
+    });
+    it('will return an error from bitcoind', function(done) {
+      var db = new DB({store: memdown});
+      db.bitcoind = {
+        getTransaction: sinon.stub().callsArgWith(2, null, new Buffer(transactionData[0].hex, 'hex'))
+      };
+      var txid = '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623';
+      db.getTransaction(txid, true, function(err, tx) {
+        if (err) {
+          throw err;
+        }
+        should.exist(tx);
+        done();
+      });
+    });
+  });
 
   describe('#getBlock', function() {
     var db = new DB({store: memdown});
