@@ -1135,15 +1135,19 @@ async_get_tx_after(uv_work_t *req) {
     }
   } else {
 
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-    ssTx << ctx;
-    std::string stx = ssTx.str();
-    Local<Value> rawNodeBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
+    Local<Value> result = Local<Value>::New(isolate, NanNull());
+
+    if (!ctx.IsNull()) {
+      CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+      ssTx << ctx;
+      std::string stx = ssTx.str();
+      result = node::Buffer::New(isolate, stx.c_str(), stx.size());
+    }
 
     const unsigned argc = 2;
     Local<Value> argv[argc] = {
       Local<Value>::New(isolate, NanNull()),
-      rawNodeBuffer
+      result
     };
     TryCatch try_catch;
     cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
