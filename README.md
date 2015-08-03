@@ -45,7 +45,7 @@ git clone https://github.com/bitpay/bitcore-node.git
 cd bitcore-node
 ```
 
-And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a shared library patch (see more info below), and compile the shared library and Node.js bindings, and then copy built artifacts and header files into `platform/ubuntu`. You can start this by running:
+And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a shared library patch (see more info below), and compile the shared library and Node.js bindings, and then copy build artifacts and header files into `platform/ubuntu`. You can start this by running:
 
 ```bash
 npm install
@@ -86,7 +86,7 @@ git clone https://github.com/bitpay/bitcore-node.git
 cd bitcore-node
 ```
 
-And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a shared library patch (see more info below), and compile the shared library and Node.js bindings, and then copy built artifacts and header files into `platform/osx`. You can start this by running:
+And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a shared library patch (see more info below), and compile the shared library and Node.js bindings, and then copy build artifacts and header files into `platform/osx`. You can start this by running:
 
 ```bash
 npm install
