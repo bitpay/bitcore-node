@@ -90,7 +90,6 @@ init(Handle<Object>);
  * Private Global Variables
  * Used only by bitcoindjs functions.
  */
-static uv_mutex_t txmon_mutex;
 static std::vector<std::string> txmon_messages;
 static uv_async_t txmon_async;
 static Eternal<Function> txmon_callback;
@@ -235,28 +234,30 @@ txmon(uv_async_t *handle) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
-  uv_mutex_lock(&txmon_mutex);
+  {
 
-  Local<Array> results = Array::New(isolate);
-  int arrayIndex = 0;
+    LOCK(cs_main);
 
-  BOOST_FOREACH(const std::string& message, txmon_messages) {
-    results->Set(arrayIndex, NanNew<String>(message));
-    arrayIndex++;
+    Local<Array> results = Array::New(isolate);
+    int arrayIndex = 0;
+
+    BOOST_FOREACH(const std::string& message, txmon_messages) {
+      results->Set(arrayIndex, NanNew<String>(message));
+      arrayIndex++;
+    }
+
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(isolate, results)
+    };
+
+    Local<Function> cb = txmon_callback.Get(isolate);
+
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+
+    txmon_messages.clear();
+
   }
-
-  const unsigned argc = 1;
-  Local<Value> argv[argc] = {
-    Local<Value>::New(isolate, results)
-  };
-
-  Local<Function> cb = txmon_callback.Get(isolate);
-
-  cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
-
-  txmon_messages.clear();
-
-  uv_mutex_unlock(&txmon_mutex);
 
 }
 
@@ -316,10 +317,11 @@ process_messages(CNode* pfrom) {
 
       string txHash = tx.GetHash().GetHex();
 
-      uv_mutex_lock(&txmon_mutex);
-      txmon_messages.push_back(txHash);
-      uv_mutex_unlock(&txmon_mutex);
-      uv_async_send(&txmon_async);
+      {
+        LOCK(cs_main);
+        txmon_messages.push_back(txHash);
+        uv_async_send(&txmon_async);
+      }
 
     }
 
