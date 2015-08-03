@@ -2,7 +2,7 @@
 
 var BitcoinNode = require('..').Node;
 var chainlib = require('chainlib');
-var io = require('socket.io');
+var io = require('socket.io')(3000);
 var log = chainlib.log;
 log.debug = function() {};
 
@@ -34,14 +34,50 @@ node.on('ready', function() {
       var name = data[0];
       var instance = data[1];
       var method = data[2];
-      methodsMap[name] = function() {
-        return method.apply(instance, arguments);
+      var args = data[3];
+      methodsMap[name] = {
+        fn: function() {
+          return method.apply(instance, arguments);
+        },
+        args: args
       };
     });
 
-    socket.on('message', function(message) {
+    socket.on('message', function(message, socketCallback) {
       if (methodsMap[message.command]) {
-        methodsMap[message.command](message.params);
+        var params = message.params;
+
+        if(!params || !params.length) {
+          params = [];
+        }
+
+        if(params.length !== methodsMap[message.command].args) {
+          return socketCallback({
+            error: 'Expected ' + methodsMap[message.command].args + ' parameters'
+          });
+        }
+
+        var callback = function(err, result) {
+          console.log('callback called');
+          console.log(err, result);
+          var response = {};
+          if(err) {
+            response.error = err;
+          }
+
+          if(result) {
+            response.result = result;
+          }
+
+          socketCallback(response);
+        };
+
+        params = params.concat(callback);
+        methodsMap[message.command].fn.apply(this, params);
+      } else {
+        socketCallback({
+          error: 'Method Not Found'
+        });
       }
     });
 
@@ -57,7 +93,9 @@ node.on('ready', function() {
 
     events.forEach(function(event) {
       bus.on(event.name, function(data) {
-        socket.emit(event.name, data);
+        if(socket.connected) {
+          socket.emit(event.name, data);
+        }
       });
     });
 
