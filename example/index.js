@@ -1,32 +1,31 @@
-#!/usr/bin/env node
-
 'use strict';
 
-/**
- * bitcoind.js example
- */
+var BitcoinNode = require('..').Node;
+var chainlib = require('chainlib');
+var log = chainlib.log;
+log.debug = function() {};
 
-process.title = 'bitcoind.js';
-
-/**
- * daemon
- */
-var daemon = require('../').daemon({
+var configuration = {
   datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
+  network: 'testnet'
+};
+
+var node = new BitcoinNode(configuration);
+
+var count = 0;
+var interval;
+
+node.on('ready', function() {
+  interval = setInterval(function() {
+    log.info('Sync Status: Tip:', node.chain.tip.hash, 'Height:', node.chain.tip.__height, 'Rate:', count/10, 'blocks per second');
+    count = 0;
+  }, 10000);
 });
 
-daemon.on('ready', function() {
-  console.log('ready');
+node.on('error', function(err) {
+  log.error(err);
 });
 
-daemon.on('tx', function(txid) {
-  console.log('txid', txid);
-});
-
-daemon.on('error', function(err) {
-  daemon.log('error="%s"', err.message);
-});
-
-daemon.on('open', function(status) {
-  daemon.log('status="%s"', status);
+node.chain.on('addblock', function(block) {
+  count++;
 });

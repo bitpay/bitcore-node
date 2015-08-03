@@ -10,12 +10,160 @@ git clone https://github.com/bitpay/bitcore-node.git
 cd bitcore-node
 npm install
 ```
+Note: Please see detailed instructions below for complete build details and dependencies needed for installation.
+
+## Build & Install
+
+There are two main parts of the build, compiling Bitcoin Core and the Node.js bindings.
+
+### Ubuntu 14.04 (Unix/Linux)
+
+If git is not already installed, it can be installed by running:
+
+```bash
+sudo apt-get install git
+git config --global user.email "you@example.com"
+git config --global user.name "Your Name"
+```
+
+If Node.js v0.12 isn't installed, it can be installed using "nvm", it can be done by following the installation script at https://github.com/creationix/nvm#install-script and then install version v0.12
+
+```bash
+nvm install v0.12
+```
+
+To build Bitcoin Core and bindings development packages are needed:
+
+```bash
+sudo apt-get install build-essential libtool autotools-dev autoconf pkg-config libssl-dev
+```
+
+Clone the bitcore-node repository locally:
+
+```bash
+git clone https://github.com/bitpay/bitcore-node.git
+cd bitcore-node
+```
+
+And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a shared library patch (see more info below), and compile the shared library and Node.js bindings, and then copy build artifacts and header files into `platform/ubuntu`. You can start this by running:
+
+```bash
+npm install
+```
+Once everything is built, you can run bitcore-node via:
+
+```bash
+npm start
+```
+
+This will then start the syncing process for Bitcoin Core and the extended capabilities as provided by the built-in Address Module (details below).
+
+
+### Mac OS X Yosemite
+
+If Xcode is not already installed, it can be installed via the Mac App Store (will take several minutes). XCode includes "Clang", "git" and other build tools. Once Xcode is installed, you'll then need to install "xcode-select" via running in a terminal and following the prompts:
+
+```bash
+xcode-select --install
+```
+
+If "Homebrew" is not yet installed, it's needed to install "autoconf" and others. You can install it using the script at http://brew.sh and following the directions at https://github.com/Homebrew/homebrew/blob/master/share/doc/homebrew/Installation.md And then run in a terminal:
+
+```bash
+brew install autoconf automake libtool openssl pkg-config
+```
+
+If Node.js v0.12 and associated commands "node", "npm" and "nvm" are not already installed, you can use "nvm" by running the script at https://github.com/creationix/nvm#install-script And then run this command to install Node.js v0.12
+
+```bash
+nvm install v0.12
+```
+
+Clone the bitcore-node repository locally:
+
+```bash
+git clone https://github.com/bitpay/bitcore-node.git
+cd bitcore-node
+```
+
+And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a shared library patch (see more info below), and compile the shared library and Node.js bindings, and then copy build artifacts and header files into `platform/osx`. You can start this by running:
+
+```bash
+npm install
+```
+Once everything is built, you can run bitcore-node via:
+
+```bash
+npm start
+```
+
+This will then start the syncing process for Bitcoin Core and the extended capabilities as provided by the built-in Address Module (details below).
+
+## Development & Testing
+
+To run all of the JavaScript tests:
+
+```bash
+npm run test
+```
+
+To run tests against the bindings, as defined in `bindings.gyp` the regtest feature of Bitcoin Core is used, and to enable this feature we currently need to build with the wallet enabled *(not a part of the regular build)*. To do this, export an environment variable and recompile:
+
+```bash
+export BITCORENODE_ENV=test
+rm -rf platform/<os_name>/*
+npm install
+```
+
+If you do not already have mocha installed:
+
+```bash
+npm install mocha -g
+```
+
+To run the integration tests:
+
+```bash
+mocha -R spec integration/regtest.js
+```
+
+If any changes have been made to the bindings in the "src" directory, manually compile the Node.js bindings, as defined in `bindings.gyp`, you can run (-d for debug):
+
+```bash
+$ node-gyp -d rebuild
+```
+
+To be able to debug you'll need to have `gdb` and `node` compiled for debugging with gdb using `--gdb` (sometimes called node_g), and you can then run:
+
+```bash
+$ gdb --args node examples/node.js
+```
+
+To run mocha from within gdb (notice `_mocha` and not `mocha` so that the tests run in the same process):
+```bash
+$ gdb --args node /path/to/_mocha -R spec integration/regtest.js
+```
+
+To run the benchmarks:
+
+```bash
+$ cd benchmarks
+$ node index.js
+```
+
+## Shared Library Patch
+
+To provide native bindings to JavaScript *(or any other language for that matter)*, Bitcoin code, itself, must be linkable. Currently, Bitcoin Core provides a JSON RPC interface to bitcoind as well as a shared library for script validation *(and hopefully more)* called libbitcoinconsensus. There is a node module, [node-libbitcoinconsensus](https://github.com/bitpay/node-libbitcoinconsensus), that exposes these methods. While these interfaces are useful for several use cases, there are additional use cases that are not fulfilled, and being able to implement customized interfaces is necessary. To be able to do this a few simple changes need to be made to Bitcoin Core to compile as a shared library.
+
+The patch is located at `etc/bitcoin.patch` and adds a configure option `--enable-daemonlib` to compile all object files with `-fPIC` (Position Independent Code - needed to create a shared object), exposes leveldb variables and objects, exposes the threadpool to the bindings, and conditionally includes the main function.
+
+Every effort will be made to ensure that this patch stays up-to-date with the latest release of Bitcoin. At the very least, this project began supporting Bitcoin Core v0.11.
 
 ## Example Usage
 
 ```js
 
-var BitcoinNode = require('bitcore-node');
+var BitcoinNode = require('bitcore-node').Node;
 
 var configuration = {
   datadir: '~/.bitcoin',
@@ -218,110 +366,6 @@ Note that if you already have a bitcore-node database, and you want to query dat
 - `daemon.log(message), daemon.info(message)` - Log to standard output.
 - `daemon.error(message)` - Log to stderr.
 - `daemon.close([callback])` - Stop the JavaScript bitcoin node safely, the callback will be called when bitcoind is closed. This will also be done automatically on `process.exit`. It also takes the bitcoind node off the libuv event loop. If the daemon object is the only thing on the event loop. Node will simply close.
-
-## Building
-
-There are two main parts of the build, compiling Bitcoin Core and the Node.js bindings. You can run both by using `npm install` and set environment variable, $BITCOINDJS_ENV to 'test' or 'debug'. Both 'test' and 'debug' build libbitcoind with debug symbols whereas 'test' adds wallet capability so that regtest can be used.
-
-### Node.js Bindings
-
-```bash
-$ node-gyp rebuild
-```
-
-And then with debug:
-
-```bash
-$ node-gyp -d rebuild
-```
-
-To be able to debug you'll need to have `gdb` and `node` compiled for debugging with gdb using `--gdb` (node_g), and you can then run:
-
-```bash
-$ gdb --args node_g path/to/example.js
-```
-
-To run mocha from within gdb (notice `_mocha` and not `mocha` so that the tests run in the same process):
-```bash
-$ gdb --args node /path/to/_mocha -R spec integration/index.js
-```
-
-To run integration tests against testnet or livenet data:
-
-```bash
-$ cd integration
-// modify index.js configuration, and then run mocha
-$ mocha -R spec index.js
-```
-
-To run the benchmarks (also with livenet or testnet data):
-
-```bash
-$ cd benchmarks
-$ node index.js
-```
-
-### Bitcoin Core
-
-#### Dependencies
-
-Most of all the dependencies for building Bitcoin Core are needed, for more information please see the build notes for [Unix](https://github.com/bitcoin/bitcoin/blob/master/doc/build-unix.md) and [Mac OS X](https://github.com/bitcoin/bitcoin/blob/master/doc/build-osx.md). These dependencies are needed:
-
-- Boost
-  - Boost Header Files (`/usr/include/boost`)
-  - The Boost header files can be from your distro (like Debian or Ubuntu), just be sure to install the "-dev" versions of Boost (`sudo apt-get install libboost-all-dev`).
-
-- OpenSSL headers and libraries (-lcrypto and -lssl), this is used to compile Bitcoin.
-
-- If target platform is Mac OS X, then OS X >= 10.9, Clang and associated linker. Clang is exclusively installed via Xcode from the Apple App Store. In addition to Xcode, you will need the assoicated Xcode command line tools. First, install Xcode using the App Store app in Mac OS X. After this is installed, open a terminal and type in 'xcode-select --install'. Follow the prompts to get the command line tools installed.
-
-#### Shared Library Patch
-
-To provide native bindings to JavaScript *(or any other language for that matter)*, Bitcoin code, itself, must be linkable. Currently, Bitcoin Core provides a JSON RPC interface to bitcoind as well as a shared library for script validation *(and hopefully more)* called libbitcoinconsensus. There is a node module, [node-libbitcoinconsensus](https://github.com/bitpay/node-libbitcoinconsensus), that exposes these methods. While these interfaces are useful for several use cases, there are additional use cases that are not fulfilled, and being able to implement customized interfaces is necessary. To be able to do this a few simple changes need to be made to Bitcoin Core to compile as a shared library.
-
-The patch is located at `etc/bitcoin.patch` and adds a configure option `--enable-daemonlib` to compile all object files with `-fPIC` (Position Independent Code - needed to create a shared object), exposes leveldb variables and objects, exposes the threadpool to the bindings, and conditionally includes the main function.
-
-Every effort will be made to ensure that this patch stays up-to-date with the latest release of Bitcoin. At the very least, this project began supporting Bitcoin Core v0.10.2.
-
-#### Building
-
-There is a build script that will download Bitcoin Core v0.10.2 and apply the necessary patch, compile `libbitcoind.{so|dylib}` and copy the artifact into `platform/<os_dir>`. Unix/Linux uses the file extension "so" whereas Mac OSX uses "dylib" *(bitcoind compiled as a shared library)*.
-
-```bash
-$ cd /path/to/bitcore-node
-$ ./bin/build-libbitcoind
-```
-
-The `PATCH_VERSION` file dictates what version/tag the patch goes clean against.
-
-There is a config_options.sh that has the configure options used to build libbitcoind. `make` will then compile `libbitcoind/src/.libs/libbitcoind.{so|dylib}`. This will completely ignore compiling tests, QT object files and the wallet features in `bitcoind/libbitcoind.{so|dylib}`.
-
-Or you can also manually compile using:
-
-configure and make (Linux/Unix)
-
-```bash
-$ cd libbitcoind
-$ ./configure --enable-tests=no --enable-daemonlib --with-gui=no --without-qt --without-miniupnpc --without-bdb --enable-debug --disable-wallet --without-utils
-$ make
-```
-configure and make (Mac OS X) --note the addition of prefix to the location where the libbitcoind library will be installed.
-
-```bash
-$ cd libbitcoind
-$ ./configure --enable-tests=no --enable-daemonlib --with-gui=no --without-qt --without-miniupnpc --without-bdb --enable-debug --disable-wallet --without-utils --prefix=<os_dir/lib>
-$ make
-```
-And then copy the files (with Unix/Linux):
-
-```bash
-$ cp -P libbitcoind/src/.libs/libbitcoind.so* platform/<os_dir>
-```
-
-With Mac OS X:
-```bash
-$ cp -R libbitcoind/src/.libs/libbitcoind.*dylib platform/osx/lib
-```
 
 ## License
 
