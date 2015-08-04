@@ -27,7 +27,7 @@ var fixtureData = {
 };
 
 var bitcoind = require('../').daemon({
-  datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
+  datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
   network: 'testnet'
 });
 
