@@ -29,7 +29,7 @@
   "scripts": {
     "preinstall": "./bin/build-libbitcoind",
     "install": "./bin/build-bindings",
-    "start": "node example",
+    "start": "node bin/start.js",
     "test": "NODE_ENV=test mocha --recursive",
     "coverage": "istanbul cover _mocha -- --recursive",
     "libbitcoind": "node bin/start-libbitcoind.js"
@@ -45,7 +45,8 @@
     "errno": "^0.1.2",
     "memdown": "^1.0.0",
     "mkdirp": "0.5.0",
-    "nan": "1.3.0"
+    "nan": "1.3.0",
+    "socket.io": "^1.3.6"
   },
   "devDependencies": {
     "benchmark": "1.0.0",

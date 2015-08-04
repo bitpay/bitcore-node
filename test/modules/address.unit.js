@@ -295,6 +295,20 @@ describe('AddressModule', function() {
       am.unsubscribe(name, emitter, [address]);
       am.subscriptions.balance[address].should.deep.equal([emitter2]);
     });
+    it('should unsubscribe from all addresses if no addresses are specified', function() {
+      var am = new AddressModule({});
+      var emitter = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      am.subscriptions.balance = {
+        '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W': [emitter, emitter2],
+        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter2, emitter]
+      };
+      am.unsubscribe('balance', emitter);
+      am.subscriptions.balance.should.deep.equal({
+        '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W': [emitter2],
+        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter2]
+      });
+    });
   });
 
   describe('#getBalance', function() {

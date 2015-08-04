@@ -58,4 +58,30 @@ describe('Bus', function() {
     });
   });
 
+  describe('#close', function() {
+    it('will unsubscribe from all events', function() {
+      var unsubscribe = sinon.spy();
+      var db = {
+        modules: [
+          {
+            getPublishEvents: sinon.stub().returns([
+            {
+              name: 'test',
+              scope: this,
+              unsubscribe: unsubscribe
+            }
+            ])
+          }
+        ]
+      };
+
+      var bus = new Bus({db: db});
+      bus.close();
+
+      unsubscribe.callCount.should.equal(1);
+      unsubscribe.args[0].length.should.equal(1);
+      unsubscribe.args[0][0].should.equal(bus);
+    });
+  });
+
 });

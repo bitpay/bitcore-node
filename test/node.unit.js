@@ -40,6 +40,45 @@ describe('Bitcoind Node', function() {
       bus.db.should.equal(db);
     });
   });
+  describe('#getAllAPIMethods', function() {
+    it('should return db methods and modules methods', function() {
+      var node = new Node({});
+      var db = {
+        getAPIMethods: sinon.stub().returns(['db1', 'db2']),
+        modules: [
+          {
+            getAPIMethods: sinon.stub().returns(['mda1', 'mda2'])
+          },
+          {
+            getAPIMethods: sinon.stub().returns(['mdb1', 'mdb2'])
+          }
+        ]
+      };
+      node.db = db;
+
+      var methods = node.getAllAPIMethods();
+      methods.should.deep.equal(['db1', 'db2', 'mda1', 'mda2', 'mdb1', 'mdb2']);
+    });
+  });
+  describe('#getAllPublishEvents', function() {
+    it('should return modules publish events', function() {
+      var node = new Node({});
+      var db = {
+        modules: [
+          {
+            getPublishEvents: sinon.stub().returns(['mda1', 'mda2'])
+          },
+          {
+            getPublishEvents: sinon.stub().returns(['mdb1', 'mdb2'])
+          }
+        ]
+      };
+      node.db = db;
+
+      var events = node.getAllPublishEvents();
+      events.should.deep.equal(['mda1', 'mda2', 'mdb1', 'mdb2']);
+    });
+  });
   describe('#_loadConfiguration', function() {
     it('should call the necessary methods', function() {
       var node = new Node({});
