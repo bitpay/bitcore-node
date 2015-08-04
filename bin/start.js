@@ -2,13 +2,14 @@
 
 var BitcoinNode = require('..').Node;
 var chainlib = require('chainlib');
-var io = require('socket.io')(3000);
+var socketio = require('socket.io');
 var log = chainlib.log;
 log.debug = function() {};
 
 var configuration = {
   datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
-  network: process.env.BITCOINDJS_NETWORK || 'livenet'
+  network: process.env.BITCOINDJS_NETWORK || 'livenet',
+  port: 3000
 };
 
 var node = new BitcoinNode(configuration);
@@ -17,6 +18,8 @@ var count = 0;
 var interval;
 
 node.on('ready', function() {
+
+  var io = socketio(configuration.port);
 
   interval = setInterval(function() {
     log.info('Sync Status: Tip:', node.chain.tip.hash, 'Height:', node.chain.tip.__height, 'Rate:', count/10, 'blocks per second');
@@ -58,15 +61,17 @@ node.on('ready', function() {
         }
 
         var callback = function(err, result) {
-          console.log('callback called');
-          console.log(err, result);
           var response = {};
           if(err) {
             response.error = err;
           }
 
           if(result) {
-            response.result = result;
+            if(result.toJSON) {
+              response.result = result.toJSON();
+            } else {
+              response.result = result;
+            }
           }
 
           socketCallback(response);
@@ -92,9 +97,20 @@ node.on('ready', function() {
     var events = node.getAllPublishEvents();
 
     events.forEach(function(event) {
-      bus.on(event.name, function(data) {
+      bus.on(event.name, function() {
         if(socket.connected) {
-          socket.emit(event.name, data);
+          var results = [];
+
+          for(var i = 0; i < arguments.length; i++) {
+            if(arguments[i].toJSON) {
+              results.push(arguments[i].toJSON());
+            } else {
+              results.push(arguments[i]);
+            }
+          }
+
+          var params = [event.name].concat(results);
+          socket.emit.apply(socket, params);
         }
       });
     });
