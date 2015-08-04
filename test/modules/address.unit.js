@@ -74,7 +74,7 @@ describe('AddressModule', function() {
         },
         value: {
           satoshis: 2502227470,
-          script: 'OP_DUP OP_HASH160 20 0x02a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b OP_EQUALVERIFY OP_CHECKSIG',
+          script: '76a91402a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b88ac',
           blockHeight: 345003
         }
       },
@@ -98,7 +98,7 @@ describe('AddressModule', function() {
         },
         value: {
           satoshis: 3100000,
-          script: 'OP_DUP OP_HASH160 20 0x9780ccd5356e2acc0ee439ee04e0fe69426c7528 OP_EQUALVERIFY OP_CHECKSIG',
+          script: '76a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac',
           blockHeight: 345003
         }
       }
