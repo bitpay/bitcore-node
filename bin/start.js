@@ -47,23 +47,25 @@ node.on('ready', function() {
     });
 
     socket.on('message', function(message, socketCallback) {
-      if (methodsMap[message.command]) {
+      if (methodsMap[message.method]) {
         var params = message.params;
 
         if(!params || !params.length) {
           params = [];
         }
 
-        if(params.length !== methodsMap[message.command].args) {
+        if(params.length !== methodsMap[message.method].args) {
           return socketCallback({
-            error: 'Expected ' + methodsMap[message.command].args + ' parameters'
+            error: 'Expected ' + methodsMap[message.method].args + ' parameters'
           });
         }
 
         var callback = function(err, result) {
           var response = {};
           if(err) {
-            response.error = err;
+            response.error = {
+              message: err.toString()
+            };
           }
 
           if(result) {
@@ -78,7 +80,7 @@ node.on('ready', function() {
         };
 
         params = params.concat(callback);
-        methodsMap[message.command].fn.apply(this, params);
+        methodsMap[message.method].fn.apply(this, params);
       } else {
         socketCallback({
           error: 'Method Not Found'

@@ -10,7 +10,7 @@ socket.on('disconnect', function(){
 });
 
 var message = {
-  command: 'getOutputs',
+  method: 'getOutputs',
   params: ['1HTxCVrXuthad6YW5895K98XmVsdMvvBSw', true]
 };
 
@@ -24,7 +24,7 @@ socket.send(message, function(response) {
 });
 
 var message2 = {
-  command: 'getTransaction',
+  method: 'getTransaction',
   params: ['4f793f67fc7465f14fa3a8d3727fa7d133cdb2f298234548b94a5f08b6f4103e', true]
 };
 
