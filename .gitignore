@@ -28,3 +28,4 @@ libbitcoind
 **/*.creator
 libbitcoind.includes
 *.log
+platform/*
