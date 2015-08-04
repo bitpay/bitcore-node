@@ -12,5 +12,4 @@ script:
   - _mocha -R spec --recursive
 cache:
   directories:
-    - platform/ubuntu
-
+    - build 

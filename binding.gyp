@@ -3,9 +3,9 @@
     'target_name': "<(module_name)",
     'include_dirs' : [
       '<!(node -e "require(\'nan\')")',
-      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src',
-      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/depends/<!(./platform/os.sh host)/include',
-      '<!(./platform/os.sh artifacts_dir)/include/libbitcoind/src/leveldb/include'
+      '<!(./platform/os.sh btcdir)/src',
+      '<!(./platform/os.sh btcdir)/depends/<!(./platform/os.sh host)/include',
+      '<!(./platform/os.sh btcdir)/src/leveldb/include'
     ],
     'sources': [
       './src/libbitcoind.cc',

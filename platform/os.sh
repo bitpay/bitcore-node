@@ -63,17 +63,11 @@ fi
 
 os_dir=${root_dir}/platform/${os}
 
-if [ "${os}"  == "osx" ]; then
-  artifacts_dir="${os_dir}/lib"
-else
-  artifacts_dir="${os_dir}"
-fi
-
-thread="${artifacts_dir}"/lib/libboost_thread-mt.a
-filesystem="${artifacts_dir}"/lib/libboost_filesystem-mt.a
-chrono="${artifacts_dir}"/lib/libboost_chrono-mt.a
-program_options="${artifacts_dir}"/lib/libboost_program_options-mt.a
-system="${artifacts_dir}"/lib/libboost_system-mt.a
+thread="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_thread-mt.a
+filesystem="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_filesystem-mt.a
+chrono="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_chrono-mt.a
+program_options="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_program_options-mt.a
+system="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_system-mt.a
 leveldb="${BITCOIN_DIR}"/src/leveldb/libleveldb.a
 memenv="${BITCOIN_DIR}"/src/leveldb/libmemenv.a
 libsecp256k1="${BITCOIN_DIR}"/src/secp256k1/.libs/libsecp256k1.a
@@ -146,7 +140,7 @@ fi
 
 if test -z "$1" -o x"$1" = x'bdb'; then
   if [ "${BITCORENODE_ENV}" == "test" ]; then
-    echo -n "${artifacts_dir}/lib/libdb_cxx.a"
+    echo -n "${BITCOIN_DIR}"/depends/"${host}"/lib/libdb_cxx.a
   fi
 fi
 
@@ -154,12 +148,8 @@ if test -z "$1" -o x"$1" = x'load_archive'; then
   if [ "${os}"  == "osx" ]; then
     echo -n "-Wl,-all_load -Wl,--no-undefined"
   else
-    echo -n "-Wl,--whole-archive ${filesystem} ${thread} "${artifacts_dir}"/lib/libbitcoind.a -Wl,--no-whole-archive"
+    echo -n "-Wl,--whole-archive ${filesystem} ${thread} "${BITCOIN_DIR}"/src/.libs/libbitcoind.a -Wl,--no-whole-archive"
   fi
-fi
-
-if test -z "$1" -o x"$1" = x'artifacts_dir'; then
-  echo -n "${artifacts_dir}" 
 fi
 
 if test -z "$1" -o x"$1" = x'mac_dependencies'; then
@@ -168,5 +158,5 @@ if test -z "$1" -o x"$1" = x'mac_dependencies'; then
 fi
 
 if test -z "$1" -o x"$1" = x'bitcoind'; then
-  echo -n "${artifacts_dir}"/lib/libbitcoind.a
+  echo -n "${BITCOIN_DIR}"/src/.libs/libbitcoind.a
 fi

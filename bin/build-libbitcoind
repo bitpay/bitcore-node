@@ -7,28 +7,10 @@ os_dir=$(${root_dir}/platform/os.sh osdir)
 host=$(${root_dir}/platform/os.sh host)
 btc_dir="${root_dir}/libbitcoind"
 ext=$($root_dir/platform/os.sh ext)
-artifacts_dir=$($root_dir/platform/os.sh artifacts_dir)
 export CPPFLAGS="-I${h_and_a_dir}/include/boost -I${h_and_a_dir}/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include -L${h_and_a_dir}/lib"
 echo "Using BTC directory: ${btc_dir}"
 
 cd "${root_dir}"
-
-copy_files () {
-  if [[ -d "${artifacts_dir}" && -d "${h_and_a_dir}" && -d "${btc_dir}" ]]; then
-    mkdir -p "${artifacts_dir}/include" > /dev/null 2>&1
-    pushd "${root_dir}"
-    echo "Copying headers for caching purposes, this can take a while (but will only be done once), please wait..."
-    find libbitcoind -type f \( -name "*.h" -or -name "*.hpp" -or -name "*.ipp" \) -print0 | xargs -0 -I{} rsync -R {} "${artifacts_dir}"/include
-    mkdir -p "${artifacts_dir}/lib" > /dev/null 2>&1
-    cp -r "${h_and_a_dir}"/lib/libboost_filesystem-mt.a "${h_and_a_dir}"/lib/libboost_thread-mt.a "${h_and_a_dir}"/lib/libboost_chrono-mt.a \
-    "${h_and_a_dir}"/lib/libboost_program_options-mt.a "${h_and_a_dir}"/lib/libboost_system-mt.a  "${btc_dir}"/src/secp256k1/.libs/libsecp256k1.a \
-    "${btc_dir}"/src/.libs/libbitcoind.a "${btc_dir}"/src/leveldb/libleveldb.a "${btc_dir}"/src/leveldb/libmemenv.a "${artifacts_dir}"/lib/
-    if [ "${test}" = true ]; then
-      cp -r "${h_and_a_dir}"/lib/libdb* "${artifacts_dir}"/lib/
-    fi
-    popd
-  fi
-}
 
 build_dependencies () {
   if [ -d "${btc_dir}" ]; then
@@ -82,17 +64,13 @@ if [ "${BITCORENODE_ENV}" == "test" ]; then
 fi
 
 patch_file_sha=$(shasum -a 256 "${root_dir}/etc/bitcoin.patch" | awk '{print $1}')
-patch_sha=`find "${os_dir}" -iname patch_sha.txt`
+patch_sha="${root_dir}"/etc/patch_sha.txt
 last_patch_file_sha=
 if [ -e "${patch_sha}" ]; then 
-  if [ "${ext}" == "dylib" ]; then
-    last_patch_file_sha=$(cat "${os_dir}"/lib/patch_sha.txt)
-  else
-    last_patch_file_sha=$(cat "${os_dir}"/patch_sha.txt)
-  fi
+  last_patch_file_sha=$(cat "${patch_sha}")
 fi
 shared_file_built=false
-if [[ "${last_patch_file_sha}" == "${patch_file_sha}" && -d "${artifacts_dir}/include" ]]; then
+if [ "${last_patch_file_sha}" == "${patch_file_sha}" ]; then
   shared_file_built=true
 fi
 
@@ -163,16 +141,8 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   echo 'make V=1'
   make V=1
 
-  echo 'Copying files to their appropriate location.'
-  if test -e "${btc_dir}/src/.libs/libbitcoind.a"; then
-    mkdir -p "${artifacts_dir}"
-    echo "Creating the sha marker for the patching in libbitcoind..."
-    echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${artifacts_dir}"/patch_sha.txt
-    copy_files
-  else
-    echo "Could not find the libraries after they should have been built, please run make clean inside the libbitcoind dir and run npm install again."
-    exit 1
-  fi
+  echo "Creating the sha marker for the patching in libbitcoind..."
+  echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${root_dir}"/etc/patch_sha.txt
   echo 'Build finished successfully.'
 else
   echo 'Using existing shared library.'
