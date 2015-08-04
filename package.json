@@ -63,7 +63,7 @@
   },
   "bundledDependencies": ["node-pre-gyp"],
   "binary": {
-        "module_name" : "bitcoindjs",
+        "module_name" : "bitcoind",
         "module_path" : "./build/{configuration}/{node_abi}-{platform}-{arch}/",
         "remote_path" : "./{module_name}/v{version}/{configuration}/",
         "package_name": "{module_name}-v{version}-{node_abi}-{platform}-{arch}.tar.gz",

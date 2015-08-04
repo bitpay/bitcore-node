@@ -13,3 +13,4 @@ script:
 cache:
   directories:
     - build 
+    - cache 

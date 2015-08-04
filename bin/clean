@@ -1,9 +1,7 @@
 #!/bin/bash
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
-os_dir=$(${root_dir}/platform/os.sh osdir)
 cd "${root_dir}"
 
 rm -fr libbitcoind
-rm -fr "${os_dir}"/* 
 node-pre-gyp clean

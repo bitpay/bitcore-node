@@ -1,13 +1,11 @@
 #!/bin/bash
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 options=`cat ${root_dir}/bin/config_options.sh`
-h_and_a_dir=$($root_dir/platform/os.sh h_and_a_dir)
-depends_dir=$($root_dir/platform/os.sh depends_dir)
-os_dir=$(${root_dir}/platform/os.sh osdir)
-host=$(${root_dir}/platform/os.sh host)
+depends_dir=$($root_dir/variables.sh depends_dir)
+host=$(${root_dir}/variables.sh host)
 btc_dir="${root_dir}/libbitcoind"
-ext=$($root_dir/platform/os.sh ext)
-export CPPFLAGS="-I${h_and_a_dir}/include/boost -I${h_and_a_dir}/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include -L${h_and_a_dir}/lib"
+patch_sha=$($root_dir/variables.sh patch_sha)
+export CPPFLAGS="-I${depends_dir}/${host}/include/boost -I${depends_dir}/${host}/include -L${depends_dir}/${host}/lib" 
 echo "Using BTC directory: ${btc_dir}"
 
 cd "${root_dir}"
@@ -16,20 +14,10 @@ build_dependencies () {
   if [ -d "${btc_dir}" ]; then
     pushd "${depends_dir}"
     echo "using host for dependencies: ${host}"
-    boost_files_count=`find "${h_and_a_dir}"/lib -iname "libboost_*-mt.a" | wc -l | xargs`
-    db_files_count=`find "${h_and_a_dir}"/lib -iname "libdb*.a" | wc -l | xargs`
-    should_rebuild=false
-    if [[ "${boost_files_count}" -lt 5 || ( "${db_files_count}" -lt 1  && "${test}" = true ) ]]; then
-      should_rebuild=true
-    fi
-    if [ "${should_rebuild}" = true ]; then
-      if [ "${test}" = true ]; then
-        make HOST=${host} NO_QT=1 NO_UPNP=1
-      else
-        make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1
-      fi
+    if [ "${test}" = true ]; then
+      make HOST=${host} NO_QT=1 NO_UPNP=1
     else
-      echo "Looks like libs are already built, so we won't rebuild them. Incidentally, we found: ${boost_files_count} boost libraries and: ${db_files_count} Berkeley DB libraries and you have test mode set to: ${test}"
+      make HOST=${host} NO_QT=1 NO_WALLET=1 NO_UPNP=1
     fi
     popd
   fi 
@@ -64,18 +52,20 @@ if [ "${BITCORENODE_ENV}" == "test" ]; then
 fi
 
 patch_file_sha=$(shasum -a 256 "${root_dir}/etc/bitcoin.patch" | awk '{print $1}')
-patch_sha="${root_dir}"/etc/patch_sha.txt
 last_patch_file_sha=
 if [ -e "${patch_sha}" ]; then 
+  echo "Patch file sha exists, let's see if the patch has changed since last build..."
   last_patch_file_sha=$(cat "${patch_sha}")
 fi
 shared_file_built=false
 if [ "${last_patch_file_sha}" == "${patch_file_sha}" ]; then
+  echo "Patch file contents matches the sha from the patch file itself, so no reason to rebuild the bindings unless there are no prebuilt bindings."
   shared_file_built=true
 fi
 
 if [ "${shared_file_built}" = false ]; then
-  mac_response=$($root_dir/platform/os.sh mac_dependencies) 
+  echo "Looks like the patch to bitcoin changed since last build -or- this is the first build, so rebuilding libbitcoind itself..."
+  mac_response=$($root_dir/variables.sh mac_dependencies) 
   if [ "${mac_response}" != "" ]; then
     echo "${mac_response}" 
     exit -1
@@ -98,7 +88,6 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
       fi
       if [[ "${input}" =~ ^y|^Y ]]; then
         repatch=true
-        rm -f "${os_dir}/libbitcoind.*"
         echo "Removing directory: \"${btc_dir}\" and starting over!"
         rm -fr "${btc_dir}"
       fi
@@ -132,9 +121,9 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   echo './autogen.sh'
   ./autogen.sh
 
-  boost_libdir="--with-boost-libdir=${h_and_a_dir}/lib"
+  boost_libdir="--with-boost-libdir=${depends_dir}/${host}/lib"
 
-  full_options="${options} ${boost_libdir} --prefix=${os_dir}"
+  full_options="${options} ${boost_libdir}"
   echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
   ${full_options}
 
@@ -142,9 +131,9 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   make V=1
 
   echo "Creating the sha marker for the patching in libbitcoind..."
-  echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${root_dir}"/etc/patch_sha.txt
+  echo "Writing patch sha file to: \"${patch_sha}\""
+  echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${patch_sha}"
   echo 'Build finished successfully.'
 else
   echo 'Using existing shared library.'
 fi
-
