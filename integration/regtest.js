@@ -5,8 +5,11 @@
 // functionality by including the wallet in the build.
 // To run the tests: $ mocha -R spec integration/regtest.js
 
+var chainlib = require('chainlib');
+var log = chainlib.log;
+
 if (process.env.BITCORENODE_ENV !== 'test') {
-  console.log('Please set the environment variable BITCORENODE_ENV=test and make sure bindings are compiled for testing');
+  log.info('Please set the environment variable BITCORENODE_ENV=test and make sure bindings are compiled for testing');
   process.exit();
 }
 
@@ -63,14 +66,14 @@ describe('Daemon Binding Functionality', function() {
       });
 
       bitcoind.on('error', function(err) {
-        bitcoind.log('error="%s"', err.message);
+        log.error('error="%s"', err.message);
       });
 
       bitcoind.on('open', function(status) {
-        bitcoind.log('status="%s"', status);
+        log.info('status="%s"', status);
       });
 
-      console.log('Waiting for Bitcoin Core to initialize...');
+      log.info('Waiting for Bitcoin Core to initialize...');
 
       bitcoind.on('ready', function() {
 
@@ -82,7 +85,7 @@ describe('Daemon Binding Functionality', function() {
           pass: 'local321'
         });
 
-        console.log('Generating 100 blocks...');
+        log.info('Generating 100 blocks...');
 
         // Generate enough blocks so that the initial coinbase transactions
         // can be spent.
@@ -98,7 +101,7 @@ describe('Daemon Binding Functionality', function() {
           // We'll construct a new transaction that will send funds
           // to a new address with pubkeyhashout for later testing.
 
-          console.log('Preparing unspent outputs...');
+          log.info('Preparing unspent outputs...');
 
           client.getBalance(function(err, response) {
             if (err) {
@@ -149,7 +152,7 @@ describe('Daemon Binding Functionality', function() {
                     throw err;
                   }
 
-                  console.log('Testing setup complete!');
+                  log.info('Testing setup complete!');
                   done();
                 });
               });
