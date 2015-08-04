@@ -31,7 +31,8 @@
     "install": "./bin/build-bindings",
     "start": "node example",
     "test": "NODE_ENV=test mocha --recursive",
-    "coverage": "istanbul cover _mocha -- --recursive"
+    "coverage": "istanbul cover _mocha -- --recursive",
+    "libbitcoind": "node bin/start-libbitcoind.js"
   },
   "tags": [
     "bitcoin",
