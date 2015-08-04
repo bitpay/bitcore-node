@@ -145,7 +145,7 @@ if test -z "$1" -o x"$1" = x'host'; then
 fi
 
 if test -z "$1" -o x"$1" = x'bdb'; then
-  if [ "${BITCOINDJS_ENV}" == "test" ]; then
+  if [ "${BITCORENODE_ENV}" == "test" ]; then
     echo -n "${artifacts_dir}/lib/libdb_cxx.a"
   fi
 fi
@@ -154,7 +154,7 @@ if test -z "$1" -o x"$1" = x'load_archive'; then
   if [ "${os}"  == "osx" ]; then
     echo -n "-Wl,-all_load -Wl,--no-undefined"
   else
-    echo -n "-Wl,--whole-archive ${filesystem} ${thread} "${BITCOIN_DIR}"/src/.libs/libbitcoind.a -Wl,--no-whole-archive"
+    echo -n "-Wl,--whole-archive ${filesystem} ${thread} "${artifacts_dir}"/lib/libbitcoind.a -Wl,--no-whole-archive"
   fi
 fi
 
@@ -168,5 +168,5 @@ if test -z "$1" -o x"$1" = x'mac_dependencies'; then
 fi
 
 if test -z "$1" -o x"$1" = x'bitcoind'; then
-  echo -n "${BITCOIN_DIR}"/src/.libs/libbitcoind.a
+  echo -n "${artifacts_dir}"/lib/libbitcoind.a
 fi

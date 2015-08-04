@@ -13,7 +13,7 @@ echo "Using BTC directory: ${btc_dir}"
 
 cd "${root_dir}"
 
-copy_header_files () {
+copy_files () {
   if [[ -d "${artifacts_dir}" && -d "${h_and_a_dir}" && -d "${btc_dir}" ]]; then
     mkdir -p "${artifacts_dir}/include" > /dev/null 2>&1
     pushd "${root_dir}"
@@ -163,14 +163,12 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   echo 'make V=1'
   make V=1
 
-  echo 'Copying libbitcoind.{so|dylib} to its appropriate location.'
+  echo 'Copying files to their appropriate location.'
   if test -e "${btc_dir}/src/.libs/libbitcoind.a"; then
     mkdir -p "${artifacts_dir}"
-    cp -R "${btc_dir}"/src/.libs/libbitcoind.a "${artifacts_dir}"
     echo "Creating the sha marker for the patching in libbitcoind..."
     echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${artifacts_dir}"/patch_sha.txt
-    echo "Copying the header files in order to be cached..."
-    copy_header_files
+    copy_files
   else
     echo "Could not find the libraries after they should have been built, please run make clean inside the libbitcoind dir and run npm install again."
     exit 1
