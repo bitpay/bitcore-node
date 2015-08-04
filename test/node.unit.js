@@ -247,7 +247,7 @@ describe('Bitcoind Node', function() {
   describe('#_loadDB', function() {
     it('should load the db', function() {
       var DB = function(config) {
-        config.path.should.equal(process.env.HOME + '/.bitcoin/bitcoindjs.db');
+        config.path.should.equal(process.env.HOME + '/.bitcoin/bitcore-node.db');
       };
       var config = {
         DB: DB,
@@ -261,7 +261,7 @@ describe('Bitcoind Node', function() {
     });
     it('should load the db for testnet', function() {
       var DB = function(config) {
-        config.path.should.equal(process.env.HOME + '/.bitcoin/testnet3/bitcoindjs.db');
+        config.path.should.equal(process.env.HOME + '/.bitcoin/testnet3/bitcore-node.db');
       };
       var config = {
         DB: DB,
@@ -286,7 +286,7 @@ describe('Bitcoind Node', function() {
     });
     it('should load the db with regtest', function() {
       var DB = function(config) {
-        config.path.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcoindjs.db');
+        config.path.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcore-node.db');
       };
       var config = {
         DB: DB,
@@ -381,7 +381,7 @@ describe('Bitcoind Node', function() {
       node._initializeBitcoind();
       node.bitcoind.emit('ready');
     });
-    it('will call emit an error from bitcoind.js', function(done) {
+    it('will call emit an error from libbitcoind', function(done) {
       var node = new Node({});
       node.bitcoind = new EventEmitter();
       node.on('error', function(err) {
