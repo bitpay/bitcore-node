@@ -28,4 +28,3 @@ libbitcoind
 **/*.creator
 libbitcoind.includes
 *.log
-cache/patch_sha.txt
