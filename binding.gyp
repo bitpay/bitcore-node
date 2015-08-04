@@ -3,9 +3,9 @@
     'target_name': "<(module_name)",
     'include_dirs' : [
       '<!(node -e "require(\'nan\')")',
-      '<!(./variables.sh btcdir)/src',
-      '<!(./variables.sh btcdir)/depends/<!(./variables.sh host)/include',
-      '<!(./variables.sh btcdir)/src/leveldb/include'
+      '<!(./bin/variables.sh btcdir)/src',
+      '<!(./bin/variables.sh btcdir)/depends/<!(./bin/variables.sh host)/include',
+      '<!(./bin/variables.sh btcdir)/src/leveldb/include'
     ],
     'sources': [
       './src/libbitcoind.cc',
@@ -27,21 +27,21 @@
     ],
     'link_settings': {
       'libraries': [
-        '<!(./variables.sh bitcoind)',
-        '<!(./variables.sh filesystem)',
-        '<!(./variables.sh thread)',
-        '<!(./variables.sh program_options)',
-        '<!(./variables.sh system)',
-        '<!(./variables.sh chrono)',
-        '<!(./variables.sh libsecp256k1)',
-        '<!(./variables.sh leveldb)',
-        '<!(./variables.sh memenv)',
-        '<!(./variables.sh bdb)',
+        '<!(./bin/variables.sh bitcoind)',
+        '<!(./bin/variables.sh filesystem)',
+        '<!(./bin/variables.sh thread)',
+        '<!(./bin/variables.sh program_options)',
+        '<!(./bin/variables.sh system)',
+        '<!(./bin/variables.sh chrono)',
+        '<!(./bin/variables.sh libsecp256k1)',
+        '<!(./bin/variables.sh leveldb)',
+        '<!(./bin/variables.sh memenv)',
+        '<!(./bin/variables.sh bdb)',
         '-lssl',
         '-lcrypto'
       ],
       'ldflags': [
-        '<!(./variables.sh load_archive)'
+        '<!(./bin/variables.sh load_archive)'
       ]
     }
   },

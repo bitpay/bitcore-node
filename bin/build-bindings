@@ -7,14 +7,8 @@ cd "${root_dir}"
 debug=
 if test x"$1" = x'debug'; then
   debug=--debug
-  cached_file="${root_dir}"/build/Debug/bitcoind.node
-else
-  cached_file="${root_dir}"/build/Release/bitcoind.node
 fi
 
-
-if [ ! -f "${cached_file}" ]; then
-  node-pre-gyp ${debug} rebuild --fallback-to-build
-fi
+node-pre-gyp ${debug} rebuild --fallback-to-build
 
 

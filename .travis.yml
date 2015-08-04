@@ -12,5 +12,5 @@ script:
   - _mocha -R spec --recursive
 cache:
   directories:
-    - build 
+    - libbitcoind
     - cache 

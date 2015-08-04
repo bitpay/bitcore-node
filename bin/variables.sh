@@ -2,7 +2,7 @@
 
 exec 2> /dev/null
 
-root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 BITCOIN_DIR="${root_dir}/libbitcoind"
 
 host=`uname -m`-`uname -a | awk '{print tolower($1)}'`

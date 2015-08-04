@@ -1,10 +1,10 @@
 #!/bin/bash
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 options=`cat ${root_dir}/bin/config_options.sh`
-depends_dir=$($root_dir/variables.sh depends_dir)
-host=$(${root_dir}/variables.sh host)
+depends_dir=$($root_dir/bin/variables.sh depends_dir)
+host=$(${root_dir}/bin/variables.sh host)
 btc_dir="${root_dir}/libbitcoind"
-patch_sha=$($root_dir/variables.sh patch_sha)
+patch_sha=$($root_dir/bin/variables.sh patch_sha)
 export CPPFLAGS="-I${depends_dir}/${host}/include/boost -I${depends_dir}/${host}/include -L${depends_dir}/${host}/lib" 
 echo "Using BTC directory: ${btc_dir}"
 
@@ -40,6 +40,22 @@ compare_patch () {
   matching_patch=`diff -w /tmp/tmp.patch "${root_dir}/etc/bitcoin.patch"` 
 }
 
+prepare_for_caching () {
+  cp -r $("${root_dir}"/bin/variables.sh bitcoind) /tmp/bitcoind.tmp 
+  cp -r $("${root_dir}"/bin/variables.sh libsecp256k1) /tmp/libsecp256k1.tmp
+  cp -r $("${root_dir}"/bin/variables.sh memenv) /tmp/libmemenv.tmp
+  cp -r $("${root_dir}"/bin/variables.sh leveldb) /tmp/leveldb.tmp
+  pushd "${btc_dir}"
+  make clean
+  mkdir -p "${btc_dir}"/src/.libs
+  mkdir -p "${btc_dir}"/src/secp256k1/.libs
+  cp -r /tmp/bitcoind.tmp $("${root_dir}"/bin/variables.sh bitcoind)
+  cp -r /tmp/libsecp256k1.tmp $("${root_dir}"/bin/variables.sh libsecp256k1)
+  cp -r /tmp/libmemenv.tmp $("${root_dir}"/bin/variables.sh memenv)
+  cp -r /tmp/leveldb.tmp $("${root_dir}"/bin/variables.sh leveldb) 
+  popd
+}
+
 debug=
 if [ "${BITCORENODE_ENV}" == "debug" ]; then
   options=`cat ${root_dir}/bin/config_options_debug.sh`
@@ -65,7 +81,7 @@ fi
 
 if [ "${shared_file_built}" = false ]; then
   echo "Looks like the patch to bitcoin changed since last build -or- this is the first build, so rebuilding libbitcoind itself..."
-  mac_response=$($root_dir/variables.sh mac_dependencies) 
+  mac_response=$($root_dir/bin/variables.sh mac_dependencies) 
   if [ "${mac_response}" != "" ]; then
     echo "${mac_response}" 
     exit -1
@@ -133,6 +149,7 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   echo "Creating the sha marker for the patching in libbitcoind..."
   echo "Writing patch sha file to: \"${patch_sha}\""
   echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${patch_sha}"
+  prepare_for_caching
   echo 'Build finished successfully.'
 else
   echo 'Using existing shared library.'

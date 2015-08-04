@@ -139,7 +139,7 @@ index e7aa48d..df0f7ae 100644
  endef
 
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 1c2f770..85db1d3 100644
+index 1c2f770..5582b7e 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
 @@ -1,6 +1,12 @@
@@ -203,7 +203,7 @@ index 1c2f770..85db1d3 100644
  	  $(abs_top_srcdir)
 -libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
-+ARCH_PLATFORM = $(shell ../../variables.sh host)
++ARCH_PLATFORM = $(shell ../../bin/variables.sh host)
 +
 +libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 +clientversion.cpp: obj/build.h
