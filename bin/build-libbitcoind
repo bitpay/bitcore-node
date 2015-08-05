@@ -40,19 +40,13 @@ compare_patch () {
   matching_patch=`diff -w /tmp/tmp.patch "${root_dir}/etc/bitcoin.patch"` 
 }
 
-prepare_for_caching () {
-  cp -r $("${root_dir}"/bin/variables.sh bitcoind) /tmp/bitcoind.tmp 
-  cp -r $("${root_dir}"/bin/variables.sh libsecp256k1) /tmp/libsecp256k1.tmp
-  cp -r $("${root_dir}"/bin/variables.sh memenv) /tmp/libmemenv.tmp
-  cp -r $("${root_dir}"/bin/variables.sh leveldb) /tmp/leveldb.tmp
+cache_files () {
+  cache_file="${root_dir}"/cache/cache.tar
   pushd "${btc_dir}"
-  make clean
-  mkdir -p "${btc_dir}"/src/.libs
-  mkdir -p "${btc_dir}"/src/secp256k1/.libs
-  cp -r /tmp/bitcoind.tmp $("${root_dir}"/bin/variables.sh bitcoind)
-  cp -r /tmp/libsecp256k1.tmp $("${root_dir}"/bin/variables.sh libsecp256k1)
-  cp -r /tmp/libmemenv.tmp $("${root_dir}"/bin/variables.sh memenv)
-  cp -r /tmp/leveldb.tmp $("${root_dir}"/bin/variables.sh leveldb) 
+  find . -type f \( -name "*.h" -or -name "*.hpp" -or -name \
+"*.ipp" -or -name "*.a" \) | tar -cf "${cache_file}" -T -
+  tar xf "${cache_file}" -C "${root_dir}"/cache
+  rm -fr "${cache_file}" 
   popd
 }
 
@@ -149,7 +143,7 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   echo "Creating the sha marker for the patching in libbitcoind..."
   echo "Writing patch sha file to: \"${patch_sha}\""
   echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${patch_sha}"
-  prepare_for_caching
+  cache_files 
   echo 'Build finished successfully.'
 else
   echo 'Using existing static library.'

@@ -3,14 +3,16 @@
 exec 2> /dev/null
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
-BITCOIN_DIR="${root_dir}/libbitcoind"
+bitcoin_dir="${root_dir}"/libbitcoind
+cache_dir="${root_dir}"/cache
 
-host=`uname -m`-`uname -a | awk '{print tolower($1)}'`
-depends_dir="${BITCOIN_DIR}"/depends
+platform=`uname -a | awk '{print tolower($1)}'`
+arch=`uname -m`
+host="${arch}"-"${platform}"
 
 mac_response=
 check_mac_build_system () {
-  if [ "${ext}" == "dylib" ]; then
+  if [ "${platform}" == "darwin" ]; then
     if [ ! -d "/usr/include" ]; then
       if hash xcode-select 2>/dev/null; then
         mac_response="Please run 'xcode-select --install' from the command line because it seems that you've got Xcode, but not the Xcode command line tools that are required for compiling this project from source..."
@@ -21,19 +23,28 @@ check_mac_build_system () {
   fi
 }
 
+depends_dir="${bitcoin_dir}"/depends
+thread="${cache_dir}"/depends/"${host}"/lib/libboost_thread-mt.a
+filesystem="${cache_dir}"/depends/"${host}"/lib/libboost_filesystem-mt.a
+chrono="${cache_dir}"/depends/"${host}"/lib/libboost_chrono-mt.a
+program_options="${cache_dir}"/depends/"${host}"/lib/libboost_program_options-mt.a
+system="${cache_dir}"/depends/"${host}"/lib/libboost_system-mt.a
+leveldb="${cache_dir}"/src/leveldb/libleveldb.a
+memenv="${cache_dir}"/src/leveldb/libmemenv.a
+libsecp256k1="${cache_dir}"/src/secp256k1/.libs/libsecp256k1.a
 
-thread="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_thread-mt.a
-filesystem="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_filesystem-mt.a
-chrono="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_chrono-mt.a
-program_options="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_program_options-mt.a
-system="${BITCOIN_DIR}"/depends/"${host}"/lib/libboost_system-mt.a
-leveldb="${BITCOIN_DIR}"/src/leveldb/libleveldb.a
-memenv="${BITCOIN_DIR}"/src/leveldb/libmemenv.a
-libsecp256k1="${BITCOIN_DIR}"/src/secp256k1/.libs/libsecp256k1.a
+if test x"$1" = x'anl'; then
+  if [ "${platform}" != "darwin" ]; then
+    echo -n "-lanl"
+  fi
+fi
+
+if test x"$1" = x'cache_dir'; then
+  echo -n "${cache_dir}"
+fi
 
 if test x"$1" = x'btcdir'; then
-  echo -n "${BITCOIN_DIR}"
-  exit 0
+  echo -n "${bitcoin_dir}"
 fi
 
 if test -z "$1" -o x"$1" = x'thread'; then
@@ -78,7 +89,7 @@ fi
 
 if test -z "$1" -o x"$1" = x'bdb'; then
   if [ "${BITCORENODE_ENV}" == "test" ]; then
-    echo -n "${BITCOIN_DIR}"/depends/"${host}"/lib/libdb_cxx.a
+    echo -n "${cache_dir}"/depends/"${host}"/lib/libdb_cxx.a
   fi
 fi
 
@@ -90,7 +101,7 @@ if test -z "$1" -o x"$1" = x'load_archive'; then
   if [ "${os}"  == "osx" ]; then
     echo -n "-Wl,-all_load -Wl,--no-undefined"
   else
-    echo -n "-Wl,--whole-archive ${filesystem} ${thread} "${BITCOIN_DIR}"/src/.libs/libbitcoind.a -Wl,--no-whole-archive"
+    echo -n "-Wl,--whole-archive ${filesystem} ${thread} "${cache_dir}"/src/.libs/libbitcoind.a -Wl,--no-whole-archive"
   fi
 fi
 
@@ -100,5 +111,5 @@ if test -z "$1" -o x"$1" = x'mac_dependencies'; then
 fi
 
 if test -z "$1" -o x"$1" = x'bitcoind'; then
-  echo -n "${BITCOIN_DIR}"/src/.libs/libbitcoind.a
+  echo -n "${cache_dir}"/src/.libs/libbitcoind.a
 fi

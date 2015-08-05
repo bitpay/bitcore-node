@@ -4,9 +4,9 @@
       "target_name": "<(module_name)",
       "include_dirs" : [
         "<!(node -e \"require('nan')\")",
-        "<!(./bin/variables.sh btcdir)/src",
-        "<!(./bin/variables.sh btcdir)/depends/<!(./bin/variables.sh host)/include",
-        "<!(./bin/variables.sh btcdir)/src/leveldb/include"
+        "<!(./bin/variables.sh cache_dir)/src",
+        "<!(./bin/variables.sh cache_dir)/depends/<!(./bin/variables.sh host)/include",
+        "<!(./bin/variables.sh cache_dir)/src/leveldb/include"
       ],
       "sources": [
         "./src/libbitcoind.cc",
@@ -40,6 +40,7 @@
           "<!(./bin/variables.sh leveldb)",
           "<!(./bin/variables.sh memenv)",
           "<!(./bin/variables.sh bdb)",
+          "<!(./bin/variables.sh anl)",
           "-lssl",
           "-lcrypto"
         ],

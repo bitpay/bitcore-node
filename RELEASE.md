@@ -1,8 +1,3 @@
-Bitcore Node
-=======
-
-A Node.js module that adds a native interface to Bitcoin Core for querying information about the Bitcoin blockchain. Bindings are linked to Bitcore Core compiled as a static library.
-
 ## Release Notes 
 
 Binaries for the C++ binding file (which includes libbitcoind statically linked in) are distributed with the help of node-pre-gyp. Node-pre-gyp publishes pre-built binaries to S3 for later download and installation. Source files can also be built if binaries are not desired.
