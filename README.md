@@ -32,6 +32,12 @@ If Node.js v0.12 isn't installed, it can be installed using "nvm", it can be don
 nvm install v0.12
 ```
 
+Install node-pre-gyp to allow you to get the binaries for bindings or to build the objects from source:
+
+```bash
+npm install node-pre-gyp -g
+```
+
 To build Bitcoin Core and bindings development packages are needed:
 
 ```bash
@@ -77,6 +83,12 @@ If Node.js v0.12 and associated commands "node", "npm" and "nvm" are not already
 
 ```bash
 nvm install v0.12
+```
+
+Install node-pre-gyp to allow you to get the binaries for bindings or to build the objects from source:
+
+```bash
+npm install node-pre-gyp -g
 ```
 
 Clone the bitcore-node repository locally:

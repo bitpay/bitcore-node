@@ -152,5 +152,5 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   prepare_for_caching
   echo 'Build finished successfully.'
 else
-  echo 'Using existing shared library.'
+  echo 'Using existing static library.'
 fi

@@ -2,6 +2,7 @@
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 cd "${root_dir}"
-
+pushd "${root_dir}"/libbitcoind
 make clean
+popd
 node-pre-gyp clean
