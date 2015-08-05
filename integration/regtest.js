@@ -16,6 +16,7 @@ if (process.env.BITCORENODE_ENV !== 'test') {
 var chai = require('chai');
 var bitcore = require('bitcore');
 var BN = bitcore.crypto.BN;
+var async = require('async');
 var rimraf = require('rimraf');
 var bitcoind;
 
@@ -26,7 +27,7 @@ var sinon = require('sinon');
 var BitcoinRPC = require('bitcoind-rpc');
 var transactionData = [];
 var blockHashes = [];
-var utxo;
+var utxos;
 var client;
 var coinbasePrivateKey;
 var privateKey = bitcore.PrivateKey();
@@ -96,66 +97,41 @@ describe('Daemon Binding Functionality', function() {
           }
           blockHashes = response.result;
 
-          // The original coinbase transactions when using regtest spend to
-          // a non-standard pubkeyout instead of a pubkeyhashout.
-          // We'll construct a new transaction that will send funds
-          // to a new address with pubkeyhashout for later testing.
+          log.info('Preparing test data...');
 
-          log.info('Preparing unspent outputs...');
+          // Get all of the unspent outputs
+          client.listUnspent(0, 150, function(err, response) {
+            utxos = response.result;
 
-          client.getBalance(function(err, response) {
-            if (err) {
-              throw err;
-            }
-
-            var amount = response.result;
-            var fee = 0.01;
-            var network = bitcore.Networks.get('regtest');
-            var address = privateKey.toAddress(network);
-
-            client.sendToAddress(address, amount - fee, '', '', function(err, response) {
+            async.mapSeries(utxos, function(utxo, next) {
+              async.series([
+                function(finished) {
+                  // Load all of the transactions for later testing
+                  client.getTransaction(utxo.txid, function(err, txresponse) {
+                    if (err) {
+                      throw err;
+                    }
+                    // add to the list of transactions for testing later
+                    transactionData.push(txresponse.result.hex);
+                    finished();
+                  });
+                },
+                function(finished) {
+                  // Get the private key for each utxo
+                  client.dumpPrivKey(utxo.address, function(err, privresponse) {
+                    if (err) {
+                      throw err;
+                    }
+                    utxo.privateKeyWIF = privresponse.result;
+                    finished();
+                  });
+                }
+              ], next);
+            }, function(err) {
               if (err) {
                 throw err;
               }
-
-              var txid = response.result;
-              client.getTransaction(txid, function(err, response) {
-                if (err) {
-                  throw err;
-                }
-
-                var unspentTransaction = bitcore.Transaction();
-                var outputIndex;
-                unspentTransaction.fromString(response.result.hex);
-
-                // add to the list of transactions for testing later
-                transactionData.push(response.result.hex);
-
-                for (var i = 0; i < unspentTransaction.outputs.length; i++) {
-                  var output = unspentTransaction.outputs[i];
-                  if (output.script.toAddress(network).toString() === address.toString(network)) {
-                    outputIndex = i;
-                  }
-                }
-
-                utxo = {
-                  txid: unspentTransaction.hash,
-                  outputIndex: outputIndex,
-                  script: unspentTransaction.outputs[outputIndex].script,
-                  satoshis: unspentTransaction.outputs[outputIndex].satoshis
-                };
-
-                // Include this transaction in a block so that it can
-                // be spent in tests
-                client.generate(1, function(err, response) {
-                  if (err) {
-                    throw err;
-                  }
-
-                  log.info('Testing setup complete!');
-                  done();
-                });
-              });
+              done();
             });
           });
         });
@@ -207,7 +183,7 @@ describe('Daemon Binding Functionality', function() {
   });
 
   describe('get transactions by hash', function() {
-    [0].forEach(function(i) {
+    [0,1,2,3,4,5,6,7,8,9].forEach(function(i) {
       it('for tx ' + i, function(done) {
         var txhex = transactionData[i];
         var tx = new bitcore.Transaction();
@@ -257,10 +233,10 @@ describe('Daemon Binding Functionality', function() {
 
       // create and sign the transaction
       var tx = bitcore.Transaction();
-      tx.from(utxo);
+      tx.from(utxos[0]);
       tx.change(privateKey.toAddress());
-      tx.to(destKey.toAddress(), 100000);
-      tx.sign(privateKey);
+      tx.to(destKey.toAddress(), utxos[0].amount * 1e8 - 1000);
+      tx.sign(bitcore.PrivateKey.fromWIF(utxos[0].privateKeyWIF));
 
       // test sending the transaction
       var hash = bitcoind.sendTransaction(tx.serialize());
@@ -280,7 +256,7 @@ describe('Daemon Binding Functionality', function() {
     it('will get an event when the tip is new', function(done) {
       this.timeout(4000);
       bitcoind.on('tip', function(height) {
-        height.should.equal(152);
+        height.should.equal(151);
         done();
       });
       client.generate(1, function(err, response) {
@@ -343,9 +319,10 @@ describe('Daemon Binding Functionality', function() {
 
   describe('get transaction with block info', function() {
     it('should include tx buffer, height and timestamp', function(done) {
-      bitcoind.getTransactionWithBlockInfo(utxo.txid, true, function(err, data) {
+      bitcoind.getTransactionWithBlockInfo(utxos[0].txid, true, function(err, data) {
         should.not.exist(err);
-        data.height.should.equal(151);
+        should.exist(data.height);
+        data.height.should.be.a('number');
         should.exist(data.timestamp);
         should.exist(data.buffer);
         done();
