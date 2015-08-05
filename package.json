@@ -30,6 +30,7 @@
     "preinstall": "./bin/build-libbitcoind",
     "install": "./bin/build-bindings",
     "start": "node bin/start.js",
+    "clean": "./bin/clean",
     "test": "NODE_ENV=test mocha --recursive",
     "coverage": "istanbul cover _mocha -- --recursive",
     "libbitcoind": "node bin/start-libbitcoind.js"
@@ -41,7 +42,6 @@
   "dependencies": {
     "node-pre-gyp": "0.5.x",
     "async": "1.3.0",
-    "bindings": "^1.2.1",
     "bitcore": "^0.12.15",
     "chainlib": "^0.1.1",
     "errno": "^0.1.2",
