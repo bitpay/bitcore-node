@@ -7,8 +7,8 @@ var log = chainlib.log;
 log.debug = function() {};
 
 var configuration = {
-  datadir: process.env.BITCOINDJS_DIR || '~/.bitcoin',
-  network: process.env.BITCOINDJS_NETWORK || 'livenet',
+  datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
+  network: process.env.BITCORENODE_NETWORK || 'livenet',
   port: 3000
 };
 
@@ -56,7 +56,9 @@ node.on('ready', function() {
 
         if(params.length !== methodsMap[message.method].args) {
           return socketCallback({
-            error: 'Expected ' + methodsMap[message.method].args + ' parameters'
+            error: {
+              message: 'Expected ' + methodsMap[message.method].args + ' parameters'
+            }
           });
         }
 
@@ -83,7 +85,9 @@ node.on('ready', function() {
         methodsMap[message.method].fn.apply(this, params);
       } else {
         socketCallback({
-          error: 'Method Not Found'
+          error: {
+            message: 'Method Not Found'
+          }
         });
       }
     });
