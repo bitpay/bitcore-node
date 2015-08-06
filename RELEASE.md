@@ -4,7 +4,7 @@ Binaries for the C++ binding file (which includes libbitcoind statically linked 
 
 ### How to Release
 
-Ensure you've followed the instructions in the README.md for building the project from source. You will be using the node-gyp to build buildings and a script upload the binary to S3. You will also need credentials for BitPay's bitcore-node S3 bucket and be listed as an author for the bitcore-node's npm module.
+Ensure you've followed the instructions in the README.md for building the project from source. You will be using node-gyp to build the C++ bindings. A script will then upload the bindings to S3 for later use. You will also need credentials for BitPay's bitcore-node S3 bucket and be listed as an author for the bitcore-node's npm module.
 
 - Create a file `.bitcore-node-upload.json` in your home directory
 - The format of this file should be:
