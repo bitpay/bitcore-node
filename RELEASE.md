@@ -1,6 +1,19 @@
 ## Release Process
 
-Binaries for the C++ binding file (which includes libbitcoind statically linked in) are distributed for convenience. The binary binding file `bitcoind.node` is published to S3 for later download and installation. Source files can also be built if binaries are not desired.
+Binaries for the C++ binding file (which includes libbitcoind statically linked in) are distributed for convenience. The binary binding file `bitcoind.node` is signed and published to S3 for later download and installation. Source files can also be built if binaries are not desired.
+
+### How to Verify Signatures
+
+```
+cd build/Release
+gpg --verify bitcoind.node.sig bitcoind.node
+```
+
+To verify signatures, use the following PGP keys:
+
+- @braydonf: https://pgp.mit.edu/pks/lookup?op=get&search=0x9BBF07CAC07A276D
+- @kleetus: https://pgp.mit.edu/pks/lookup?op=get&search=0x33195D27EF6BDB7F
+- @pnagurny: https://pgp.mit.edu/pks/lookup?op=get&search=0x0909B33F0AA53013
 
 ### How to Release
 
