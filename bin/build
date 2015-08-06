@@ -148,3 +148,16 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
 else
   echo 'Using existing static library.'
 fi
+
+# Building the Bindings
+
+set -e
+
+cd "${root_dir}"
+
+debug=
+if test x"$1" = x'debug'; then
+  debug=--debug
+fi
+
+node-gyp ${debug} rebuild
