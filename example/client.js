@@ -11,7 +11,7 @@ socket.on('disconnect', function(){
 
 var message = {
   method: 'getOutputs',
-  params: ['1HTxCVrXuthad6YW5895K98XmVsdMvvBSw', true]
+  params: ['2NChMRHVCxTPq9KeyvHQUSbfLaQY55Zzzp8', true]
 };
 
 socket.send(message, function(response) {
@@ -37,8 +37,13 @@ socket.send(message2, function(response) {
   console.log(response.result);
 });
 
-socket.on('transaction', function(address, block) {
-  console.log(address, block);
+socket.on('transaction', function(obj) {
+  console.log(JSON.stringify(obj, null, 2));
 });
 
-socket.emit('subscribe', 'transaction', ['13FMwCYz3hUhwPcaWuD2M1U2KzfTtvLM89']);
+socket.on('address/transaction', function(obj) {
+  console.log(JSON.stringify(obj, null, 2));
+});
+
+socket.emit('subscribe', 'transaction');
+socket.emit('subscribe', 'address/transaction', ['13FMwCYz3hUhwPcaWuD2M1U2KzfTtvLM89']);

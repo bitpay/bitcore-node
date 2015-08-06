@@ -1566,7 +1566,10 @@ NAN_METHOD(GetMempoolOutputs) {
 
             Local<Object> output = NanNew<Object>();
 
-            output->Set(NanNew<String>("script"), NanNew<String>(script.ToString()));
+            output->Set(NanNew<String>("address"), NanNew<String>(psz));
+
+            std::string scriptHex = HexStr(script.begin(), script.end());
+            output->Set(NanNew<String>("script"), NanNew<String>(scriptHex));
 
             uint64_t satoshis = txout.nValue;
             output->Set(NanNew<String>("satoshis"), NanNew<Number>(satoshis)); // can't go above 2 ^ 53 -1

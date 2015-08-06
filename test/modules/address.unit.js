@@ -257,7 +257,7 @@ describe('AddressModule', function() {
     it('will emit a transaction if there is a subscriber', function(done) {
       var am = new AddressModule({db: mockdb});
       var emitter = new EventEmitter();
-      am.subscriptions.transaction = {
+      am.subscriptions['address/transaction'] = {
         '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
       };
       var block = {
@@ -265,7 +265,7 @@ describe('AddressModule', function() {
         timestamp: new Date()
       };
       var tx = {};
-      emitter.on('transaction', function(obj) {
+      emitter.on('address/transaction', function(obj) {
         obj.address.should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
         obj.tx.should.equal(tx);
         obj.timestamp.should.equal(block.timestamp);
@@ -287,13 +287,13 @@ describe('AddressModule', function() {
     it('will emit a balance if there is a subscriber', function(done) {
       var am = new AddressModule({db: mockdb});
       var emitter = new EventEmitter();
-      am.subscriptions.balance = {
+      am.subscriptions['address/balance'] = {
         '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
       };
       var block = {};
       var balance = 1000;
       am.getBalance = sinon.stub().callsArgWith(2, null, balance);
-      emitter.on('balance', function(address, bal, b) {
+      emitter.on('address/balance', function(address, bal, b) {
         address.should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
         bal.should.equal(balance);
         b.should.equal(block);
@@ -309,33 +309,33 @@ describe('AddressModule', function() {
       var emitter = new EventEmitter();
 
       var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
-      var name = 'transaction';
+      var name = 'address/transaction';
       am.subscribe(name, emitter, [address]);
-      am.subscriptions.transaction[address].should.deep.equal([emitter]);
+      am.subscriptions['address/transaction'][address].should.deep.equal([emitter]);
 
       var address2 = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
       am.subscribe(name, emitter, [address2]);
-      am.subscriptions.transaction[address2].should.deep.equal([emitter]);
+      am.subscriptions['address/transaction'][address2].should.deep.equal([emitter]);
 
       var emitter2 = new EventEmitter();
       am.subscribe(name, emitter2, [address]);
-      am.subscriptions.transaction[address].should.deep.equal([emitter, emitter2]);
+      am.subscriptions['address/transaction'][address].should.deep.equal([emitter, emitter2]);
     });
     it('will add an emitter to the subscribers array (balance)', function() {
       var am = new AddressModule({db: mockdb});
       var emitter = new EventEmitter();
-      var name = 'balance';
+      var name = 'address/balance';
       var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
       am.subscribe(name, emitter, [address]);
-      am.subscriptions.balance[address].should.deep.equal([emitter]);
+      am.subscriptions['address/balance'][address].should.deep.equal([emitter]);
 
       var address2 = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
       am.subscribe(name, emitter, [address2]);
-      am.subscriptions.balance[address2].should.deep.equal([emitter]);
+      am.subscriptions['address/balance'][address2].should.deep.equal([emitter]);
 
       var emitter2 = new EventEmitter();
       am.subscribe(name, emitter2, [address]);
-      am.subscriptions.balance[address].should.deep.equal([emitter, emitter2]);
+      am.subscriptions['address/balance'][address].should.deep.equal([emitter, emitter2]);
     });
   });
 
@@ -345,31 +345,31 @@ describe('AddressModule', function() {
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
       var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
-      am.subscriptions.transaction[address] = [emitter, emitter2];
-      var name = 'transaction';
+      am.subscriptions['address/transaction'][address] = [emitter, emitter2];
+      var name = 'address/transaction';
       am.unsubscribe(name, emitter, [address]);
-      am.subscriptions.transaction[address].should.deep.equal([emitter2]);
+      am.subscriptions['address/transaction'][address].should.deep.equal([emitter2]);
     });
     it('will remove emitter from subscribers array (balance)', function() {
       var am = new AddressModule({db: mockdb});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
       var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
-      var name = 'balance';
-      am.subscriptions.balance[address] = [emitter, emitter2];
+      var name = 'address/balance';
+      am.subscriptions['address/balance'][address] = [emitter, emitter2];
       am.unsubscribe(name, emitter, [address]);
-      am.subscriptions.balance[address].should.deep.equal([emitter2]);
+      am.subscriptions['address/balance'][address].should.deep.equal([emitter2]);
     });
     it('should unsubscribe from all addresses if no addresses are specified', function() {
       var am = new AddressModule({db: mockdb});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
-      am.subscriptions.balance = {
+      am.subscriptions['address/balance'] = {
         '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W': [emitter, emitter2],
         '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter2, emitter]
       };
-      am.unsubscribe('balance', emitter);
-      am.subscriptions.balance.should.deep.equal({
+      am.unsubscribe('address/balance', emitter);
+      am.subscriptions['address/balance'].should.deep.equal({
         '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W': [emitter2],
         '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter2]
       });
@@ -408,6 +408,11 @@ describe('AddressModule', function() {
     var db = {
       bitcoind: {
         on: sinon.stub()
+      },
+      chain: {
+        tip: {
+          __height: 1
+        }
       }
     };
 
@@ -489,7 +494,7 @@ describe('AddressModule', function() {
     });
   });
 
-  describe('#getUnspentOutputs', function() {
+  describe('#getUnspentOutputsForAddress', function() {
     it('should filter out spent outputs', function(done) {
       var outputs = [
         {
@@ -514,7 +519,7 @@ describe('AddressModule', function() {
         i++;
       };
 
-      am.getUnspentOutputs('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
+      am.getUnspentOutputsForAddress('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
         should.not.exist(err);
         outputs.length.should.equal(2);
         outputs[0].satoshis.should.equal(1000);
@@ -525,7 +530,7 @@ describe('AddressModule', function() {
     it('should handle an error from getOutputs', function(done) {
       var am = new AddressModule({db: mockdb});
       am.getOutputs = sinon.stub().callsArgWith(2, new Error('error'));
-      am.getUnspentOutputs('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
+      am.getUnspentOutputsForAddress('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
         should.exist(err);
         err.message.should.equal('error');
         done();
@@ -534,7 +539,7 @@ describe('AddressModule', function() {
     it('should handle when there are no outputs', function(done) {
       var am = new AddressModule({db: mockdb});
       am.getOutputs = sinon.stub().callsArgWith(2, null, []);
-      am.getUnspentOutputs('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
+      am.getUnspentOutputsForAddress('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
         should.exist(err);
         err.should.be.instanceof(errors.NoOutputs);
         outputs.length.should.equal(0);
@@ -709,6 +714,11 @@ describe('AddressModule', function() {
       },
       bitcoind: {
         on: sinon.stub()
+      },
+      chain: {
+        tip: {
+          __height: 1
+        }
       }
     };
     var am = new AddressModule({db: db});
@@ -733,23 +743,23 @@ describe('AddressModule', function() {
     it('should give transaction history for an address', function(done) {
       am.getAddressHistory('address', true, function(err, history) {
         should.not.exist(err);
-        history[0].transaction.hash.should.equal('tx1');
+        history[0].tx.hash.should.equal('tx1');
         history[0].satoshis.should.equal(5000);
         history[0].height.should.equal(1);
         history[0].timestamp.should.equal(1438289011844);
-        history[1].transaction.hash.should.equal('tx2');
+        history[1].tx.hash.should.equal('tx2');
         history[1].satoshis.should.equal(-5000);
         history[1].height.should.equal(2);
         history[1].timestamp.should.equal(1438289021844);
-        history[2].transaction.hash.should.equal('tx3');
+        history[2].tx.hash.should.equal('tx3');
         history[2].satoshis.should.equal(2000);
         history[2].height.should.equal(3);
         history[2].timestamp.should.equal(1438289031844);
-        history[3].transaction.hash.should.equal('tx4');
+        history[3].tx.hash.should.equal('tx4');
         history[3].satoshis.should.equal(3000);
         history[3].height.should.equal(4);
         history[3].timestamp.should.equal(1438289041844);
-        history[4].transaction.hash.should.equal('tx5');
+        history[4].tx.hash.should.equal('tx5');
         history[4].satoshis.should.equal(-3000);
         history[4].height.should.equal(5);
         history[4].timestamp.should.equal(1438289051844);

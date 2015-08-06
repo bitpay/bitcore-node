@@ -301,7 +301,7 @@ describe('Bitcoin DB', function() {
       var db = new DB({store: memdown});
       db.modules = [];
       var methods = db.getAPIMethods();
-      methods.length.should.equal(2);
+      methods.length.should.equal(4);
     });
 
     it('should also return modules API methods', function() {
@@ -325,7 +325,7 @@ describe('Bitcoin DB', function() {
       db.modules = [module1, module2];
 
       var methods = db.getAPIMethods();
-      methods.length.should.equal(5);
+      methods.length.should.equal(7);
     });
   });
 

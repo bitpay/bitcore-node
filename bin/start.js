@@ -5,6 +5,7 @@ var chainlib = require('chainlib');
 var socketio = require('socket.io');
 var log = chainlib.log;
 log.debug = function() {};
+var utils = require('../lib/utils');
 
 var configuration = {
   datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
@@ -77,11 +78,7 @@ node.on('ready', function() {
           }
 
           if(result) {
-            if(result.toJSON) {
-              response.result = result.toJSON();
-            } else {
-              response.result = result;
-            }
+            response.result = utils.expandObject(result);
           }
 
           socketCallback(response);
@@ -114,11 +111,7 @@ node.on('ready', function() {
           var results = [];
 
           for(var i = 0; i < arguments.length; i++) {
-            if(arguments[i].toJSON) {
-              results.push(arguments[i].toJSON());
-            } else {
-              results.push(arguments[i]);
-            }
+            results.push(utils.expandObject(arguments[i]));
           }
 
           var params = [event.name].concat(results);
