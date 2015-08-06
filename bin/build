@@ -148,7 +148,7 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
 
   echo "Creating the sha marker for the patching in libbitcoind..."
   echo "Writing patch sha file to: \"${patch_sha}\""
-  echo -n `shasum -a 256 "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${patch_sha}"
+  echo -n `${shasum_cmd} "${root_dir}"/etc/bitcoin.patch | awk '{print $1}'` > "${patch_sha}"
   cache_files 
   echo 'Build finished successfully.'
 else
