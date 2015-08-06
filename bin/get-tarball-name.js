@@ -1,7 +1,6 @@
 'use strict';
 
-var bindings = require('bindings');
-var packageRoot = bindings.getRoot(bindings.getFileName());
+var packageRoot = __dirname + '/..';
 var version = require(packageRoot + '/package.json').version;
 var platform = process.platform;
 var arch = process.arch;
