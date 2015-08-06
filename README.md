@@ -32,12 +32,6 @@ If Node.js v0.12 isn't installed, it can be installed using "nvm", it can be don
 nvm install v0.12
 ```
 
-Install node-pre-gyp to allow you to get the binaries for bindings or to build the objects from source:
-
-```bash
-npm install node-pre-gyp -g
-```
-
 To build Bitcoin Core and bindings development packages are needed:
 
 ```bash
@@ -85,12 +79,6 @@ If Node.js v0.12 and associated commands "node", "npm" and "nvm" are not already
 nvm install v0.12
 ```
 
-Install node-pre-gyp to allow you to get the binaries for bindings or to build the objects from source:
-
-```bash
-npm install node-pre-gyp -g
-```
-
 Clone the bitcore-node repository locally:
 
 ```bash
@@ -123,8 +111,7 @@ To run tests against the bindings, as defined in `bindings.gyp` the regtest feat
 
 ```bash
 export BITCORENODE_ENV=test
-node-pre-gyp clean
-npm install
+npm run build
 ```
 
 If you do not already have mocha installed:
@@ -142,8 +129,10 @@ mocha -R spec integration/regtest.js
 If any changes have been made to the bindings in the "src" directory, manually compile the Node.js bindings, as defined in `bindings.gyp`, you can run (-d for debug):
 
 ```bash
-$ node-pre-gyp -d rebuild
+$ node-gyp -d rebuild
 ```
+
+Note: `node-gyp` can be installed with `npm install node-gyp -g`
 
 To be able to debug you'll need to have `gdb` and `node` compiled for debugging with gdb using `--gdb` (sometimes called node_g), and you can then run:
 
