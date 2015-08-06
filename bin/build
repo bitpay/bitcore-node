@@ -155,7 +155,7 @@ set -e
 
 cd "${root_dir}"
 
-debug=
+debug=--debug=false
 if test x"$1" = x'debug'; then
   debug=--debug
 fi
