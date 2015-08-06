@@ -10,13 +10,17 @@ binary_url="https://${bucket_name}.s3.amazonaws.com/${tarball_name}"
 
 echo "Downloading binary: ${binary_url}"
 
-curl $binary_url > $tarball_name
+curl --fail -I $binary_url
 
-if test -e "${tarball_name}"; then
-  echo "Unpacking binary distribution"
-  tar -xvzf $tarball_name
-  exit 0;
-else
-  echo "Prebuild binary could not be downloaded, building from source..."
-  ./bin/build
+if test $? -eq 0; then
+  curl $binary_url > $tarball_name
+  if test -e "${tarball_name}"; then
+    echo "Unpacking binary distribution"
+    tar -xvzf $tarball_name
+    if test $? -eq 0; then
+      exit 0
+    fi
+  fi
 fi
+echo "Prebuild binary could not be downloaded, building from source..."
+./bin/build
