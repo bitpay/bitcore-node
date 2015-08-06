@@ -20,8 +20,11 @@ Ensure you've followed the instructions in the README.md for building the projec
 To make a release, bump the version of the package.json:
 
 ```bash
+git checkout master
+git pull upstream master
 git commit -a -m "Bump package version to <version>"
 npm install
+npm run package
 npm run upload
 npm publish
 ```

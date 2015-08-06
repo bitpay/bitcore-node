@@ -30,6 +30,7 @@
     "install": "./bin/install",
     "build": "./bin/build",
     "clean": "./bin/clean",
+    "package": "node bin/package.js",
     "upload": "node bin/upload.js",
     "start": "node bin/start.js",
     "test": "NODE_ENV=test mocha --recursive",
