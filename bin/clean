@@ -6,3 +6,4 @@ pushd "${root_dir}"/libbitcoind
 make clean
 popd
 node-pre-gyp clean
+rm -fr cache/*
