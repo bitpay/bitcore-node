@@ -61,7 +61,13 @@ if [ "${BITCORENODE_ENV}" == "test" ]; then
   options=`cat ${root_dir}/bin/config_options_test.sh`
 fi
 
-patch_file_sha=$(shasum -a 256 "${root_dir}/etc/bitcoin.patch" | awk '{print $1}')
+if hash shasum 2>/dev/null; then
+  shasum_cmd="shasum -a 256" 
+else
+  shasum_cmd="sha256sum" 
+fi
+
+patch_file_sha=$(${shasum_cmd} "${root_dir}/etc/bitcoin.patch" | awk '{print $1}')
 last_patch_file_sha=
 if [ -e "${patch_sha}" ]; then 
   echo "Patch file sha exists, let's see if the patch has changed since last build..."

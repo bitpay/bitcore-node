@@ -55,9 +55,15 @@ Once everything is built, you can run bitcore-node via:
 ```bash
 npm start
 ```
-
 This will then start the syncing process for Bitcoin Core and the extended capabilities as provided by the built-in Address Module (details below).
 
+### Fedora
+
+Later versions of Fedora (>= 22) should also work with this project. The directions for Ubuntu should generally work except the installation of system utilities and libraries is a bit different. Git is already installed and ready for use without installation.
+
+```bash
+yum install libtool automake autoconf pkgconfig openssl make gcc gcc-c++ kernel-devel openssl-devel.x86_64 patch
+```
 
 ### Mac OS X Yosemite
 
