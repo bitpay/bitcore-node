@@ -10,7 +10,7 @@ binary_url="https://${bucket_name}.s3.amazonaws.com/${tarball_name}"
 
 echo "Downloading binary: ${binary_url}"
 
-wget -N $binary_url
+curl $binary_url > $tarball_name
 
 if test -e "${tarball_name}"; then
   echo "Unpacking binary distribution"
