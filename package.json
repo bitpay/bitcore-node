@@ -2,7 +2,7 @@
   "name": "bitcore-node",
   "description": "Full node with extended capabilities using Bitcore and Bitcoin Core",
   "author": "BitPay <dev@bitpay.com>",
-  "version": "0.2.0",
+  "version": "0.2.0-dev",
   "main": "./index.js",
   "repository": "git://github.com/bitpay/bitcore-node.git",
   "homepage": "https://github.com/bitpay/bitcore-node.js",
@@ -27,8 +27,10 @@
     }
   ],
   "scripts": {
-    "preinstall": "./bin/build-libbitcoind",
-    "install": "./bin/build-bindings",
+    "install": "./bin/install",
+    "build": "./bin/build",
+    "clean": "./bin/clean",
+    "upload": "node bin/upload.js",
     "start": "node bin/start.js",
     "test": "NODE_ENV=test mocha --recursive",
     "coverage": "istanbul cover _mocha -- --recursive",
@@ -50,6 +52,7 @@
     "socket.io": "^1.3.6"
   },
   "devDependencies": {
+    "aws-sdk": "~2.0.0-rc.15",
     "benchmark": "1.0.0",
     "bitcoin": "^2.3.2",
     "bitcoind-rpc": "^0.3.0",

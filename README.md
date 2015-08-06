@@ -1,7 +1,7 @@
 Bitcore Node
 =======
 
-A Node.js module that adds a native interface to Bitcoin Core for querying information about the Bitcoin blockchain. Bindings are linked to Bitcoin Core compiled as a shared library.
+A Node.js module that adds a native interface to Bitcoin Core for querying information about the Bitcoin blockchain. Bindings are linked to Bitcoin Core compiled as a static library.
 
 ## Install
 
@@ -35,7 +35,7 @@ nvm install v0.12
 To build Bitcoin Core and bindings development packages are needed:
 
 ```bash
-sudo apt-get install build-essential libtool autotools-dev autoconf pkg-config libssl-dev
+sudo apt-get install build-essential libtool autotools-dev automake autoconf pkg-config libssl-dev
 ```
 
 Clone the bitcore-node repository locally:
@@ -45,7 +45,7 @@ git clone https://github.com/bitpay/bitcore-node.git
 cd bitcore-node
 ```
 
-And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a shared library patch (see more info below), and compile the shared library and Node.js bindings, and then copy build artifacts and header files into `platform/ubuntu`. You can start this by running:
+And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a patch (see more info below), and compile the static library and Node.js bindings. You can start this by running:
 
 ```bash
 npm install
@@ -86,7 +86,7 @@ git clone https://github.com/bitpay/bitcore-node.git
 cd bitcore-node
 ```
 
-And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a shared library patch (see more info below), and compile the shared library and Node.js bindings, and then copy build artifacts and header files into `platform/osx`. You can start this by running:
+And finally run the build which will take several minutes. A script in the "bin" directory will download Bitcoin Core v0.11, apply a patch (see more info below), and compile the static library and Node.js bindings. You can start this by running:
 
 ```bash
 npm install
@@ -111,8 +111,7 @@ To run tests against the bindings, as defined in `bindings.gyp` the regtest feat
 
 ```bash
 export BITCORENODE_ENV=test
-rm -rf platform/<os_name>/*
-npm install
+npm run build
 ```
 
 If you do not already have mocha installed:
@@ -133,6 +132,8 @@ If any changes have been made to the bindings in the "src" directory, manually c
 $ node-gyp -d rebuild
 ```
 
+Note: `node-gyp` can be installed with `npm install node-gyp -g`
+
 To be able to debug you'll need to have `gdb` and `node` compiled for debugging with gdb using `--gdb` (sometimes called node_g), and you can then run:
 
 ```bash
@@ -151,9 +152,9 @@ $ cd benchmarks
 $ node index.js
 ```
 
-## Shared Library Patch
+## Static Library Patch
 
-To provide native bindings to JavaScript *(or any other language for that matter)*, Bitcoin code, itself, must be linkable. Currently, Bitcoin Core provides a JSON RPC interface to bitcoind as well as a shared library for script validation *(and hopefully more)* called libbitcoinconsensus. There is a node module, [node-libbitcoinconsensus](https://github.com/bitpay/node-libbitcoinconsensus), that exposes these methods. While these interfaces are useful for several use cases, there are additional use cases that are not fulfilled, and being able to implement customized interfaces is necessary. To be able to do this a few simple changes need to be made to Bitcoin Core to compile as a shared library.
+To provide native bindings to JavaScript *(or any other language for that matter)*, Bitcoin code, itself, must be linkable. Currently, Bitcoin Core provides a JSON RPC interface to bitcoind as well as a shared library for script validation *(and hopefully more)* called libbitcoinconsensus. There is a node module, [node-libbitcoinconsensus](https://github.com/bitpay/node-libbitcoinconsensus), that exposes these methods. While these interfaces are useful for several use cases, there are additional use cases that are not fulfilled, and being able to implement customized interfaces is necessary. To be able to do this a few simple changes need to be made to Bitcoin Core to compile as a static library.
 
 The patch is located at `etc/bitcoin.patch` and adds a configure option `--enable-daemonlib` to compile all object files with `-fPIC` (Position Independent Code - needed to create a shared object), exposes leveldb variables and objects, exposes the threadpool to the bindings, and conditionally includes the main function.
 

@@ -139,14 +139,14 @@ index e7aa48d..df0f7ae 100644
  endef
 
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 1c2f770..d2eca15 100644
+index 1c2f770..5582b7e 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
 @@ -1,6 +1,12 @@
  DIST_SUBDIRS = secp256k1
  AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS)
 
-+lib_LTLIBRARIES =
++noinst_LTLIBRARIES =
 +libbitcoind_la_LIBADD =
 +libbitcoind_la_LDFLAGS = -no-undefined
 +STATIC_BOOST_LIBS =
@@ -179,7 +179,7 @@ index 1c2f770..d2eca15 100644
  TESTS =
 
 +if BUILD_BITCOIN_LIBS
-+lib_LTLIBRARIES += libbitcoinconsensus.la
++noinst_LTLIBRARIES += libbitcoinconsensus.la
 +LIBBITCOIN_CONSENSUS += libbitcoinconsensus.la
 +endif
 +
@@ -192,7 +192,7 @@ index 1c2f770..d2eca15 100644
    bin_PROGRAMS += bitcoin-cli bitcoin-tx
  endif
 +else
-+lib_LTLIBRARIES += libbitcoind.la
++noinst_LTLIBRARIES += libbitcoind.la
 +endif
 
  .PHONY: FORCE
@@ -203,7 +203,7 @@ index 1c2f770..d2eca15 100644
  	  $(abs_top_srcdir)
 -libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
-+ARCH_PLATFORM = $(shell ../../platform/os.sh host)
++ARCH_PLATFORM = $(shell ../../bin/variables.sh host)
 +
 +libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 +clientversion.cpp: obj/build.h
