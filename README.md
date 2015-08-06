@@ -35,7 +35,7 @@ nvm install v0.12
 To build Bitcoin Core and bindings development packages are needed:
 
 ```bash
-sudo apt-get install build-essential libtool autotools-dev autoconf pkg-config libssl-dev
+sudo apt-get install build-essential libtool autotools-dev automake autoconf pkg-config libssl-dev
 ```
 
 Clone the bitcore-node repository locally:
