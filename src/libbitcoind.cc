@@ -30,7 +30,7 @@ extern int64_t nTimeBestReceived;
  */
 
 static void
-txmon(uv_async_t *handle);
+tx_notifier(uv_async_t *handle);
 
 static void
 async_tip_update(uv_work_t *req);
@@ -81,7 +81,10 @@ static void
 async_get_tx_and_info_after(uv_work_t *req);
 
 static bool
-process_messages(CNode* pfrom);
+scan_messages(CNode* pfrom);
+
+static bool
+scan_messages_after(CNode* pfrom);
 
 extern "C" void
 init(Handle<Object>);
@@ -90,7 +93,7 @@ init(Handle<Object>);
  * Private Global Variables
  * Used only by bitcoindjs functions.
  */
-static std::vector<std::string> txmon_messages;
+static std::vector<CDataStream> txmon_messages;
 static uv_async_t txmon_async;
 static Eternal<Function> txmon_callback;
 
@@ -222,15 +225,16 @@ NAN_METHOD(StartTxMon) {
   txmon_callback = cb;
 
   CNodeSignals& nodeSignals = GetNodeSignals();
-  nodeSignals.ProcessMessages.connect(&process_messages);
+  nodeSignals.ProcessMessages.connect(&scan_messages, boost::signals2::at_front);
+  nodeSignals.ProcessMessages.connect(&scan_messages_after, boost::signals2::at_back);
 
-  uv_async_init(uv_default_loop(), &txmon_async, txmon);
+  uv_async_init(uv_default_loop(), &txmon_async, tx_notifier);
 
   NanReturnValue(Undefined(isolate));
 };
 
 static void
-txmon(uv_async_t *handle) {
+tx_notifier(uv_async_t *handle) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
@@ -241,8 +245,32 @@ txmon(uv_async_t *handle) {
     Local<Array> results = Array::New(isolate);
     int arrayIndex = 0;
 
-    BOOST_FOREACH(const std::string& message, txmon_messages) {
-      results->Set(arrayIndex, NanNew<String>(message));
+    BOOST_FOREACH(CDataStream& vRecvCopy, txmon_messages) {
+
+      std::string vRecvStr = vRecvCopy.str();
+
+      Local<Value> txBuffer = node::Buffer::New(isolate, vRecvStr.c_str(), vRecvStr.size());
+
+      CTransaction tx;
+      vRecvCopy >> tx;
+      uint256 hash = tx.GetHash();
+
+      Local<Object> obj = NanNew<Object>();
+
+      bool existsInMempool = false;
+
+      CTransaction mtx;
+
+      if (mempool.lookup(hash, mtx))
+      {
+        existsInMempool = true;
+      }
+
+      obj->Set(NanNew<String>("buffer"), txBuffer);
+      obj->Set(NanNew<String>("hash"), NanNew<String>(hash.GetHex()));
+      obj->Set(NanNew<String>("mempool"), NanNew<Boolean>(existsInMempool));
+
+      results->Set(arrayIndex, obj);
       arrayIndex++;
     }
 
@@ -262,7 +290,15 @@ txmon(uv_async_t *handle) {
 }
 
 static bool
-process_messages(CNode* pfrom) {
+scan_messages_after(CNode* pfrom) {
+  if(txmon_messages.size() > 0) {
+    uv_async_send(&txmon_async);
+  }
+  return true;
+}
+
+static bool
+scan_messages(CNode* pfrom) {
 
   bool fOk = true;
 
@@ -312,15 +348,12 @@ process_messages(CNode* pfrom) {
         continue;
       }
 
-      CTransaction tx;
-      vRecv >> tx;
-
-      string txHash = tx.GetHash().GetHex();
+      // Copy the stream so that it can later be processed into the mempool
+      CDataStream vRecvCopy(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
 
       {
         LOCK(cs_main);
-        txmon_messages.push_back(txHash);
-        uv_async_send(&txmon_async);
+        txmon_messages.push_back(vRecvCopy);
       }
 
     }

@@ -12,7 +12,7 @@ process.title = 'libbitcoind';
  */
 var daemon = require('../').daemon({
   datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
-  network: process.env.BITCORENODE_NETWORK || 'testnet'
+  network: process.env.BITCORENODE_NETWORK || 'livenet'
 });
 
 daemon.on('ready', function() {
