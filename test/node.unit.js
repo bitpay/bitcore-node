@@ -437,6 +437,9 @@ describe('Bitcoind Node', function() {
     it('will call chain.initialize() on ready event', function(done) {
       var node = new Node({});
       node.db = new EventEmitter();
+      node.db.addModule = sinon.spy();
+      var module = {};
+      node.db._modules = [module];
       node.chain = {
         initialize: sinon.spy()
       };
@@ -445,6 +448,7 @@ describe('Bitcoind Node', function() {
         setImmediate(function() {
           chainlib.log.info.callCount.should.equal(1);
           chainlib.log.info.restore();
+          node.db.addModule.callCount.should.equal(1);
           node.chain.initialize.callCount.should.equal(1);
           done();
         });
