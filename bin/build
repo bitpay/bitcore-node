@@ -120,10 +120,11 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
     get_patch_file
     echo "attempting to checkout tag: ${tag} of bitcoin from github..."
     cd "${root_dir}"
-    git clone --depth 1 --branch "${tag}" https://github.com/bitcoin/bitcoin.git libbitcoind
-
-    cd "${btc_dir}"
-
+    #versions of git prior to 2.x will not clone correctly with --branch
+    git clone --depth 1 https://github.com/bitcoin/bitcoin.git libbitcoind
+    cd "${btc_dir}" 
+    git fetch --tags
+    git checkout "${tag}"
     echo '../patch-bitcoin.sh' "${btc_dir}"
     ../bin/patch-bitcoin "${btc_dir}"
 
