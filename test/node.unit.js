@@ -22,6 +22,13 @@ BaseNode.prototype._loadConfiguration = sinon.spy();
 BaseNode.prototype._initialize = sinon.spy();
 chainlib.Node = BaseNode;
 
+var BadNode = proxyquire('../lib/node', {
+  chainlib: chainlib,
+  fs: {
+    readFileSync: sinon.stub().returns(fs.readFileSync(__dirname + '/data/badbitcoin.conf'))
+  }
+});
+
 var Node = proxyquire('../lib/node', {
   chainlib: chainlib,
   fs: {
@@ -116,6 +123,12 @@ describe('Bitcoind Node', function() {
       var node = new Node({});
       node._loadBitcoind({datadir: './test', testnet: true});
       should.exist(node.bitcoind);
+    });
+    it('should throw an exception if txindex isn\'t enabled in the configuration', function() {
+      var node = new BadNode({});
+      (function() {
+        node._loadBitcoinConf({datadir: './test'});
+      }).should.throw('Txindex option');
     });
   });
   describe('#_syncBitcoindAncestor', function() {
