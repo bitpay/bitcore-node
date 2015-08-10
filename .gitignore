@@ -22,9 +22,10 @@ test.js
 **/*.dylib
 **/*.so
 **/*.old
-libbitcoind
 **/*.files
 **/*.config
 **/*.creator
+libbitcoind
+libbitcoind*
 libbitcoind.includes
 *.log
