@@ -24,11 +24,13 @@ Ensure you've followed the instructions in the README.md for building the projec
 
 ```json
 {
-  "region": "us-east-1",
+  "region": "us-west-2",
   "accessKeyId": "xxx",
   "secretAccessKey": "yyy"
 }
 ```
+
+When publishing to npm, the .gitignore file is used to exclude files from the npm publishing process. Be sure that the bitcore-node directory has only the directories and files that you would like to publish to npm. You might need to run the commands below on each platform that you intend to publish (e.g. Mac and Linux).
 
 To make a release, bump the version of the package.json:
 
