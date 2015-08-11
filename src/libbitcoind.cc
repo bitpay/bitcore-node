@@ -216,6 +216,18 @@ NAN_METHOD(VerifyScript) {
 static bool
 set_cooked(void);
 
+/**
+ * GetProgress()
+ * bitcoind.getProgress()
+ * provides a float value >= indicating the progress of the blockchain sync
+ */
+NAN_METHOD(GetProgress) {
+  const CChainParams& chainParams = Params();
+  float progress = 0;
+  progress = Checkpoints::GuessVerificationProgress(chainParams.Checkpoints(), chainActive.Tip());
+  NanReturnValue(progress);
+};
+
 NAN_METHOD(StartTxMon) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
@@ -1670,6 +1682,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "sendTransaction", SendTransaction);
   NODE_SET_METHOD(target, "estimateFee", EstimateFee);
   NODE_SET_METHOD(target, "startTxMon", StartTxMon);
+  NODE_SET_METHOD(target, "getProgress", GetProgress);
 
 }
 
