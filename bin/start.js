@@ -15,16 +15,22 @@ var configuration = {
 var node = new BitcoinNode(configuration);
 
 var count = 0;
-var interval;
+var interval = false;
+
+function logSyncStatus() {
+  log.info('Sync Status: Tip:', node.chain.tip.hash, 'Height:', node.chain.tip.__height, 'Rate:', count/10, 'blocks per second');
+}
+
+node.on('synced', function() {
+  // Stop logging of sync status
+  clearInterval(interval);
+  interval = false;
+  logSyncStatus();
+});
 
 node.on('ready', function() {
 
   var io = socketio(configuration.port);
-
-  interval = setInterval(function() {
-    log.info('Sync Status: Tip:', node.chain.tip.hash, 'Height:', node.chain.tip.__height, 'Rate:', count/10, 'blocks per second');
-    count = 0;
-  }, 10000);
 
   io.on('connection', function(socket) {
 
@@ -135,4 +141,11 @@ node.on('error', function(err) {
 
 node.chain.on('addblock', function(block) {
   count++;
+  // Initialize logging if not already instantiated
+  if (!interval) {
+    interval = setInterval(function() {
+      logSyncStatus();
+      count = 0;
+    }, 10000);
+  }
 });

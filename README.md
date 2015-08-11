@@ -377,6 +377,8 @@ Note that if you already have a bitcore-node database, and you want to query dat
 - `daemon.getTransactionWithBlockInfo(txid, queryMempool, callback)` - Similar to getTransaction but will also include the block timestamp and height.
 - `daemon.getMempoolOutputs(address)` - Will return an array of outputs that match an address from the mempool.
 - `daemon.getInfo()` - Basic information about the chain including total number of blocks.
+- `daemon.isSynced()` - Returns a boolean if the daemon is fully synced (not the initial block download)
+- `daemon.syncPercentage()` - Returns the current estimate of blockchain download as a percentage.
 - `daemon.stop([callback])` - Stop the JavaScript bitcoin node safely, the callback will be called when bitcoind is closed. This will also be done automatically on `process.exit`. It also takes the bitcoind node off the libuv event loop. If the daemon object is the only thing on the event loop. Node will simply close.
 
 ## License

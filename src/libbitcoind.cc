@@ -217,15 +217,25 @@ static bool
 set_cooked(void);
 
 /**
- * GetProgress()
- * bitcoind.getProgress()
+ * SyncPercentage()
+ * bitcoind.syncPercentage()
  * provides a float value >= indicating the progress of the blockchain sync
  */
-NAN_METHOD(GetProgress) {
+NAN_METHOD(SyncPercentage) {
   const CChainParams& chainParams = Params();
   float progress = 0;
   progress = Checkpoints::GuessVerificationProgress(chainParams.Checkpoints(), chainActive.Tip());
-  NanReturnValue(progress);
+  NanReturnValue(NanNew<Number>(progress * 100));
+};
+
+/**
+ * IsSynced()
+ * bitcoind.isSynced()
+ * returns a boolean of bitcoin is fully synced
+ */
+NAN_METHOD(IsSynced) {
+  bool isDownloading = IsInitialBlockDownload();
+  NanReturnValue(NanNew<Boolean>(!isDownloading));
 };
 
 NAN_METHOD(StartTxMon) {
@@ -1682,7 +1692,8 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "sendTransaction", SendTransaction);
   NODE_SET_METHOD(target, "estimateFee", EstimateFee);
   NODE_SET_METHOD(target, "startTxMon", StartTxMon);
-  NODE_SET_METHOD(target, "getProgress", GetProgress);
+  NODE_SET_METHOD(target, "syncPercentage", SyncPercentage);
+  NODE_SET_METHOD(target, "isSynced", IsSynced);
 
 }
 
