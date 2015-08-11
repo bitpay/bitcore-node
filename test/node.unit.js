@@ -217,7 +217,8 @@ describe('Bitcoind Node', function() {
       var blockBuffer = new Buffer(blockData);
       var block = Block.fromBuffer(blockBuffer);
       node.bitcoind = {
-        getBlock: sinon.stub().callsArgWith(1, null, blockBuffer)
+        getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
+        isSynced: sinon.stub().returns(true)
       };
       node.chain = {
         tip: {
