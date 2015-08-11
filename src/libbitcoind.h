@@ -31,4 +31,5 @@ NAN_METHOD(VerifyScript);
 NAN_METHOD(SendTransaction);
 NAN_METHOD(EstimateFee);
 NAN_METHOD(StartTxMon);
-NAN_METHOD(GetProgress);
+NAN_METHOD(SyncPercentage);
+NAN_METHOD(IsSynced);
