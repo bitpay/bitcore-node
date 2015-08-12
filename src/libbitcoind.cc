@@ -172,44 +172,6 @@ struct async_tx_data {
 };
 
 /**
- * Verify Scripts
- */
-NAN_METHOD(VerifyScript) {
-  NanScope();
-
-  if (!node::Buffer::HasInstance(args[0])) {
-    return NanThrowTypeError("First argument should be a Buffer.");
-  }
-
-  if (!node::Buffer::HasInstance(args[1])) {
-    return NanThrowTypeError("Second argument should be a Buffer.");
-  }
-
-  unsigned char *scriptPubKey = (unsigned char *) node::Buffer::Data(args[0]);
-  unsigned int scriptPubKeyLen = (unsigned int) node::Buffer::Length(args[0]);
-
-  const unsigned char *txTo = (unsigned char *) node::Buffer::Data(args[1]);
-  unsigned int txToLen = (unsigned int)node::Buffer::Length(args[1]);
-
-  unsigned int nIn = args[2]->NumberValue();
-  unsigned int flags = args[3]->NumberValue();
-
-  bitcoinconsensus_error* err;
-  err = 0;
-
-  int valid = bitcoinconsensus_verify_script(scriptPubKey, scriptPubKeyLen, txTo, txToLen, nIn, flags, err);
-
-  if (!valid && err) {
-    NanThrowError("The transaction was not valid");
-  }
-
-  NanReturnValue(NanNew<Number>(valid));
-
-}
-
-
-
-/**
  * Helpers
  */
 
@@ -1666,7 +1628,6 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getBlockIndex", GetBlockIndex);
   NODE_SET_METHOD(target, "getMempoolOutputs", GetMempoolOutputs);
   NODE_SET_METHOD(target, "addMempoolUncheckedTransaction", AddMempoolUncheckedTransaction);
-  NODE_SET_METHOD(target, "verifyScript", VerifyScript);
   NODE_SET_METHOD(target, "sendTransaction", SendTransaction);
   NODE_SET_METHOD(target, "estimateFee", EstimateFee);
   NODE_SET_METHOD(target, "startTxMon", StartTxMon);
