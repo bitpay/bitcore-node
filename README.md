@@ -10,11 +10,11 @@ git clone https://github.com/bitpay/bitcore-node.git
 cd bitcore-node
 npm install
 ```
-Note: Please see detailed instructions below for complete build details and dependencies needed for installation.
+Note: For convenience, we distribute binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. This greatly speeds up the process of using this project. If you don't want to compile the project for yourself, then please skip down to "Example Usage" section for next steps. Please see detailed instructions below for complete build details and dependencies needed for installation if you choose to build the project from source.
 
 ## Build & Install
 
-There are two main parts of the build, compiling Bitcoin Core and the Node.js bindings.
+There are two main parts of the build, compiling Bitcoin Core as a static library and the Node.js bindings.
 
 ### Ubuntu 14.04 (Unix/Linux)
 
