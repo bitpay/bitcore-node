@@ -355,3 +355,17 @@ index c65e842..0e44bb5 100644
      CLevelDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory = false, bool fWipe = false);
      ~CLevelDBWrapper();
 
+diff --git a/src/net.cpp b/src/net.cpp
+index 3908be6..cf3ffd4 100644
+--- a/src/net.cpp
++++ b/src/net.cpp
+@@ -426,8 +426,10 @@ void CNode::PushVersion()
+         LogPrint("net", "send version message: version %d, blocks=%d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, nBestHeight, addrMe.ToString(), addrYou.ToString(), id);
+     else
+         LogPrint("net", "send version message: version %d, blocks=%d, us=%s, peer=%d\n", PROTOCOL_VERSION, nBestHeight, addrMe.ToString(), id);
++    std::vector<std::string> bitcore_node;
++    bitcore_node.push_back("bitcorenode"); //the dash character is removed from the comments section
+     PushMessage("version", PROTOCOL_VERSION, nLocalServices, nTime, addrYou, addrMe,
+-                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>()), nBestHeight, true);
++                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, bitcore_node), nBestHeight, true);
+ }
