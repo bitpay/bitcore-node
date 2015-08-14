@@ -633,14 +633,16 @@ describe('AddressModule', function() {
         inputIndex: 0,
         height: 1,
         timestamp: 1438289011844,
-        satoshis: 5000
+        satoshis: 5000,
+        getFee: sinon.stub().returns(1000)
       },
       {
         txid: 'tx3',
         outputIndex: 1,
         height: 3,
         timestamp: 1438289031844,
-        satoshis: 2000
+        satoshis: 2000,
+        getFee: sinon.stub().returns(1000)
       },
       {
         txid: 'tx4',
@@ -649,7 +651,8 @@ describe('AddressModule', function() {
         inputIndex: 1,
         height: 4,
         timestamp: 1438289041844,
-        satoshis: 3000
+        satoshis: 3000,
+        getFee: sinon.stub().returns(1000)
       },
     ];
 
@@ -664,7 +667,8 @@ describe('AddressModule', function() {
               satoshis: 5000
             }
           }
-        ]
+        ],
+        getFee: sinon.stub().returns(1000)
       },
       {
         txid: 'tx5',
@@ -677,7 +681,8 @@ describe('AddressModule', function() {
               satoshis: 3000
             }
           }
-        ]
+        ],
+        getFee: sinon.stub().returns(1000)
       }
     ];
 
@@ -694,6 +699,7 @@ describe('AddressModule', function() {
             transaction.hash = txid;
             transaction.__height = incoming[i].height;
             transaction.__timestamp = incoming[i].timestamp;
+            transaction.getFee = incoming[i].getFee;
             return callback(null, transaction);
           }
         }
@@ -707,6 +713,7 @@ describe('AddressModule', function() {
             transaction.__height = outgoing[i].height;
             transaction.__timestamp = outgoing[i].timestamp;
             transaction.inputs = outgoing[i].inputs;
+            transaction.getFee = outgoing[i].getFee;
             return callback(null, transaction);
           }
         }
@@ -747,22 +754,27 @@ describe('AddressModule', function() {
         history[0].satoshis.should.equal(5000);
         history[0].height.should.equal(1);
         history[0].timestamp.should.equal(1438289011844);
+        history[0].fees.should.equal(1000);
         history[1].tx.hash.should.equal('tx2');
         history[1].satoshis.should.equal(-5000);
         history[1].height.should.equal(2);
         history[1].timestamp.should.equal(1438289021844);
+        history[1].fees.should.equal(1000);
         history[2].tx.hash.should.equal('tx3');
         history[2].satoshis.should.equal(2000);
         history[2].height.should.equal(3);
         history[2].timestamp.should.equal(1438289031844);
+        history[2].fees.should.equal(1000);
         history[3].tx.hash.should.equal('tx4');
         history[3].satoshis.should.equal(3000);
         history[3].height.should.equal(4);
         history[3].timestamp.should.equal(1438289041844);
+        history[3].fees.should.equal(1000);
         history[4].tx.hash.should.equal('tx5');
         history[4].satoshis.should.equal(-3000);
         history[4].height.should.equal(5);
         history[4].timestamp.should.equal(1438289051844);
+        history[4].fees.should.equal(1000);
         done();
       });
     });
