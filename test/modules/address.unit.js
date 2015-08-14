@@ -2,12 +2,12 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
-var bitcoindjs = require('../../');
-var AddressModule = bitcoindjs.modules.AddressModule;
+var bitcorenode = require('../../');
+var AddressModule = bitcorenode.modules.AddressModule;
 var blockData = require('../data/livenet-345003.json');
 var bitcore = require('bitcore');
 var EventEmitter = require('events').EventEmitter;
-var errors = bitcoindjs.errors;
+var errors = bitcorenode.errors;
 var chainlib = require('chainlib');
 var levelup = chainlib.deps.levelup;
 
@@ -490,6 +490,94 @@ describe('AddressModule', function() {
       readStream2.emit('error', new Error('readstreamerror'));
       process.nextTick(function() {
         readStream2.emit('close');
+      });
+    });
+  });
+
+  describe('#getUnspentOutputs', function() {
+    it('should concatenate utxos for multiple addresses, even those with none found', function(done) {
+      var addresses = {
+        'addr1': ['utxo1', 'utxo2'],
+        'addr2': new errors.NoOutputs(),
+        'addr3': ['utxo3']
+      };
+
+      var db = {
+        bitcoind: {
+          on: sinon.spy()
+        }
+      };
+      var am = new AddressModule({db: db});
+      am.getUnspentOutputsForAddress = function(address, queryMempool, callback) {
+        var result = addresses[address];
+        if(result instanceof Error) {
+          return callback(result);
+        } else {
+          return callback(null, result);
+        }
+      };
+
+      am.getUnspentOutputs(['addr1', 'addr2', 'addr3'], true, function(err, utxos) {
+        should.not.exist(err);
+        utxos.should.deep.equal(['utxo1', 'utxo2', 'utxo3']);
+        done();
+      });
+    });
+    it('should give an error if an error occurred', function(done) {
+      var addresses = {
+        'addr1': ['utxo1', 'utxo2'],
+        'addr2': new Error('weird error'),
+        'addr3': ['utxo3']
+      };
+
+      var db = {
+        bitcoind: {
+          on: sinon.spy()
+        }
+      };
+      var am = new AddressModule({db: db});
+      am.getUnspentOutputsForAddress = function(address, queryMempool, callback) {
+        var result = addresses[address];
+        if(result instanceof Error) {
+          return callback(result);
+        } else {
+          return callback(null, result);
+        }
+      };
+
+      am.getUnspentOutputs(['addr1', 'addr2', 'addr3'], true, function(err, utxos) {
+        should.exist(err);
+        err.message.should.equal('weird error');
+        done();
+      });
+    });
+
+    it('should also work for a single address', function(done) {
+      var addresses = {
+        'addr1': ['utxo1', 'utxo2'],
+        'addr2': new Error('weird error'),
+        'addr3': ['utxo3']
+      };
+
+      var db = {
+        bitcoind: {
+          on: sinon.spy()
+        }
+      };
+      var am = new AddressModule({db: db});
+      am.getUnspentOutputsForAddress = function(address, queryMempool, callback) {
+        var result = addresses[address];
+        if(result instanceof Error) {
+          return callback(result);
+        } else {
+          return callback(null, result);
+        }
+      };
+
+      am.getUnspentOutputs('addr1', true, function(err, utxos) {
+        should.not.exist(err);
+        utxos.should.deep.equal(['utxo1', 'utxo2']);
+        done();
       });
     });
   });
