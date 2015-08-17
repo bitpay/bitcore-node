@@ -3,18 +3,57 @@ Bitcore Node
 
 A Node.js module that adds a native interface to Bitcoin Core for querying information about the Bitcoin blockchain. Bindings are linked to Bitcoin Core compiled as a static library.
 
-## Install
+## Getting Started
+
+Bitcore Node includes a Command Line Interface (CLI) for managing, configuring and interfacing with your Bitcore Node. At the minimum, your node can function with all of the features from Bitcoin Core running as a full node. However you can enable additional features to make your node more useful such as exposing new APIs, adding new indexes for addresses, running a block explorer and more.
+
+Here is how you can you install and start your node:
 
 ```bash
-git clone https://github.com/bitpay/bitcore-node.git
-cd bitcore-node
-npm install
+npm install -g bitcore-node@0.2.0-beta.4
+bitcore-node create mynode "My Node"
+cd mynode
+bitcore-node start
 ```
-Note: For convenience, we distribute binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. This greatly speeds up the process of using this project. If you don't want to compile the project for yourself, then please skip down to "Example Usage" section for next steps. Please see detailed instructions below for complete build details and dependencies needed for installation if you choose to build the project from source.
+
+This will install bitcore-node globally and add a `bitcore-node` command to your path and will provide the functionality for configuring your full node, including adding additional features.
+
+Note: For your convenience, we distribute binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. If you want to compile the project yourself, then please see the [Build & Install](#build--install) for full detailed instructions to build the project from source.
+
+To install additional features, you can use the bitcore-node command "add":
+
+```bash
+bitcore-node stop
+bitcore-node add address
+bitcore-node start
+```
+
+This will configure your node with the necessary modules, and create the proper configuration file necessary for running your node. The above example will add the address module bitcore-node, and will then start running on start. Please be aware that in some cases adding a module will mean that a reindex is required that will take several hours as each block is analyzed and a database is created. Any module that requires such will prompt before installation.
+
+Third party modules can also be specified by using a git repository:
+
+```bash
+bitcore-node add https://github.com/yourname/helloworld
+```
+
+Please see the [directory](doc/modules.md) for a partial list of modules for Bitcore Node. If you're interested in developing a module, please see the [Module Development Guide](doc/modules-development.md).
+
+## Using your Node
+
+Your node should be able to respond to commands via a command line utility. For example, with the address module added, you should be able to query for unspent outputs for any address:
+
+```bash
+bitcore-node call getunspentoutputs "1HTxCVrXuthad6YW5895K98XmVsdMvvBSw"
+bitcore-node call getbalance "1HTxCVrXuthad6YW5895K98XmVsdMvvBSw"
+bitcore-node call sendtransaction "<serialized_transaction>"
+bitcore-node call help
+```
+
+The above are a few common examples of commands that can be run, however there are many more. Every module that is added can extend the interface to include new commands. Running `bitcore-node call help` will list all of the available commands that can be run against your node.
 
 ## Build & Install
 
-There are two main parts of the build, compiling Bitcoin Core as a static library and the Node.js bindings.
+This includes a detailed instructions for compiling. There are two main parts of the build, compiling Bitcoin Core as a static library and the Node.js bindings.
 
 ### Ubuntu 14.04 (Unix/Linux)
 
