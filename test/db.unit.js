@@ -196,21 +196,6 @@ describe('Bitcoin DB', function() {
   });
 
   describe("#estimateFee", function() {
-    // To accommodate weird bitcoind behavior where 1 block always results in -1
-    it('should set blocks to 2 if 1 was passed in', function(done) {
-      var db = new DB({store: memdown});
-      db.bitcoind = {
-        estimateFee: sinon.stub().returns(1000)
-      };
-
-      db.estimateFee(1, function(err, fee) {
-        should.not.exist(err);
-        fee.should.equal(1000);
-        db.bitcoind.estimateFee.args[0][0].should.equal(2);
-        done();
-      });
-    });
-
     it('should pass along the fee from bitcoind', function(done) {
       var db = new DB({store: memdown});
       db.bitcoind = {
