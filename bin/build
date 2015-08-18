@@ -36,8 +36,9 @@ compare_patch () {
   cd "${btc_dir}"
   get_patch_file
   echo "running the diff command from HEAD to ${tag}"
-  git diff ${tag}..HEAD > /tmp/tmp.patch
-  matching_patch=`diff -w /tmp/tmp.patch "${root_dir}/etc/bitcoin.patch"` 
+  diff=$(git diff ${tag}..HEAD)
+  stripped_diff=$( echo -n "${diff}" | head -n $( expr `echo -n "${diff}" | wc -l` - 1 ) )
+  matching_patch=`echo -n "${stripped_diff}" | diff -w "${root_dir}/etc/bitcoin.patch" -` 
 }
 
 cache_files () {
