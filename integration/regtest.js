@@ -306,7 +306,8 @@ describe('Daemon Binding Functionality', function() {
       var outputs = bitcoind.getMempoolOutputs(changeAddress);
       var expected = [
         {
-          script: 'OP_DUP OP_HASH160 073b7eae2823efa349e3b9155b8a735526463a0f OP_EQUALVERIFY OP_CHECKSIG',
+          address: 'mgBCJAsvzgT2qNNeXsoECg2uPKrUsZ76up',
+          script: '76a914073b7eae2823efa349e3b9155b8a735526463a0f88ac',
           satoshis: 40000,
           txid: tx.hash,
           outputIndex: 1

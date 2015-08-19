@@ -71,6 +71,7 @@ describe('Bitcoind Node', function() {
     it('should return modules publish events', function() {
       var node = new Node({});
       var db = {
+        getPublishEvents: sinon.stub().returns(['db1', 'db2']),
         modules: [
           {
             getPublishEvents: sinon.stub().returns(['mda1', 'mda2'])
@@ -83,7 +84,7 @@ describe('Bitcoind Node', function() {
       node.db = db;
 
       var events = node.getAllPublishEvents();
-      events.should.deep.equal(['mda1', 'mda2', 'mdb1', 'mdb2']);
+      events.should.deep.equal(['db1', 'db2', 'mda1', 'mda2', 'mdb1', 'mdb2']);
     });
   });
   describe('#_loadConfiguration', function() {
@@ -462,7 +463,6 @@ describe('Bitcoind Node', function() {
         setImmediate(function() {
           chainlib.log.info.callCount.should.equal(1);
           chainlib.log.info.restore();
-          node.db.addModule.callCount.should.equal(1);
           node.chain.initialize.callCount.should.equal(1);
           done();
         });
