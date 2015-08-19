@@ -18,7 +18,13 @@
             "xcode_settings": {
               "GCC_ENABLE_CPP_EXCEPTIONS": "YES",
               "GCC_ENABLE_CPP_RTTI": "YES",
-              "MACOSX_DEPLOYMENT_TARGET": "10.9"
+              "MACOSX_DEPLOYMENT_TARGET": "10.9",
+              'OTHER_CFLAGS': [
+                "-fexceptions",
+                "-frtti",
+                "-fpermissive",
+                "<!(./bin/variables.sh wallet_enabled)",
+              ]
             }
           }
         ]
@@ -27,6 +33,7 @@
         "-fexceptions",
         "-frtti",
         "-fpermissive",
+        "<!(./bin/variables.sh wallet_enabled)",
       ],
       "link_settings": {
         "libraries": [

@@ -110,6 +110,12 @@ if test -z "$1" -o x"$1" = x'mac_dependencies'; then
   echo -n "${mac_response}"
 fi
 
+if test -z "$1" -o x"$1" = x'wallet_enabled'; then
+  if [ "${BITCORENODE_ENV}" == "test" ]; then
+    echo -n "-DENABLE_WALLET"
+  fi
+fi
+
 if test -z "$1" -o x"$1" = x'bitcoind'; then
   echo -n "${cache_dir}"/src/.libs/libbitcoind.a
 fi
