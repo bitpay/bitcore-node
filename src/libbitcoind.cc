@@ -472,7 +472,7 @@ async_blocks_ready(uv_work_t *req) {
   }
 
   //If the wallet is enabled, then we should make sure we can load it
-#if ENABLE_WALLET
+#ifdef ENABLE_WALLET
   while(pwalletMain->LoadWallet(fFirstRun) != DB_LOAD_OK) {
     usleep(1E6);
   }
