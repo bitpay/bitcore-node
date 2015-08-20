@@ -33,11 +33,14 @@ program
 
 program
   .command('start')
-  .option('-b', '--background', 'Will start in the background')
   .description('Start the current node')
   .action(function(){
-    var config = findConfig();
-    start(config);
+    var configInfo = findConfig(process.cwd());
+    if (configInfo) {
+      start(configInfo);
+    } else {
+      throw new Error('Can not find bitcore-node.json in current path');
+    }
   });
 
 program
