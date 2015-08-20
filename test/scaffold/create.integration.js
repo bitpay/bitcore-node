@@ -17,7 +17,12 @@ describe('#create', function() {
       if (err) {
         throw err;
       }
-      done();
+      mkdirp(testDir + '/.bitcoin', function(err) {
+        if (err) {
+          throw err;
+        }
+        done();
+      });
     });
   });
 
@@ -33,7 +38,13 @@ describe('#create', function() {
 
   it('will create scaffold files', function() {
 
-    create(testDir, 'mynode', 'My Node 1', function(err) {
+    create({
+      cwd: testDir,
+      dirname: 'mynode',
+      name: 'My Node 1',
+      isGlobal: false,
+      datadir: './data'
+    }, function(err) {
       if (err) {
         throw err;
       }
@@ -54,6 +65,65 @@ describe('#create', function() {
 
       var pack = JSON.parse(fs.readFileSync(packagePath));
       should.exist(pack.dependencies);
+
+    });
+
+  });
+
+  it('will error if directory already exists', function() {
+
+    create({
+      cwd: testDir,
+      dirname: 'mynode',
+      name: 'My Node 2',
+      isGlobal: false,
+      datadir: './data'
+    }, function(err) {
+      should.exist(err);
+      err.message.should.match(/^Directory/);
+    });
+
+  });
+
+  it('will not create bitcoin.conf if it already exists', function() {
+
+    create({
+      cwd: testDir,
+      dirname: 'mynode2',
+      name: 'My Node 2',
+      isGlobal: false,
+      datadir: '../.bitcoin'
+    }, function(err) {
+      if (err) {
+        throw err;
+      }
+
+      var bitcoinConfig = testDir + '/.bitcoin/bitcoin.conf';
+      should.equal(fs.existsSync(bitcoinConfig), false);
+
+    });
+
+  });
+
+  it('will not create a package.json if globally installed', function() {
+
+    create({
+      cwd: testDir,
+      dirname: 'mynode3',
+      name: 'My Node 3',
+      isGlobal: true,
+      datadir: '../.bitcoin'
+    }, function(err) {
+      if (err) {
+        throw err;
+      }
+
+      if (err) {
+        throw err;
+      }
+
+      var packagePath = testDir + '/mynode3/package.json';
+      should.equal(fs.existsSync(packagePath), false);
 
     });
 
