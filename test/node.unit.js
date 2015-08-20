@@ -533,4 +533,20 @@ describe('Bitcoind Node', function() {
     });
 
   });
+
+  describe('#getServiceOrder', function() {
+    var services = {
+      'chain': ['db'],
+      'db': ['daemon', 'p2p'],
+      'daemon': [],
+      'p2p': []
+    };
+
+    it('should return the services in the correct order', function() {
+      var node = new Node({});
+      var order = node.getServiceOrder(services);
+
+      order.should.deep.equal(['daemon', 'p2p', 'db', 'chain']);
+    });
+  });
 });
