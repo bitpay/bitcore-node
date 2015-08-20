@@ -1,13 +1,14 @@
 'use strict';
 
 var start = require('../lib/scaffold/start');
+var path = require('path');
 
 start({
   path: process.cwd(),
   config: {
-    datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
+    datadir: process.env.BITCORENODE_DIR || path.resolve(process.env.HOME, '.bitcoin'),
     network: process.env.BITCORENODE_NETWORK || 'livenet',
-    port: 3000
+    port: process.env.BITCORENODE_PORT || 3001
   }
 });
 
