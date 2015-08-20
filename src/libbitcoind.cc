@@ -1349,28 +1349,38 @@ NAN_METHOD(GetBlockIndex) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
-  String::Utf8Value hash_(args[0]->ToString());
-  std::string hashStr = std::string(*hash_);
-  uint256 hash = uint256S(hashStr);
-
   CBlockIndex* blockIndex;
 
-  if (mapBlockIndex.count(hash) == 0) {
-    NanReturnValue(Undefined(isolate));
+  if (args[0]->IsNumber()) {
+    int64_t height = args[0]->IntegerValue();
+    blockIndex = chainActive[height];
+
+    if (blockIndex == NULL) {
+      NanReturnValue(Undefined(isolate));
+    }
+
   } else {
-    blockIndex = mapBlockIndex[hash];
-    arith_uint256 cw = blockIndex->nChainWork;
-    CBlockIndex* prevBlockIndex = blockIndex->pprev;
-    const uint256* prevHash = prevBlockIndex->phashBlock;
-
-    Local<Object> obj = NanNew<Object>();
-
-    obj->Set(NanNew<String>("chainWork"), NanNew<String>(cw.GetHex()));
-    obj->Set(NanNew<String>("prevHash"), NanNew<String>(prevHash->GetHex()));
-
-    NanReturnValue(obj);
+    String::Utf8Value hash_(args[0]->ToString());
+    std::string hashStr = std::string(*hash_);
+    uint256 hash = uint256S(hashStr);
+    if (mapBlockIndex.count(hash) == 0) {
+      NanReturnValue(Undefined(isolate));
+    } else {
+      blockIndex = mapBlockIndex[hash];
+    }
   }
 
+  arith_uint256 cw = blockIndex->nChainWork;
+  CBlockIndex* prevBlockIndex = blockIndex->pprev;
+  const uint256* prevHash = prevBlockIndex->phashBlock;
+
+  Local<Object> obj = NanNew<Object>();
+  obj->Set(NanNew<String>("hash"), NanNew<String>(blockIndex->phashBlock->GetHex()));
+  obj->Set(NanNew<String>("chainWork"), NanNew<String>(cw.GetHex()));
+  obj->Set(NanNew<String>("prevHash"), NanNew<String>(prevHash->GetHex()));
+  obj->Set(NanNew<String>("height"), NanNew<Number>(blockIndex->nHeight));
+
+  NanReturnValue(obj);
 };
 
 /**
