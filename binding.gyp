@@ -48,6 +48,22 @@
           "<!(./bin/variables.sh load_archive)"
         ]
       }
+    },
+    {
+      "target_name": "test",
+      "type": "executable",
+      "sources": [
+        "test/c++unit/libbitcoind_test.cpp" 
+      ],
+      "include_dirs": [
+        "<!(./bin/variables.sh cache_dir)/src",
+        "<!(./bin/variables.sh cache_dir)/depends/<!(./bin/variables.sh host)/include",
+        "<!(./bin/variables.sh cache_dir)/src/leveldb/include",
+        "<!(node -e \"require('cppunitlite')\")"
+      ],
+      "dependencies": [
+        "node_modules/cppunitlite/binding.gyp:CppUnitLite"
+      ]
     }
   ]
 }

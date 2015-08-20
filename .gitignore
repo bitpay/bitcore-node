@@ -26,6 +26,6 @@ test.js
 **/*.config
 **/*.creator
 libbitcoind
-libbitcoind*
+libbitcoind.*
 libbitcoind.includes
 *.log
