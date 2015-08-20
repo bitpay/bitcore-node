@@ -5,7 +5,6 @@ var version = require(__dirname + '/../package.json').version;
 var create = require('../lib/scaffold/create');
 var add = require('../lib/scaffold/add');
 var start = require('../lib/scaffold/start');
-var stop = require('../lib/scaffold/stop');
 var findConfig = require('../lib/scaffold/find-config');
 
 program
@@ -16,10 +15,29 @@ program
 program
   .command('create <directory> [name]')
   .description('Create a new node')
-  .action(function(directory, name){
+  .action(function(dirname, name){
+    var options = {
+      cwd: process.cwd(),
+      dirname: dirname,
+      name: name,
+      datadir: './data',
+      isGlobal: false
+    };
+    create(options, function(err) {
+      if (err) {
+        throw err;
+      }
+      console.log('Successfully created node in directory: ', dirname);
+    });
+  });
+
+program
+  .command('start')
+  .option('-b', '--background', 'Will start in the background')
+  .description('Start the current node')
+  .action(function(){
     var config = findConfig();
-    create(config, directory, name);
-    console.log('Successfully created node in directory: ', directory);
+    start(config);
   });
 
 program
@@ -39,28 +57,8 @@ program
     console.log();
   });
 
-program
-  .command('start')
-  .option('-b', '--background', 'Will start in the background')
-  .description('Start the current node')
-  .action(function(){
-    var config = findConfig();
-    start(config);
-  });
-
-program
-  .command('stop')
-  .description('Stop the current node')
-  .action(function(){
-    var config = findConfig();
-    stop(config);
-  });
-
-program
-  .command('*')
-  .description('')
-  .action(function(env){
-    program.help();
-  });
-
 program.parse(process.argv);
+
+if (process.argv.length === 2) {
+  program.help();
+}

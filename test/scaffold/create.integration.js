@@ -1,7 +1,23 @@
 'use strict';
 
 var should = require('chai').should();
-var create = require('../../lib/scaffold/create');
+var proxyquire = require('proxyquire');
+var sinon = require('sinon');
+var create = proxyquire('../../lib/scaffold/create', {
+  'child_process': {
+    spawn: sinon.stub().returns({
+      stdout: {
+        on: sinon.stub()
+      },
+      stderr: {
+        on: sinon.stub()
+      },
+      on: function(event, cb) {
+        cb();
+      }
+    })
+  }
+});
 var fs = require('fs');
 var mkdirp = require('mkdirp');
 var rimraf = require('rimraf');
