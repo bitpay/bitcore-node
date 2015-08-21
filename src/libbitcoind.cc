@@ -886,30 +886,6 @@ async_stop_node_after(uv_work_t *req) {
 }
 
 /**
- * IsStopping()
- * bitcoind.stopping()
- * Check whether bitcoind is in the process of shutting down. This is polled
- * from javascript.
- */
-
-NAN_METHOD(IsStopping) {
-  NanScope();
-  NanReturnValue(NanNew<Boolean>(ShutdownRequested()));
-}
-
-/**
- * IsStopped()
- * bitcoind.stopped()
- * Check whether bitcoind has shutdown completely. This will be polled by
- * javascript to check whether the libuv event loop is safe to stop.
- */
-
-NAN_METHOD(IsStopped) {
-  NanScope();
-  NanReturnValue(NanNew<Boolean>(shutdown_complete));
-}
-
-/**
  * GetBlock()
  * bitcoind.getBlock([blockhash,blockheight], callback)
  * Read any block from disk asynchronously.
@@ -1650,8 +1626,6 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "onBlocksReady", OnBlocksReady);
   NODE_SET_METHOD(target, "onTipUpdate", OnTipUpdate);
   NODE_SET_METHOD(target, "stop", StopBitcoind);
-  NODE_SET_METHOD(target, "stopping", IsStopping);
-  NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
   NODE_SET_METHOD(target, "getTransaction", GetTransaction);
   NODE_SET_METHOD(target, "getTransactionWithBlockInfo", GetTransactionWithBlockInfo);
