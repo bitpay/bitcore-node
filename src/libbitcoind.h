@@ -13,6 +13,9 @@
 #include "core_io.h"
 #include "script/bitcoinconsensus.h"
 #include "consensus/validation.h"
+#ifdef ENABLE_WALLET
+#include "wallet/wallet.h"
+#endif
 
 NAN_METHOD(StartBitcoind);
 NAN_METHOD(OnBlocksReady);

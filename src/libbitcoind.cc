@@ -471,6 +471,13 @@ async_blocks_ready(uv_work_t *req) {
     usleep(1E6);
   }
 
+  //If the wallet is enabled, then we should make sure we can load it
+#ifdef ENABLE_WALLET
+  while(pwalletMain == NULL || RPCIsInWarmup(NULL)) {
+    usleep(1E6);
+  }
+#endif
+
   // Wait until we can get a lock on cs_main
   // And therefore ready to be able to quickly
   // query for transactions from the mempool.
