@@ -104,6 +104,8 @@ static bool g_testnet = false;
 static bool g_regtest = false;
 static bool g_txindex = false;
 
+static boost::thread_group threadGroup;
+
 /**
  * Private Structs
  * Used for async functions and necessary linked lists at points.
@@ -685,7 +687,6 @@ start_node(void) {
 
 static void
 start_node_thread(void) {
-  boost::thread_group threadGroup;
   CScheduler scheduler;
 
   // Workaround for AppInit2() arg parsing. Not ideal, but it works.
@@ -798,7 +799,6 @@ start_node_thread(void) {
  */
 
 NAN_METHOD(StopBitcoind) {
-  fprintf(stderr, "Stopping Bitcoind please wait!\n");
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
@@ -840,7 +840,9 @@ NAN_METHOD(StopBitcoind) {
 static void
 async_stop_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
+
   StartShutdown();
+
   while(!shutdown_complete) {
     usleep(1E6);
   }

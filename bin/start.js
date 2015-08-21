@@ -146,8 +146,6 @@ node.on('stopping', function() {
   clearInterval(interval);
 });
 
-process.stdin.resume();//so the program will not close instantly
-
 function exitHandler(options, err) {
   if (err) {
     log.error('uncaught exception:', err);
@@ -157,7 +155,6 @@ function exitHandler(options, err) {
     process.exit(-1);
   }
   if (options.sigint) {
-    log.info('Stopping Services');
     node.stop(function(err) {
       if(err) {
         log.error('Failed to stop services: ' + err);
@@ -170,21 +167,10 @@ function exitHandler(options, err) {
   }
 }
 
-//catches ctrl+c event
-process.on('SIGINT', exitHandler.bind(null, {sigint:true}));
-
-/*setTimeout(function() {
-  log.info('Stopping Services');
-  node.stop(function(err) {
-    if(err) {
-      log.error('Failed to stop services: ' + err);
-      return process.exit(1);
-    }
-
-    log.info('Halted');
-    process.exit(0);
-  });
-}, 10000);*/
-
 //catches uncaught exceptions
+
+
 process.on('uncaughtException', exitHandler.bind(null, {exit:true}));
+//catches ctrl+c event
+process.on('exit', exitHandler.bind(null, {exit: true}));
+process.on('SIGINT', exitHandler.bind(null, {sigint:true}));
