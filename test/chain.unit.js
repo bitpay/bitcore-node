@@ -25,6 +25,24 @@ describe('Bitcoin Chain', function() {
 
   });
 
+  describe('#start', function() {
+    it('should call the callback when base chain is initialized', function(done) {
+      var chain = new Chain();
+      chain.initialize = function() {
+        chain.emit('initialized');
+      };
+
+      chain.start(done);
+    });
+  });
+
+  describe('#stop', function() {
+    it('should call the callback', function(done) {
+      var chain = new Chain();
+      chain.stop(done);
+    });
+  });
+
   describe('#_writeBlock', function() {
     it('should update hashes and call putBlock', function(done) {
       var chain = new Chain();
