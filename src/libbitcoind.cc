@@ -676,12 +676,6 @@ start_node(void) {
   noui_connect();
 
   new boost::thread(boost::bind(&start_node_thread));
-
-  // Drop the bitcoind signal handlers: we want our own.
-  signal(SIGINT, SIG_DFL);
-  signal(SIGHUP, SIG_DFL);
-  signal(SIGQUIT, SIG_DFL);
-
   return 0;
 }
 
