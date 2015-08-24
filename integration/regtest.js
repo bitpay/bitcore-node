@@ -66,6 +66,10 @@ describe('Daemon Binding Functionality', function() {
         network: 'regtest'
       });
 
+      bitcoind.start(function() {
+        log.info('Bitcoind started');
+      });
+
       bitcoind.on('error', function(err) {
         log.error('error="%s"', err.message);
       });

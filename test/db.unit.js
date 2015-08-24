@@ -16,7 +16,7 @@ var Transaction = bitcore.Transaction;
 describe('Bitcoin DB', function() {
   var coinbaseAmount = 50 * 1e8;
 
-  describe('#initialize', function() {
+  describe('#start', function() {
     it('should emit ready', function(done) {
       var db = new DB({store: memdown});
       db._modules = ['mod1', 'mod2'];
@@ -24,8 +24,25 @@ describe('Bitcoin DB', function() {
         on: sinon.spy()
       };
       db.addModule = sinon.spy();
-      db.on('ready', done);
-      db.initialize();
+      var readyFired = false;
+      db.on('ready', function() {
+        readyFired = true;
+      });
+      db.start(function() {
+        readyFired.should.equal(true);
+        done();
+      });
+    });
+  });
+
+  describe('#stop', function() {
+    it('should immediately call the callback', function(done) {
+      var db = new DB({store: memdown});
+
+      db.stop(function(err) {
+        should.not.exist(err);
+        done();
+      });
     });
   });
 
