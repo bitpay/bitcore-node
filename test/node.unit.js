@@ -227,18 +227,19 @@ describe('Bitcoind Node', function() {
     it('will get and add block up to the tip height', function(done) {
       var node = new Node({});
       node.Block = Block;
-      node.bitcoindHeight = 1;
       var blockBuffer = new Buffer(blockData);
       var block = Block.fromBuffer(blockBuffer);
       node.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
-        isSynced: sinon.stub().returns(true)
+        isSynced: sinon.stub().returns(true),
+        height: 1
       };
       node.chain = {
         tip: {
           __height: 0,
           hash: block.prevHash
         },
+        getHashes: sinon.stub().callsArgWith(1, null),
         saveMetadata: sinon.stub(),
         emit: sinon.stub(),
         cache: {
@@ -258,9 +259,9 @@ describe('Bitcoind Node', function() {
     });
     it('will exit and emit error with error from bitcoind.getBlock', function(done) {
       var node = new Node({});
-      node.bitcoindHeight = 1;
       node.bitcoind = {
-        getBlock: sinon.stub().callsArgWith(1, new Error('test error'))
+        getBlock: sinon.stub().callsArgWith(1, new Error('test error')),
+        height: 1
       };
       node.chain = {
         tip: {
@@ -276,12 +277,12 @@ describe('Bitcoind Node', function() {
     it('will stop syncing when the node is stopping', function(done) {
       var node = new Node({});
       node.Block = Block;
-      node.bitcoindHeight = 1;
       var blockBuffer = new Buffer(blockData);
       var block = Block.fromBuffer(blockBuffer);
       node.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
-        isSynced: sinon.stub().returns(true)
+        isSynced: sinon.stub().returns(true),
+        height: 1
       };
       node.chain = {
         tip: {
@@ -433,42 +434,34 @@ describe('Bitcoind Node', function() {
   describe('#_loadConsensus', function() {
     var node = new Node({});
 
-    it('should use the genesis specified in the config', function() {
-      var config = {
-        genesis: '0100000043497fd7f826957108f4a30fd9cec3aeba79972084e90ead01ea330900000000bac8b0fa927c0ac8234287e33c5f74d38d354820e24756ad709d7038fc5f31f020e7494dffff001d03e4b6720101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0e0420e7494d017f062f503253482fffffffff0100f2052a010000002321021aeaf2f8638a129a3156fbe7e5ef635226b0bafd495ff03afe2c843d7e3a4b51ac00000000'
-      };
-      node._loadConsensus(config);
+    it('will set properties', function() {
+      node._loadConsensus();
+      should.exist(node.Block);
       should.exist(node.chain);
-      node.chain.genesis.hash.should.equal('00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206');
     });
-    it('should use the testnet genesis if testnet is specified', function() {
-      var config = {
-        network: 'testnet'
-      };
-      node._loadConsensus(config);
-      should.exist(node.chain);
-      node.chain.genesis.hash.should.equal('000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943');
-    });
-    it('should use the livenet genesis if nothing is specified', function() {
-      var config = {};
-      node._loadConsensus(config);
-      should.exist(node.chain);
-      node.chain.genesis.hash.should.equal('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f');
-    });
+
   });
 
   describe('#_initialize', function() {
-    var node = new Node({});
-    node.chain = {
-      on: sinon.spy()
-    };
-    node.Block = 'Block';
-    node.bitcoind = {
-      on: sinon.spy()
-    };
-    node.db = {
-      on: sinon.spy()
-    };
+
+    var node;
+
+    before(function() {
+      node = new Node({});
+      node.chain = {
+        on: sinon.spy()
+      };
+      node.Block = 'Block';
+      node.bitcoind = {
+        on: sinon.spy()
+      };
+      node._initializeBitcoind = sinon.spy();
+      node._initializeDatabase = sinon.spy();
+      node._initializeChain = sinon.spy();
+      node.db = {
+        on: sinon.spy()
+      };
+    });
 
     it('should initialize', function(done) {
       node.once('ready', function() {
@@ -486,8 +479,10 @@ describe('Bitcoind Node', function() {
       node.chain.db.should.equal(node.db);
       node.chain.db.should.equal(node.db);
 
-      // start syncing
-      node.setSyncStrategy = sinon.spy();
+      // event handlers
+      node._initializeBitcoind.callCount.should.equal(1);
+      node._initializeDatabase.callCount.should.equal(1);
+      node._initializeChain.callCount.should.equal(1);
 
     });
 
@@ -497,26 +492,121 @@ describe('Bitcoind Node', function() {
         err.message.should.equal('error');
         done();
       });
-
       node.start = sinon.stub().callsArgWith(0, new Error('error'));
-
       node._initialize();
     });
 
   });
 
-  describe('#getServiceOrder', function() {
-    var services = {
-      'chain': ['db'],
-      'db': ['daemon', 'p2p'],
-      'daemon': [],
-      'p2p': []
-    };
+  describe('#_initalizeBitcoind', function() {
 
+    it('will call emit an error from libbitcoind', function(done) {
+      var node = new Node({});
+      node.bitcoind = new EventEmitter();
+      node.on('error', function(err) {
+        should.exist(err);
+        err.message.should.equal('test error');
+        done();
+      });
+      node._initializeBitcoind();
+      node.bitcoind.emit('error', new Error('test error'));
+    });
+    it('will call sync when there is a new tip', function(done) {
+      var node = new Node({});
+      node.bitcoind = new EventEmitter();
+      node.bitcoind.syncPercentage = sinon.spy();
+      node._syncBitcoind = function() {
+        node.bitcoind.syncPercentage.callCount.should.equal(1);
+        done();
+      };
+      node._initializeBitcoind();
+      node.bitcoind.emit('tip', 10);
+    });
+    it('will not call sync when there is a new tip and shutting down', function(done) {
+      var node = new Node({});
+      node.bitcoind = new EventEmitter();
+      node._syncBitcoind = sinon.spy();
+      node.bitcoind.syncPercentage = sinon.spy();
+      node.stopping = true;
+      node.bitcoind.on('tip', function() {
+        setImmediate(function() {
+          node.bitcoind.syncPercentage.callCount.should.equal(0);
+          node._syncBitcoind.callCount.should.equal(0);
+          done();
+        });
+      });
+      node._initializeBitcoind();
+      node.bitcoind.emit('tip', 10);
+    });
+  });
+
+  describe('#_initializeDatabase', function() {
+    it('will log on ready event', function(done) {
+      var node = new Node({});
+      node.db = new EventEmitter();
+      sinon.stub(chainlib.log, 'info');
+      node.db.on('ready', function() {
+        setImmediate(function() {
+          chainlib.log.info.callCount.should.equal(1);
+          chainlib.log.info.restore();
+          done();
+        });
+      });
+      node._initializeDatabase();
+      node.db.emit('ready');
+    });
+    it('will call emit an error from db', function(done) {
+      var node = new Node({});
+      node.db = new EventEmitter();
+      node.on('error', function(err) {
+        should.exist(err);
+        err.message.should.equal('test error');
+        done();
+      });
+      node._initializeDatabase();
+      node.db.emit('error', new Error('test error'));
+    });
+  });
+
+  describe('#_initializeChain', function() {
+    it('will call _syncBitcoind on ready', function(done) {
+      var node = new Node({});
+      node._syncBitcoind = sinon.spy();
+      node.chain = new EventEmitter();
+      node.chain.on('ready', function(err) {
+        setImmediate(function() {
+          node._syncBitcoind.callCount.should.equal(1);
+          done();
+        });
+      });
+      node._initializeChain();
+      node.chain.emit('ready');
+    });
+    it('will emit an error from the chain', function(done) {
+      var node = new Node({});
+      node.chain = new EventEmitter();
+      node.on('error', function(err) {
+        should.exist(err);
+        err.message.should.equal('test error');
+        done();
+      });
+      node._initializeChain();
+      node.chain.emit('error', new Error('test error'));
+    });
+  });
+
+  describe('#getServiceOrder', function() {
     it('should return the services in the correct order', function() {
       var node = new Node({});
-      var order = node.getServiceOrder(services);
-
+      node.getServices = function() {
+        return {
+          'chain': ['db'],
+          'db': ['daemon', 'p2p'],
+          'daemon': [],
+          'p2p': []
+        };
+      };
+      var order = node.getServiceOrder();
       order.should.deep.equal(['daemon', 'p2p', 'db', 'chain']);
     });
   });
