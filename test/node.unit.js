@@ -459,22 +459,65 @@ describe('Bitcoind Node', function() {
   });
 
   describe('#_initialize', function() {
-    var node = new Node({});
-    node.chain = {
-      on: sinon.spy()
-    };
-    node.Block = 'Block';
-    node.bitcoind = {
-      on: sinon.spy()
-    };
-    node.db = {
-      on: sinon.spy()
-    };
 
-    it('will call db.initialize() on ready event', function(done) {
+    var node;
 
+    before(function() {
+      node = new Node({});
+      node.chain = {
+        on: sinon.spy()
+      };
+      node.Block = 'Block';
+      node.bitcoind = {
+        on: sinon.spy()
+      };
+      node._initializeBitcoind = sinon.spy();
+      node._initializeDatabase = sinon.spy();
+      node._initializeChain = sinon.spy();
+      node.db = {
+        on: sinon.spy()
+      };
+    });
+
+    it('should initialize', function(done) {
+      node.once('ready', function() {
+        done();
+      });
+
+      node.start = sinon.stub().callsArg(0);
+
+      node._initialize();
+
+      // references
+      node.db.chain.should.equal(node.chain);
+      node.db.Block.should.equal(node.Block);
+      node.db.bitcoind.should.equal(node.bitcoind);
+      node.chain.db.should.equal(node.db);
+      node.chain.db.should.equal(node.db);
+
+      // event handlers
+      node._initializeBitcoind.callCount.should.equal(1);
+      node._initializeDatabase.callCount.should.equal(1);
+      node._initializeChain.callCount.should.equal(1);
+
+    });
+
+    it('should emit an error if an error occurred starting services', function(done) {
+      node.once('error', function(err) {
+        should.exist(err);
+        err.message.should.equal('error');
+        done();
+      });
+      node.start = sinon.stub().callsArgWith(0, new Error('error'));
+      node._initialize();
+    });
+
+  });
+
+  describe('#_initalizeBitcoind', function() {
+
+    it('set the genesis block when ready and set height', function(done) {
       var genesisBuffer = new Buffer('0100000043497fd7f826957108f4a30fd9cec3aeba79972084e90ead01ea330900000000bac8b0fa927c0ac8234287e33c5f74d38d354820e24756ad709d7038fc5f31f020e7494dffff001d03e4b6720101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0e0420e7494d017f062f503253482fffffffff0100f2052a010000002321021aeaf2f8638a129a3156fbe7e5ef635226b0bafd495ff03afe2c843d7e3a4b51ac00000000', 'hex');
-
       var node = new Node({});
       node.Block = Block;
       node.chain = {};
@@ -489,7 +532,6 @@ describe('Bitcoind Node', function() {
         setImmediate(function() {
           chainlib.log.info.callCount.should.equal(1);
           chainlib.log.info.restore();
-          node.db.initialize.callCount.should.equal(1);
           node.bitcoindHeight.should.equal(10);
           done();
         });
@@ -508,22 +550,45 @@ describe('Bitcoind Node', function() {
       node._initializeBitcoind();
       node.bitcoind.emit('error', new Error('test error'));
     });
+    it('will call sync when there is a new tip', function(done) {
+      var node = new Node({});
+      node.bitcoind = new EventEmitter();
+      node.bitcoind.syncPercentage = sinon.spy();
+      node._syncBitcoind = function() {
+        node.bitcoind.syncPercentage.callCount.should.equal(1);
+        node.bitcoindHeight.should.equal(10);
+        done();
+      };
+      node._initializeBitcoind();
+      node.bitcoind.emit('tip', 10);
+    });
+    it('will not call sync when there is a new tip and shutting down', function(done) {
+      var node = new Node({});
+      node.bitcoind = new EventEmitter();
+      node._syncBitcoind = sinon.spy();
+      node.bitcoind.syncPercentage = sinon.spy();
+      node.stopping = true;
+      node.bitcoind.on('tip', function() {
+        setImmediate(function() {
+          node.bitcoind.syncPercentage.callCount.should.equal(0);
+          node._syncBitcoind.callCount.should.equal(0);
+          done();
+        });
+      });
+      node._initializeBitcoind();
+      node.bitcoind.emit('tip', 10);
+    });
+  });
 
-    it('will call chain.initialize() on ready event', function(done) {
+  describe('#_initializeDatabase', function() {
+    it('will log on ready event', function(done) {
       var node = new Node({});
       node.db = new EventEmitter();
-      node.db.addModule = sinon.spy();
-      var module = {};
-      node.db._modules = [module];
-      node.chain = {
-        initialize: sinon.spy()
-      };
       sinon.stub(chainlib.log, 'info');
       node.db.on('ready', function() {
         setImmediate(function() {
           chainlib.log.info.callCount.should.equal(1);
           chainlib.log.info.restore();
-          node.chain.initialize.callCount.should.equal(1);
           done();
         });
       });
@@ -541,41 +606,33 @@ describe('Bitcoind Node', function() {
       node._initializeDatabase();
       node.db.emit('error', new Error('test error'));
     });
+  });
 
-
-    it('should initialize', function(done) {
-      node.once('ready', function() {
-        done();
+  describe('#_initializeChain', function() {
+    it('will call _syncBitcoind on ready', function(done) {
+      var node = new Node({});
+      node._syncBitcoind = sinon.spy();
+      node.chain = new EventEmitter();
+      node.chain.on('ready', function(err) {
+        setImmediate(function() {
+          node._syncBitcoind.callCount.should.equal(1);
+          done();
+        });
       });
-
-      node.start = sinon.stub().callsArg(0);
-
-      node._initialize();
-
-      // references
-      node.db.chain.should.equal(node.chain);
-      node.db.Block.should.equal(node.Block);
-      node.db.bitcoind.should.equal(node.bitcoind);
-      node.chain.db.should.equal(node.db);
-      node.chain.db.should.equal(node.db);
-
-      // start syncing
-      node.setSyncStrategy = sinon.spy();
-
+      node._initializeChain();
+      node.chain.emit('ready');
     });
-
-    it('should emit an error if an error occurred starting services', function(done) {
-      node.once('error', function(err) {
+    it('will emit an error from the chain', function(done) {
+      var node = new Node({});
+      node.chain = new EventEmitter();
+      node.on('error', function(err) {
         should.exist(err);
-        err.message.should.equal('error');
+        err.message.should.equal('test error');
         done();
       });
-
-      node.start = sinon.stub().callsArgWith(0, new Error('error'));
-
-      node._initialize();
+      node._initializeChain();
+      node.chain.emit('error', new Error('test error'));
     });
-
   });
 
   describe('#getServiceOrder', function() {
