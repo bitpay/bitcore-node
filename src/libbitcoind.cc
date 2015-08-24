@@ -104,6 +104,8 @@ static bool g_testnet = false;
 static bool g_regtest = false;
 static bool g_txindex = false;
 
+static boost::thread_group threadGroup;
+
 /**
  * Private Structs
  * Used for async functions and necessary linked lists at points.
@@ -472,8 +474,8 @@ async_blocks_ready(uv_work_t *req) {
   }
 
   //If the wallet is enabled, then we should make sure we can load it
-#if ENABLE_WALLET
-  while(pwalletMain->LoadWallet(fFirstRun) != DB_LOAD_OK) {
+#ifdef ENABLE_WALLET
+  while(pwalletMain == NULL || RPCIsInWarmup(NULL)) {
     usleep(1E6);
   }
 #endif
@@ -674,18 +676,11 @@ start_node(void) {
   noui_connect();
 
   new boost::thread(boost::bind(&start_node_thread));
-
-  // Drop the bitcoind signal handlers: we want our own.
-  signal(SIGINT, SIG_DFL);
-  signal(SIGHUP, SIG_DFL);
-  signal(SIGQUIT, SIG_DFL);
-
   return 0;
 }
 
 static void
 start_node_thread(void) {
-  boost::thread_group threadGroup;
   CScheduler scheduler;
 
   // Workaround for AppInit2() arg parsing. Not ideal, but it works.
@@ -798,7 +793,6 @@ start_node_thread(void) {
  */
 
 NAN_METHOD(StopBitcoind) {
-  fprintf(stderr, "Stopping Bitcoind please wait!\n");
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
@@ -840,7 +834,9 @@ NAN_METHOD(StopBitcoind) {
 static void
 async_stop_node(uv_work_t *req) {
   async_node_data *data = static_cast<async_node_data*>(req->data);
+
   StartShutdown();
+
   while(!shutdown_complete) {
     usleep(1E6);
   }
@@ -883,30 +879,6 @@ async_stop_node_after(uv_work_t *req) {
 
   delete data;
   delete req;
-}
-
-/**
- * IsStopping()
- * bitcoind.stopping()
- * Check whether bitcoind is in the process of shutting down. This is polled
- * from javascript.
- */
-
-NAN_METHOD(IsStopping) {
-  NanScope();
-  NanReturnValue(NanNew<Boolean>(ShutdownRequested()));
-}
-
-/**
- * IsStopped()
- * bitcoind.stopped()
- * Check whether bitcoind has shutdown completely. This will be polled by
- * javascript to check whether the libuv event loop is safe to stop.
- */
-
-NAN_METHOD(IsStopped) {
-  NanScope();
-  NanReturnValue(NanNew<Boolean>(shutdown_complete));
 }
 
 /**
@@ -1573,7 +1545,10 @@ NAN_METHOD(GetMempoolOutputs) {
 
             Local<Object> output = NanNew<Object>();
 
-            output->Set(NanNew<String>("script"), NanNew<String>(script.ToString()));
+            output->Set(NanNew<String>("address"), NanNew<String>(psz));
+
+            std::string scriptHex = HexStr(script.begin(), script.end());
+            output->Set(NanNew<String>("script"), NanNew<String>(scriptHex));
 
             uint64_t satoshis = txout.nValue;
             output->Set(NanNew<String>("satoshis"), NanNew<Number>(satoshis)); // can't go above 2 ^ 53 -1
@@ -1647,8 +1622,6 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "onBlocksReady", OnBlocksReady);
   NODE_SET_METHOD(target, "onTipUpdate", OnTipUpdate);
   NODE_SET_METHOD(target, "stop", StopBitcoind);
-  NODE_SET_METHOD(target, "stopping", IsStopping);
-  NODE_SET_METHOD(target, "stopped", IsStopped);
   NODE_SET_METHOD(target, "getBlock", GetBlock);
   NODE_SET_METHOD(target, "getTransaction", GetTransaction);
   NODE_SET_METHOD(target, "getTransactionWithBlockInfo", GetTransactionWithBlockInfo);

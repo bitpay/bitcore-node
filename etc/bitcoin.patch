@@ -280,6 +280,32 @@ index cce687a..0f162ff 100644
      return (AppInit(argc, argv) ? 0 : 1);
  }
 +#endif
+diff --git a/src/init.cpp b/src/init.cpp
+index d127d55..fafd4fd 100644
+--- a/src/init.cpp
++++ b/src/init.cpp
+@@ -638,21 +638,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
+         umask(077);
+     }
+
+-    // Clean shutdown on SIGTERM
+-    struct sigaction sa;
+-    sa.sa_handler = HandleSIGTERM;
+-    sigemptyset(&sa.sa_mask);
+-    sa.sa_flags = 0;
+-    sigaction(SIGTERM, &sa, NULL);
+-    sigaction(SIGINT, &sa, NULL);
+-
+-    // Reopen debug.log on SIGHUP
+-    struct sigaction sa_hup;
+-    sa_hup.sa_handler = HandleSIGHUP;
+-    sigemptyset(&sa_hup.sa_mask);
+-    sa_hup.sa_flags = 0;
+-    sigaction(SIGHUP, &sa_hup, NULL);
+-
+ #if defined (__SVR4) && defined (__sun)
+     // ignore SIGPIPE on Solaris
+     signal(SIGPIPE, SIG_IGN);
 diff --git a/src/init.h b/src/init.h
 index dcb2b29..5ce68ba 100644
 --- a/src/init.h

@@ -13,12 +13,13 @@
 #include "core_io.h"
 #include "script/bitcoinconsensus.h"
 #include "consensus/validation.h"
+#ifdef ENABLE_WALLET
+#include "wallet/wallet.h"
+#endif
 
 NAN_METHOD(StartBitcoind);
 NAN_METHOD(OnBlocksReady);
 NAN_METHOD(OnTipUpdate);
-NAN_METHOD(IsStopping);
-NAN_METHOD(IsStopped);
 NAN_METHOD(StopBitcoind);
 NAN_METHOD(GetBlock);
 NAN_METHOD(GetTransaction);
