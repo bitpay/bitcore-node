@@ -66,21 +66,14 @@ describe('Daemon Binding Functionality', function() {
         network: 'regtest'
       });
 
-      bitcoind.start(function() {
-        log.info('Bitcoind started');
-      });
-
       bitcoind.on('error', function(err) {
         log.error('error="%s"', err.message);
       });
 
-      bitcoind.on('open', function(status) {
-        log.info('status="%s"', status);
-      });
-
       log.info('Waiting for Bitcoin Core to initialize...');
 
-      bitcoind.on('ready', function() {
+      bitcoind.start(function() {
+        log.info('Bitcoind started');
 
         client = new BitcoinRPC({
           protocol: 'http',
@@ -96,6 +89,7 @@ describe('Daemon Binding Functionality', function() {
         // can be spent.
 
         client.generate(150, function(err, response) {
+
           if (err) {
             throw err;
           }
@@ -139,7 +133,9 @@ describe('Daemon Binding Functionality', function() {
             });
           });
         });
+
       });
+
     });
   });
 
