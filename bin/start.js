@@ -172,5 +172,4 @@ function exitHandler(options, err) {
 
 process.on('uncaughtException', exitHandler.bind(null, {exit:true}));
 //catches ctrl+c event
-process.on('exit', exitHandler.bind(null, {exit: true}));
 process.on('SIGINT', exitHandler.bind(null, {sigint:true}));
