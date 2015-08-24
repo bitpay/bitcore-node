@@ -36,15 +36,11 @@ describe('Bitcoin DB', function() {
   });
 
   describe('#stop', function() {
-    it('should close the store', function(done) {
+    it('should immediately call the callback', function(done) {
       var db = new DB({store: memdown});
-      db.store = {
-        close: sinon.stub().callsArg(0)
-      };
 
       db.stop(function(err) {
         should.not.exist(err);
-        db.store.close.calledOnce.should.equal(true);
         done();
       });
     });
