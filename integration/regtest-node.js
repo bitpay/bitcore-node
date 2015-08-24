@@ -3,10 +3,12 @@
 // These tests require bitcoind.js Bitcoin Core bindings to be compiled with
 // the environment variable BITCOINDJS_ENV=test. This enables the use of regtest
 // functionality by including the wallet in the build.
-// To run the tests: $ mocha -R spec integration/regtest.js
+// To run the tests: $ mocha -R spec integration/regtest-node.js
 
 var chainlib = require('chainlib');
+var async = require('async');
 var log = chainlib.log;
+log.debug = function() {};
 
 if (process.env.BITCORENODE_ENV !== 'test') {
   log.info('Please set the environment variable BITCORENODE_ENV=test and make sure bindings are compiled for testing');
@@ -77,12 +79,14 @@ describe('Node Functionality', function() {
           pass: 'local321'
         });
 
-        node.on('synced', function() {
-          //todo: refactor to remove the event listener
+        var syncedHandler = function() {
           if (node.chain.tip.__height === 150) {
+            node.removeListener('synced', syncedHandler);
             done();
           }
-        });
+        };
+
+        node.on('synced', syncedHandler);
 
         client.generate(150, function(err, response) {
           if (err) {
@@ -102,41 +106,65 @@ describe('Node Functionality', function() {
     });
   });
 
-  describe('bitcoin core daemon reorgs', function() {
+  it('will handle a reorganization', function(done) {
 
-    before(function(done) {
-      client.getBlockCount(function(err, response) {
-        if (err) {
-          throw err;
-        }
-        var count = response.result;
+    var count;
+    var blockHash;
+
+    async.series([
+      function(next) {
+        client.getBlockCount(function(err, response) {
+          if (err) {
+            return next(err);
+          }
+          count = response.result;
+          next();
+        });
+      },
+      function(next) {
         client.getBlockHash(count, function(err, response) {
           if (err) {
-            throw err;
+            return next(err);
           }
-          var blockHash = response.result;
-          client.invalidateBlock(blockHash, function(err, response) {
-            if (err) {
-               throw err;
-            }
-            client.getBlockCount(function(err, response) {
-              if (err) {
-                throw err;
-              }
-              response.result.should.equal(count - 1);
-              done();
-            });
-          });
+          blockHash = response.result;
+          next();
         });
-      });
-    });
+      },
+      function(next) {
+        client.invalidateBlock(blockHash, next);
+      },
+      function(next) {
+        client.getBlockCount(function(err, response) {
+          if (err) {
+            return next(err);
+          }
+          response.result.should.equal(count - 1);
+          next();
+        });
+      }
+    ], function(err) {
+      if (err) {
+        throw err;
+      }
+      var blocksRemoved = 0;
+      var blocksAdded = 0;
 
-    it('will handle a reorganization', function(done) {
+      var removeBlock = function() {
+        blocksRemoved++;
+      };
 
-      node.db.bitcoind.on('tip', function(height) {
-        height.should.equal(151);
-        done();
-      });
+      node.chain.on('removeblock', removeBlock);
+
+      var addBlock = function() {
+        blocksAdded++;
+        if (blocksAdded === 2 && blocksRemoved === 1) {
+          node.chain.removeListener('addblock', addBlock);
+          node.chain.removeListener('removeblock', removeBlock);
+          done();
+        }
+      };
+
+      node.chain.on('addblock', addBlock);
 
       // We need to add a transaction to the mempool so that the next block will
       // have a different hash as the hash has been invalidated.
@@ -150,8 +178,7 @@ describe('Node Functionality', function() {
           }
         });
       });
-
     });
-  });
 
+  });
 });
