@@ -32,7 +32,7 @@ Ensure you've followed the instructions in the README.md for building the projec
 
 When publishing to npm, the .gitignore file is used to exclude files from the npm publishing process. Be sure that the bitcore-node directory has only the directories and files that you would like to publish to npm. You might need to run the commands below on each platform that you intend to publish (e.g. Mac and Linux).
 
-To make a release, bump the version of the package.json:
+To make a release, bump the `version` and `lastBuild` of the `package.json`:
 
 ```bash
 git checkout master
@@ -44,7 +44,7 @@ npm run upload
 npm publish
 ```
 
-And then update the version of the package.json for development (e.g. "0.3.2-dev"):
+And then update the `version` of the `package.json` for development (e.g. "0.3.2-dev"):
 
 ```bash
 git commit -a -m "Bump development version to <version>"

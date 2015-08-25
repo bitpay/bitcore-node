@@ -5,16 +5,31 @@ A Node.js module that adds a native interface to Bitcoin Core for querying infor
 
 ## Install
 
+Here is how you can you install and start your node:
+
 ```bash
-git clone https://github.com/bitpay/bitcore-node.git
-cd bitcore-node
-npm install
+npm install -g bitcore-node@0.2.0-beta.4
+bitcore-node start
 ```
-Note: For convenience, we distribute binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. This greatly speeds up the process of using this project. If you don't want to compile the project for yourself, then please skip down to "Example Usage" section for next steps. Please see detailed instructions below for complete build details and dependencies needed for installation if you choose to build the project from source.
+
+Note: For your convenience, we distribute binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. If you want to compile the project yourself, then please see the [Build & Install](#build--install) for full detailed instructions to build the project from source.
+
+## Configuration
+
+Bitcore Node includes a Command Line Interface (CLI) for managing, configuring and interfacing with your Bitcore Node. At the minimum, your node can function with all of the features from Bitcoin Core running as a full node. However you can enable additional features to make your node more useful such as exposing new APIs, adding new indexes for addresses, running a block explorer and custom modules.
+
+```bash
+bitcore-node create -d <bitcoin-data-dir> mynode "My Node"
+cd mynode
+bitcore-node add <module>
+bitcore-node add https://github.com/yourname/helloworld
+```
+
+This will create a directory with configuration files for your node and install the necessary dependencies. If you're interested in developing a module, please see the [Module Development Guide](#modules).
 
 ## Build & Install
 
-There are two main parts of the build, compiling Bitcoin Core as a static library and the Node.js bindings.
+This includes a detailed instructions for compiling. There are two main parts of the build, compiling Bitcoin Core as a static library and the Node.js bindings.
 
 ### Ubuntu 14.04 (Unix/Linux)
 

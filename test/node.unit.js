@@ -101,7 +101,7 @@ describe('Bitcoind Node', function() {
   describe('#_loadBitcoinConf', function() {
     it('will parse a bitcoin.conf file', function() {
       var node = new Node({});
-      node._loadBitcoinConf({datadir: '~/.bitcoin'});
+      node._loadBitcoinConf({datadir: process.env.HOME + '/.bitcoin'});
       should.exist(node.bitcoinConfiguration);
       node.bitcoinConfiguration.should.deep.equal({
         server: 1,
@@ -349,7 +349,7 @@ describe('Bitcoind Node', function() {
       };
       var config = {
         DB: DB,
-        datadir: '~/.bitcoin'
+        datadir: process.env.HOME + '/.bitcoin'
       };
 
       var node = new Node(config);
@@ -363,7 +363,7 @@ describe('Bitcoind Node', function() {
       };
       var config = {
         DB: DB,
-        datadir: '~/.bitcoin'
+        datadir: process.env.HOME + '/.bitcoin'
       };
 
       var node = new Node(config);
@@ -373,7 +373,7 @@ describe('Bitcoind Node', function() {
     });
     it('error with unknown network', function() {
       var config = {
-        datadir: '~/.bitcoin'
+        datadir: process.env.HOME + '/.bitcoin'
       };
 
       var node = new Node(config);
@@ -388,7 +388,7 @@ describe('Bitcoind Node', function() {
       };
       var config = {
         DB: DB,
-        datadir: '~/.bitcoin'
+        datadir: process.env.HOME + '/.bitcoin'
       };
 
       var node = new Node(config);

@@ -3,7 +3,9 @@
   "description": "Full node with extended capabilities using Bitcore and Bitcoin Core",
   "author": "BitPay <dev@bitpay.com>",
   "version": "0.2.0-dev",
+  "lastBuild": "0.2.0-beta.3",
   "main": "./index.js",
+  "bin": "./cli/bitcore-node.js",
   "repository": "git://github.com/bitpay/bitcore-node.git",
   "homepage": "https://github.com/bitpay/bitcore-node.js",
   "bugs": {
@@ -46,6 +48,7 @@
     "bindings": "^1.2.1",
     "bitcore": "^0.13.0",
     "chainlib": "^0.2.0",
+    "commander": "^2.8.1",
     "errno": "^0.1.2",
     "memdown": "^1.0.0",
     "mkdirp": "0.5.0",
