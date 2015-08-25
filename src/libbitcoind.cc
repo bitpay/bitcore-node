@@ -165,7 +165,7 @@ struct async_block_data {
 struct async_tx_data {
   std::string err_msg;
   std::string txid;
-  std::string blockhash;
+  std::string blockHash;
   uint32_t nTime;
   int64_t height;
   bool queryMempool;
@@ -1235,6 +1235,7 @@ async_get_tx_and_info(uv_work_t *req) {
       // Read header first to get block timestamp and hash
       file >> blockHeader;
       blockHash = blockHeader.GetHash();
+      data->blockHash = blockHash.GetHex();
       data->nTime = blockHeader.nTime;
       fseek(file.Get(), postx.nTxOffset, SEEK_CUR);
       file >> ctx;
@@ -1284,6 +1285,7 @@ async_get_tx_and_info_after(uv_work_t *req) {
     std::string stx = ssTx.str();
     Local<Value> rawNodeBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
 
+    obj->Set(NanNew<String>("blockHash"), NanNew<String>(data->blockHash));
     obj->Set(NanNew<String>("height"), NanNew<Number>(data->height));
     obj->Set(NanNew<String>("timestamp"), NanNew<Number>(data->nTime));
     obj->Set(NanNew<String>("buffer"), rawNodeBuffer);
