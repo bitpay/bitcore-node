@@ -27,19 +27,6 @@ bitcore-node add https://github.com/yourname/helloworld
 
 This will create a directory with configuration files for your node and install the necessary dependencies. Please see the [directory](doc/modules.md) for a partial list of modules for Bitcore Node. If you're interested in developing a module, please see the [Module Development Guide](doc/modules-development.md).
 
-## Using your Node
-
-Your node should be able to respond to commands via a command line utility. For example, with the address module added, you should be able to query for unspent outputs for any address:
-
-```bash
-bitcore-node call getunspentoutputs "1HTxCVrXuthad6YW5895K98XmVsdMvvBSw"
-bitcore-node call getbalance "1HTxCVrXuthad6YW5895K98XmVsdMvvBSw"
-bitcore-node call sendtransaction "<serialized_transaction>"
-bitcore-node call help
-```
-
-The above are a few common examples of commands that can be run, however there are many more. Every module that is added can extend the interface to include new commands. Running `bitcore-node call help` will list all of the available commands that can be run against your node.
-
 ## Build & Install
 
 This includes a detailed instructions for compiling. There are two main parts of the build, compiling Bitcoin Core as a static library and the Node.js bindings.
