@@ -98,8 +98,8 @@ if test -z "$1" -o x"$1" = x'patch_sha'; then
 fi
 
 if test -z "$1" -o x"$1" = x'load_archive'; then
-  if [ "${os}"  == "osx" ]; then
-    echo -n "-Wl,-all_load -Wl,--no-undefined"
+  if [[ "${host}" == *"darwin"* ]]; then
+    echo -n "-Wl,-all_load"
   else
     echo -n "-Wl,--whole-archive ${filesystem} ${thread} "${cache_dir}"/src/.libs/libbitcoind.a -Wl,--no-whole-archive"
   fi
