@@ -25,7 +25,7 @@ bitcore-node add <module>
 bitcore-node add https://github.com/yourname/helloworld
 ```
 
-This will create a directory with configuration files for your node and install the necessary dependencies. Please see the [directory](doc/modules.md) for a partial list of modules for Bitcore Node. If you're interested in developing a module, please see the [Module Development Guide](doc/modules-development.md).
+This will create a directory with configuration files for your node and install the necessary dependencies. If you're interested in developing a module, please see the [Module Development Guide](#modules).
 
 ## Build & Install
 
