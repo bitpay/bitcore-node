@@ -13,7 +13,7 @@ var create = proxyquire('../../lib/scaffold/create', {
         on: sinon.stub()
       },
       on: function(event, cb) {
-        cb();
+        cb(0);
       }
     })
   }
@@ -134,13 +134,39 @@ describe('#create', function() {
         throw err;
       }
 
-      if (err) {
-        throw err;
-      }
-
       var packagePath = testDir + '/mynode3/package.json';
       should.equal(fs.existsSync(packagePath), false);
 
+    });
+
+  });
+
+  it('will receieve an error from npm', function() {
+    var createtest = proxyquire('../../lib/scaffold/create', {
+      'child_process': {
+        spawn: sinon.stub().returns({
+          stdout: {
+            on: sinon.stub()
+          },
+          stderr: {
+            on: sinon.stub()
+          },
+          on: function(event, cb) {
+            cb(1);
+          }
+        })
+      }
+    });
+
+    createtest({
+      cwd: testDir,
+      dirname: 'mynode4',
+      name: 'My Node 4',
+      isGlobal: false,
+      datadir: '../.bitcoin'
+    }, function(err) {
+      should.exist(err);
+      err.message.should.equal('There was an error installing dependencies.');
     });
 
   });
