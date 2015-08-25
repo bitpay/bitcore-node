@@ -55,17 +55,21 @@ program
   });
 
 program
-  .command('add <module>')
+  .command('add <modules...>')
   .alias('install')
   .description('Install a module for the current node')
-  .action(function(module){
-    var config = findConfig();
-    if (!config) {
+  .action(function(modules){
+    var configInfo = findConfig(process.cwd());
+    if (!configInfo) {
       throw new Error('Could not find configuration, see `bitcore-node create --help`');
     }
-    add(config, module);
-    console.log('Successfully added module: ', module);
-    console.log(module);
+    var opts = {
+      path: configInfo.path,
+      modules: modules
+    };
+    add(opts, function() {
+      console.log('Successfully added modules: ', modules.join(', '));
+    });
   }).on('--help', function() {
     console.log('  Examples:');
     console.log();
