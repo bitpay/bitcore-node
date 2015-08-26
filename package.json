@@ -50,9 +50,11 @@
     "chainlib": "^0.2.0",
     "commander": "^2.8.1",
     "errno": "^0.1.2",
+    "liftoff": "^2.1.0",
     "memdown": "^1.0.0",
     "mkdirp": "0.5.0",
     "nan": "1.3.0",
+    "semver": "^5.0.1",
     "socket.io": "^1.3.6"
   },
   "devDependencies": {

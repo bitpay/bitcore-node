@@ -2,84 +2,43 @@
 
 'use strict';
 
-var program = require('commander');
-var version = require(__dirname + '/../package.json').version;
-var bitcore = require('bitcore');
-var $ = bitcore.util.preconditions;
-var path = require('path');
-var create = require('../lib/scaffold/create');
-var add = require('../lib/scaffold/add');
-var start = require('../lib/scaffold/start');
-var findConfig = require('../lib/scaffold/find-config');
-var defaultConfig = require('../lib/scaffold/default-config');
+var semver = require('semver');
+var Liftoff = require('liftoff');
+var cliPackage = require('../package.json');
 
-program
-  .version(version);
+var liftoff = new Liftoff({
+  name: 'bitcore-node',
+  moduleName: 'bitcore-node',
+  configName: 'bitcore-node',
+  processTitle: 'bitcore-node'
+}).on('require', function (name, module) {
+  console.log('Loading:', name);
+}).on('requireFail', function (name, err) {
+  console.log('Unable to load:', name, err);
+}).on('respawn', function (flags, child) {
+  console.log('Detected node flags:', flags);
+  console.log('Respawned to PID:', child.pid);
+});
 
-program
-  .command('create <directory> [name]')
-  .description('Create a new node')
-  .option('-d, --datadir <dir>', 'Specify the bitcoin database directory')
-  .action(function(dirname, name, cmd){
-    if (cmd.datadir) {
-      cmd.datadir = path.resolve(process.cwd(), cmd.datadir);
+liftoff.launch({
+  cwd: process.cwd()
+}, function(env){
+
+  var bitcorenode;
+  if (env.modulePackage && env.configPath) {
+    // use the local version
+    if (semver.gt(cliPackage.version, env.modulePackage.version)) {
+      throw new Error(
+        'Version mismatch, global bitcore-node is ' + cliPackage.version +
+          ' and local bitcore-node is ' + env.modulePackage.version
+      );
     }
-    var opts = {
-      cwd: process.cwd(),
-      dirname: dirname,
-      name: name,
-      datadir: cmd.datadir || './data',
-      isGlobal: false
-    };
-    create(opts, function(err) {
-      if (err) {
-        throw err;
-      }
-      console.log('Successfully created node in directory: ', dirname);
-    });
-  });
+    bitcorenode = require(env.modulePath);
+  } else {
+    // use the global version
+    bitcorenode = require('..');
+  }
 
-program
-  .command('start')
-  .description('Start the current node')
-  .option('-c, --config <dir>', 'Specify the directory with Bitcore Node configuration')
-  .action(function(cmd){
-    if (cmd.config) {
-      cmd.config = path.resolve(process.cwd(), cmd.config);
-    }
-    var configInfo = findConfig(cmd.config || process.cwd());
-    if (!configInfo) {
-      configInfo = defaultConfig();
-    }
-    start(configInfo);
-  });
+  bitcorenode.cli.main();
 
-program
-  .command('add <modules...>')
-  .alias('install')
-  .description('Install a module for the current node')
-  .action(function(modules){
-    var configInfo = findConfig(process.cwd());
-    if (!configInfo) {
-      throw new Error('Could not find configuration, see `bitcore-node create --help`');
-    }
-    var opts = {
-      path: configInfo.path,
-      modules: modules
-    };
-    add(opts, function() {
-      console.log('Successfully added modules: ', modules.join(', '));
-    });
-  }).on('--help', function() {
-    console.log('  Examples:');
-    console.log();
-    console.log('    $ bitcore-node add wallet-service');
-    console.log('    $ bitcore-node add insight-api');
-    console.log();
-  });
-
-program.parse(process.argv);
-
-if (process.argv.length === 2) {
-  program.help();
-}
+});
