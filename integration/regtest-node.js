@@ -5,9 +5,9 @@
 // functionality by including the wallet in the build.
 // To run the tests: $ mocha -R spec integration/regtest-node.js
 
-var chainlib = require('chainlib');
+var index = require('..');
 var async = require('async');
-var log = chainlib.log;
+var log = index.log;
 log.debug = function() {};
 
 if (process.env.BITCORENODE_ENV !== 'test') {

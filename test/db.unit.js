@@ -227,90 +227,6 @@ describe('Bitcoin DB', function() {
       });
     });
   });
-  describe('#buildGenesisData', function() {
-    it('build genisis data', function() {
-      var db = new DB({path: 'path', store: memdown});
-      db.buildCoinbaseTransaction = sinon.stub().returns({
-        toBuffer: sinon.stub().returns(new Buffer('abcdef', 'hex'))
-      });
-      db.getMerkleRoot = sinon.stub().returns('merkleRoot');
-      var data = db.buildGenesisData();
-      data.buffer.should.deep.equal(new Buffer('01abcdef', 'hex'));
-      data.merkleRoot.should.equal('merkleRoot');
-    });
-  });
-
-  describe('#buildCoinbaseTransaction', function() {
-    it('should correctly build a coinbase transaction with no fees', function() {
-      var db = new DB({path: 'path', store: memdown});
-      db.coinbaseAddress = 'mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L';
-      db.coinbaseAmount = coinbaseAmount;
-      var coinbaseTx = db.buildCoinbaseTransaction();
-      coinbaseTx.inputs.length.should.equal(1);
-      var input = coinbaseTx.inputs[0];
-      var expectedTxId = '0000000000000000000000000000000000000000000000000000000000000000';
-      input.prevTxId.toString('hex').should.equal(expectedTxId);
-      should.exist(input.outputIndex);
-      should.exist(input.sequenceNumber);
-      should.exist(input._script); // coinbase input script returns null
-      coinbaseTx.outputs.length.should.equal(1);
-      var output = coinbaseTx.outputs[0];
-      output.satoshis.should.equal(coinbaseAmount);
-    });
-
-    it('should correctly build a coinbase transaction with fees', function() {
-      var db = new DB({path: 'path', store: memdown});
-      db.coinbaseAddress = 'mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L';
-      db.coinbaseAmount = coinbaseAmount;
-      var transactions = [
-        {
-          _getInputAmount: sinon.stub().returns(5000),
-          _getOutputAmount: sinon.stub().returns(4000),
-          isCoinbase: sinon.stub().returns(false)
-        },
-        {
-          _getInputAmount: sinon.stub().returns(8000),
-          _getOutputAmount: sinon.stub().returns(7000),
-          isCoinbase: sinon.stub().returns(false)
-        }
-      ];
-      var coinbaseTx = db.buildCoinbaseTransaction(transactions);
-      coinbaseTx.inputs.length.should.equal(1);
-      var input = coinbaseTx.inputs[0];
-      var expectedTxId = '0000000000000000000000000000000000000000000000000000000000000000';
-      input.prevTxId.toString('hex').should.equal(expectedTxId);
-      should.exist(input.outputIndex);
-      should.exist(input.sequenceNumber);
-      should.exist(input._script); // coinbase input returns null
-      coinbaseTx.outputs.length.should.equal(1);
-      var output = coinbaseTx.outputs[0];
-      output.satoshis.should.equal(coinbaseAmount + 2000);
-    });
-
-    it('should throw an error if coinbaseAddress not included', function() {
-      var db = new DB({path: 'path', store: memdown});
-      (function() {
-        db.buildCoinbaseTransaction();
-      }).should.throw('coinbaseAddress required to build coinbase');
-    });
-
-    it('will build a coinbase database with different data', function() {
-      var db = new DB({path: 'path', store: memdown});
-      db.coinbaseAddress = 'mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L';
-      var tx1 = db.buildCoinbaseTransaction().uncheckedSerialize();
-      var tx2 = db.buildCoinbaseTransaction().uncheckedSerialize();
-      tx1.should.not.equal(tx2);
-    });
-
-    it('can pass in custom data', function() {
-      var db = new DB({path: 'path', store: memdown});
-      db.coinbaseAddress = 'mzso6uXxfDCq4L6xAffUD9BPWo6bdFBZ2L';
-      var tx1 = db.buildCoinbaseTransaction(null, new Buffer('abcdef', 'hex'));
-      var data = tx1.inputs[0]._script.getData();
-      data.should.deep.equal(new Buffer('abcdef', 'hex'));
-    });
-
-  });
 
   describe('#getOutputTotal', function() {
     it('should return the correct value including the coinbase', function() {
@@ -343,7 +259,7 @@ describe('Bitcoin DB', function() {
         };
       });
       var grandTotal = db.getOutputTotal(transactions, true);
-      grandTotal.should.equal(50)
+      grandTotal.should.equal(50);
     });
   });
 
@@ -381,7 +297,6 @@ describe('Bitcoin DB', function() {
       db.blockHandler = sinon.stub().callsArg(2);
       db._onChainAddBlock({hash: 'hash'}, function(err) {
         should.not.exist(err);
-        db.mempool.removeBlock.args[0][0].should.equal('hash');
         db.blockHandler.args[0][1].should.equal(true);
         done();
       });

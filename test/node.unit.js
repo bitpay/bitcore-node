@@ -2,42 +2,42 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
-var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var bitcore = require('bitcore');
 var Networks = bitcore.Networks;
 var blockData = require('./data/livenet-345003.json');
 var Block = require('../lib/block');
 var proxyquire = require('proxyquire');
-var chainlib = require('chainlib');
-var OriginalNode = chainlib.Node;
+var index = require('..');
 var fs = require('fs');
 var bitcoinConfBuffer = fs.readFileSync(__dirname + '/data/bitcoin.conf');
 var chainHashes = require('./data/hashes.json');
 
-var BaseNode = function() {};
-util.inherits(BaseNode, EventEmitter);
-BaseNode.log = chainlib.log;
-BaseNode.prototype._loadConfiguration = sinon.spy();
-BaseNode.prototype._initialize = sinon.spy();
-chainlib.Node = BaseNode;
-
-var BadNode = proxyquire('../lib/node', {
-  chainlib: chainlib,
-  fs: {
-    readFileSync: sinon.stub().returns(fs.readFileSync(__dirname + '/data/badbitcoin.conf'))
-  }
-});
-
-var Node = proxyquire('../lib/node', {
-  chainlib: chainlib,
-  fs: {
-    readFileSync: sinon.stub().returns(bitcoinConfBuffer)
-  }
-});
-chainlib.Node = OriginalNode;
-
 describe('Bitcoind Node', function() {
+
+  var Node;
+  var BadNode;
+
+  before(function() {
+
+    BadNode = proxyquire('../lib/node', {
+      fs: {
+        readFileSync: sinon.stub().returns(fs.readFileSync(__dirname + '/data/badbitcoin.conf'))
+      }
+    });
+    BadNode.prototype._loadConfiguration = sinon.spy();
+    BadNode.prototype._initialize = sinon.spy();
+
+    Node = proxyquire('../lib/node', {
+      fs: {
+        readFileSync: sinon.stub().returns(bitcoinConfBuffer)
+      }
+    });
+    Node.prototype._loadConfiguration = sinon.spy();
+    Node.prototype._initialize = sinon.spy();
+
+  });
+
   describe('#openBus', function() {
     it('will create a new bus', function() {
       var node = new Node({});
@@ -89,13 +89,23 @@ describe('Bitcoind Node', function() {
   });
   describe('#_loadConfiguration', function() {
     it('should call the necessary methods', function() {
-      var node = new Node({});
-      node._loadBitcoinConf = sinon.spy();
-      node._loadBitcoind = sinon.spy();
-      node._loadConfiguration({});
-      node._loadBitcoind.called.should.equal(true);
-      node._loadBitcoinConf.called.should.equal(true);
-      BaseNode.prototype._loadConfiguration.called.should.equal(true);
+      var TestNode = proxyquire('../lib/node', {
+        fs: {
+          readFileSync: sinon.stub().returns(bitcoinConfBuffer)
+        }
+      });
+      TestNode.prototype._initialize = sinon.spy();
+      TestNode.prototype._loadBitcoinConf = sinon.spy();
+      TestNode.prototype._loadBitcoind = sinon.spy();
+      TestNode.prototype._loadDB = sinon.spy();
+      TestNode.prototype._loadAPI = sinon.spy();
+      TestNode.prototype._loadConsensus = sinon.spy();
+      var node = new TestNode({});
+      node._loadBitcoind.callCount.should.equal(1);
+      node._loadBitcoinConf.callCount.should.equal(1);
+      node._loadDB.callCount.should.equal(1);
+      node._loadAPI.callCount.should.equal(1);
+      node._loadConsensus.callCount.should.equal(1);
     });
   });
   describe('#_loadBitcoinConf', function() {
@@ -432,7 +442,12 @@ describe('Bitcoind Node', function() {
     });
   });
   describe('#_loadConsensus', function() {
-    var node = new Node({});
+
+    var node;
+
+    before(function() {
+      node = new Node({});
+    });
 
     it('will set properties', function() {
       node._loadConsensus();
@@ -447,7 +462,21 @@ describe('Bitcoind Node', function() {
     var node;
 
     before(function() {
-      node = new Node({});
+      var TestNode = proxyquire('../lib/node', {
+        fs: {
+          readFileSync: sinon.stub().returns(bitcoinConfBuffer)
+        }
+      });
+      TestNode.prototype._loadConfiguration = sinon.spy();
+      TestNode.prototype._initializeBitcoind = sinon.spy();
+      TestNode.prototype._initializeDatabase = sinon.spy();
+      TestNode.prototype._initializeChain = sinon.spy();
+
+      // mock the _initialize during construction
+      var _initialize = TestNode.prototype._initialize;
+      TestNode.prototype._initialize = sinon.spy();
+
+      node = new TestNode({});
       node.chain = {
         on: sinon.spy()
       };
@@ -455,12 +484,12 @@ describe('Bitcoind Node', function() {
       node.bitcoind = {
         on: sinon.spy()
       };
-      node._initializeBitcoind = sinon.spy();
-      node._initializeDatabase = sinon.spy();
-      node._initializeChain = sinon.spy();
       node.db = {
         on: sinon.spy()
       };
+
+      // restore the original method
+      node._initialize = _initialize;
     });
 
     it('should initialize', function(done) {
@@ -544,11 +573,11 @@ describe('Bitcoind Node', function() {
     it('will log on ready event', function(done) {
       var node = new Node({});
       node.db = new EventEmitter();
-      sinon.stub(chainlib.log, 'info');
+      sinon.stub(index.log, 'info');
       node.db.on('ready', function() {
         setImmediate(function() {
-          chainlib.log.info.callCount.should.equal(1);
-          chainlib.log.info.restore();
+          index.log.info.callCount.should.equal(1);
+          index.log.info.restore();
           done();
         });
       });
