@@ -48,6 +48,7 @@
     "bindings": "^1.2.1",
     "bitcore": "^0.13.0",
     "colors": "^1.1.2",
+    "body-parser": "^1.13.3",
     "commander": "^2.8.1",
     "errno": "^0.1.4",
     "leveldown": "^1.4.1",
