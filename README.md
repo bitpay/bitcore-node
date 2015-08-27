@@ -353,7 +353,7 @@ MyModule.prototype.subscribeCustom = function(emitter, param) {
 
 MyModule.prototype.getData = function(arg1, callback) {
   // You can query the data by reading from the leveldb store on db
-  this.db.store.get(arg1, callback);
+  this.node.db.store.get(arg1, callback);
 };
 
 module.exports = MyModule;

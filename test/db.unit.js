@@ -22,7 +22,8 @@ describe('Bitcoin DB', function() {
     it('should emit ready', function(done) {
       var db = new DB({store: memdown});
       db._modules = ['mod1', 'mod2'];
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         on: sinon.spy()
       };
       db.addModule = sinon.spy();
@@ -51,7 +52,8 @@ describe('Bitcoin DB', function() {
   describe('#getTransaction', function() {
     it('will return a NotFound error', function(done) {
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         getTransaction: sinon.stub().callsArgWith(2, null, null)
       };
       var txid = '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623';
@@ -62,7 +64,8 @@ describe('Bitcoin DB', function() {
     });
     it('will return an error from bitcoind', function(done) {
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         getTransaction: sinon.stub().callsArgWith(2, new Error('test error'))
       };
       var txid = '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623';
@@ -73,7 +76,8 @@ describe('Bitcoin DB', function() {
     });
     it('will return an error from bitcoind', function(done) {
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         getTransaction: sinon.stub().callsArgWith(2, null, new Buffer(transactionData[0].hex, 'hex'))
       };
       var txid = '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623';
@@ -91,7 +95,8 @@ describe('Bitcoin DB', function() {
     var db = new DB({store: memdown});
     var blockBuffer = new Buffer(blockData, 'hex');
     var expectedBlock = Block.fromBuffer(blockBuffer);
-    db.bitcoind = {
+    db.node = {};
+    db.node.bitcoind = {
       getBlock: sinon.stub().callsArgWith(1, null, blockBuffer)
     };
 
@@ -103,7 +108,9 @@ describe('Bitcoin DB', function() {
       });
     });
     it('should give an error when bitcoind.js gives an error', function(done) {
-      db.bitcoind.getBlock = sinon.stub().callsArgWith(1, new Error('error'));
+      db.node = {};
+      db.node.bitcoind = {};
+      db.node.bitcoind.getBlock = sinon.stub().callsArgWith(1, new Error('error'));
       db.getBlock('00000000000000000593b60d8b4f40fd1ec080bdb0817d475dae47b5f5b1f735', function(err, block) {
         should.exist(err);
         err.message.should.equal('error');
@@ -125,7 +132,8 @@ describe('Bitcoin DB', function() {
   describe('#getPrevHash', function() {
     it('should return prevHash from bitcoind', function(done) {
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         getBlockIndex: sinon.stub().returns({
           prevHash: 'prevhash'
         })
@@ -140,7 +148,8 @@ describe('Bitcoin DB', function() {
 
     it('should give an error if bitcoind could not find it', function(done) {
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         getBlockIndex: sinon.stub().returns(null)
       };
 
@@ -161,7 +170,8 @@ describe('Bitcoin DB', function() {
       };
 
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         getTransactionWithBlockInfo: sinon.stub().callsArgWith(2, null, info)
       };
 
@@ -174,7 +184,8 @@ describe('Bitcoin DB', function() {
     });
     it('should give an error if one occurred', function(done) {
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         getTransactionWithBlockInfo: sinon.stub().callsArgWith(2, new Error('error'))
       };
 
@@ -188,7 +199,8 @@ describe('Bitcoin DB', function() {
   describe('#sendTransaction', function() {
     it('should give the txid on success', function(done) {
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         sendTransaction: sinon.stub().returns('txid')
       };
 
@@ -201,7 +213,8 @@ describe('Bitcoin DB', function() {
     });
     it('should give an error if bitcoind threw an error', function(done) {
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         sendTransaction: sinon.stub().throws(new Error('error'))
       };
 
@@ -216,14 +229,15 @@ describe('Bitcoin DB', function() {
   describe("#estimateFee", function() {
     it('should pass along the fee from bitcoind', function(done) {
       var db = new DB({store: memdown});
-      db.bitcoind = {
+      db.node = {};
+      db.node.bitcoind = {
         estimateFee: sinon.stub().returns(1000)
       };
 
       db.estimateFee(5, function(err, fee) {
         should.not.exist(err);
         fee.should.equal(1000);
-        db.bitcoind.estimateFee.args[0][0].should.equal(5);
+        db.node.bitcoind.estimateFee.args[0][0].should.equal(5);
         done();
       });
     });
@@ -391,11 +405,14 @@ describe('Bitcoin DB', function() {
       inherits(Module1, BaseModule);
 
       var db = new DB({store: memdown});
+      var node = {};
+      db.node = node;
       db.modules = [];
       db.addModule(Module1);
 
       db.modules.length.should.equal(1);
-      should.exist(db.modules[0].db);
+      should.exist(db.modules[0].node);
+      db.modules[0].node.should.equal(node);
     });
 
     it('should throw an error if module is not an instance of BaseModule', function() {

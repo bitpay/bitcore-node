@@ -528,12 +528,6 @@ describe('Bitcoind Node', function() {
 
       node._initialize();
 
-      // references
-      node.db.chain.should.equal(node.chain);
-      node.db.bitcoind.should.equal(node.bitcoind);
-      node.chain.db.should.equal(node.db);
-      node.chain.db.should.equal(node.db);
-
       // event handlers
       node._initializeBitcoind.callCount.should.equal(1);
       node._initializeDatabase.callCount.should.equal(1);
