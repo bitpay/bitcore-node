@@ -3,21 +3,21 @@
 var chai = require('chai');
 var should = chai.should();
 var sinon = require('sinon');
-var async = require('async');
-var proxyquire = require('proxyquire');
 var memdown = require('memdown');
 
-var bitcoindjs = require('../');
-var DB = bitcoindjs.DB;
-var Chain = bitcoindjs.Chain;
-var Block = bitcoindjs.Block;
+var index = require('../');
+var DB = index.DB;
+var Chain = index.Chain;
+var Block = index.Block;
+var bitcore = require('bitcore');
+var BN = bitcore.crypto.BN;
 
 var chainData = require('./data/testnet-blocks.json');
 
 describe('Bitcoin Chain', function() {
 
   describe('@constructor', function() {
-    
+
     it('can create a new instance with and without `new`', function() {
       var chain = new Chain();
       chain = Chain();
@@ -36,6 +36,125 @@ describe('Bitcoin Chain', function() {
       };
 
       chain.start(done);
+    });
+  });
+
+  describe('#initialize', function() {
+
+    it('should initialize the chain with the genesis block if no metadata is found in the db', function(done) {
+      var db = {};
+      db.getMetadata = sinon.stub().callsArgWith(0, null, {});
+      db.putBlock = sinon.stub().callsArg(1);
+      db.putMetadata = sinon.stub().callsArg(1);
+      db.getTransactionsFromBlock = sinon.stub();
+      db._onChainAddBlock = sinon.stub().callsArg(1);
+      db.mempool = {
+        on: sinon.spy()
+      };
+      var chain = new Chain({db: db, genesis: {hash: 'genesis'}});
+
+      chain.on('ready', function() {
+        should.exist(chain.tip);
+        db.putBlock.callCount.should.equal(1);
+        chain.tip.hash.should.equal('genesis');
+        Number(chain.tip.__weight.toString(10)).should.equal(0);
+        done();
+      });
+      chain.on('error', function(err) {
+        should.not.exist(err);
+        done();
+      });
+
+      chain.initialize();
+    });
+
+    it('should initialize the chain with the metadata from the database if it exists', function(done) {
+      var db = {};
+      db.getMetadata = sinon.stub().callsArgWith(0, null, {tip: 'block2', tipWeight: 2});
+      db.putBlock = sinon.stub().callsArg(1);
+      db.putMetadata = sinon.stub().callsArg(1);
+      db.getBlock = sinon.stub().callsArgWith(1, null, {hash: 'block2', prevHash: 'block1'});
+      db.getTransactionsFromBlock = sinon.stub();
+      db.mempool = {
+        on: sinon.spy()
+      };
+      var chain = new Chain({db: db, genesis: {hash: 'genesis'}});
+      chain.getHeightForBlock = sinon.stub().callsArgWith(1, null, 10);
+      chain.getWeight = sinon.stub().callsArgWith(1, null, new BN(50));
+      chain.on('ready', function() {
+        should.exist(chain.tip);
+        db.putBlock.callCount.should.equal(0);
+        chain.tip.hash.should.equal('block2');
+        done();
+      });
+      chain.on('error', function(err) {
+        should.not.exist(err);
+        done();
+      });
+      chain.initialize();
+    });
+
+    it('emit error from getMetadata', function(done) {
+      var db = {
+        getMetadata: function(cb) {
+          cb(new Error('getMetadataError'));
+        }
+      };
+      db.getTransactionsFromBlock = sinon.stub();
+      db.mempool = {
+        on: sinon.spy()
+      };
+      var chain = new Chain({db: db, genesis: {hash: 'genesis'}});
+      chain.on('error', function(error) {
+        should.exist(error);
+        error.message.should.equal('getMetadataError');
+        done();
+      });
+      chain.initialize();
+    });
+
+    it('emit error from putBlock', function(done) {
+      var db = {
+        getMetadata: function(cb) {
+          cb(null, null);
+        },
+        putBlock: function(block, cb) {
+          cb(new Error('putBlockError'));
+        }
+      };
+      db.getTransactionsFromBlock = sinon.stub();
+      db.mempool = {
+        on: sinon.spy()
+      };
+      var chain = new Chain({db: db, genesis: {hash: 'genesis'}});
+      chain.on('error', function(error) {
+        should.exist(error);
+        error.message.should.equal('putBlockError');
+        done();
+      });
+      chain.initialize();
+    });
+
+    it('emit error from getBlock', function(done) {
+      var db = {
+        getMetadata: function(cb) {
+          cb(null, {tip: 'tip'});
+        },
+        getBlock: function(tip, cb) {
+          cb(new Error('getBlockError'));
+        }
+      };
+      db.getTransactionsFromBlock = sinon.stub();
+      db.mempool = {
+        on: sinon.spy()
+      };
+      var chain = new Chain({db: db, genesis: {hash: 'genesis'}});
+      chain.on('error', function(error) {
+        should.exist(error);
+        error.message.should.equal('getBlockError');
+        done();
+      });
+      chain.initialize();
     });
   });
 
@@ -71,44 +190,6 @@ describe('Bitcoin Chain', function() {
     });
   });
 
-  describe('#buildGenesisBlock', function() {
-    it('can handle no options', function() {
-      var db = {
-        buildGenesisData: sinon.stub().returns({})
-      };
-      var chain = new Chain({db: db});
-      var block = chain.buildGenesisBlock();
-      should.exist(block);
-      block.should.be.instanceof(Block);
-      db.buildGenesisData.calledOnce.should.equal(true);
-    });
-
-    it('set timestamp, nonce, bits, merkleRoot and data of the genesis', function() {
-      var db = {
-        buildGenesisData: sinon.stub().returns({
-          merkleRoot: 'merkleRoot',
-          buffer: new Buffer('abcdef', 'hex')
-        })
-      };
-      var chain = new Chain({db: db});
-      var timestamp = '2015-03-20T14:46:01.118Z';
-      var block = chain.buildGenesisBlock({
-        timestamp: timestamp,
-        nonce: 1,
-        bits: 520617984
-      });
-      should.exist(block);
-      block.should.be.instanceof(Block);
-      block.timestamp.toISOString().should.equal(timestamp);
-      block.nonce.should.equal(1);
-      block.bits.should.equal(520617984);
-      block.merkleRoot.should.equal('merkleRoot');
-      block.data.should.deep.equal(new Buffer('abcdef', 'hex'));
-      db.buildGenesisData.calledOnce.should.equal(true);
-    });
-
-  });
-
   describe('#getWeight', function() {
     var work = '000000000000000000000000000000000000000000005a7b3c42ea8b844374e9';
     var chain = new Chain();
@@ -136,4 +217,53 @@ describe('Bitcoin Chain', function() {
       });
     });
   });
+
+  describe('#getHashes', function() {
+
+    it('should get an array of chain hashes', function(done) {
+
+      var blocks = {};
+      var genesisBlock = Block.fromBuffer(new Buffer(chainData[0], 'hex'));
+      var block1 = Block.fromBuffer(new Buffer(chainData[1], 'hex'));
+      var block2 = Block.fromBuffer(new Buffer(chainData[2], 'hex'));
+      blocks[genesisBlock.hash] = genesisBlock;
+      blocks[block1.hash] = block1;
+      blocks[block2.hash] = block2;
+
+      var db = new DB({store: memdown});
+      db.getPrevHash = function(blockHash, cb) {
+        cb(null, blocks[blockHash].prevHash);
+      };
+
+      var chain = new Chain({
+        db: db,
+        genesis: genesisBlock
+      });
+
+      chain.tip = block2;
+
+      chain.on('ready', function() {
+
+        // remove one of the cached hashes to force db call
+        delete chain.cache.hashes[block1.hash];
+
+        // the test
+        chain.getHashes(block2.hash, function(err, hashes) {
+          should.not.exist(err);
+          should.exist(hashes);
+          hashes.length.should.equal(3);
+          done();
+        });
+      });
+
+      chain.on('error', function(err) {
+        should.not.exist(err);
+        done();
+      });
+
+      chain.initialize();
+    });
+  });
+
+
 });

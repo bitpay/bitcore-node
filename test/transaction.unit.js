@@ -8,8 +8,7 @@ var transactionData = require('./data/bitcoin-transactions.json');
 var memdown = require('memdown');
 var DB = bitcoinlib.DB;
 var db = new DB({store: memdown});
-var chainlib = require('chainlib');
-var levelup = chainlib.deps.levelup;
+var levelup = require('levelup');
 
 describe('Bitcoin Transaction', function() {
   describe('#populateInputs', function() {

@@ -8,8 +8,7 @@ var blockData = require('../data/livenet-345003.json');
 var bitcore = require('bitcore');
 var EventEmitter = require('events').EventEmitter;
 var errors = bitcorenode.errors;
-var chainlib = require('chainlib');
-var levelup = chainlib.deps.levelup;
+var levelup = require('levelup');
 
 var mockdb = {
   bitcoind: {

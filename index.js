@@ -1,6 +1,6 @@
 'use strict';
 
-module.exports = require('./lib/node');
+module.exports = require('./lib');
 module.exports.daemon = require('./lib/daemon');
 module.exports.Node = require('./lib/node');
 module.exports.Block = require('./lib/block');
@@ -22,6 +22,3 @@ module.exports.scaffold.defaultConfig = require('./lib/scaffold/default-config')
 
 module.exports.cli = {};
 module.exports.cli.main = require('./cli/main');
-
-module.exports.deps = {};
-module.exports.deps.chainlib = require('chainlib');
