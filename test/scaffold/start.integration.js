@@ -12,7 +12,11 @@ describe('#start', function() {
     it('require each bitcore-node module', function(done) {
       var node;
       var TestNode = function(options) {
-        options.db.modules.should.deep.equal([AddressModule]);
+        options.modules[0].should.deep.equal({
+          name: 'address',
+          module: AddressModule,
+          dependencies: ['bitcoind', 'db']
+        });
       };
       TestNode.prototype.on = sinon.stub();
       TestNode.prototype.chain = {

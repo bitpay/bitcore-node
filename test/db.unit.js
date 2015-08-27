@@ -16,7 +16,6 @@ var bitcore = require('bitcore');
 var Transaction = bitcore.Transaction;
 
 describe('Bitcoin DB', function() {
-  var coinbaseAmount = 50 * 1e8;
 
   describe('#start', function() {
     it('should emit ready', function(done) {
@@ -336,7 +335,8 @@ describe('Bitcoin DB', function() {
     Module1.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op1', 'op2', 'op3']);
     var Module2 = function() {};
     Module2.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op4', 'op5']);
-    db.modules = [
+    db.node = {};
+    db.node.modules = [
       new Module1(),
       new Module2()
     ];
@@ -355,7 +355,7 @@ describe('Bitcoin DB', function() {
     it('should give an error if one of the modules gives an error', function(done) {
       var Module3 = function() {};
       Module3.prototype.blockHandler = sinon.stub().callsArgWith(2, new Error('error'));
-      db.modules.push(new Module3());
+      db.node.modules.push(new Module3());
 
       db.blockHandler('block', true, function(err) {
         should.exist(err);
@@ -367,62 +367,11 @@ describe('Bitcoin DB', function() {
   describe('#getAPIMethods', function() {
     it('should return the correct db methods', function() {
       var db = new DB({store: memdown});
-      db.modules = [];
+      db.node = {};
+      db.node.modules = [];
       var methods = db.getAPIMethods();
       methods.length.should.equal(4);
     });
-
-    it('should also return modules API methods', function() {
-      var module1 = {
-        getAPIMethods: function() {
-          return [
-            ['module1-one', module1, module1, 2],
-            ['module1-two', module1, module1, 2]
-          ];
-        }
-      };
-      var module2 = {
-        getAPIMethods: function() {
-          return [
-            ['moudle2-one', module2, module2, 1]
-          ];
-        }
-      };
-
-      var db = new DB({store: memdown});
-      db.modules = [module1, module2];
-
-      var methods = db.getAPIMethods();
-      methods.length.should.equal(7);
-    });
   });
 
-  describe('#addModule', function() {
-    it('instantiate module and add to db.modules', function() {
-      var Module1 = function(options) {
-        BaseModule.call(this, options);
-      };
-      inherits(Module1, BaseModule);
-
-      var db = new DB({store: memdown});
-      var node = {};
-      db.node = node;
-      db.modules = [];
-      db.addModule(Module1);
-
-      db.modules.length.should.equal(1);
-      should.exist(db.modules[0].node);
-      db.modules[0].node.should.equal(node);
-    });
-
-    it('should throw an error if module is not an instance of BaseModule', function() {
-      var Module2 = function(options) {};
-      var db = new DB({store: memdown});
-      db.modules = [];
-
-      (function() {
-        db.addModule(Module2);
-      }).should.throw('bitcore.ErrorInvalidArgumentType');
-    });
-  });
 });
