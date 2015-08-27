@@ -97,21 +97,18 @@ describe('AddressModule', function() {
   describe('#blockHandler', function() {
     var am;
     var db = {
-      getTransactionsFromBlock: function() {
-        return block.transactions.slice(0, 8);
-      },
       bitcoind: {
         on: sinon.stub()
       }
     };
 
-    var block = bitcore.Block.fromString(blockData);
+    var testBlock = bitcore.Block.fromString(blockData);
 
     var data = [
       {
         key: {
           address: '1F1MAvhTKg2VG29w8cXsiSN2PJ8gSsrJw',
-          timestamp: 1424836934000,
+          timestamp: 1424836934,
           txid: 'fdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e16923',
           outputIndex: 0
         },
@@ -129,13 +126,13 @@ describe('AddressModule', function() {
         value: {
           txid: '5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca',
           inputIndex: 0,
-          timestamp: 1424836934000
+          timestamp: 1424836934
         }
       },
       {
         key: {
           address: '1Ep5LA4T6Y7zaBPiwruUJurjGFvCJHzJhm',
-          timestamp: 1424836934000,
+          timestamp: 1424836934,
           txid: 'e66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d',
           outputIndex: 1
         },
@@ -158,7 +155,15 @@ describe('AddressModule', function() {
     });
 
     it('should create the correct operations when updating/adding outputs', function(done) {
-      am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, true, function(err, operations) {
+      var block = {
+        __height: 345003,
+        header: {
+          timestamp: 1424836934
+        },
+        transactions: testBlock.transactions.slice(0, 8)
+      };
+
+      am.blockHandler(block, true, function(err, operations) {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('put');
@@ -177,7 +182,14 @@ describe('AddressModule', function() {
       });
     });
     it('should create the correct operations when removing outputs', function(done) {
-      am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
+      var block = {
+        __height: 345003,
+        header: {
+          timestamp: 1424836934
+        },
+        transactions: testBlock.transactions.slice(0, 8)
+      };
+      am.blockHandler(block, false, function(err, operations) {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('del');
@@ -193,22 +205,7 @@ describe('AddressModule', function() {
       });
     });
     it('should continue if output script is null', function(done) {
-      var transactions = [
-        {
-          inputs: [],
-          outputs: [
-            {
-              script: null,
-              satoshis: 1000,
-            }
-          ],
-          isCoinbase: sinon.stub().returns(false)
-        }
-      ];
       var db = {
-        getTransactionsFromBlock: function() {
-          return transactions;
-        },
         bitcoind: {
           on: sinon.stub()
         }
@@ -216,30 +213,52 @@ describe('AddressModule', function() {
 
       var am = new AddressModule({db: db, network: 'livenet'});
 
-      am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
+      var block = {
+        __height: 345003,
+        header: {
+          timestamp: 1424836934
+        },
+        transactions: [
+          {
+            inputs: [],
+            outputs: [
+              {
+                script: null,
+                satoshis: 1000,
+              }
+            ],
+            isCoinbase: sinon.stub().returns(false)
+          }
+        ]
+      };
+
+      am.blockHandler(block, false, function(err, operations) {
         should.not.exist(err);
         operations.length.should.equal(0);
         done();
       });
     });
     it('will call event handlers', function() {
-      var block = bitcore.Block.fromString(blockData);
+      var testBlock = bitcore.Block.fromString(blockData);
       var db = {
-        getTransactionsFromBlock: function() {
-          return block.transactions.slice(0, 8);
-        },
-        bitcoind: {
+         bitcoind: {
           on: sinon.stub()
         }
       };
       var am = new AddressModule({db: db, network: 'livenet'});
       am.transactionEventHandler = sinon.spy();
       am.balanceEventHandler = sinon.spy();
-      am.blockHandler(
-        {
-          __height: 345003,
-          timestamp: new Date(1424836934000)
+
+      var block = {
+        __height: 345003,
+        header: {
+          timestamp: 1424836934
         },
+        transactions: testBlock.transactions.slice(0, 8)
+      };
+
+      am.blockHandler(
+        block,
         true,
         function(err) {
           if (err) {

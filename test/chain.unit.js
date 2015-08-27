@@ -8,8 +8,9 @@ var memdown = require('memdown');
 var index = require('../');
 var DB = index.DB;
 var Chain = index.Chain;
-var Block = index.Block;
 var bitcore = require('bitcore');
+var BufferUtil = bitcore.util.buffer;
+var Block = bitcore.Block;
 var BN = bitcore.crypto.BN;
 
 var chainData = require('./data/testnet-blocks.json');
@@ -165,21 +166,6 @@ describe('Bitcoin Chain', function() {
     });
   });
 
-  describe('#_writeBlock', function() {
-    it('should update hashes and call putBlock', function(done) {
-      var chain = new Chain();
-      chain.db = {
-        putBlock: sinon.stub().callsArg(1)
-      };
-      chain._writeBlock({hash: 'hash', prevHash: 'prevhash'}, function(err) {
-        should.not.exist(err);
-        chain.db.putBlock.callCount.should.equal(1);
-        chain.cache.hashes.hash.should.equal('prevhash');
-        done();
-      });
-    });
-  });
-
   describe('#_validateBlock', function() {
     it('should call the callback', function(done) {
       var chain = new Chain();
@@ -232,7 +218,9 @@ describe('Bitcoin Chain', function() {
 
       var db = new DB({store: memdown});
       db.getPrevHash = function(blockHash, cb) {
-        cb(null, blocks[blockHash].prevHash);
+        // TODO: expose prevHash as a string from bitcore
+        var prevHash = BufferUtil.reverse(blocks[blockHash].header.prevHash).toString('hex');
+        cb(null, prevHash);
       };
 
       var chain = new Chain({

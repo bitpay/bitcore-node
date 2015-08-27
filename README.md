@@ -293,7 +293,7 @@ inherits(MyModule, Node.Module);
  * @param {Function} callback - call with the leveldb database operations to perform
  */
 MyModule.prototype.blockHandler = function(block, add, callback) {
-  var transactions = this.db.getTransactionsFromBlock(block);
+  var transactions = block.transactions;
   // loop through transactions and outputs
   // call the callback with leveldb database operations
   var operations = [];

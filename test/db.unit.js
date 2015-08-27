@@ -2,11 +2,13 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
-var bitcoindjs = require('../');
-var DB = bitcoindjs.DB;
+var index = require('../');
+var DB = index.DB;
 var blockData = require('./data/livenet-345003.json');
+var bitcore = require('bitcore');
+var Block = bitcore.Block;
 var transactionData = require('./data/bitcoin-transactions.json');
-var errors = bitcoindjs.errors;
+var errors = index.errors;
 var memdown = require('memdown');
 var inherits = require('util').inherits;
 var BaseModule = require('../lib/module');
@@ -87,17 +89,16 @@ describe('Bitcoin DB', function() {
 
   describe('#getBlock', function() {
     var db = new DB({store: memdown});
+    var blockBuffer = new Buffer(blockData, 'hex');
+    var expectedBlock = Block.fromBuffer(blockBuffer);
     db.bitcoind = {
-      getBlock: sinon.stub().callsArgWith(1, null, new Buffer(blockData, 'hex'))
-    };
-    db.Block = {
-      fromBuffer: sinon.stub().returns('block')
+      getBlock: sinon.stub().callsArgWith(1, null, blockBuffer)
     };
 
-    it('should get the block from bitcoind.js', function(done) {
+    it('should get the block from bitcoin daemon', function(done) {
       db.getBlock('00000000000000000593b60d8b4f40fd1ec080bdb0817d475dae47b5f5b1f735', function(err, block) {
         should.not.exist(err);
-        block.should.equal('block');
+        block.hash.should.equal(expectedBlock.hash);
         done();
       });
     });
