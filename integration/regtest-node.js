@@ -1,7 +1,7 @@
 'use strict';
 
-// These tests require bitcoind.js Bitcoin Core bindings to be compiled with
-// the environment variable BITCOINDJS_ENV=test. This enables the use of regtest
+// These tests require bitcore-node Bitcoin Core bindings to be compiled with
+// the environment variable BITCORENODE_ENV=test. This enables the use of regtest
 // functionality by including the wallet in the build.
 // To run the tests: $ mocha -R spec integration/regtest-node.js
 
@@ -72,11 +72,12 @@ describe('Node Functionality', function() {
       node.on('ready', function() {
 
         client = new BitcoinRPC({
-          protocol: 'http',
+          protocol: 'https',
           host: '127.0.0.1',
           port: 18332,
           user: 'bitcoin',
-          pass: 'local321'
+          pass: 'local321',
+          rejectUnauthorized: false
         });
 
         var syncedHandler = function() {
