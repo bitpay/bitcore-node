@@ -102,7 +102,7 @@ describe('Node Functionality', function() {
 
   after(function(done) {
     this.timeout(20000);
-    node.db.bitcoind.stop(function(err, result) {
+    node.bitcoind.stop(function(err, result) {
       done();
     });
   });

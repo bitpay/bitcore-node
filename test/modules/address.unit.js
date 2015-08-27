@@ -16,11 +16,18 @@ var mockdb = {
   }
 };
 
+var mocknode = {
+  db: mockdb,
+  bitcoind: {
+    on: sinon.stub()
+  }
+};
+
 describe('AddressModule', function() {
 
   describe('#getAPIMethods', function() {
     it('should return the correct methods', function() {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var methods = am.getAPIMethods();
       methods.length.should.equal(5);
     });
@@ -28,7 +35,7 @@ describe('AddressModule', function() {
 
   describe('#getPublishEvents', function() {
     it('will return an array of publish event objects', function() {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       am.subscribe = sinon.spy();
       am.unsubscribe = sinon.spy();
       var events = am.getPublishEvents();
@@ -64,7 +71,7 @@ describe('AddressModule', function() {
     it('create a message for an address', function() {
       var txBuf = new Buffer('01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000', 'hex');
       var tx = bitcore.Transaction().fromBuffer(txBuf);
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
       var messages = {};
       am.transactionOutputHandler(messages, tx, 0, true);
@@ -80,7 +87,7 @@ describe('AddressModule', function() {
   describe('#transactionHandler', function() {
     it('will pass outputs to transactionOutputHandler and call transactionEventHandler', function() {
       var txBuf = new Buffer('01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000', 'hex');
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
       var message = {};
       am.transactionOutputHandler = function(messages) {
@@ -97,21 +104,18 @@ describe('AddressModule', function() {
   describe('#blockHandler', function() {
     var am;
     var db = {
-      getTransactionsFromBlock: function() {
-        return block.transactions.slice(0, 8);
-      },
       bitcoind: {
         on: sinon.stub()
       }
     };
 
-    var block = bitcore.Block.fromString(blockData);
+    var testBlock = bitcore.Block.fromString(blockData);
 
     var data = [
       {
         key: {
           address: '1F1MAvhTKg2VG29w8cXsiSN2PJ8gSsrJw',
-          timestamp: 1424836934000,
+          timestamp: 1424836934,
           txid: 'fdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e16923',
           outputIndex: 0
         },
@@ -129,13 +133,13 @@ describe('AddressModule', function() {
         value: {
           txid: '5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca',
           inputIndex: 0,
-          timestamp: 1424836934000
+          timestamp: 1424836934
         }
       },
       {
         key: {
           address: '1Ep5LA4T6Y7zaBPiwruUJurjGFvCJHzJhm',
-          timestamp: 1424836934000,
+          timestamp: 1424836934,
           txid: 'e66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d',
           outputIndex: 1
         },
@@ -154,11 +158,19 @@ describe('AddressModule', function() {
     var value64 = data[2].value;
 
     before(function() {
-      am = new AddressModule({db: db, network: 'livenet'});
+      am = new AddressModule({node: mocknode, network: 'livenet'});
     });
 
     it('should create the correct operations when updating/adding outputs', function(done) {
-      am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, true, function(err, operations) {
+      var block = {
+        __height: 345003,
+        header: {
+          timestamp: 1424836934
+        },
+        transactions: testBlock.transactions.slice(0, 8)
+      };
+
+      am.blockHandler(block, true, function(err, operations) {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('put');
@@ -177,7 +189,14 @@ describe('AddressModule', function() {
       });
     });
     it('should create the correct operations when removing outputs', function(done) {
-      am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
+      var block = {
+        __height: 345003,
+        header: {
+          timestamp: 1424836934
+        },
+        transactions: testBlock.transactions.slice(0, 8)
+      };
+      am.blockHandler(block, false, function(err, operations) {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('del');
@@ -193,53 +212,66 @@ describe('AddressModule', function() {
       });
     });
     it('should continue if output script is null', function(done) {
-      var transactions = [
-        {
-          inputs: [],
-          outputs: [
-            {
-              script: null,
-              satoshis: 1000,
-            }
-          ],
-          isCoinbase: sinon.stub().returns(false)
-        }
-      ];
       var db = {
-        getTransactionsFromBlock: function() {
-          return transactions;
-        },
         bitcoind: {
           on: sinon.stub()
         }
       };
 
-      var am = new AddressModule({db: db, network: 'livenet'});
+      var am = new AddressModule({node: mocknode, network: 'livenet'});
 
-      am.blockHandler({__height: 345003, timestamp: new Date(1424836934000)}, false, function(err, operations) {
+      var block = {
+        __height: 345003,
+        header: {
+          timestamp: 1424836934
+        },
+        transactions: [
+          {
+            inputs: [],
+            outputs: [
+              {
+                script: null,
+                satoshis: 1000,
+              }
+            ],
+            isCoinbase: sinon.stub().returns(false)
+          }
+        ]
+      };
+
+      am.blockHandler(block, false, function(err, operations) {
         should.not.exist(err);
         operations.length.should.equal(0);
         done();
       });
     });
     it('will call event handlers', function() {
-      var block = bitcore.Block.fromString(blockData);
+      var testBlock = bitcore.Block.fromString(blockData);
       var db = {
-        getTransactionsFromBlock: function() {
-          return block.transactions.slice(0, 8);
-        },
+         bitcoind: {
+          on: sinon.stub()
+        }
+      };
+      var testnode = {
+        db: db,
         bitcoind: {
           on: sinon.stub()
         }
       };
-      var am = new AddressModule({db: db, network: 'livenet'});
+      var am = new AddressModule({node: testnode, network: 'livenet'});
       am.transactionEventHandler = sinon.spy();
       am.balanceEventHandler = sinon.spy();
-      am.blockHandler(
-        {
-          __height: 345003,
-          timestamp: new Date(1424836934000)
+
+      var block = {
+        __height: 345003,
+        header: {
+          timestamp: 1424836934
         },
+        transactions: testBlock.transactions.slice(0, 8)
+      };
+
+      am.blockHandler(
+        block,
         true,
         function(err) {
           if (err) {
@@ -254,7 +286,7 @@ describe('AddressModule', function() {
 
   describe('#transactionEventHandler', function() {
     it('will emit a transaction if there is a subscriber', function(done) {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var emitter = new EventEmitter();
       am.subscriptions['address/transaction'] = {
         '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
@@ -284,7 +316,7 @@ describe('AddressModule', function() {
 
   describe('#balanceEventHandler', function() {
     it('will emit a balance if there is a subscriber', function(done) {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var emitter = new EventEmitter();
       am.subscriptions['address/balance'] = {
         '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
@@ -304,7 +336,7 @@ describe('AddressModule', function() {
 
   describe('#subscribe', function() {
     it('will add emitters to the subscribers array (transaction)', function() {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var emitter = new EventEmitter();
 
       var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
@@ -321,7 +353,7 @@ describe('AddressModule', function() {
       am.subscriptions['address/transaction'][address].should.deep.equal([emitter, emitter2]);
     });
     it('will add an emitter to the subscribers array (balance)', function() {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var emitter = new EventEmitter();
       var name = 'address/balance';
       var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
@@ -340,7 +372,7 @@ describe('AddressModule', function() {
 
   describe('#unsubscribe', function() {
     it('will remove emitter from subscribers array (transaction)', function() {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
       var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
@@ -350,7 +382,7 @@ describe('AddressModule', function() {
       am.subscriptions['address/transaction'][address].should.deep.equal([emitter2]);
     });
     it('will remove emitter from subscribers array (balance)', function() {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
       var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
@@ -360,7 +392,7 @@ describe('AddressModule', function() {
       am.subscriptions['address/balance'][address].should.deep.equal([emitter2]);
     });
     it('should unsubscribe from all addresses if no addresses are specified', function() {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
       am.subscriptions['address/balance'] = {
@@ -377,7 +409,7 @@ describe('AddressModule', function() {
 
   describe('#getBalance', function() {
     it('should sum up the unspent outputs', function(done) {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       var outputs = [
         {satoshis: 1000}, {satoshis: 2000}, {satoshis: 3000}
       ];
@@ -390,7 +422,7 @@ describe('AddressModule', function() {
     });
 
     it('will handle error from unspent outputs', function(done) {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       am.getUnspentOutputs = sinon.stub().callsArgWith(2, new Error('error'));
       am.getBalance('someaddress', false, function(err) {
         should.exist(err);
@@ -404,24 +436,26 @@ describe('AddressModule', function() {
   describe('#getOutputs', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
-    var db = {
-      bitcoind: {
-        on: sinon.stub()
-      },
+    var db = {};
+    var testnode = {
       chain: {
         tip: {
           __height: 1
         }
+      },
+      db: db,
+      bitcoind: {
+        on: sinon.stub()
       }
     };
 
     before(function() {
-      am = new AddressModule({db: db});
+      am = new AddressModule({node: testnode});
     });
 
     it('should get outputs for an address', function(done) {
       var readStream1 = new EventEmitter();
-      am.db.store = {
+      am.node.db.store = {
         createReadStream: sinon.stub().returns(readStream1)
       };
       var mempoolOutputs = [
@@ -433,7 +467,7 @@ describe('AddressModule', function() {
           blockHeight: 352532
         }
       ];
-      am.db.bitcoind = {
+      am.node.bitcoind = {
         getMempoolOutputs: sinon.stub().returns(mempoolOutputs)
       };
 
@@ -476,7 +510,7 @@ describe('AddressModule', function() {
 
     it('should give an error if the readstream has an error', function(done) {
       var readStream2 = new EventEmitter();
-      am.db.store = {
+      am.node.db.store = {
         createReadStream: sinon.stub().returns(readStream2)
       };
 
@@ -506,7 +540,13 @@ describe('AddressModule', function() {
           on: sinon.spy()
         }
       };
-      var am = new AddressModule({db: db});
+      var testnode = {
+        db: db,
+        bitcoind: {
+          on: sinon.stub()
+        }
+      };
+      var am = new AddressModule({node: testnode});
       am.getUnspentOutputsForAddress = function(address, queryMempool, callback) {
         var result = addresses[address];
         if(result instanceof Error) {
@@ -534,7 +574,13 @@ describe('AddressModule', function() {
           on: sinon.spy()
         }
       };
-      var am = new AddressModule({db: db});
+      var testnode = {
+        db: db,
+        bitcoind: {
+          on: sinon.stub()
+        }
+      };
+      var am = new AddressModule({node: testnode});
       am.getUnspentOutputsForAddress = function(address, queryMempool, callback) {
         var result = addresses[address];
         if(result instanceof Error) {
@@ -563,7 +609,13 @@ describe('AddressModule', function() {
           on: sinon.spy()
         }
       };
-      var am = new AddressModule({db: db});
+      var testnode = {
+        db: db,
+        bitcoind: {
+          on: sinon.stub()
+        }
+      };
+      var am = new AddressModule({node: testnode});
       am.getUnspentOutputsForAddress = function(address, queryMempool, callback) {
         var result = addresses[address];
         if(result instanceof Error) {
@@ -599,7 +651,7 @@ describe('AddressModule', function() {
       ];
       var i = 0;
 
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       am.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
       am.isUnspent = function(output, queryMempool, callback) {
         callback(!outputs[i].spent);
@@ -615,7 +667,7 @@ describe('AddressModule', function() {
       });
     });
     it('should handle an error from getOutputs', function(done) {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       am.getOutputs = sinon.stub().callsArgWith(2, new Error('error'));
       am.getUnspentOutputsForAddress('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
         should.exist(err);
@@ -624,7 +676,7 @@ describe('AddressModule', function() {
       });
     });
     it('should handle when there are no outputs', function(done) {
-      var am = new AddressModule({db: mockdb});
+      var am = new AddressModule({node: mocknode});
       am.getOutputs = sinon.stub().callsArgWith(2, null, []);
       am.getUnspentOutputsForAddress('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
         should.exist(err);
@@ -639,7 +691,7 @@ describe('AddressModule', function() {
     var am;
 
     before(function() {
-      am = new AddressModule({db: mockdb});
+      am = new AddressModule({node: mocknode});
     });
 
     it('should give true when isSpent() gives false', function(done) {
@@ -674,9 +726,15 @@ describe('AddressModule', function() {
         on: sinon.stub()
       }
     };
+    var testnode = {
+      db: db,
+      bitcoind: {
+        on: sinon.stub()
+      }
+    };
     before(function() {
-      am = new AddressModule({db: db});
-      am.db.bitcoind = {
+      am = new AddressModule({node: testnode});
+      am.node.bitcoind = {
         isSpent: sinon.stub().returns(true),
         on: sinon.stub()
       };
@@ -695,12 +753,15 @@ describe('AddressModule', function() {
       var db = {
         store: {
           get: sinon.stub().callsArgWith(1, null, 'spendtxid:1')
-        },
+        }
+      };
+      var testnode = {
+        db: db,
         bitcoind: {
           on: sinon.stub()
         }
       };
-      var am = new AddressModule({db: db});
+      var am = new AddressModule({node: testnode});
       am.getSpendInfoForOutput('txid', 3, function(err, info) {
         should.not.exist(err);
         info.txid.should.equal('spendtxid');
@@ -805,17 +866,20 @@ describe('AddressModule', function() {
           }
         }
         callback(new Error('tx ' + txid + ' not found'));
-      },
-      bitcoind: {
-        on: sinon.stub()
-      },
+      }
+    };
+    var testnode = {
       chain: {
         tip: {
           __height: 1
         }
+      },
+      db: db,
+      bitcoind: {
+        on: sinon.stub()
       }
     };
-    var am = new AddressModule({db: db});
+    var am = new AddressModule({node: testnode});
 
     am.getOutputs = sinon.stub().callsArgWith(2, null, incoming);
     am.getSpendInfoForOutput = function(txid, outputIndex, callback) {

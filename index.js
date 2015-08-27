@@ -3,7 +3,6 @@
 module.exports = require('./lib');
 module.exports.daemon = require('./lib/daemon');
 module.exports.Node = require('./lib/node');
-module.exports.Block = require('./lib/block');
 module.exports.Chain = require('./lib/chain');
 module.exports.DB = require('./lib/db');
 module.exports.Transaction = require('./lib/transaction');

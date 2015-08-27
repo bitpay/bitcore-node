@@ -293,7 +293,7 @@ inherits(MyModule, Node.Module);
  * @param {Function} callback - call with the leveldb database operations to perform
  */
 MyModule.prototype.blockHandler = function(block, add, callback) {
-  var transactions = this.db.getTransactionsFromBlock(block);
+  var transactions = block.transactions;
   // loop through transactions and outputs
   // call the callback with leveldb database operations
   var operations = [];
@@ -353,7 +353,7 @@ MyModule.prototype.subscribeCustom = function(emitter, param) {
 
 MyModule.prototype.getData = function(arg1, callback) {
   // You can query the data by reading from the leveldb store on db
-  this.db.store.get(arg1, callback);
+  this.node.db.store.get(arg1, callback);
 };
 
 module.exports = MyModule;

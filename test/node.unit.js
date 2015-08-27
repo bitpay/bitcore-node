@@ -5,8 +5,9 @@ var sinon = require('sinon');
 var EventEmitter = require('events').EventEmitter;
 var bitcore = require('bitcore');
 var Networks = bitcore.Networks;
+var BufferUtil = bitcore.util.buffer;
+var Block = bitcore.Block;
 var blockData = require('./data/livenet-345003.json');
-var Block = require('../lib/block');
 var proxyquire = require('proxyquire');
 var index = require('..');
 var fs = require('fs');
@@ -17,6 +18,14 @@ describe('Bitcoind Node', function() {
 
   var Node;
   var BadNode;
+
+  function hexlebuf(hexString){
+    return BufferUtil.reverse(new Buffer(hexString, 'hex'));
+  }
+
+  function lebufhex(buf) {
+    return BufferUtil.reverse(buf).toString('hex');
+  }
 
   before(function() {
 
@@ -154,29 +163,45 @@ describe('Bitcoind Node', function() {
         }
       };
       var expectedAncestor = chainHashes[chainHashes.length - 6];
+
       var forkedBlocks = {
         'd7fa6f3d5b2fe35d711e6aca5530d311b8c6e45f588a65c642b8baf4b4441d82': {
-          prevHash: '76d920dbd83beca9fa8b2f346d5c5a81fe4a350f4b355873008229b1e6f8701a'
+          header: {
+            prevHash: hexlebuf('76d920dbd83beca9fa8b2f346d5c5a81fe4a350f4b355873008229b1e6f8701a')
+          }
         },
         '76d920dbd83beca9fa8b2f346d5c5a81fe4a350f4b355873008229b1e6f8701a': {
-          prevHash: 'f0a0d76a628525243c8af7606ee364741ccd5881f0191bbe646c8a4b2853e60c'
+          header: {
+            prevHash: hexlebuf('f0a0d76a628525243c8af7606ee364741ccd5881f0191bbe646c8a4b2853e60c')
+          }
         },
         'f0a0d76a628525243c8af7606ee364741ccd5881f0191bbe646c8a4b2853e60c': {
-          prevHash: '2f72b809d5ccb750c501abfdfa8c4c4fad46b0b66c088f0568d4870d6f509c31'
+          header: {
+            prevHash: hexlebuf('2f72b809d5ccb750c501abfdfa8c4c4fad46b0b66c088f0568d4870d6f509c31')
+          }
         },
         '2f72b809d5ccb750c501abfdfa8c4c4fad46b0b66c088f0568d4870d6f509c31': {
-          prevHash: 'adf66e6ae10bc28fc22bc963bf43e6b53ef4429269bdb65038927acfe66c5453'
+          header: {
+            prevHash: hexlebuf('adf66e6ae10bc28fc22bc963bf43e6b53ef4429269bdb65038927acfe66c5453')
+          }
         },
         'adf66e6ae10bc28fc22bc963bf43e6b53ef4429269bdb65038927acfe66c5453': {
-          prevHash: '3ea12707e92eed024acf97c6680918acc72560ec7112cf70ac213fb8bb4fa618'
+          header: {
+            prevHash: hexlebuf('3ea12707e92eed024acf97c6680918acc72560ec7112cf70ac213fb8bb4fa618')
+          }
         },
         '3ea12707e92eed024acf97c6680918acc72560ec7112cf70ac213fb8bb4fa618': {
-          prevHash: expectedAncestor
+          header: {
+            prevHash: hexlebuf(expectedAncestor)
+          }
         },
       };
       node.bitcoind = {
         getBlockIndex: function(hash) {
-          return forkedBlocks[hash];
+          var block = forkedBlocks[hash];
+          return {
+            prevHash: BufferUtil.reverse(block.header.prevHash).toString('hex')
+          };
         }
       };
       var block = forkedBlocks['d7fa6f3d5b2fe35d711e6aca5530d311b8c6e45f588a65c642b8baf4b4441d82'];
@@ -196,7 +221,9 @@ describe('Bitcoind Node', function() {
         tip: {
           __height: 10,
           hash: chainHashes[chainHashes.length],
-          prevHash: chainHashes[chainHashes.length - 1]
+          header: {
+            prevHash: hexlebuf(chainHashes[chainHashes.length - 1])
+          }
         },
         saveMetadata: sinon.stub(),
         emit: sinon.stub()
@@ -204,11 +231,14 @@ describe('Bitcoind Node', function() {
       node.getBlock = function(hash, callback) {
         setImmediate(function() {
           for(var i = chainHashes.length; i > 0; i--) {
+            var block = {
+              hash: chainHashes[i],
+              header: {
+                prevHash: hexlebuf(chainHashes[i - 1])
+              }
+            };
             if (chainHashes[i] === hash) {
-              callback(null, {
-                hash: chainHashes[i],
-                prevHash: chainHashes[i - 1]
-              });
+              callback(null, block);
             }
           }
         });
@@ -236,8 +266,7 @@ describe('Bitcoind Node', function() {
   describe('#_syncBitcoind', function() {
     it('will get and add block up to the tip height', function(done) {
       var node = new Node({});
-      node.Block = Block;
-      var blockBuffer = new Buffer(blockData);
+      var blockBuffer = new Buffer(blockData, 'hex');
       var block = Block.fromBuffer(blockBuffer);
       node.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
@@ -247,7 +276,7 @@ describe('Bitcoind Node', function() {
       node.chain = {
         tip: {
           __height: 0,
-          hash: block.prevHash
+          hash: lebufhex(block.header.prevHash)
         },
         getHashes: sinon.stub().callsArgWith(1, null),
         saveMetadata: sinon.stub(),
@@ -286,8 +315,7 @@ describe('Bitcoind Node', function() {
     });
     it('will stop syncing when the node is stopping', function(done) {
       var node = new Node({});
-      node.Block = Block;
-      var blockBuffer = new Buffer(blockData);
+      var blockBuffer = new Buffer(blockData, 'hex');
       var block = Block.fromBuffer(blockBuffer);
       node.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
@@ -451,7 +479,6 @@ describe('Bitcoind Node', function() {
 
     it('will set properties', function() {
       node._loadConsensus();
-      should.exist(node.Block);
       should.exist(node.chain);
     });
 
@@ -500,13 +527,6 @@ describe('Bitcoind Node', function() {
       node.start = sinon.stub().callsArg(0);
 
       node._initialize();
-
-      // references
-      node.db.chain.should.equal(node.chain);
-      node.db.Block.should.equal(node.Block);
-      node.db.bitcoind.should.equal(node.bitcoind);
-      node.chain.db.should.equal(node.db);
-      node.chain.db.should.equal(node.db);
 
       // event handlers
       node._initializeBitcoind.callCount.should.equal(1);
