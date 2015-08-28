@@ -113,14 +113,14 @@ describe('Bitcore Node', function() {
   describe('#getAllAPIMethods', function() {
     it('should return db methods and modules methods', function() {
       var node = new Node({});
-      node.modules = [
-        {
+      node.modules = {
+        module1: {
           getAPIMethods: sinon.stub().returns(['mda1', 'mda2'])
         },
-        {
+        module2: {
           getAPIMethods: sinon.stub().returns(['mdb1', 'mdb2'])
         }
-      ];
+      };
       var db = {
         getAPIMethods: sinon.stub().returns(['db1', 'db2']),
       };
@@ -133,14 +133,14 @@ describe('Bitcore Node', function() {
   describe('#getAllPublishEvents', function() {
     it('should return modules publish events', function() {
       var node = new Node({});
-      node.modules = [
-        {
+      node.modules = {
+        module1: {
           getPublishEvents: sinon.stub().returns(['mda1', 'mda2'])
         },
-        {
+        module2: {
           getPublishEvents: sinon.stub().returns(['mdb1', 'mdb2'])
         }
-      ];
+      };
       var db = {
         getPublishEvents: sinon.stub().returns(['db1', 'db2']),
       };

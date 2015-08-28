@@ -20,7 +20,6 @@ describe('Bitcoin DB', function() {
   describe('#start', function() {
     it('should emit ready', function(done) {
       var db = new DB({store: memdown});
-      db._modules = ['mod1', 'mod2'];
       db.node = {};
       db.node.bitcoind = {
         on: sinon.spy()
@@ -336,10 +335,10 @@ describe('Bitcoin DB', function() {
     var Module2 = function() {};
     Module2.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op4', 'op5']);
     db.node = {};
-    db.node.modules = [
-      new Module1(),
-      new Module2()
-    ];
+    db.node.modules = {
+      module1: new Module1(),
+      module2: new Module2()
+    };
     db.store = {
       batch: sinon.stub().callsArg(1)
     };
@@ -355,7 +354,7 @@ describe('Bitcoin DB', function() {
     it('should give an error if one of the modules gives an error', function(done) {
       var Module3 = function() {};
       Module3.prototype.blockHandler = sinon.stub().callsArgWith(2, new Error('error'));
-      db.node.modules.push(new Module3());
+      db.node.modules.module3 = new Module3();
 
       db.blockHandler('block', true, function(err) {
         should.exist(err);
@@ -368,7 +367,7 @@ describe('Bitcoin DB', function() {
     it('should return the correct db methods', function() {
       var db = new DB({store: memdown});
       db.node = {};
-      db.node.modules = [];
+      db.node.modules = {};
       var methods = db.getAPIMethods();
       methods.length.should.equal(4);
     });
