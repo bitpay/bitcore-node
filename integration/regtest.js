@@ -227,8 +227,24 @@ describe('Daemon Binding Functionality', function() {
         work.cmp(expectedWork).should.equal(0);
         expectedWork = expectedWork.add(new BN(2));
         should.exist(blockIndex.prevHash);
+        blockIndex.hash.should.equal(blockHashes[i]);
         blockIndex.prevHash.should.equal(blockHashes[i - 1]);
+        blockIndex.height.should.equal(i + 1);
       });
+    });
+  });
+
+  describe('get block index by height', function() {
+    it('should get block index by height', function() {
+      var blockIndex = bitcoind.getBlockIndex(2);
+      should.exist(blockIndex);
+      should.exist(blockIndex.chainWork);
+      var work = new BN(blockIndex.chainWork, 'hex');
+      work.cmp(new BN(8)).should.equal(0);
+      should.exist(blockIndex.prevHash);
+      blockIndex.hash.should.equal(blockHashes[1]);
+      blockIndex.prevHash.should.equal(blockHashes[0]);
+      blockIndex.height.should.equal(2);
     });
   });
 
