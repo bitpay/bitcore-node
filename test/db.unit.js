@@ -369,7 +369,7 @@ describe('Bitcoin DB', function() {
       db.node = {};
       db.node.modules = {};
       var methods = db.getAPIMethods();
-      methods.length.should.equal(4);
+      methods.length.should.equal(5);
     });
   });
 
