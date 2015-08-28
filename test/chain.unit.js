@@ -249,26 +249,16 @@ describe('Bitcoin Chain', function() {
 
       chain.tip = block2;
 
-      chain.on('ready', function() {
+      delete chain.cache.hashes[block1.hash];
 
-        // remove one of the cached hashes to force db call
-        delete chain.cache.hashes[block1.hash];
-
-        // the test
-        chain.getHashes(block2.hash, function(err, hashes) {
-          should.not.exist(err);
-          should.exist(hashes);
-          hashes.length.should.equal(3);
-          done();
-        });
-      });
-
-      chain.on('error', function(err) {
+      // the test
+      chain.getHashes(block2.hash, function(err, hashes) {
         should.not.exist(err);
+        should.exist(hashes);
+        hashes.length.should.equal(3);
         done();
       });
 
-      chain.initialize();
     });
   });
 

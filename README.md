@@ -364,9 +364,7 @@ The module can then be used when running a node:
 ```js
 var configuration = {
   datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
-  db: {
-    modules: [MyModule]
-  }
+  modules: [MyModule]
 };
 
 var node = new Node(configuration);
