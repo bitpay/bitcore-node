@@ -23,7 +23,10 @@ var node;
 var should = chai.should();
 
 var BitcoinRPC = require('bitcoind-rpc');
-var BitcoreNode = require('..').Node;
+var index = require('..');
+var BitcoreNode = index.Node;
+var AddressModule = index.modules.AddressModule;
+var BitcoinModule = index.modules.BitcoinModule;
 var testWIF = 'cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG';
 var testKey;
 var client;
@@ -60,7 +63,19 @@ describe('Node Functionality', function() {
 
       var configuration = {
         datadir: datadir,
-        network: 'regtest'
+        network: 'regtest',
+        modules: [
+          {
+            name: 'bitcoind',
+            module: BitcoinModule,
+            dependencies: BitcoinModule.dependencies
+          },
+          {
+            name: 'address',
+            module: AddressModule,
+            dependencies: AddressModule.dependencies
+          }
+        ]
       };
 
       node = new BitcoreNode(configuration);
@@ -102,7 +117,10 @@ describe('Node Functionality', function() {
 
   after(function(done) {
     this.timeout(20000);
-    node.bitcoind.stop(function(err, result) {
+    node.stop(function(err, result) {
+      if(err) {
+        throw err;
+      }
       done();
     });
   });

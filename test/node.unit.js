@@ -11,15 +11,17 @@ var blockData = require('./data/livenet-345003.json');
 var proxyquire = require('proxyquire');
 var index = require('..');
 var fs = require('fs');
-var bitcoinConfBuffer = fs.readFileSync(__dirname + '/data/bitcoin.conf');
 var chainHashes = require('./data/hashes.json');
 var util = require('util');
 var BaseModule = require('../lib/module');
 
 describe('Bitcore Node', function() {
 
+  var baseConfig = {
+    datadir: 'testdir'
+  };
+
   var Node;
-  var BadNode;
 
   function hexlebuf(hexString){
     return BufferUtil.reverse(new Buffer(hexString, 'hex'));
@@ -30,23 +32,9 @@ describe('Bitcore Node', function() {
   }
 
   before(function() {
-
-    BadNode = proxyquire('../lib/node', {
-      fs: {
-        readFileSync: sinon.stub().returns(fs.readFileSync(__dirname + '/data/badbitcoin.conf'))
-      }
-    });
-    BadNode.prototype._loadConfiguration = sinon.spy();
-    BadNode.prototype._initialize = sinon.spy();
-
-    Node = proxyquire('../lib/node', {
-      fs: {
-        readFileSync: sinon.stub().returns(bitcoinConfBuffer)
-      }
-    });
+    Node = proxyquire('../lib/node', {});
     Node.prototype._loadConfiguration = sinon.spy();
     Node.prototype._initialize = sinon.spy();
-
   });
 
   describe('@constructor', function() {
@@ -60,6 +48,7 @@ describe('Bitcore Node', function() {
         ];
       };
       var config = {
+        datadir: 'testdir',
         modules: [
           {
             name: 'test1',
@@ -81,7 +70,7 @@ describe('Bitcore Node', function() {
 
   describe('#openBus', function() {
     it('will create a new bus', function() {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       var bus = node.openBus();
       bus.node.should.equal(node);
     });
@@ -89,7 +78,7 @@ describe('Bitcore Node', function() {
 
   describe('#addModule', function() {
     it('will instantiate an instance and load api methods', function() {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       function TestModule() {}
       util.inherits(TestModule, BaseModule);
       TestModule.prototype.getData = function() {};
@@ -110,7 +99,7 @@ describe('Bitcore Node', function() {
 
   describe('#getAllAPIMethods', function() {
     it('should return db methods and modules methods', function() {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       node.modules = {
         module1: {
           getAPIMethods: sinon.stub().returns(['mda1', 'mda2'])
@@ -130,7 +119,7 @@ describe('Bitcore Node', function() {
   });
   describe('#getAllPublishEvents', function() {
     it('should return modules publish events', function() {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       node.modules = {
         module1: {
           getPublishEvents: sinon.stub().returns(['mda1', 'mda2'])
@@ -150,62 +139,20 @@ describe('Bitcore Node', function() {
   });
   describe('#_loadConfiguration', function() {
     it('should call the necessary methods', function() {
-      var TestNode = proxyquire('../lib/node', {
-        fs: {
-          readFileSync: sinon.stub().returns(bitcoinConfBuffer)
-        }
-      });
+      var TestNode = proxyquire('../lib/node', {});
       TestNode.prototype._initialize = sinon.spy();
-      TestNode.prototype._loadBitcoinConf = sinon.spy();
-      TestNode.prototype._loadBitcoind = sinon.spy();
       TestNode.prototype._loadDB = sinon.spy();
       TestNode.prototype._loadAPI = sinon.spy();
       TestNode.prototype._loadConsensus = sinon.spy();
-      var node = new TestNode({});
-      node._loadBitcoind.callCount.should.equal(1);
-      node._loadBitcoinConf.callCount.should.equal(1);
+      var node = new TestNode(baseConfig);
       node._loadDB.callCount.should.equal(1);
       node._loadAPI.callCount.should.equal(1);
       node._loadConsensus.callCount.should.equal(1);
     });
   });
-  describe('#_loadBitcoinConf', function() {
-    it('will parse a bitcoin.conf file', function() {
-      var node = new Node({});
-      node._loadBitcoinConf({datadir: process.env.HOME + '/.bitcoin'});
-      should.exist(node.bitcoinConfiguration);
-      node.bitcoinConfiguration.should.deep.equal({
-        server: 1,
-        whitelist: '127.0.0.1',
-        txindex: 1,
-        port: 20000,
-        rpcallowip: '127.0.0.1',
-        rpcuser: 'bitcoin',
-        rpcpassword: 'local321'
-      });
-    });
-  });
-  describe('#_loadBitcoind', function() {
-    it('should initialize', function() {
-      var node = new Node({});
-      node._loadBitcoind({datadir: './test'});
-      should.exist(node.bitcoind);
-    });
-    it('should initialize with testnet', function() {
-      var node = new Node({});
-      node._loadBitcoind({datadir: './test', testnet: true});
-      should.exist(node.bitcoind);
-    });
-    it('should throw an exception if txindex isn\'t enabled in the configuration', function() {
-      var node = new BadNode({});
-      (function() {
-        node._loadBitcoinConf({datadir: './test'});
-      }).should.throw('Txindex option');
-    });
-  });
   describe('#_syncBitcoindAncestor', function() {
     it('will find an ancestor 6 deep', function() {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       node.chain = {
         getHashes: function(tipHash, callback) {
           callback(null, chainHashes);
@@ -248,7 +195,8 @@ describe('Bitcore Node', function() {
           }
         },
       };
-      node.bitcoind = {
+      node.modules = {};
+      node.modules.bitcoind = {
         getBlockIndex: function(hash) {
           var block = forkedBlocks[hash];
           return {
@@ -267,7 +215,7 @@ describe('Bitcore Node', function() {
   });
   describe('#_syncBitcoindRewind', function() {
     it('will undo blocks 6 deep', function() {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       var ancestorHash = chainHashes[chainHashes.length - 6];
       node.chain = {
         tip: {
@@ -317,10 +265,11 @@ describe('Bitcore Node', function() {
   });
   describe('#_syncBitcoind', function() {
     it('will get and add block up to the tip height', function(done) {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       var blockBuffer = new Buffer(blockData, 'hex');
       var block = Block.fromBuffer(blockBuffer);
-      node.bitcoind = {
+      node.modules = {};
+      node.modules.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
         isSynced: sinon.stub().returns(true),
         height: 1
@@ -349,8 +298,9 @@ describe('Bitcore Node', function() {
       node._syncBitcoind();
     });
     it('will exit and emit error with error from bitcoind.getBlock', function(done) {
-      var node = new Node({});
-      node.bitcoind = {
+      var node = new Node(baseConfig);
+      node.modules = {};
+      node.modules.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, new Error('test error')),
         height: 1
       };
@@ -366,10 +316,11 @@ describe('Bitcore Node', function() {
       node._syncBitcoind();
     });
     it('will stop syncing when the node is stopping', function(done) {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       var blockBuffer = new Buffer(blockData, 'hex');
       var block = Block.fromBuffer(blockBuffer);
-      node.bitcoind = {
+      node.modules = {};
+      node.modules.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
         isSynced: sinon.stub().returns(true),
         height: 1
@@ -411,6 +362,7 @@ describe('Bitcore Node', function() {
   describe('#_loadNetwork', function() {
     it('should use the testnet network if testnet is specified', function() {
       var config = {
+        datadir: 'testdir',
         network: 'testnet'
       };
       var node = new Node(config);
@@ -419,6 +371,7 @@ describe('Bitcore Node', function() {
     });
     it('should use the regtest network if regtest is specified', function() {
       var config = {
+        datadir: 'testdir',
         network: 'regtest'
       };
       var node = new Node(config);
@@ -426,7 +379,9 @@ describe('Bitcore Node', function() {
       node.network.name.should.equal('regtest');
     });
     it('should use the livenet network if nothing is specified', function() {
-      var config = {};
+      var config = {
+        datadir: 'testdir'
+      };
       var node = new Node(config);
       node._loadNetwork(config);
       node.network.name.should.equal('livenet');
@@ -526,7 +481,7 @@ describe('Bitcore Node', function() {
     var node;
 
     before(function() {
-      node = new Node({});
+      node = new Node(baseConfig);
     });
 
     it('will set properties', function() {
@@ -541,11 +496,7 @@ describe('Bitcore Node', function() {
     var node;
 
     before(function() {
-      var TestNode = proxyquire('../lib/node', {
-        fs: {
-          readFileSync: sinon.stub().returns(bitcoinConfBuffer)
-        }
-      });
+      var TestNode = proxyquire('../lib/node', {});
       TestNode.prototype._loadConfiguration = sinon.spy();
       TestNode.prototype._initializeBitcoind = sinon.spy();
       TestNode.prototype._initializeDatabase = sinon.spy();
@@ -555,7 +506,7 @@ describe('Bitcore Node', function() {
       var _initialize = TestNode.prototype._initialize;
       TestNode.prototype._initialize = sinon.spy();
 
-      node = new TestNode({});
+      node = new TestNode(baseConfig);
       node.chain = {
         on: sinon.spy()
       };
@@ -581,7 +532,6 @@ describe('Bitcore Node', function() {
       node._initialize();
 
       // event handlers
-      node._initializeBitcoind.callCount.should.equal(1);
       node._initializeDatabase.callCount.should.equal(1);
       node._initializeChain.callCount.should.equal(1);
 
@@ -599,51 +549,9 @@ describe('Bitcore Node', function() {
 
   });
 
-  describe('#_initalizeBitcoind', function() {
-
-    it('will call emit an error from libbitcoind', function(done) {
-      var node = new Node({});
-      node.bitcoind = new EventEmitter();
-      node.on('error', function(err) {
-        should.exist(err);
-        err.message.should.equal('test error');
-        done();
-      });
-      node._initializeBitcoind();
-      node.bitcoind.emit('error', new Error('test error'));
-    });
-    it('will call sync when there is a new tip', function(done) {
-      var node = new Node({});
-      node.bitcoind = new EventEmitter();
-      node.bitcoind.syncPercentage = sinon.spy();
-      node._syncBitcoind = function() {
-        node.bitcoind.syncPercentage.callCount.should.equal(1);
-        done();
-      };
-      node._initializeBitcoind();
-      node.bitcoind.emit('tip', 10);
-    });
-    it('will not call sync when there is a new tip and shutting down', function(done) {
-      var node = new Node({});
-      node.bitcoind = new EventEmitter();
-      node._syncBitcoind = sinon.spy();
-      node.bitcoind.syncPercentage = sinon.spy();
-      node.stopping = true;
-      node.bitcoind.on('tip', function() {
-        setImmediate(function() {
-          node.bitcoind.syncPercentage.callCount.should.equal(0);
-          node._syncBitcoind.callCount.should.equal(0);
-          done();
-        });
-      });
-      node._initializeBitcoind();
-      node.bitcoind.emit('tip', 10);
-    });
-  });
-
   describe('#_initializeDatabase', function() {
     it('will log on ready event', function(done) {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       node.db = new EventEmitter();
       sinon.stub(index.log, 'info');
       node.db.on('ready', function() {
@@ -657,7 +565,7 @@ describe('Bitcore Node', function() {
       node.db.emit('ready');
     });
     it('will call emit an error from db', function(done) {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       node.db = new EventEmitter();
       node.on('error', function(err) {
         should.exist(err);
@@ -670,21 +578,42 @@ describe('Bitcore Node', function() {
   });
 
   describe('#_initializeChain', function() {
-    it('will call _syncBitcoind on ready', function(done) {
-      var node = new Node({});
-      node._syncBitcoind = sinon.spy();
+
+    it('will call sync when there is a new tip', function(done) {
+      var node = new Node(baseConfig);
       node.chain = new EventEmitter();
-      node.chain.on('ready', function(err) {
+      node.modules = {};
+      node.modules.bitcoind = new EventEmitter();
+      node.modules.bitcoind.syncPercentage = sinon.spy();
+      node._syncBitcoind = function() {
+        node.modules.bitcoind.syncPercentage.callCount.should.equal(1);
+        done();
+      };
+      node._initializeChain();
+      node.chain.emit('ready');
+      node.modules.bitcoind.emit('tip', 10);
+    });
+    it('will not call sync when there is a new tip and shutting down', function(done) {
+      var node = new Node(baseConfig);
+      node.chain = new EventEmitter();
+      node.modules = {};
+      node.modules.bitcoind = new EventEmitter();
+      node._syncBitcoind = sinon.spy();
+      node.modules.bitcoind.syncPercentage = sinon.spy();
+      node.stopping = true;
+      node.modules.bitcoind.on('tip', function() {
         setImmediate(function() {
-          node._syncBitcoind.callCount.should.equal(1);
+          node.modules.bitcoind.syncPercentage.callCount.should.equal(0);
+          node._syncBitcoind.callCount.should.equal(0);
           done();
         });
       });
       node._initializeChain();
       node.chain.emit('ready');
+      node.modules.bitcoind.emit('tip', 10);
     });
     it('will emit an error from the chain', function(done) {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       node.chain = new EventEmitter();
       node.on('error', function(err) {
         should.exist(err);
@@ -698,7 +627,7 @@ describe('Bitcore Node', function() {
 
   describe('#getServiceOrder', function() {
     it('should return the services in the correct order', function() {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       node.getServices = function() {
         return [
           {
@@ -729,7 +658,7 @@ describe('Bitcore Node', function() {
 
   describe('#start', function() {
     it('will call start for each module', function(done) {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       function TestModule() {}
       util.inherits(TestModule, BaseModule);
       TestModule.prototype.start = sinon.stub().callsArg(0);
@@ -760,7 +689,7 @@ describe('Bitcore Node', function() {
 
   describe('#stop', function() {
     it('will call stop for each module', function(done) {
-      var node = new Node({});
+      var node = new Node(baseConfig);
       function TestModule() {}
       util.inherits(TestModule, BaseModule);
       TestModule.prototype.stop = sinon.stub().callsArg(0);

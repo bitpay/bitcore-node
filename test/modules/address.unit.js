@@ -11,15 +11,14 @@ var errors = bitcorenode.errors;
 var levelup = require('levelup');
 
 var mockdb = {
-  bitcoind: {
-    on: sinon.stub()
-  }
 };
 
 var mocknode = {
   db: mockdb,
-  bitcoind: {
-    on: sinon.stub()
+  modules: {
+    bitcoind: {
+      on: sinon.stub()
+    }
   }
 };
 
@@ -103,12 +102,6 @@ describe('AddressModule', function() {
 
   describe('#blockHandler', function() {
     var am;
-    var db = {
-      bitcoind: {
-        on: sinon.stub()
-      }
-    };
-
     var testBlock = bitcore.Block.fromString(blockData);
 
     var data = [
@@ -212,12 +205,6 @@ describe('AddressModule', function() {
       });
     });
     it('should continue if output script is null', function(done) {
-      var db = {
-        bitcoind: {
-          on: sinon.stub()
-        }
-      };
-
       var am = new AddressModule({node: mocknode, network: 'livenet'});
 
       var block = {
@@ -247,15 +234,13 @@ describe('AddressModule', function() {
     });
     it('will call event handlers', function() {
       var testBlock = bitcore.Block.fromString(blockData);
-      var db = {
-         bitcoind: {
-          on: sinon.stub()
-        }
-      };
+      var db = {};
       var testnode = {
         db: db,
-        bitcoind: {
-          on: sinon.stub()
+        modules: {
+          bitcoind: {
+            on: sinon.stub()
+          }
         }
       };
       var am = new AddressModule({node: testnode, network: 'livenet'});
@@ -444,8 +429,10 @@ describe('AddressModule', function() {
         }
       },
       db: db,
-      bitcoind: {
-        on: sinon.stub()
+      modules: {
+        bitcoind: {
+          on: sinon.stub()
+        }
       }
     };
 
@@ -467,7 +454,7 @@ describe('AddressModule', function() {
           blockHeight: 352532
         }
       ];
-      am.node.bitcoind = {
+      am.node.modules.bitcoind = {
         getMempoolOutputs: sinon.stub().returns(mempoolOutputs)
       };
 
@@ -535,15 +522,13 @@ describe('AddressModule', function() {
         'addr3': ['utxo3']
       };
 
-      var db = {
-        bitcoind: {
-          on: sinon.spy()
-        }
-      };
+      var db = {};
       var testnode = {
         db: db,
-        bitcoind: {
-          on: sinon.stub()
+        modules: {
+          bitcoind: {
+            on: sinon.stub()
+          }
         }
       };
       var am = new AddressModule({node: testnode});
@@ -570,14 +555,18 @@ describe('AddressModule', function() {
       };
 
       var db = {
-        bitcoind: {
-          on: sinon.spy()
+        modules: {
+          bitcoind: {
+            on: sinon.spy()
+          }
         }
       };
       var testnode = {
         db: db,
-        bitcoind: {
-          on: sinon.stub()
+        modules: {
+          bitcoind: {
+            on: sinon.stub()
+          }
         }
       };
       var am = new AddressModule({node: testnode});
@@ -604,15 +593,13 @@ describe('AddressModule', function() {
         'addr3': ['utxo3']
       };
 
-      var db = {
-        bitcoind: {
-          on: sinon.spy()
-        }
-      };
+      var db = {};
       var testnode = {
         db: db,
-        bitcoind: {
-          on: sinon.stub()
+        modules: {
+          bitcoind: {
+            on: sinon.stub()
+          }
         }
       };
       var am = new AddressModule({node: testnode});
@@ -721,20 +708,18 @@ describe('AddressModule', function() {
 
   describe('#isSpent', function() {
     var am;
-    var db = {
-      bitcoind: {
-        on: sinon.stub()
-      }
-    };
+    var db = {};
     var testnode = {
       db: db,
-      bitcoind: {
-        on: sinon.stub()
+      modules: {
+        bitcoind: {
+          on: sinon.stub()
+        }
       }
     };
     before(function() {
       am = new AddressModule({node: testnode});
-      am.node.bitcoind = {
+      am.node.modules.bitcoind = {
         isSpent: sinon.stub().returns(true),
         on: sinon.stub()
       };
@@ -757,8 +742,10 @@ describe('AddressModule', function() {
       };
       var testnode = {
         db: db,
-        bitcoind: {
-          on: sinon.stub()
+        modules: {
+          bitcoind: {
+            on: sinon.stub()
+          }
         }
       };
       var am = new AddressModule({node: testnode});
@@ -875,8 +862,10 @@ describe('AddressModule', function() {
         }
       },
       db: db,
-      bitcoind: {
-        on: sinon.stub()
+      modules: {
+        bitcoind: {
+          on: sinon.stub()
+        }
       }
     };
     var am = new AddressModule({node: testnode});
