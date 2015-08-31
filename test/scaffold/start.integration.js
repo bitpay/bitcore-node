@@ -3,18 +3,18 @@
 var should = require('chai').should();
 var sinon = require('sinon');
 var proxyquire = require('proxyquire');
-var AddressModule = require('../../lib/modules/address');
+var AddressService = require('../../lib/services/address');
 
 describe('#start', function() {
 
   describe('will dynamically create a node from a configuration', function() {
 
-    it('require each bitcore-node module', function(done) {
+    it('require each bitcore-node service', function(done) {
       var node;
       var TestNode = function(options) {
-        options.modules[0].should.deep.equal({
+        options.services[0].should.deep.equal({
           name: 'address',
-          module: AddressModule,
+          module: AddressService,
           dependencies: ['bitcoind', 'db']
         });
       };
@@ -30,7 +30,7 @@ describe('#start', function() {
       node = starttest({
         path: __dirname,
         config: {
-          modules: [
+          services: [
             'address'
           ],
           datadir: './data'

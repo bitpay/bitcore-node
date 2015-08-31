@@ -2,17 +2,21 @@
 
 'use strict';
 
-var chainlib = require('chainlib');
-var log = chainlib.log;
+var index = require('..');
+var log = index.log;
 
 process.title = 'libbitcoind';
 
 /**
  * daemon
  */
-var daemon = require('../').daemon({
-  datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
-  network: process.env.BITCORENODE_NETWORK || 'livenet'
+var daemon = require('../').services.Bitcoin({
+  node: {
+    datadir: process.env.BITCORENODE_DIR || process.env.HOME + '/.bitcoin',
+    network: {
+      name: process.env.BITCORENODE_NETWORK || 'livenet'
+    }
+  }
 });
 
 daemon.start(function() {
