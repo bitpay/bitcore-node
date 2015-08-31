@@ -5,7 +5,7 @@ var bitcoin = require('bitcoin');
 var async = require('async');
 var maxTime = 20;
 
-console.log('Benchmarking Bitcoind.js native interface versus Bitcoind JSON RPC interface');
+console.log('Bitcoin Service native interface vs. Bitcoin JSON RPC interface');
 console.log('----------------------------------------------------------------------');
 
 // To run the benchmarks a fully synced Bitcore Core directory is needed. The RPC comands
@@ -26,22 +26,29 @@ var fixtureData = {
   ]
 };
 
-var bitcoind = require('../').daemon({
-  datadir: process.env.BITCORENODE_DIR || '~/.bitcoin',
-  network: 'testnet'
+var bitcoind = require('../').services.Bitcoin({
+  node: {
+    datadir: process.env.HOME + '/.bitcoin',
+    network: {
+      name: 'testnet'
+    }
+  }
 });
 
 bitcoind.on('error', function(err) {
-  bitcoind.log('error="%s"', err.message);
+  console.error(err.message);
 });
 
-bitcoind.on('open', function(status) {
-  bitcoind.log('status="%s"', status);
+bitcoind.start(function(err) {
+  if (err) {
+    throw err;
+  }
+  console.log('Bitcoin Core started');
 });
 
 bitcoind.on('ready', function() {
 
-  bitcoind.log('status="%s"', 'chaintip ready.');
+  console.log('Bitcoin Core ready');
 
   var client = new bitcoin.Client({
     host: 'localhost',
@@ -147,8 +154,16 @@ bitcoind.on('ready', function() {
         .run();
     }
   ], function(err) {
+    if (err) {
+      throw err;
+    }
     console.log('Finished');
-    bitcoind.stop();
-    process.exit();
+    bitcoind.stop(function(err) {
+      if (err) {
+        console.error('Fail to stop services: ' + err);
+        process.exit(1);
+      }
+      process.exit(0);
+    });
   });
 });
