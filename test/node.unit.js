@@ -82,10 +82,8 @@ describe('Bitcore Node', function() {
   describe('#openBus', function() {
     it('will create a new bus', function() {
       var node = new Node({});
-      var db = {};
-      node.db = db;
       var bus = node.openBus();
-      bus.db.should.equal(db);
+      bus.node.should.equal(node);
     });
   });
 

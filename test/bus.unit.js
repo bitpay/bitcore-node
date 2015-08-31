@@ -18,9 +18,12 @@ describe('Bus', function() {
               subscribe: subscribeDb
             }
           ]
-        ),
-        modules: [
-          {
+        )
+      };
+      var node = {
+        db: db,
+        modules: {
+          module1: {
             getPublishEvents: sinon.stub().returns([
               {
                 name: 'test',
@@ -29,9 +32,9 @@ describe('Bus', function() {
               }
             ])
           }
-        ]
+        }
       };
-      var bus = new Bus({db: db});
+      var bus = new Bus({node: node});
       bus.subscribe('dbtest', 'a', 'b', 'c');
       bus.subscribe('test', 'a', 'b', 'c');
       subscribeModule.callCount.should.equal(1);
@@ -59,9 +62,12 @@ describe('Bus', function() {
               unsubscribe: unsubscribeDb
             }
           ]
-        ),
-        modules: [
-          {
+        )
+      };
+      var node = {
+        db: db,
+        modules: {
+          module1: {
             getPublishEvents: sinon.stub().returns([
               {
                 name: 'test',
@@ -70,9 +76,9 @@ describe('Bus', function() {
               }
             ])
           }
-        ]
+        }
       };
-      var bus = new Bus({db: db});
+      var bus = new Bus({node: node});
       bus.unsubscribe('dbtest', 'a', 'b', 'c');
       bus.unsubscribe('test', 'a', 'b', 'c');
       unsubscribeModule.callCount.should.equal(1);
@@ -100,9 +106,12 @@ describe('Bus', function() {
               unsubscribe: unsubscribeDb
             }
           ]
-        ),
-        modules: [
-          {
+        )
+      };
+      var node = {
+        db: db,
+        modules: {
+          module1: {
             getPublishEvents: sinon.stub().returns([
             {
               name: 'test',
@@ -111,10 +120,9 @@ describe('Bus', function() {
             }
             ])
           }
-        ]
+        }
       };
-
-      var bus = new Bus({db: db});
+      var bus = new Bus({node: node});
       bus.close();
 
       unsubscribeDb.callCount.should.equal(1);
