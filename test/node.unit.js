@@ -183,19 +183,27 @@ describe('Bitcore Node', function() {
       node._unloadedServices = [
         {
           name: 'chain',
-          dependencies: ['db']
+          module: {
+            dependencies: ['db']
+          }
         },
         {
           name: 'db',
+          module: {
             dependencies: ['daemon', 'p2p']
+          }
         },
         {
           name:'daemon',
-          dependencies: []
+          module: {
+            dependencies: []
+          }
         },
         {
           name: 'p2p',
-          dependencies: []
+          module: {
+            dependencies: []
+          }
         }
       ];
       var order = node.getServiceOrder();
@@ -219,7 +227,8 @@ describe('Bitcore Node', function() {
       };
       var service = {
         name: 'testservice',
-        module: TestService
+        module: TestService,
+        config: {}
       };
       node._instantiateService(service);
       should.exist(node.services.testservice);
@@ -254,11 +263,13 @@ describe('Bitcore Node', function() {
       node.getServiceOrder = sinon.stub().returns([
         {
           name: 'test1',
-          module: TestService
+          module: TestService,
+          config: {}
         },
         {
           name: 'test2',
-          module: TestService2
+          module: TestService2,
+          config: {}
         }
       ]);
       node.start(function() {
@@ -295,11 +306,13 @@ describe('Bitcore Node', function() {
       node.getServiceOrder = sinon.stub().returns([
         {
           name: 'test',
-          module: TestService
+          module: TestService,
+          config: {}
         },
         {
           name: 'conflict',
-          module: ConflictService
+          module: ConflictService,
+          config: {}
         }
       ]);
 

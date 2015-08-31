@@ -37,7 +37,7 @@ describe('WebService', function() {
     it('should call setupRoutes on each module', function() {
       var node = {
         on: sinon.spy(),
-        modules: {
+        services: {
           one: {
             setupRoutes: sinon.spy()
           },
@@ -50,8 +50,8 @@ describe('WebService', function() {
       var web = new WebService({node: node});
 
       web.setupAllRoutes();
-      node.modules.one.setupRoutes.callCount.should.equal(1);
-      node.modules.two.setupRoutes.callCount.should.equal(1);
+      node.services.one.setupRoutes.callCount.should.equal(1);
+      node.services.two.setupRoutes.callCount.should.equal(1);
     });
   });
 

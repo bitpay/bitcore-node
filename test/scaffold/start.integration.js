@@ -15,7 +15,6 @@ describe('#start', function() {
         options.services[0].should.deep.equal({
           name: 'address',
           module: AddressService,
-          dependencies: ['bitcoind', 'db'],
           config: {}
         });
       };
@@ -47,7 +46,6 @@ describe('#start', function() {
         options.services[0].should.deep.equal({
           name: 'address',
           module: AddressService,
-          dependencies: ['bitcoind', 'db'],
           config: {
             param: 'test'
           }
@@ -66,13 +64,13 @@ describe('#start', function() {
         path: __dirname,
         config: {
           services: [
-            {
-              name: 'address',
-              config: {
-                param: 'test'
-              }
-            }
+            'address'
           ],
+          servicesConfig: {
+            'address': {
+              param: 'test'
+            }
+          },
           datadir: './data'
         }
       });

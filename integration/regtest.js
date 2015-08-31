@@ -235,16 +235,20 @@ describe('Daemon Binding Functionality', function() {
   });
 
   describe('get block index by height', function() {
-    it('should get block index by height', function() {
-      var blockIndex = bitcoind.getBlockIndex(2);
-      should.exist(blockIndex);
-      should.exist(blockIndex.chainWork);
-      var work = new BN(blockIndex.chainWork, 'hex');
-      work.cmp(new BN(8)).should.equal(0);
-      should.exist(blockIndex.prevHash);
-      blockIndex.hash.should.equal(blockHashes[1]);
-      blockIndex.prevHash.should.equal(blockHashes[0]);
-      blockIndex.height.should.equal(2);
+    var expectedWork = new BN(6);
+    [2,3,4,5,6,7,8,9].forEach(function(i) {
+      it('generate block ' + i, function() {
+        var blockIndex = bitcoind.getBlockIndex(i);
+        should.exist(blockIndex);
+        should.exist(blockIndex.chainWork);
+        var work = new BN(blockIndex.chainWork, 'hex');
+        work.cmp(expectedWork).should.equal(0);
+        expectedWork = expectedWork.add(new BN(2));
+        should.exist(blockIndex.prevHash);
+        blockIndex.hash.should.equal(blockHashes[i - 1]);
+        blockIndex.prevHash.should.equal(blockHashes[i - 2]);
+        blockIndex.height.should.equal(i);
+      });
     });
   });
 
