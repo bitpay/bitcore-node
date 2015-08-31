@@ -2,7 +2,7 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
-var WebService = require('../lib/web');
+var WebService = require('../../lib/services/web');
 var EventEmitter = require('events').EventEmitter;
 
 describe('WebService', function() {
@@ -33,7 +33,7 @@ describe('WebService', function() {
     });
   });
 
-  describe('#setupRoutes', function() {
+  describe('#setupAllRoutes', function() {
     it('should call setupRoutes on each module', function() {
       var node = {
         on: sinon.spy(),
@@ -49,7 +49,7 @@ describe('WebService', function() {
 
       var web = new WebService({node: node});
 
-      web.setupRoutes();
+      web.setupAllRoutes();
       node.modules.one.setupRoutes.callCount.should.equal(1);
       node.modules.two.setupRoutes.callCount.should.equal(1);
     });
