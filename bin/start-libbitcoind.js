@@ -10,7 +10,7 @@ process.title = 'libbitcoind';
 /**
  * daemon
  */
-var daemon = require('../').modules.BitcoinModule({
+var daemon = require('../').services.Bitcoin({
   node: {
     datadir: process.env.BITCORENODE_DIR || process.env.HOME + '/.bitcoin',
     network: {

@@ -25,9 +25,9 @@ var should = chai.should();
 var BitcoinRPC = require('bitcoind-rpc');
 var index = require('..');
 var BitcoreNode = index.Node;
-var AddressModule = index.modules.AddressModule;
-var BitcoinModule = index.modules.BitcoinModule;
-var DBModule = index.modules.DBModule;
+var AddressService = index.services.Address;
+var BitcoinService = index.services.Bitcoin;
+var DBService = index.services.DB;
 var testWIF = 'cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG';
 var testKey;
 var client;
@@ -65,21 +65,21 @@ describe('Node Functionality', function() {
       var configuration = {
         datadir: datadir,
         network: 'regtest',
-        modules: [
+        services: [
           {
             name: 'db',
-            module: DBModule,
-            dependencies: DBModule.dependencies
+            module: DBService,
+            dependencies: DBService.dependencies
           },
           {
             name: 'bitcoind',
-            module: BitcoinModule,
-            dependencies: BitcoinModule.dependencies
+            module: BitcoinService,
+            dependencies: BitcoinService.dependencies
           },
           {
             name: 'address',
-            module: AddressModule,
-            dependencies: AddressModule.dependencies
+            module: AddressService,
+            dependencies: AddressService.dependencies
           }
         ]
       };
@@ -102,7 +102,7 @@ describe('Node Functionality', function() {
         });
 
         var syncedHandler = function() {
-          if (node.modules.db.tip.__height === 150) {
+          if (node.services.db.tip.__height === 150) {
             node.removeListener('synced', syncedHandler);
             done();
           }
@@ -178,18 +178,18 @@ describe('Node Functionality', function() {
         blocksRemoved++;
       };
 
-      node.modules.db.on('removeblock', removeBlock);
+      node.services.db.on('removeblock', removeBlock);
 
       var addBlock = function() {
         blocksAdded++;
         if (blocksAdded === 2 && blocksRemoved === 1) {
-          node.modules.db.removeListener('addblock', addBlock);
-          node.modules.db.removeListener('removeblock', removeBlock);
+          node.services.db.removeListener('addblock', addBlock);
+          node.services.db.removeListener('removeblock', removeBlock);
           done();
         }
       };
 
-      node.modules.db.on('addblock', addBlock);
+      node.services.db.on('addblock', addBlock);
 
       // We need to add a transaction to the mempool so that the next block will
       // have a different hash as the hash has been invalidated.

@@ -61,7 +61,7 @@ describe('Daemon Binding Functionality', function() {
         throw err;
       }
 
-      bitcoind = require('../').modules.BitcoinModule({
+      bitcoind = require('../').services.Bitcoin({
         node: {
           datadir: datadir,
           network: {

@@ -15,7 +15,7 @@ describe('#add', function() {
   var testDir = path.resolve(basePath, 'temporary-test-data');
   var startConfig = {
     name: 'My Node',
-    modules: []
+    services: []
   };
   var startPackage = {};
 
@@ -56,7 +56,7 @@ describe('#add', function() {
     it('will give an error if expected files do not exist', function(done) {
       add({
         path: path.resolve(testDir, 's0'),
-        modules: ['a', 'b', 'c']
+        services: ['a', 'b', 'c']
       }, function(err) {
         should.exist(err);
         err.message.match(/^Invalid state/);
@@ -82,15 +82,15 @@ describe('#add', function() {
 
       addtest({
         path: path.resolve(testDir, 's0/s1/'),
-        modules: ['a', 'b', 'c']
+        services: ['a', 'b', 'c']
       }, function(err) {
         should.exist(err);
-        err.message.should.equal('There was an error installing module: a');
+        err.message.should.equal('There was an error installing service: a');
         done();
       });
     });
 
-    it('will update bitcore-node.json modules', function(done) {
+    it('will update bitcore-node.json services', function(done) {
       var spawn = sinon.stub().returns({
         stdout: {
           on: sinon.stub()
@@ -107,12 +107,12 @@ describe('#add', function() {
       });
       addtest({
         path: path.resolve(testDir, 's0/s1/'),
-        modules: ['a', 'b', 'c']
+        services: ['a', 'b', 'c']
       }, function(err) {
         should.not.exist(err);
         var configPath = path.resolve(testDir, 's0/s1/bitcore-node.json');
         var config = JSON.parse(fs.readFileSync(configPath));
-        config.modules.should.deep.equal(['a','b','c']);
+        config.services.should.deep.equal(['a','b','c']);
         done();
       });
     });

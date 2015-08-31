@@ -6,7 +6,7 @@ var bitcore = require('bitcore');
 var Networks = bitcore.Networks;
 var proxyquire = require('proxyquire');
 var util = require('util');
-var BaseModule = require('../lib/module');
+var BaseService = require('../lib/service');
 
 describe('Bitcore Node', function() {
 
@@ -47,18 +47,18 @@ describe('Bitcore Node', function() {
   });
 
   describe('@constructor', function() {
-    var TestModule;
+    var TestService;
     before(function() {
-      TestModule = function TestModule() {};
-      util.inherits(TestModule, BaseModule);
+      TestService = function TestService() {};
+      util.inherits(TestService, BaseService);
     });
     it('will set properties', function() {
       var config = {
         datadir: 'testdir',
-        modules: [
+        services: [
           {
             name: 'test1',
-            module: TestModule
+            module: TestService
           }
         ],
       };
@@ -66,19 +66,19 @@ describe('Bitcore Node', function() {
       TestNode.prototype.start = sinon.spy();
       var node = new TestNode(config);
       TestNode.prototype.start.callCount.should.equal(1);
-      node._unloadedModules.length.should.equal(1);
-      node._unloadedModules[0].name.should.equal('test1');
-      node._unloadedModules[0].module.should.equal(TestModule);
+      node._unloadedServices.length.should.equal(1);
+      node._unloadedServices[0].name.should.equal('test1');
+      node._unloadedServices[0].module.should.equal(TestService);
       node.network.should.equal(Networks.defaultNetwork);
     });
     it('will set network to testnet', function() {
       var config = {
         network: 'testnet',
         datadir: 'testdir',
-        modules: [
+        services: [
           {
             name: 'test1',
-            module: TestModule
+            module: TestService
           }
         ],
       };
@@ -91,10 +91,10 @@ describe('Bitcore Node', function() {
       var config = {
         network: 'regtest',
         datadir: 'testdir',
-        modules: [
+        services: [
           {
             name: 'test1',
-            module: TestModule
+            module: TestService
           }
         ],
       };
@@ -108,10 +108,10 @@ describe('Bitcore Node', function() {
     it('should emit error if an error occurred starting services', function(done) {
       var config = {
         datadir: 'testdir',
-        modules: [
+        services: [
           {
             name: 'test1',
-            module: TestModule
+            module: TestService
           }
         ],
       };
@@ -139,16 +139,16 @@ describe('Bitcore Node', function() {
   });
 
   describe('#getAllAPIMethods', function() {
-    it('should return db methods and modules methods', function() {
+    it('should return db methods and service methods', function() {
       var node = new Node(baseConfig);
-      node.modules = {
+      node.services = {
         db: {
           getAPIMethods: sinon.stub().returns(['db1', 'db2']),
         },
-        module1: {
+        service1: {
           getAPIMethods: sinon.stub().returns(['mda1', 'mda2'])
         },
-        module2: {
+        service2: {
           getAPIMethods: sinon.stub().returns(['mdb1', 'mdb2'])
         }
       };
@@ -159,16 +159,16 @@ describe('Bitcore Node', function() {
   });
 
   describe('#getAllPublishEvents', function() {
-    it('should return modules publish events', function() {
+    it('should return services publish events', function() {
       var node = new Node(baseConfig);
-      node.modules = {
+      node.services = {
         db: {
           getPublishEvents: sinon.stub().returns(['db1', 'db2']),
         },
-        module1: {
+        service1: {
           getPublishEvents: sinon.stub().returns(['mda1', 'mda2'])
         },
-        module2: {
+        service2: {
           getPublishEvents: sinon.stub().returns(['mdb1', 'mdb2'])
         }
       };
@@ -180,7 +180,7 @@ describe('Bitcore Node', function() {
   describe('#getServiceOrder', function() {
     it('should return the services in the correct order', function() {
       var node = new Node(baseConfig);
-      node._unloadedModules = [
+      node._unloadedServices = [
         {
           name: 'chain',
           dependencies: ['db']
@@ -206,46 +206,46 @@ describe('Bitcore Node', function() {
     });
   });
 
-  describe('#_instantiateModule', function() {
+  describe('#_instantiateService', function() {
     it('will instantiate an instance and load api methods', function() {
       var node = new Node(baseConfig);
-      function TestModule() {}
-      util.inherits(TestModule, BaseModule);
-      TestModule.prototype.getData = function() {};
-      TestModule.prototype.getAPIMethods = function() {
+      function TestService() {}
+      util.inherits(TestService, BaseService);
+      TestService.prototype.getData = function() {};
+      TestService.prototype.getAPIMethods = function() {
         return [
           ['getData', this, this.getData, 1]
         ];
       };
       var service = {
-        name: 'testmodule',
-        module: TestModule
+        name: 'testservice',
+        module: TestService
       };
-      node._instantiateModule(service);
-      should.exist(node.modules.testmodule);
+      node._instantiateService(service);
+      should.exist(node.services.testservice);
       should.exist(node.getData);
     });
   });
 
   describe('#start', function() {
-    it('will call start for each module', function(done) {
+    it('will call start for each service', function(done) {
       var node = new Node(baseConfig);
 
-      function TestModule() {}
-      util.inherits(TestModule, BaseModule);
-      TestModule.prototype.start = sinon.stub().callsArg(0);
-      TestModule.prototype.getData = function() {};
-      TestModule.prototype.getAPIMethods = function() {
+      function TestService() {}
+      util.inherits(TestService, BaseService);
+      TestService.prototype.start = sinon.stub().callsArg(0);
+      TestService.prototype.getData = function() {};
+      TestService.prototype.getAPIMethods = function() {
         return [
           ['getData', this, this.getData, 1]
         ];
       };
 
-      function TestModule2() {}
-      util.inherits(TestModule2, BaseModule);
-      TestModule2.prototype.start = sinon.stub().callsArg(0);
-      TestModule2.prototype.getData2 = function() {};
-      TestModule2.prototype.getAPIMethods = function() {
+      function TestService2() {}
+      util.inherits(TestService2, BaseService);
+      TestService2.prototype.start = sinon.stub().callsArg(0);
+      TestService2.prototype.getData2 = function() {};
+      TestService2.prototype.getAPIMethods = function() {
         return [
           ['getData2', this, this.getData2, 1]
         ];
@@ -254,16 +254,16 @@ describe('Bitcore Node', function() {
       node.getServiceOrder = sinon.stub().returns([
         {
           name: 'test1',
-          module: TestModule
+          module: TestService
         },
         {
           name: 'test2',
-          module: TestModule2
+          module: TestService2
         }
       ]);
       node.start(function() {
-        TestModule2.prototype.start.callCount.should.equal(1);
-        TestModule.prototype.start.callCount.should.equal(1);
+        TestService2.prototype.start.callCount.should.equal(1);
+        TestService.prototype.start.callCount.should.equal(1);
         should.exist(node.getData2);
         should.exist(node.getData);
         done();
@@ -272,21 +272,21 @@ describe('Bitcore Node', function() {
     it('will error if there are conflicting API methods', function(done) {
       var node = new Node(baseConfig);
 
-      function TestModule() {}
-      util.inherits(TestModule, BaseModule);
-      TestModule.prototype.start = sinon.stub().callsArg(0);
-      TestModule.prototype.getData = function() {};
-      TestModule.prototype.getAPIMethods = function() {
+      function TestService() {}
+      util.inherits(TestService, BaseService);
+      TestService.prototype.start = sinon.stub().callsArg(0);
+      TestService.prototype.getData = function() {};
+      TestService.prototype.getAPIMethods = function() {
         return [
           ['getData', this, this.getData, 1]
         ];
       };
 
-      function ConflictModule() {}
-      util.inherits(ConflictModule, BaseModule);
-      ConflictModule.prototype.start = sinon.stub().callsArg(0);
-      ConflictModule.prototype.getData = function() {};
-      ConflictModule.prototype.getAPIMethods = function() {
+      function ConflictService() {}
+      util.inherits(ConflictService, BaseService);
+      ConflictService.prototype.start = sinon.stub().callsArg(0);
+      ConflictService.prototype.getData = function() {};
+      ConflictService.prototype.getAPIMethods = function() {
         return [
           ['getData', this, this.getData, 1]
         ];
@@ -295,11 +295,11 @@ describe('Bitcore Node', function() {
       node.getServiceOrder = sinon.stub().returns([
         {
           name: 'test',
-          module: TestModule
+          module: TestService
         },
         {
           name: 'conflict',
-          module: ConflictModule
+          module: ConflictService
         }
       ]);
 
@@ -313,30 +313,30 @@ describe('Bitcore Node', function() {
   });
 
   describe('#stop', function() {
-    it('will call stop for each module', function(done) {
+    it('will call stop for each service', function(done) {
       var node = new Node(baseConfig);
-      function TestModule() {}
-      util.inherits(TestModule, BaseModule);
-      TestModule.prototype.stop = sinon.stub().callsArg(0);
-      TestModule.prototype.getData = function() {};
-      TestModule.prototype.getAPIMethods = function() {
+      function TestService() {}
+      util.inherits(TestService, BaseService);
+      TestService.prototype.stop = sinon.stub().callsArg(0);
+      TestService.prototype.getData = function() {};
+      TestService.prototype.getAPIMethods = function() {
         return [
           ['getData', this, this.getData, 1]
         ];
       };
-      node.modules = {
-        'test1': new TestModule({node: node})
+      node.services = {
+        'test1': new TestService({node: node})
       };
       node.test2 = {};
       node.test2.stop = sinon.stub().callsArg(0);
       node.getServiceOrder = sinon.stub().returns([
         {
           name: 'test1',
-          module: TestModule
+          module: TestService
         }
       ]);
       node.stop(function() {
-        TestModule.prototype.stop.callCount.should.equal(1);
+        TestService.prototype.stop.callCount.should.equal(1);
         done();
       });
     });

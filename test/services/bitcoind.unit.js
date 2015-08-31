@@ -4,18 +4,18 @@ var should = require('chai').should();
 var proxyquire = require('proxyquire');
 var fs = require('fs');
 var sinon = require('sinon');
-var BitcoinModule = proxyquire('../../lib/modules/bitcoind', {
+var BitcoinService = proxyquire('../../lib/services/bitcoind', {
   fs: {
     readFileSync: sinon.stub().returns(fs.readFileSync(__dirname + '/../data/bitcoin.conf'))
   }
 });
-var BadBitcoin = proxyquire('../../lib/modules/bitcoind', {
+var BadBitcoin = proxyquire('../../lib/services/bitcoind', {
   fs: {
     readFileSync: sinon.stub().returns(fs.readFileSync(__dirname + '/../data/badbitcoin.conf'))
   }
 });
 
-describe('Bitcoin Module', function() {
+describe('Bitcoin Service', function() {
   var baseConfig = {
     node: {
       datadir: 'testdir',
@@ -26,7 +26,7 @@ describe('Bitcoin Module', function() {
   };
   describe('#_loadConfiguration', function() {
     it('will parse a bitcoin.conf file', function() {
-      var bitcoind = new BitcoinModule(baseConfig);
+      var bitcoind = new BitcoinService(baseConfig);
       bitcoind._loadConfiguration({datadir: process.env.HOME + '/.bitcoin'});
       should.exist(bitcoind.configuration);
       bitcoind.configuration.should.deep.equal({

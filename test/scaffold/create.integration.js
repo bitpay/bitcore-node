@@ -75,7 +75,7 @@ describe('#create', function() {
 
       var config = JSON.parse(fs.readFileSync(configPath));
       config.name.should.equal('My Node 1');
-      config.modules.should.deep.equal(['address']);
+      config.services.should.deep.equal(['address']);
       config.datadir.should.equal('./data');
       config.network.should.equal('livenet');
 

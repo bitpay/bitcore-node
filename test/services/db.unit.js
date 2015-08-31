@@ -5,7 +5,7 @@ var sinon = require('sinon');
 var EventEmitter = require('events').EventEmitter;
 var proxyquire = require('proxyquire');
 var index = require('../../');
-var DB = index.modules.DBModule;
+var DB = index.services.DB;
 var blockData = require('../data/livenet-345003.json');
 var bitcore = require('bitcore');
 var Networks = bitcore.Networks;
@@ -19,7 +19,7 @@ var memdown = require('memdown');
 var bitcore = require('bitcore');
 var Transaction = bitcore.Transaction;
 
-describe('DB Module', function() {
+describe('DB Service', function() {
 
   function hexlebuf(hexString){
     return BufferUtil.reverse(new Buffer(hexString, 'hex'));
@@ -106,7 +106,7 @@ describe('DB Module', function() {
     var genesisBuffer;
 
     before(function() {
-      TestDB = proxyquire('../../lib/modules/db', {
+      TestDB = proxyquire('../../lib/services/db', {
         fs: {
           existsSync: sinon.stub().returns(true)
         },
@@ -118,12 +118,11 @@ describe('DB Module', function() {
     it('should emit ready', function(done) {
       var db = new TestDB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         on: sinon.spy(),
         genesisBuffer: genesisBuffer
       };
-      db._addModule = sinon.spy();
       db.getMetadata = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
       db.saveMetadata = sinon.stub();
@@ -142,7 +141,7 @@ describe('DB Module', function() {
       var node = {
         network: Networks.testnet,
         datadir: 'testdir',
-        modules: {
+        services: {
           bitcoind: {
             genesisBuffer: genesisBuffer,
             on: sinon.stub()
@@ -165,7 +164,7 @@ describe('DB Module', function() {
       var node = {
         network: Networks.testnet,
         datadir: 'testdir',
-        modules: {
+        services: {
           bitcoind: {
             genesisBuffer: genesisBuffer,
             on: sinon.stub()
@@ -193,7 +192,7 @@ describe('DB Module', function() {
       var node = {
         network: Networks.testnet,
         datadir: 'testdir',
-        modules: {
+        services: {
           bitcoind: {
             genesisBuffer: genesisBuffer,
             on: sinon.stub()
@@ -213,7 +212,7 @@ describe('DB Module', function() {
       var node = {
         network: Networks.testnet,
         datadir: 'testdir',
-        modules: {
+        services: {
           bitcoind: {
             genesisBuffer: genesisBuffer,
             on: sinon.stub()
@@ -236,29 +235,29 @@ describe('DB Module', function() {
 
     it('will call sync when there is a new tip', function(done) {
       var db = new TestDB(baseConfig);
-      db.node.modules = {};
-      db.node.modules.bitcoind = new EventEmitter();
-      db.node.modules.bitcoind.syncPercentage = sinon.spy();
-      db.node.modules.bitcoind.genesisBuffer = genesisBuffer;
+      db.node.services = {};
+      db.node.services.bitcoind = new EventEmitter();
+      db.node.services.bitcoind.syncPercentage = sinon.spy();
+      db.node.services.bitcoind.genesisBuffer = genesisBuffer;
       db.getMetadata = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
       db.saveMetadata = sinon.stub();
       db.sync = sinon.stub();
       db.start(function() {
         db.sync = function() {
-          db.node.modules.bitcoind.syncPercentage.callCount.should.equal(1);
+          db.node.services.bitcoind.syncPercentage.callCount.should.equal(1);
           done();
         };
-        db.node.modules.bitcoind.emit('tip', 10);
+        db.node.services.bitcoind.emit('tip', 10);
       });
     });
 
     it('will not call sync when there is a new tip and shutting down', function(done) {
       var db = new TestDB(baseConfig);
-      db.node.modules = {};
-      db.node.modules.bitcoind = new EventEmitter();
-      db.node.modules.bitcoind.syncPercentage = sinon.spy();
-      db.node.modules.bitcoind.genesisBuffer = genesisBuffer;
+      db.node.services = {};
+      db.node.services.bitcoind = new EventEmitter();
+      db.node.services.bitcoind.syncPercentage = sinon.spy();
+      db.node.services.bitcoind.genesisBuffer = genesisBuffer;
       db.getMetadata = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
       db.saveMetadata = sinon.stub();
@@ -266,11 +265,11 @@ describe('DB Module', function() {
       db.sync = sinon.stub();
       db.start(function() {
         db.sync.callCount.should.equal(1);
-        db.node.modules.bitcoind.once('tip', function() {
+        db.node.services.bitcoind.once('tip', function() {
           db.sync.callCount.should.equal(1);
           done();
         });
-        db.node.modules.bitcoind.emit('tip', 10);
+        db.node.services.bitcoind.emit('tip', 10);
       });
     });
 
@@ -291,8 +290,8 @@ describe('DB Module', function() {
     it('will return a NotFound error', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getTransaction: sinon.stub().callsArgWith(2, null, null)
       };
       var txid = '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623';
@@ -304,8 +303,8 @@ describe('DB Module', function() {
     it('will return an error from bitcoind', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getTransaction: sinon.stub().callsArgWith(2, new Error('test error'))
       };
       var txid = '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623';
@@ -317,8 +316,8 @@ describe('DB Module', function() {
     it('will return an error from bitcoind', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getTransaction: sinon.stub().callsArgWith(2, null, new Buffer(transactionData[0].hex, 'hex'))
       };
       var txid = '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623';
@@ -337,8 +336,8 @@ describe('DB Module', function() {
     var blockBuffer = new Buffer(blockData, 'hex');
     var expectedBlock = Block.fromBuffer(blockBuffer);
     db.node = {};
-    db.node.modules = {};
-    db.node.modules.bitcoind = {
+    db.node.services = {};
+    db.node.services.bitcoind = {
       getBlock: sinon.stub().callsArgWith(1, null, blockBuffer)
     };
 
@@ -351,9 +350,9 @@ describe('DB Module', function() {
     });
     it('should give an error when bitcoind.js gives an error', function(done) {
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {};
-      db.node.modules.bitcoind.getBlock = sinon.stub().callsArgWith(1, new Error('error'));
+      db.node.services = {};
+      db.node.services.bitcoind = {};
+      db.node.services.bitcoind.getBlock = sinon.stub().callsArgWith(1, new Error('error'));
       db.getBlock('00000000000000000593b60d8b4f40fd1ec080bdb0817d475dae47b5f5b1f735', function(err, block) {
         should.exist(err);
         err.message.should.equal('error');
@@ -366,8 +365,8 @@ describe('DB Module', function() {
     it('should return prevHash from bitcoind', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getBlockIndex: sinon.stub().returns({
           prevHash: 'prevhash'
         })
@@ -383,8 +382,8 @@ describe('DB Module', function() {
     it('should give an error if bitcoind could not find it', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getBlockIndex: sinon.stub().returns(null)
       };
 
@@ -406,8 +405,8 @@ describe('DB Module', function() {
 
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getTransactionWithBlockInfo: sinon.stub().callsArgWith(2, null, info)
       };
 
@@ -421,8 +420,8 @@ describe('DB Module', function() {
     it('should give an error if one occurred', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getTransactionWithBlockInfo: sinon.stub().callsArgWith(2, new Error('error'))
       };
 
@@ -437,8 +436,8 @@ describe('DB Module', function() {
     it('should give the txid on success', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         sendTransaction: sinon.stub().returns('txid')
       };
 
@@ -452,8 +451,8 @@ describe('DB Module', function() {
     it('should give an error if bitcoind threw an error', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         sendTransaction: sinon.stub().throws(new Error('error'))
       };
 
@@ -469,15 +468,15 @@ describe('DB Module', function() {
     it('should pass along the fee from bitcoind', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         estimateFee: sinon.stub().returns(1000)
       };
 
       db.estimateFee(5, function(err, fee) {
         should.not.exist(err);
         fee.should.equal(1000);
-        db.node.modules.bitcoind.estimateFee.args[0][0].should.equal(5);
+        db.node.services.bitcoind.estimateFee.args[0][0].should.equal(5);
         done();
       });
     });
@@ -512,20 +511,20 @@ describe('DB Module', function() {
 
   describe('#runAllBlockHandlers', function() {
     var db = new DB(baseConfig);
-    var Module1 = function() {};
-    Module1.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op1', 'op2', 'op3']);
-    var Module2 = function() {};
-    Module2.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op4', 'op5']);
+    var Service1 = function() {};
+    Service1.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op1', 'op2', 'op3']);
+    var Service2 = function() {};
+    Service2.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op4', 'op5']);
     db.node = {};
-    db.node.modules = {
-      module1: new Module1(),
-      module2: new Module2()
+    db.node.services = {
+      service1: new Service1(),
+      service2: new Service2()
     };
     db.store = {
       batch: sinon.stub().callsArg(1)
     };
 
-    it('should call blockHandler in all modules and perform operations', function(done) {
+    it('should call blockHandler in all services and perform operations', function(done) {
       db.runAllBlockHandlers('block', true, function(err) {
         should.not.exist(err);
         db.store.batch.args[0][0].should.deep.equal(['op1', 'op2', 'op3', 'op4', 'op5']);
@@ -533,10 +532,10 @@ describe('DB Module', function() {
       });
     });
 
-    it('should give an error if one of the modules gives an error', function(done) {
-      var Module3 = function() {};
-      Module3.prototype.blockHandler = sinon.stub().callsArgWith(2, new Error('error'));
-      db.node.modules.module3 = new Module3();
+    it('should give an error if one of the services gives an error', function(done) {
+      var Service3 = function() {};
+      Service3.prototype.blockHandler = sinon.stub().callsArgWith(2, new Error('error'));
+      db.node.services.service3 = new Service3();
 
       db.runAllBlockHandlers('block', true, function(err) {
         should.exist(err);
@@ -549,7 +548,7 @@ describe('DB Module', function() {
     it('should return the correct db methods', function() {
       var db = new DB(baseConfig);
       db.node = {};
-      db.node.modules = {};
+      db.node.services = {};
       var methods = db.getAPIMethods();
       methods.length.should.equal(5);
     });
@@ -631,8 +630,8 @@ describe('DB Module', function() {
           }
         },
       };
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getBlockIndex: function(hash) {
           var block = forkedBlocks[hash];
           return {
@@ -678,7 +677,7 @@ describe('DB Module', function() {
           }
         });
       };
-      db.node.modules = {};
+      db.node.services = {};
       db.disconnectBlock = function(block, callback) {
         setImmediate(callback);
       };
@@ -710,8 +709,8 @@ describe('DB Module', function() {
       var db = new DB(syncConfig);
       var blockBuffer = new Buffer(blockData, 'hex');
       var block = Block.fromBuffer(blockBuffer);
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
         isSynced: sinon.stub().returns(true),
         height: 1
@@ -737,8 +736,8 @@ describe('DB Module', function() {
     });
     it('will exit and emit error with error from bitcoind.getBlock', function(done) {
       var db = new DB(syncConfig);
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, new Error('test error')),
         height: 1
       };
@@ -755,8 +754,8 @@ describe('DB Module', function() {
       var db = new DB(syncConfig);
       var blockBuffer = new Buffer(blockData, 'hex');
       var block = Block.fromBuffer(blockBuffer);
-      db.node.modules = {};
-      db.node.modules.bitcoind = {
+      db.node.services = {};
+      db.node.services.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
         isSynced: sinon.stub().returns(true),
         height: 1
