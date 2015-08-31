@@ -4,10 +4,6 @@ var should = require('chai').should();
 var sinon = require('sinon');
 var bitcoinlib = require('../');
 var Transaction = bitcoinlib.Transaction;
-var transactionData = require('./data/bitcoin-transactions.json');
-var memdown = require('memdown');
-var DB = bitcoinlib.DB;
-var db = new DB({store: memdown});
 var levelup = require('levelup');
 
 describe('Bitcoin Transaction', function() {

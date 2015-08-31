@@ -101,6 +101,9 @@ describe('Bitcore Node', function() {
     it('should return db methods and modules methods', function() {
       var node = new Node(baseConfig);
       node.modules = {
+        db: {
+          getAPIMethods: sinon.stub().returns(['db1', 'db2']),
+        },
         module1: {
           getAPIMethods: sinon.stub().returns(['mda1', 'mda2'])
         },
@@ -108,10 +111,6 @@ describe('Bitcore Node', function() {
           getAPIMethods: sinon.stub().returns(['mdb1', 'mdb2'])
         }
       };
-      var db = {
-        getAPIMethods: sinon.stub().returns(['db1', 'db2']),
-      };
-      node.db = db;
 
       var methods = node.getAllAPIMethods();
       methods.should.deep.equal(['db1', 'db2', 'mda1', 'mda2', 'mdb1', 'mdb2']);
@@ -121,6 +120,9 @@ describe('Bitcore Node', function() {
     it('should return modules publish events', function() {
       var node = new Node(baseConfig);
       node.modules = {
+        db: {
+          getPublishEvents: sinon.stub().returns(['db1', 'db2']),
+        },
         module1: {
           getPublishEvents: sinon.stub().returns(['mda1', 'mda2'])
         },
@@ -128,11 +130,6 @@ describe('Bitcore Node', function() {
           getPublishEvents: sinon.stub().returns(['mdb1', 'mdb2'])
         }
       };
-      var db = {
-        getPublishEvents: sinon.stub().returns(['db1', 'db2']),
-      };
-      node.db = db;
-
       var events = node.getAllPublishEvents();
       events.should.deep.equal(['db1', 'db2', 'mda1', 'mda2', 'mdb1', 'mdb2']);
     });
@@ -141,12 +138,8 @@ describe('Bitcore Node', function() {
     it('should call the necessary methods', function() {
       var TestNode = proxyquire('../lib/node', {});
       TestNode.prototype._initialize = sinon.spy();
-      TestNode.prototype._loadDB = sinon.spy();
-      TestNode.prototype._loadAPI = sinon.spy();
       TestNode.prototype._loadConsensus = sinon.spy();
       var node = new TestNode(baseConfig);
-      node._loadDB.callCount.should.equal(1);
-      node._loadAPI.callCount.should.equal(1);
       node._loadConsensus.callCount.should.equal(1);
     });
   });
@@ -243,8 +236,9 @@ describe('Bitcore Node', function() {
           }
         });
       };
-      node.db = {
-        _onChainRemoveBlock: function(block, callback) {
+      node.modules = {};
+      node.modules.db = {
+        disconnectBlock: function(block, callback) {
           setImmediate(callback);
         }
       };
@@ -286,8 +280,8 @@ describe('Bitcore Node', function() {
           hashes: {}
         }
       };
-      node.db = {
-        _onChainAddBlock: function(block, callback) {
+      node.modules.db = {
+        connectBlock: function(block, callback) {
           node.chain.tip.__height += 1;
           callback();
         }
@@ -336,8 +330,8 @@ describe('Bitcore Node', function() {
           hashes: {}
         }
       };
-      node.db = {
-        _onChainAddBlock: function(block, callback) {
+      node.modules.db = {
+        connectBlock: function(block, callback) {
           node.chain.tip.__height += 1;
           callback();
         }
@@ -387,119 +381,21 @@ describe('Bitcore Node', function() {
       node.network.name.should.equal('livenet');
     });
   });
-  describe('#_loadDB', function() {
-    it('should load the db', function() {
-      var DB = function(config) {
-        config.path.should.equal(process.env.HOME + '/.bitcoin/bitcore-node.db');
-      };
-      var config = {
-        DB: DB,
-        datadir: process.env.HOME + '/.bitcoin'
-      };
-
-      var node = new Node(config);
-      node.network = Networks.livenet;
-      node._loadDB(config);
-      node.db.should.be.instanceof(DB);
-    });
-    it('should load the db for testnet', function() {
-      var DB = function(config) {
-        config.path.should.equal(process.env.HOME + '/.bitcoin/testnet3/bitcore-node.db');
-      };
-      var config = {
-        DB: DB,
-        datadir: process.env.HOME + '/.bitcoin'
-      };
-
-      var node = new Node(config);
-      node.network = Networks.testnet;
-      node._loadDB(config);
-      node.db.should.be.instanceof(DB);
-    });
-    it('error with unknown network', function() {
-      var config = {
-        datadir: process.env.HOME + '/.bitcoin'
-      };
-
-      var node = new Node(config);
-      node.network = 'not a network';
-      (function() {
-        node._loadDB(config);
-      }).should.throw('Unknown network');
-    });
-    it('should load the db with regtest', function() {
-      var DB = function(config) {
-        config.path.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcore-node.db');
-      };
-      var config = {
-        DB: DB,
-        datadir: process.env.HOME + '/.bitcoin'
-      };
-
-      var node = new Node(config);
-      // Switch to use regtest
-      Networks.remove(Networks.testnet);
-      Networks.add({
-        name: 'regtest',
-        alias: 'regtest',
-        pubkeyhash: 0x6f,
-        privatekey: 0xef,
-        scripthash: 0xc4,
-        xpubkey: 0x043587cf,
-        xprivkey: 0x04358394,
-        networkMagic: 0xfabfb5da,
-        port: 18444,
-        dnsSeeds: [ ]
-      });
-      var regtest = Networks.get('regtest');
-      node.network = regtest;
-      node._loadDB(config);
-      node.db.should.be.instanceof(DB);
-      Networks.remove(regtest);
-      // Add testnet back
-      Networks.add({
-        name: 'testnet',
-        alias: 'testnet',
-        pubkeyhash: 0x6f,
-        privatekey: 0xef,
-        scripthash: 0xc4,
-        xpubkey: 0x043587cf,
-        xprivkey: 0x04358394,
-        networkMagic: 0x0b110907,
-        port: 18333,
-        dnsSeeds: [
-          'testnet-seed.bitcoin.petertodd.org',
-          'testnet-seed.bluematt.me',
-          'testnet-seed.alexykot.me',
-          'testnet-seed.bitcoin.schildbach.de'
-        ]
-      });
-    });
-  });
   describe('#_loadConsensus', function() {
-
     var node;
-
     before(function() {
       node = new Node(baseConfig);
     });
-
     it('will set properties', function() {
       node._loadConsensus();
       should.exist(node.chain);
     });
-
   });
-
   describe('#_initialize', function() {
-
     var node;
-
     before(function() {
       var TestNode = proxyquire('../lib/node', {});
       TestNode.prototype._loadConfiguration = sinon.spy();
-      TestNode.prototype._initializeBitcoind = sinon.spy();
-      TestNode.prototype._initializeDatabase = sinon.spy();
       TestNode.prototype._initializeChain = sinon.spy();
 
       // mock the _initialize during construction
@@ -510,14 +406,13 @@ describe('Bitcore Node', function() {
       node.chain = {
         on: sinon.spy()
       };
-      node.Block = 'Block';
-      node.bitcoind = {
+      node.modules = {};
+      node.modules.bitcoind = {
         on: sinon.spy()
       };
-      node.db = {
+      node.modules.db = {
         on: sinon.spy()
       };
-
       // restore the original method
       node._initialize = _initialize;
     });
@@ -526,15 +421,9 @@ describe('Bitcore Node', function() {
       node.once('ready', function() {
         done();
       });
-
       node.start = sinon.stub().callsArg(0);
-
       node._initialize();
-
-      // event handlers
-      node._initializeDatabase.callCount.should.equal(1);
       node._initializeChain.callCount.should.equal(1);
-
     });
 
     it('should emit an error if an error occurred starting services', function(done) {
@@ -547,34 +436,6 @@ describe('Bitcore Node', function() {
       node._initialize();
     });
 
-  });
-
-  describe('#_initializeDatabase', function() {
-    it('will log on ready event', function(done) {
-      var node = new Node(baseConfig);
-      node.db = new EventEmitter();
-      sinon.stub(index.log, 'info');
-      node.db.on('ready', function() {
-        setImmediate(function() {
-          index.log.info.callCount.should.equal(1);
-          index.log.info.restore();
-          done();
-        });
-      });
-      node._initializeDatabase();
-      node.db.emit('ready');
-    });
-    it('will call emit an error from db', function(done) {
-      var node = new Node(baseConfig);
-      node.db = new EventEmitter();
-      node.on('error', function(err) {
-        should.exist(err);
-        err.message.should.equal('test error');
-        done();
-      });
-      node._initializeDatabase();
-      node.db.emit('error', new Error('test error'));
-    });
   });
 
   describe('#_initializeChain', function() {

@@ -3,7 +3,6 @@
 module.exports = require('./lib');
 module.exports.Node = require('./lib/node');
 module.exports.Chain = require('./lib/chain');
-module.exports.DB = require('./lib/db');
 module.exports.Transaction = require('./lib/transaction');
 module.exports.Module = require('./lib/module');
 module.exports.errors = require('./lib/errors');
@@ -11,6 +10,7 @@ module.exports.errors = require('./lib/errors');
 module.exports.modules = {};
 module.exports.modules.AddressModule = require('./lib/modules/address');
 module.exports.modules.BitcoinModule = require('./lib/modules/bitcoind');
+module.exports.modules.DBModule = require('./lib/modules/db');
 
 module.exports.scaffold = {};
 module.exports.scaffold.create = require('./lib/scaffold/create');

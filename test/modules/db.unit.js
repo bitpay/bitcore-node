@@ -2,22 +2,113 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
-var index = require('../');
-var DB = index.DB;
-var blockData = require('./data/livenet-345003.json');
+var index = require('../../');
+var DB = index.modules.DBModule;
+var blockData = require('../data/livenet-345003.json');
 var bitcore = require('bitcore');
+var Networks = bitcore.Networks;
 var Block = bitcore.Block;
-var transactionData = require('./data/bitcoin-transactions.json');
+var transactionData = require('../data/bitcoin-transactions.json');
 var errors = index.errors;
 var memdown = require('memdown');
 var bitcore = require('bitcore');
 var Transaction = bitcore.Transaction;
 
-describe('Bitcoin DB', function() {
+describe('DB Module', function() {
+
+  var baseConfig = {
+    node: {
+      network: Networks.testnet,
+      datadir: 'testdir'
+    },
+    store: memdown
+  };
+
+  describe('#_setDataPath', function() {
+    it('should set the database path', function() {
+      var config = {
+        node: {
+          network: Networks.livenet,
+          datadir: process.env.HOME + '/.bitcoin'
+        },
+        store: memdown
+      };
+      var db = new DB(config);
+      db.dataPath.should.equal(process.env.HOME + '/.bitcoin/bitcore-node.db');
+    });
+    it('should load the db for testnet', function() {
+      var config = {
+        node: {
+          network: Networks.testnet,
+          datadir: process.env.HOME + '/.bitcoin'
+        },
+        store: memdown
+      };
+      var db = new DB(config);
+      db.dataPath.should.equal(process.env.HOME + '/.bitcoin/testnet3/bitcore-node.db');
+    });
+    it('error with unknown network', function() {
+      var config = {
+        node: {
+          network: 'unknown',
+          datadir: process.env.HOME + '/.bitcoin'
+        },
+        store: memdown
+      };
+      (function() {
+        var db = new DB(config);
+      }).should.throw('Unknown network');
+    });
+    it('should load the db with regtest', function() {
+      // Switch to use regtest
+      Networks.remove(Networks.testnet);
+      Networks.add({
+        name: 'regtest',
+        alias: 'regtest',
+        pubkeyhash: 0x6f,
+        privatekey: 0xef,
+        scripthash: 0xc4,
+        xpubkey: 0x043587cf,
+        xprivkey: 0x04358394,
+        networkMagic: 0xfabfb5da,
+        port: 18444,
+        dnsSeeds: [ ]
+      });
+      var regtest = Networks.get('regtest');
+      var config = {
+        node: {
+          network: regtest,
+          datadir: process.env.HOME + '/.bitcoin'
+        },
+        store: memdown
+      };
+      var db = new DB(config);
+      db.dataPath.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcore-node.db');
+      Networks.remove(regtest);
+      // Add testnet back
+      Networks.add({
+        name: 'testnet',
+        alias: 'testnet',
+        pubkeyhash: 0x6f,
+        privatekey: 0xef,
+        scripthash: 0xc4,
+        xpubkey: 0x043587cf,
+        xprivkey: 0x04358394,
+        networkMagic: 0x0b110907,
+        port: 18333,
+        dnsSeeds: [
+          'testnet-seed.bitcoin.petertodd.org',
+          'testnet-seed.bluematt.me',
+          'testnet-seed.alexykot.me',
+          'testnet-seed.bitcoin.schildbach.de'
+        ]
+      });
+    });
+  });
 
   describe('#start', function() {
     it('should emit ready', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -37,7 +128,7 @@ describe('Bitcoin DB', function() {
 
   describe('#stop', function() {
     it('should immediately call the callback', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
 
       db.stop(function(err) {
         should.not.exist(err);
@@ -48,7 +139,7 @@ describe('Bitcoin DB', function() {
 
   describe('#getTransaction', function() {
     it('will return a NotFound error', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -61,7 +152,7 @@ describe('Bitcoin DB', function() {
       });
     });
     it('will return an error from bitcoind', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -74,7 +165,7 @@ describe('Bitcoin DB', function() {
       });
     });
     it('will return an error from bitcoind', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -92,7 +183,7 @@ describe('Bitcoin DB', function() {
   });
 
   describe('#getBlock', function() {
-    var db = new DB({store: memdown});
+    var db = new DB(baseConfig);
     var blockBuffer = new Buffer(blockData, 'hex');
     var expectedBlock = Block.fromBuffer(blockBuffer);
     db.node = {};
@@ -121,19 +212,9 @@ describe('Bitcoin DB', function() {
     });
   });
 
-  describe('#putBlock', function() {
-    it('should call callback', function(done) {
-      var db = new DB({store: memdown});
-      db.putBlock('block', function(err) {
-        should.not.exist(err);
-        done();
-      });
-    });
-  });
-
   describe('#getPrevHash', function() {
     it('should return prevHash from bitcoind', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -150,7 +231,7 @@ describe('Bitcoin DB', function() {
     });
 
     it('should give an error if bitcoind could not find it', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -173,7 +254,7 @@ describe('Bitcoin DB', function() {
         buffer: txBuffer
       };
 
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -188,7 +269,7 @@ describe('Bitcoin DB', function() {
       });
     });
     it('should give an error if one occurred', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -204,7 +285,7 @@ describe('Bitcoin DB', function() {
 
   describe('#sendTransaction', function() {
     it('should give the txid on success', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -219,7 +300,7 @@ describe('Bitcoin DB', function() {
       });
     });
     it('should give an error if bitcoind threw an error', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -236,7 +317,7 @@ describe('Bitcoin DB', function() {
 
   describe("#estimateFee", function() {
     it('should pass along the fee from bitcoind', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
@@ -252,95 +333,35 @@ describe('Bitcoin DB', function() {
     });
   });
 
-  describe('#getOutputTotal', function() {
-    it('should return the correct value including the coinbase', function() {
-      var totals = [10, 20, 30];
-      var db = new DB({path: 'path', store: memdown});
-      var transactions = totals.map(function(total) {
-        return {
-          _getOutputAmount: function() {
-            return total;
-          },
-          isCoinbase: function() {
-            return total === 10 ? true : false;
-          }
-        };
-      });
-      var grandTotal = db.getOutputTotal(transactions);
-      grandTotal.should.equal(60);
-    });
-    it('should return the correct value excluding the coinbase', function() {
-      var totals = [10, 20, 30];
-      var db = new DB({path: 'path', store: memdown});
-      var transactions = totals.map(function(total) {
-        return {
-          _getOutputAmount: function() {
-            return total;
-          },
-          isCoinbase: function() {
-            return total === 10 ? true : false;
-          }
-        };
-      });
-      var grandTotal = db.getOutputTotal(transactions, true);
-      grandTotal.should.equal(50);
-    });
-  });
-
-  describe('#getInputTotal', function() {
-    it('should return the correct value', function() {
-      var totals = [10, 20, 30];
-      var db = new DB({path: 'path', store: memdown});
-      var transactions = totals.map(function(total) {
-        return {
-          _getInputAmount: function() {
-            return total;
-          },
-          isCoinbase: sinon.stub().returns(false)
-        };
-      });
-      var grandTotal = db.getInputTotal(transactions);
-      grandTotal.should.equal(60);
-    });
-    it('should return 0 if the tx is a coinbase', function() {
-      var db = new DB({store: memdown});
-      var tx = {
-        isCoinbase: sinon.stub().returns(true)
-      };
-      var total = db.getInputTotal([tx]);
-      total.should.equal(0);
-    });
-  });
-
-  describe('#_onChainAddBlock', function() {
+  describe('#connectBlock', function() {
     it('should remove block from mempool and call blockHandler with true', function(done) {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.mempool = {
         removeBlock: sinon.stub()
       };
-      db.blockHandler = sinon.stub().callsArg(2);
-      db._onChainAddBlock({hash: 'hash'}, function(err) {
+      db.runAllBlockHandlers = sinon.stub().callsArg(2);
+      db.connectBlock({hash: 'hash'}, function(err) {
         should.not.exist(err);
-        db.blockHandler.args[0][1].should.equal(true);
+        db.runAllBlockHandlers.args[0][1].should.equal(true);
         done();
       });
     });
   });
 
-  describe('#_onChainRemoveBlock', function() {
+  describe('#disconnectBlock', function() {
     it('should call blockHandler with false', function(done) {
-      var db = new DB({store: memdown});
-      db.blockHandler = sinon.stub().callsArg(2);
-      db._onChainRemoveBlock({hash: 'hash'}, function(err) {
+      var db = new DB(baseConfig);
+      db.runAllBlockHandlers = sinon.stub().callsArg(2);
+      db.disconnectBlock({hash: 'hash'}, function(err) {
         should.not.exist(err);
-        db.blockHandler.args[0][1].should.equal(false);
+        db.runAllBlockHandlers.args[0][1].should.equal(false);
         done();
       });
     });
   });
 
-  describe('#blockHandler', function() {
-    var db = new DB({store: memdown});
+  describe('#runAllBlockHandlers', function() {
+    var db = new DB(baseConfig);
     var Module1 = function() {};
     Module1.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op1', 'op2', 'op3']);
     var Module2 = function() {};
@@ -355,7 +376,7 @@ describe('Bitcoin DB', function() {
     };
 
     it('should call blockHandler in all modules and perform operations', function(done) {
-      db.blockHandler('block', true, function(err) {
+      db.runAllBlockHandlers('block', true, function(err) {
         should.not.exist(err);
         db.store.batch.args[0][0].should.deep.equal(['op1', 'op2', 'op3', 'op4', 'op5']);
         done();
@@ -367,7 +388,7 @@ describe('Bitcoin DB', function() {
       Module3.prototype.blockHandler = sinon.stub().callsArgWith(2, new Error('error'));
       db.node.modules.module3 = new Module3();
 
-      db.blockHandler('block', true, function(err) {
+      db.runAllBlockHandlers('block', true, function(err) {
         should.exist(err);
         done();
       });
@@ -376,12 +397,11 @@ describe('Bitcoin DB', function() {
 
   describe('#getAPIMethods', function() {
     it('should return the correct db methods', function() {
-      var db = new DB({store: memdown});
+      var db = new DB(baseConfig);
       db.node = {};
       db.node.modules = {};
       var methods = db.getAPIMethods();
       methods.length.should.equal(5);
     });
   });
-
 });

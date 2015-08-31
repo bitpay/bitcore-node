@@ -46,21 +46,21 @@ describe('Bitcoin Chain', function() {
     it('should initialize the chain with the genesis block if no metadata is found in the db', function(done) {
       var db = {};
       db.getMetadata = sinon.stub().callsArgWith(0, null, {});
-      db.putBlock = sinon.stub().callsArg(1);
       db.putMetadata = sinon.stub().callsArg(1);
       db.getTransactionsFromBlock = sinon.stub();
-      db._onChainAddBlock = sinon.stub().callsArg(1);
+      db.connectBlock = sinon.stub().callsArg(1);
       db.mempool = {
         on: sinon.spy()
       };
       var node = {
-        db: db
+        modules: {
+          db: db
+        }
       };
       var chain = new Chain({node: node, genesis: {hash: 'genesis'}});
 
       chain.on('ready', function() {
         should.exist(chain.tip);
-        db.putBlock.callCount.should.equal(1);
         chain.tip.hash.should.equal('genesis');
         Number(chain.tip.__weight.toString(10)).should.equal(0);
         done();
@@ -76,7 +76,6 @@ describe('Bitcoin Chain', function() {
     it('should initialize the chain with the metadata from the database if it exists', function(done) {
       var db = {};
       db.getMetadata = sinon.stub().callsArgWith(0, null, {tip: 'block2', tipWeight: 2});
-      db.putBlock = sinon.stub().callsArg(1);
       db.putMetadata = sinon.stub().callsArg(1);
       db.getBlock = sinon.stub().callsArgWith(1, null, {hash: 'block2', prevHash: 'block1'});
       db.getTransactionsFromBlock = sinon.stub();
@@ -84,14 +83,15 @@ describe('Bitcoin Chain', function() {
         on: sinon.spy()
       };
       var node = {
-        db: db
+        modules: {
+          db: db
+        }
       };
       var chain = new Chain({node: node, genesis: {hash: 'genesis'}});
       chain.getHeightForBlock = sinon.stub().callsArgWith(1, null, 10);
       chain.getWeight = sinon.stub().callsArgWith(1, null, new BN(50));
       chain.on('ready', function() {
         should.exist(chain.tip);
-        db.putBlock.callCount.should.equal(0);
         chain.tip.hash.should.equal('block2');
         done();
       });
@@ -113,37 +113,14 @@ describe('Bitcoin Chain', function() {
         on: sinon.spy()
       };
       var node = {
-        db: db
+        modules: {
+          db: db
+        }
       };
       var chain = new Chain({node: node, genesis: {hash: 'genesis'}});
       chain.on('error', function(error) {
         should.exist(error);
         error.message.should.equal('getMetadataError');
-        done();
-      });
-      chain.initialize();
-    });
-
-    it('emit error from putBlock', function(done) {
-      var db = {
-        getMetadata: function(cb) {
-          cb(null, null);
-        },
-        putBlock: function(block, cb) {
-          cb(new Error('putBlockError'));
-        }
-      };
-      db.getTransactionsFromBlock = sinon.stub();
-      db.mempool = {
-        on: sinon.spy()
-      };
-      var node = {
-        db: db
-      };
-      var chain = new Chain({node: node, genesis: {hash: 'genesis'}});
-      chain.on('error', function(error) {
-        should.exist(error);
-        error.message.should.equal('putBlockError');
         done();
       });
       chain.initialize();
@@ -163,7 +140,9 @@ describe('Bitcoin Chain', function() {
         on: sinon.spy()
       };
       var node = {
-        db: db
+        modules: {
+          db: db
+        }
       };
       var chain = new Chain({node: node, genesis: {hash: 'genesis'}});
       chain.on('error', function(error) {
@@ -196,8 +175,8 @@ describe('Bitcoin Chain', function() {
     var work = '000000000000000000000000000000000000000000005a7b3c42ea8b844374e9';
     var chain = new Chain();
     chain.node = {};
-    chain.node.db = {};
     chain.node.modules = {};
+    chain.node.modules.db = {};
     chain.node.modules.bitcoind = {
       getBlockIndex: sinon.stub().returns({
         chainWork: work
@@ -233,7 +212,7 @@ describe('Bitcoin Chain', function() {
       blocks[block1.hash] = block1;
       blocks[block2.hash] = block2;
 
-      var db = new DB({store: memdown});
+      var db = {};
       db.getPrevHash = function(blockHash, cb) {
         // TODO: expose prevHash as a string from bitcore
         var prevHash = BufferUtil.reverse(blocks[blockHash].header.prevHash).toString('hex');
@@ -241,7 +220,9 @@ describe('Bitcoin Chain', function() {
       };
 
       var node = {
-        db: db
+        modules: {
+          db: db
+        }
       };
 
       var chain = new Chain({

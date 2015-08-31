@@ -6,6 +6,7 @@ var bitcorenode = require('../../');
 var AddressModule = bitcorenode.modules.AddressModule;
 var blockData = require('../data/livenet-345003.json');
 var bitcore = require('bitcore');
+var Networks = bitcore.Networks;
 var EventEmitter = require('events').EventEmitter;
 var errors = bitcorenode.errors;
 var levelup = require('levelup');
@@ -71,6 +72,7 @@ describe('AddressModule', function() {
       var txBuf = new Buffer('01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000', 'hex');
       var tx = bitcore.Transaction().fromBuffer(txBuf);
       var am = new AddressModule({node: mocknode});
+      am.node.network = Networks.livenet;
       var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
       var messages = {};
       am.transactionOutputHandler(messages, tx, 0, true);
@@ -151,7 +153,8 @@ describe('AddressModule', function() {
     var value64 = data[2].value;
 
     before(function() {
-      am = new AddressModule({node: mocknode, network: 'livenet'});
+      am = new AddressModule({node: mocknode});
+      am.node.network = Networks.livenet;
     });
 
     it('should create the correct operations when updating/adding outputs', function(done) {
@@ -428,8 +431,8 @@ describe('AddressModule', function() {
           __height: 1
         }
       },
-      db: db,
       modules: {
+        db: db,
         bitcoind: {
           on: sinon.stub()
         }
@@ -442,7 +445,7 @@ describe('AddressModule', function() {
 
     it('should get outputs for an address', function(done) {
       var readStream1 = new EventEmitter();
-      am.node.db.store = {
+      am.node.modules.db.store = {
         createReadStream: sinon.stub().returns(readStream1)
       };
       var mempoolOutputs = [
@@ -497,7 +500,7 @@ describe('AddressModule', function() {
 
     it('should give an error if the readstream has an error', function(done) {
       var readStream2 = new EventEmitter();
-      am.node.db.store = {
+      am.node.modules.db.store = {
         createReadStream: sinon.stub().returns(readStream2)
       };
 
@@ -524,8 +527,8 @@ describe('AddressModule', function() {
 
       var db = {};
       var testnode = {
-        db: db,
         modules: {
+          db: db,
           bitcoind: {
             on: sinon.stub()
           }
@@ -554,13 +557,7 @@ describe('AddressModule', function() {
         'addr3': ['utxo3']
       };
 
-      var db = {
-        modules: {
-          bitcoind: {
-            on: sinon.spy()
-          }
-        }
-      };
+      var db = {};
       var testnode = {
         db: db,
         modules: {
@@ -741,8 +738,8 @@ describe('AddressModule', function() {
         }
       };
       var testnode = {
-        db: db,
         modules: {
+          db: db,
           bitcoind: {
             on: sinon.stub()
           }
@@ -861,8 +858,8 @@ describe('AddressModule', function() {
           __height: 1
         }
       },
-      db: db,
       modules: {
+        db: db,
         bitcoind: {
           on: sinon.stub()
         }
