@@ -2,19 +2,32 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
+var EventEmitter = require('events').EventEmitter;
+var proxyquire = require('proxyquire');
 var index = require('../../');
 var DB = index.modules.DBModule;
 var blockData = require('../data/livenet-345003.json');
 var bitcore = require('bitcore');
 var Networks = bitcore.Networks;
 var Block = bitcore.Block;
+var BufferUtil = bitcore.util.buffer;
 var transactionData = require('../data/bitcoin-transactions.json');
+var chainHashes = require('../data/hashes.json');
+var chainData = require('../data/testnet-blocks.json');
 var errors = index.errors;
 var memdown = require('memdown');
 var bitcore = require('bitcore');
 var Transaction = bitcore.Transaction;
 
 describe('DB Module', function() {
+
+  function hexlebuf(hexString){
+    return BufferUtil.reverse(new Buffer(hexString, 'hex'));
+  }
+
+  function lebufhex(buf) {
+    return BufferUtil.reverse(buf).toString('hex');
+  }
 
   var baseConfig = {
     node: {
@@ -61,7 +74,7 @@ describe('DB Module', function() {
     });
     it('should load the db with regtest', function() {
       // Switch to use regtest
-      Networks.remove(Networks.testnet);
+      // Networks.remove(Networks.testnet);
       Networks.add({
         name: 'regtest',
         alias: 'regtest',
@@ -85,36 +98,36 @@ describe('DB Module', function() {
       var db = new DB(config);
       db.dataPath.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcore-node.db');
       Networks.remove(regtest);
-      // Add testnet back
-      Networks.add({
-        name: 'testnet',
-        alias: 'testnet',
-        pubkeyhash: 0x6f,
-        privatekey: 0xef,
-        scripthash: 0xc4,
-        xpubkey: 0x043587cf,
-        xprivkey: 0x04358394,
-        networkMagic: 0x0b110907,
-        port: 18333,
-        dnsSeeds: [
-          'testnet-seed.bitcoin.petertodd.org',
-          'testnet-seed.bluematt.me',
-          'testnet-seed.alexykot.me',
-          'testnet-seed.bitcoin.schildbach.de'
-        ]
-      });
     });
   });
 
   describe('#start', function() {
+    var TestDB;
+    var genesisBuffer;
+
+    before(function() {
+      TestDB = proxyquire('../../lib/modules/db', {
+        fs: {
+          existsSync: sinon.stub().returns(true)
+        },
+        levelup: sinon.stub()
+      });
+      genesisBuffer = new Buffer('0100000043497fd7f826957108f4a30fd9cec3aeba79972084e90ead01ea330900000000bac8b0fa927c0ac8234287e33c5f74d38d354820e24756ad709d7038fc5f31f020e7494dffff001d03e4b6720101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0e0420e7494d017f062f503253482fffffffff0100f2052a010000002321021aeaf2f8638a129a3156fbe7e5ef635226b0bafd495ff03afe2c843d7e3a4b51ac00000000', 'hex');
+    });
+
     it('should emit ready', function(done) {
-      var db = new DB(baseConfig);
+      var db = new TestDB(baseConfig);
       db.node = {};
       db.node.modules = {};
       db.node.modules.bitcoind = {
-        on: sinon.spy()
+        on: sinon.spy(),
+        genesisBuffer: genesisBuffer
       };
-      db.addModule = sinon.spy();
+      db._addModule = sinon.spy();
+      db.getMetadata = sinon.stub().callsArg(0);
+      db.connectBlock = sinon.stub().callsArg(1);
+      db.saveMetadata = sinon.stub();
+      db.sync = sinon.stub();
       var readyFired = false;
       db.on('ready', function() {
         readyFired = true;
@@ -124,6 +137,143 @@ describe('DB Module', function() {
         done();
       });
     });
+
+    it('genesis block if no metadata is found in the db', function(done) {
+      var node = {
+        network: Networks.testnet,
+        datadir: 'testdir',
+        modules: {
+          bitcoind: {
+            genesisBuffer: genesisBuffer,
+            on: sinon.stub()
+          }
+        }
+      };
+      var db = new TestDB({node: node});
+      db.getMetadata = sinon.stub().callsArgWith(0, null, null);
+      db.connectBlock = sinon.stub().callsArg(1);
+      db.saveMetadata = sinon.stub();
+      db.sync = sinon.stub();
+      db.start(function() {
+        should.exist(db.tip);
+        db.tip.hash.should.equal('00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206');
+        done();
+      });
+    });
+
+    it('metadata from the database if it exists', function(done) {
+      var node = {
+        network: Networks.testnet,
+        datadir: 'testdir',
+        modules: {
+          bitcoind: {
+            genesisBuffer: genesisBuffer,
+            on: sinon.stub()
+          }
+        }
+      };
+      var tip = Block.fromBuffer(genesisBuffer);
+      var db = new TestDB({node: node});
+      var tipHash = '00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206';
+      db.getMetadata = sinon.stub().callsArgWith(0, null, {
+        tip: tipHash,
+        tipHeight: 0
+      });
+      db.getBlock = sinon.stub().callsArgWith(1, null, tip);
+      db.saveMetadata = sinon.stub();
+      db.sync = sinon.stub();
+      db.start(function() {
+        should.exist(db.tip);
+        db.tip.hash.should.equal(tipHash);
+        done();
+      });
+    });
+
+    it('emit error from getMetadata', function(done) {
+      var node = {
+        network: Networks.testnet,
+        datadir: 'testdir',
+        modules: {
+          bitcoind: {
+            genesisBuffer: genesisBuffer,
+            on: sinon.stub()
+          }
+        }
+      };
+      var db = new TestDB({node: node});
+      db.getMetadata = sinon.stub().callsArgWith(0, new Error('test'));
+      db.start(function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+
+    it('emit error from getBlock', function(done) {
+      var node = {
+        network: Networks.testnet,
+        datadir: 'testdir',
+        modules: {
+          bitcoind: {
+            genesisBuffer: genesisBuffer,
+            on: sinon.stub()
+          }
+        }
+      };
+      var db = new TestDB({node: node});
+      var tipHash = '00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206';
+      db.getMetadata = sinon.stub().callsArgWith(0, null, {
+        tip: tipHash,
+        tipHeigt: 0
+      });
+      db.getBlock = sinon.stub().callsArgWith(1, new Error('test'));
+      db.start(function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+
+    it('will call sync when there is a new tip', function(done) {
+      var db = new TestDB(baseConfig);
+      db.node.modules = {};
+      db.node.modules.bitcoind = new EventEmitter();
+      db.node.modules.bitcoind.syncPercentage = sinon.spy();
+      db.node.modules.bitcoind.genesisBuffer = genesisBuffer;
+      db.getMetadata = sinon.stub().callsArg(0);
+      db.connectBlock = sinon.stub().callsArg(1);
+      db.saveMetadata = sinon.stub();
+      db.sync = sinon.stub();
+      db.start(function() {
+        db.sync = function() {
+          db.node.modules.bitcoind.syncPercentage.callCount.should.equal(1);
+          done();
+        };
+        db.node.modules.bitcoind.emit('tip', 10);
+      });
+    });
+
+    it('will not call sync when there is a new tip and shutting down', function(done) {
+      var db = new TestDB(baseConfig);
+      db.node.modules = {};
+      db.node.modules.bitcoind = new EventEmitter();
+      db.node.modules.bitcoind.syncPercentage = sinon.spy();
+      db.node.modules.bitcoind.genesisBuffer = genesisBuffer;
+      db.getMetadata = sinon.stub().callsArg(0);
+      db.connectBlock = sinon.stub().callsArg(1);
+      db.saveMetadata = sinon.stub();
+      db.node.stopping = true;
+      db.sync = sinon.stub();
+      db.start(function() {
+        db.sync.callCount.should.equal(1);
+        db.node.modules.bitcoind.once('tip', function() {
+          db.sync.callCount.should.equal(1);
+          done();
+        });
+        db.node.modules.bitcoind.emit('tip', 10);
+      });
+    });
+
   });
 
   describe('#stop', function() {
@@ -404,4 +554,237 @@ describe('DB Module', function() {
       methods.length.should.equal(5);
     });
   });
+
+  describe('#getHashes', function() {
+
+    it('should get an array of chain hashes', function(done) {
+
+      var blocks = {};
+      var genesisBlock = Block.fromBuffer(new Buffer(chainData[0], 'hex'));
+      var block1 = Block.fromBuffer(new Buffer(chainData[1], 'hex'));
+      var block2 = Block.fromBuffer(new Buffer(chainData[2], 'hex'));
+      blocks[genesisBlock.hash] = genesisBlock;
+      blocks[block1.hash] = block1;
+      blocks[block2.hash] = block2;
+
+      var db = new DB(baseConfig);
+      db.genesis = genesisBlock;
+      db.getPrevHash = function(blockHash, cb) {
+        // TODO: expose prevHash as a string from bitcore
+        var prevHash = BufferUtil.reverse(blocks[blockHash].header.prevHash).toString('hex');
+        cb(null, prevHash);
+      };
+
+      db.tip = block2;
+
+      // the test
+      db.getHashes(block2.hash, function(err, hashes) {
+        should.not.exist(err);
+        should.exist(hashes);
+        hashes.length.should.equal(3);
+        done();
+      });
+
+    });
+  });
+
+  describe('#findCommonAncestor', function() {
+    it('will find an ancestor 6 deep', function() {
+      var db = new DB(baseConfig);
+      db.getHashes = function(tipHash, callback) {
+        callback(null, chainHashes);
+      };
+      db.tip = {
+        hash: chainHashes[chainHashes.length]
+      };
+      var expectedAncestor = chainHashes[chainHashes.length - 6];
+
+      var forkedBlocks = {
+        'd7fa6f3d5b2fe35d711e6aca5530d311b8c6e45f588a65c642b8baf4b4441d82': {
+          header: {
+            prevHash: hexlebuf('76d920dbd83beca9fa8b2f346d5c5a81fe4a350f4b355873008229b1e6f8701a')
+          }
+        },
+        '76d920dbd83beca9fa8b2f346d5c5a81fe4a350f4b355873008229b1e6f8701a': {
+          header: {
+            prevHash: hexlebuf('f0a0d76a628525243c8af7606ee364741ccd5881f0191bbe646c8a4b2853e60c')
+          }
+        },
+        'f0a0d76a628525243c8af7606ee364741ccd5881f0191bbe646c8a4b2853e60c': {
+          header: {
+            prevHash: hexlebuf('2f72b809d5ccb750c501abfdfa8c4c4fad46b0b66c088f0568d4870d6f509c31')
+          }
+        },
+        '2f72b809d5ccb750c501abfdfa8c4c4fad46b0b66c088f0568d4870d6f509c31': {
+          header: {
+            prevHash: hexlebuf('adf66e6ae10bc28fc22bc963bf43e6b53ef4429269bdb65038927acfe66c5453')
+          }
+        },
+        'adf66e6ae10bc28fc22bc963bf43e6b53ef4429269bdb65038927acfe66c5453': {
+          header: {
+            prevHash: hexlebuf('3ea12707e92eed024acf97c6680918acc72560ec7112cf70ac213fb8bb4fa618')
+          }
+        },
+        '3ea12707e92eed024acf97c6680918acc72560ec7112cf70ac213fb8bb4fa618': {
+          header: {
+            prevHash: hexlebuf(expectedAncestor)
+          }
+        },
+      };
+      db.node.modules = {};
+      db.node.modules.bitcoind = {
+        getBlockIndex: function(hash) {
+          var block = forkedBlocks[hash];
+          return {
+            prevHash: BufferUtil.reverse(block.header.prevHash).toString('hex')
+          };
+        }
+      };
+      var block = forkedBlocks['d7fa6f3d5b2fe35d711e6aca5530d311b8c6e45f588a65c642b8baf4b4441d82'];
+      db.findCommonAncestor(block, function(err, ancestorHash) {
+        if (err) {
+          throw err;
+        }
+        ancestorHash.should.equal(expectedAncestor);
+      });
+    });
+  });
+
+  describe('#syncRewind', function() {
+    it('will undo blocks 6 deep', function() {
+      var db = new DB(baseConfig);
+      var ancestorHash = chainHashes[chainHashes.length - 6];
+      db.tip = {
+        __height: 10,
+        hash: chainHashes[chainHashes.length],
+        header: {
+          prevHash: hexlebuf(chainHashes[chainHashes.length - 1])
+        }
+      };
+      db.saveMetadata = sinon.stub();
+      db.emit = sinon.stub();
+      db.getBlock = function(hash, callback) {
+        setImmediate(function() {
+          for(var i = chainHashes.length; i > 0; i--) {
+            var block = {
+              hash: chainHashes[i],
+              header: {
+                prevHash: hexlebuf(chainHashes[i - 1])
+              }
+            };
+            if (chainHashes[i] === hash) {
+              callback(null, block);
+            }
+          }
+        });
+      };
+      db.node.modules = {};
+      db.disconnectBlock = function(block, callback) {
+        setImmediate(callback);
+      };
+      db.findCommonAncestor = function(block, callback) {
+        setImmediate(function() {
+          callback(null, ancestorHash);
+        });
+      };
+      var forkedBlock = {};
+      db.syncRewind(forkedBlock, function(err) {
+        if (err) {
+          throw err;
+        }
+        db.tip.__height.should.equal(4);
+        db.tip.hash.should.equal(ancestorHash);
+      });
+    });
+  });
+
+  describe('#sync', function() {
+    var node = new EventEmitter();
+    var syncConfig = {
+      node: node,
+      store: memdown
+      };
+    syncConfig.node.network = Networks.testnet;
+    syncConfig.node.datadir = 'testdir';
+    it('will get and add block up to the tip height', function(done) {
+      var db = new DB(syncConfig);
+      var blockBuffer = new Buffer(blockData, 'hex');
+      var block = Block.fromBuffer(blockBuffer);
+      db.node.modules = {};
+      db.node.modules.bitcoind = {
+        getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
+        isSynced: sinon.stub().returns(true),
+        height: 1
+      };
+      db.tip = {
+        __height: 0,
+        hash: lebufhex(block.header.prevHash)
+      };
+      db.getHashes = sinon.stub().callsArgWith(1, null);
+      db.saveMetadata = sinon.stub();
+      db.emit = sinon.stub();
+      db.cache = {
+        hashes: {}
+      };
+      db.connectBlock = function(block, callback) {
+        db.tip.__height += 1;
+        callback();
+      };
+      db.node.once('synced', function() {
+        done();
+      });
+      db.sync();
+    });
+    it('will exit and emit error with error from bitcoind.getBlock', function(done) {
+      var db = new DB(syncConfig);
+      db.node.modules = {};
+      db.node.modules.bitcoind = {
+        getBlock: sinon.stub().callsArgWith(1, new Error('test error')),
+        height: 1
+      };
+      db.tip = {
+        __height: 0
+      };
+      db.node.on('error', function(err) {
+        err.message.should.equal('test error');
+        done();
+      });
+      db.sync();
+    });
+    it('will stop syncing when the node is stopping', function(done) {
+      var db = new DB(syncConfig);
+      var blockBuffer = new Buffer(blockData, 'hex');
+      var block = Block.fromBuffer(blockBuffer);
+      db.node.modules = {};
+      db.node.modules.bitcoind = {
+        getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
+        isSynced: sinon.stub().returns(true),
+        height: 1
+      };
+      db.tip = {
+        __height: 0,
+        hash: block.prevHash
+      };
+      db.saveMetadata = sinon.stub();
+      db.emit = sinon.stub();
+      db.cache = {
+        hashes: {}
+      };
+      db.connectBlock = function(block, callback) {
+        db.tip.__height += 1;
+        callback();
+      };
+      db.node.stopping = true;
+      var synced = false;
+      db.node.once('synced', function() {
+        synced = true;
+      });
+      db.sync();
+      setTimeout(function() {
+        synced.should.equal(false);
+        done();
+      }, 10);
+    });
+  });
+
 });

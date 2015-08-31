@@ -102,7 +102,7 @@ describe('Node Functionality', function() {
         });
 
         var syncedHandler = function() {
-          if (node.chain.tip.__height === 150) {
+          if (node.modules.db.tip.__height === 150) {
             node.removeListener('synced', syncedHandler);
             done();
           }
@@ -178,18 +178,18 @@ describe('Node Functionality', function() {
         blocksRemoved++;
       };
 
-      node.chain.on('removeblock', removeBlock);
+      node.modules.db.on('removeblock', removeBlock);
 
       var addBlock = function() {
         blocksAdded++;
         if (blocksAdded === 2 && blocksRemoved === 1) {
-          node.chain.removeListener('addblock', addBlock);
-          node.chain.removeListener('removeblock', removeBlock);
+          node.modules.db.removeListener('addblock', addBlock);
+          node.modules.db.removeListener('removeblock', removeBlock);
           done();
         }
       };
 
-      node.chain.on('addblock', addBlock);
+      node.modules.db.on('addblock', addBlock);
 
       // We need to add a transaction to the mempool so that the next block will
       // have a different hash as the hash has been invalidated.

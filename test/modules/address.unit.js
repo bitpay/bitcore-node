@@ -23,7 +23,7 @@ var mocknode = {
   }
 };
 
-describe('AddressModule', function() {
+describe('Address Module', function() {
 
   describe('#getAPIMethods', function() {
     it('should return the correct methods', function() {
@@ -424,13 +424,12 @@ describe('AddressModule', function() {
   describe('#getOutputs', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
-    var db = {};
+    var db = {
+      tip: {
+        __height: 1
+      }
+    };
     var testnode = {
-      chain: {
-        tip: {
-          __height: 1
-        }
-      },
       modules: {
         db: db,
         bitcoind: {
@@ -819,6 +818,9 @@ describe('AddressModule', function() {
     ];
 
     var db = {
+      tip: {
+        __height: 1
+      },
       getTransactionWithBlockInfo: function(txid, queryMempool, callback) {
         var transaction = {
           populateInputs: sinon.stub().callsArg(2)
@@ -853,11 +855,6 @@ describe('AddressModule', function() {
       }
     };
     var testnode = {
-      chain: {
-        tip: {
-          __height: 1
-        }
-      },
       modules: {
         db: db,
         bitcoind: {
