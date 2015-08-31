@@ -69,17 +69,17 @@ describe('Node Functionality', function() {
           {
             name: 'db',
             module: DBService,
-            dependencies: DBService.dependencies
+            config: {}
           },
           {
             name: 'bitcoind',
             module: BitcoinService,
-            dependencies: BitcoinService.dependencies
+            config: {}
           },
           {
             name: 'address',
             module: AddressService,
-            dependencies: AddressService.dependencies
+            config: {}
           }
         ]
       };
