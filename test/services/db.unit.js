@@ -16,6 +16,7 @@ var chainHashes = require('../data/hashes.json');
 var chainData = require('../data/testnet-blocks.json');
 var errors = index.errors;
 var memdown = require('memdown');
+var levelup = require('levelup');
 var bitcore = require('bitcore');
 var Transaction = bitcore.Transaction;
 
@@ -562,6 +563,56 @@ describe('DB Service', function() {
         }
         put.callCount.should.equal(0);
         done();
+      });
+    });
+  });
+
+  describe('#getMetadata', function() {
+    it('will get metadata', function() {
+      var db = new DB(baseConfig);
+      var json = JSON.stringify({
+        tip: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+        tipHeight: 101,
+        cache: {
+          hashes: {},
+          chainHashes: {}
+        }
+      });
+      db.store = {};
+      db.store.get = sinon.stub().callsArgWith(2, null, json);
+      db.getMetadata(function(err, data) {
+        data.tip.should.equal('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f');
+        data.tipHeight.should.equal(101);
+        data.cache.should.deep.equal({
+          hashes: {},
+          chainHashes: {}
+        });
+      });
+    });
+    it('will handle a notfound error from leveldb', function() {
+      var db = new DB(baseConfig);
+      db.store = {};
+      var error = new levelup.errors.NotFoundError();
+      db.store.get = sinon.stub().callsArgWith(2, error);
+      db.getMetadata(function(err, data) {
+        should.not.exist(err);
+        data.should.deep.equal({});
+      });
+    });
+    it('will handle error from leveldb', function() {
+      var db = new DB(baseConfig);
+      db.store = {};
+      db.store.get = sinon.stub().callsArgWith(2, new Error('test'));
+      db.getMetadata(function(err) {
+        err.message.should.equal('test');
+      });
+    });
+    it('give an error when parsing invalid json', function() {
+      var db = new DB(baseConfig);
+      db.store = {};
+      db.store.get = sinon.stub().callsArgWith(2, null, '{notvalid@json}');
+      db.getMetadata(function(err) {
+        err.message.should.equal('Could not parse metadata');
       });
     });
   });
