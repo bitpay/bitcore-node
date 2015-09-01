@@ -237,7 +237,6 @@ describe('DB Service', function() {
       var db = new TestDB(baseConfig);
       db.node.services = {};
       db.node.services.bitcoind = new EventEmitter();
-      db.node.services.bitcoind.syncPercentage = sinon.spy();
       db.node.services.bitcoind.genesisBuffer = genesisBuffer;
       db.getMetadata = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
@@ -245,7 +244,6 @@ describe('DB Service', function() {
       db.sync = sinon.stub();
       db.start(function() {
         db.sync = function() {
-          db.node.services.bitcoind.syncPercentage.callCount.should.equal(1);
           done();
         };
         db.node.services.bitcoind.emit('tip', 10);
