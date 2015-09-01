@@ -294,5 +294,50 @@ describe('Bitcoin Service', function() {
       });
     });
   });
+  describe('proxy methods', function() {
+
+    var proxyMethods = [
+      ['isSynced', 0],
+      ['syncPercentage', 0],
+      ['getBlock', 2],
+      ['isSpent', 2],
+      ['getBlockIndex', 1],
+      ['estimateFee', 1],
+      ['sendTransaction', 2],
+      ['getTransaction', 3],
+      ['getTransactionWithBlockInfo', 3],
+      ['getMempoolOutputs', 1],
+      ['addMempoolUncheckedTransaction', 1],
+      ['getInfo', 0]
+    ];
+
+    proxyMethods.forEach(function(x) {
+      it('pass ' + x[1] + ' argument(s) to ' + x[0], function() {
+
+        var stub = sinon.stub();
+        var TestBitcoin = proxyquire('../../lib/services/bitcoind', {
+          fs: {
+            readFileSync: readFileSync
+          },
+          bindings: function(name) {
+            name.should.equal('bitcoind.node');
+            var methods = {};
+            methods[x[0]] = stub;
+            return methods;
+          }
+        });
+
+        var bitcoind = new TestBitcoin(baseConfig);
+        var args = [];
+        for (var i = 0; i < x[1]; i++) {
+          args.push(i);
+        }
+
+        bitcoind[x[0]].apply(bitcoind, args);
+        stub.callCount.should.equal(1);
+        stub.args[0].length.should.equal(x[1]);
+      });
+    });
+  });
 
 });
