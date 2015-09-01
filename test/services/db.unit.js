@@ -464,7 +464,7 @@ describe('DB Service', function() {
     });
   });
 
-  describe("#estimateFee", function() {
+  describe('#estimateFee', function() {
     it('should pass along the fee from bitcoind', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
@@ -477,6 +477,90 @@ describe('DB Service', function() {
         should.not.exist(err);
         fee.should.equal(1000);
         db.node.services.bitcoind.estimateFee.args[0][0].should.equal(5);
+        done();
+      });
+    });
+  });
+
+  describe('#saveMetadata', function() {
+    it('will emit an error with default callback', function(done) {
+      var db = new DB(baseConfig);
+      db.cache = {
+        hashes: {},
+        chainHashes: {}
+      };
+      db.tip = {
+        hash: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+        __height: 0
+      };
+      db.store = {
+        put: sinon.stub().callsArgWith(3, new Error('test'))
+      };
+      db.on('error', function(err) {
+        err.message.should.equal('test');
+        done();
+      });
+      db.saveMetadata();
+    });
+    it('will give an error with callback', function(done) {
+      var db = new DB(baseConfig);
+      db.cache = {
+        hashes: {},
+        chainHashes: {}
+      };
+      db.tip = {
+        hash: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+        __height: 0
+      };
+      db.store = {
+        put: sinon.stub().callsArgWith(3, new Error('test'))
+      };
+      db.saveMetadata(function(err) {
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('will call store with the correct arguments', function(done) {
+      var db = new DB(baseConfig);
+      db.cache = {
+        hashes: {},
+        chainHashes: {}
+      };
+      db.tip = {
+        hash: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+        __height: 0
+      };
+      db.store = {
+        put: function(key, value, options, callback) {
+          key.should.equal('metadata');
+          JSON.parse(value).should.deep.equal({
+            tip: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+            tipHeight: 0,
+            cache: {
+              hashes: {},
+              chainHashes: {}
+            }
+          });
+          options.should.deep.equal({});
+          callback.should.be.a('function');
+          done();
+        }
+      };
+      db.saveMetadata();
+    });
+    it('will not call store with threshold', function(done) {
+      var db = new DB(baseConfig);
+      db.lastSavedMetadata = new Date();
+      db.lastSavedMetadataThreshold = 30000;
+      var put = sinon.stub();
+      db.store = {
+        put: put
+      };
+      db.saveMetadata(function(err) {
+        if (err) {
+          throw err;
+        }
+        put.callCount.should.equal(0);
         done();
       });
     });
