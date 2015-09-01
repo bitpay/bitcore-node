@@ -2,18 +2,18 @@
 
 var benchmark = require('benchmark');
 var async = require('async');
-var memdown = require('memdown');
-var Block = require('../lib/block');
-var AddressModule = require('../lib/modules/address');
-var DB = require('../lib/db');
+var sinon = require('sinon');
+var bitcore = require('bitcore');
+var Block = bitcore.Block;
+var AddressService = require('../lib/services/address');
 var maxTime = 20;
 
 var blockData1 = require('./data/block-367238.json');
 var blockData2 = require('./data/block-367239.json');
 var blockData3 = require('./data/block-367240.json');
 
-console.log('Benchmarking Address Block Handler');
-console.log('----------------------------------');
+console.log('Address Service Block Handler');
+console.log('-----------------------------');
 
 async.series([
   function(next) {
@@ -25,15 +25,21 @@ async.series([
       Block.fromBuffer(new Buffer(blockData3, 'hex'))
     ];
     var blocksLength = 3;
-    var db = new DB({store: memdown});
-    var addressModule = new AddressModule({db: db});
+    var node = {
+      services: {
+        bitcoind : {
+          on: sinon.stub()
+        }
+      }
+    };
+    var addressService = new AddressService({node: node});
 
     function blockHandler(deffered) {
       if (c >= blocksLength) {
         c = 0;
       }
       var block = blocks[c];
-      addressModule.blockHandler(block, true, function(err, operations) {
+      addressService.blockHandler(block, true, function(err, operations) {
         if (err) {
           throw err;
         }
