@@ -36,7 +36,7 @@
     "upload": "node bin/upload.js",
     "start": "node bin/start.js",
     "test": "NODE_ENV=test mocha -R spec --recursive",
-    "coverage": "istanbul cover _mocha -- --recursive",
+    "coverage": "NODE_ENV=test istanbul cover _mocha -- --recursive",
     "libbitcoind": "node bin/start-libbitcoind.js"
   },
   "tags": [

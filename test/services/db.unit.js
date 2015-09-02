@@ -16,6 +16,7 @@ var chainHashes = require('../data/hashes.json');
 var chainData = require('../data/testnet-blocks.json');
 var errors = index.errors;
 var memdown = require('memdown');
+var levelup = require('levelup');
 var bitcore = require('bitcore');
 var Transaction = bitcore.Transaction;
 
@@ -237,7 +238,6 @@ describe('DB Service', function() {
       var db = new TestDB(baseConfig);
       db.node.services = {};
       db.node.services.bitcoind = new EventEmitter();
-      db.node.services.bitcoind.syncPercentage = sinon.spy();
       db.node.services.bitcoind.genesisBuffer = genesisBuffer;
       db.getMetadata = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
@@ -245,7 +245,6 @@ describe('DB Service', function() {
       db.sync = sinon.stub();
       db.start(function() {
         db.sync = function() {
-          db.node.services.bitcoind.syncPercentage.callCount.should.equal(1);
           done();
         };
         db.node.services.bitcoind.emit('tip', 10);
@@ -466,7 +465,7 @@ describe('DB Service', function() {
     });
   });
 
-  describe("#estimateFee", function() {
+  describe('#estimateFee', function() {
     it('should pass along the fee from bitcoind', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
@@ -480,6 +479,140 @@ describe('DB Service', function() {
         fee.should.equal(1000);
         db.node.services.bitcoind.estimateFee.args[0][0].should.equal(5);
         done();
+      });
+    });
+  });
+
+  describe('#saveMetadata', function() {
+    it('will emit an error with default callback', function(done) {
+      var db = new DB(baseConfig);
+      db.cache = {
+        hashes: {},
+        chainHashes: {}
+      };
+      db.tip = {
+        hash: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+        __height: 0
+      };
+      db.store = {
+        put: sinon.stub().callsArgWith(3, new Error('test'))
+      };
+      db.on('error', function(err) {
+        err.message.should.equal('test');
+        done();
+      });
+      db.saveMetadata();
+    });
+    it('will give an error with callback', function(done) {
+      var db = new DB(baseConfig);
+      db.cache = {
+        hashes: {},
+        chainHashes: {}
+      };
+      db.tip = {
+        hash: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+        __height: 0
+      };
+      db.store = {
+        put: sinon.stub().callsArgWith(3, new Error('test'))
+      };
+      db.saveMetadata(function(err) {
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('will call store with the correct arguments', function(done) {
+      var db = new DB(baseConfig);
+      db.cache = {
+        hashes: {},
+        chainHashes: {}
+      };
+      db.tip = {
+        hash: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+        __height: 0
+      };
+      db.store = {
+        put: function(key, value, options, callback) {
+          key.should.equal('metadata');
+          JSON.parse(value).should.deep.equal({
+            tip: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+            tipHeight: 0,
+            cache: {
+              hashes: {},
+              chainHashes: {}
+            }
+          });
+          options.should.deep.equal({});
+          callback.should.be.a('function');
+          done();
+        }
+      };
+      db.saveMetadata();
+    });
+    it('will not call store with threshold', function(done) {
+      var db = new DB(baseConfig);
+      db.lastSavedMetadata = new Date();
+      db.lastSavedMetadataThreshold = 30000;
+      var put = sinon.stub();
+      db.store = {
+        put: put
+      };
+      db.saveMetadata(function(err) {
+        if (err) {
+          throw err;
+        }
+        put.callCount.should.equal(0);
+        done();
+      });
+    });
+  });
+
+  describe('#getMetadata', function() {
+    it('will get metadata', function() {
+      var db = new DB(baseConfig);
+      var json = JSON.stringify({
+        tip: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+        tipHeight: 101,
+        cache: {
+          hashes: {},
+          chainHashes: {}
+        }
+      });
+      db.store = {};
+      db.store.get = sinon.stub().callsArgWith(2, null, json);
+      db.getMetadata(function(err, data) {
+        data.tip.should.equal('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f');
+        data.tipHeight.should.equal(101);
+        data.cache.should.deep.equal({
+          hashes: {},
+          chainHashes: {}
+        });
+      });
+    });
+    it('will handle a notfound error from leveldb', function() {
+      var db = new DB(baseConfig);
+      db.store = {};
+      var error = new levelup.errors.NotFoundError();
+      db.store.get = sinon.stub().callsArgWith(2, error);
+      db.getMetadata(function(err, data) {
+        should.not.exist(err);
+        data.should.deep.equal({});
+      });
+    });
+    it('will handle error from leveldb', function() {
+      var db = new DB(baseConfig);
+      db.store = {};
+      db.store.get = sinon.stub().callsArgWith(2, new Error('test'));
+      db.getMetadata(function(err) {
+        err.message.should.equal('test');
+      });
+    });
+    it('give an error when parsing invalid json', function() {
+      var db = new DB(baseConfig);
+      db.store = {};
+      db.store.get = sinon.stub().callsArgWith(2, null, '{notvalid@json}');
+      db.getMetadata(function(err) {
+        err.message.should.equal('Could not parse metadata');
       });
     });
   });
