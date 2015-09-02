@@ -9,6 +9,7 @@ var start = require('../../lib/scaffold/start');
 
 describe('#start', function() {
   describe('#setupServices', function() {
+    var cwd = process.cwd();
     var setupServices = proxyquire('../../lib/scaffold/start', {}).setupServices;
     it('will require an internal module', function() {
       function InternalService() {}
@@ -28,7 +29,7 @@ describe('#start', function() {
           }
         }
       };
-      var services = setupServices(testRequire, config);
+      var services = setupServices(testRequire, cwd, config);
       services[0].name.should.equal('internal');
       services[0].config.should.deep.equal({param: 'value'});
       services[0].module.should.equal(InternalService);
@@ -53,7 +54,7 @@ describe('#start', function() {
       var config = {
         services: ['local']
       };
-      var services = setupServices(testRequire, config);
+      var services = setupServices(testRequire, cwd, config);
       services[0].name.should.equal('local');
       services[0].module.should.equal(LocalService);
     });
@@ -78,7 +79,7 @@ describe('#start', function() {
       var config = {
         services: ['local']
       };
-      var services = setupServices(testRequire, config);
+      var services = setupServices(testRequire, cwd, config);
       services[0].name.should.equal('local');
       services[0].module.should.equal(LocalService);
     });
@@ -91,7 +92,7 @@ describe('#start', function() {
         services: ['bitcoind']
       };
       (function() {
-        setupServices(testRequire, config);
+        setupServices(testRequire, cwd, config);
       }).should.throw('Could not load service');
     });
   });
