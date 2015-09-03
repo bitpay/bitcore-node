@@ -102,6 +102,54 @@ describe('WebService', function() {
     });
   });
 
+  describe('#getEventNames', function() {
+    it('should get event names', function() {
+      var Module1 = function() {};
+      Module1.prototype.getPublishEvents = function() {
+        return [
+          {
+            name: 'event1',
+            extraEvents: ['event2']
+          }
+        ];
+      };
+
+      var module1 = new Module1();
+      var node = {
+        on: sinon.spy(),
+        getAllPublishEvents: sinon.stub().returns(module1.getPublishEvents())
+      };
+
+      var web = new WebService({node: node});
+      var events = web.getEventNames();
+
+      events.should.deep.equal(['event1', 'event2']);
+    });
+
+    it('should throw an error if there is a duplicate event', function() {
+      var Module1 = function() {};
+      Module1.prototype.getPublishEvents = function() {
+        return [
+          {
+            name: 'event1',
+            extraEvents: ['event1']
+          }
+        ];
+      };
+
+      var module1 = new Module1();
+      var node = {
+        on: sinon.spy(),
+        getAllPublishEvents: sinon.stub().returns(module1.getPublishEvents())
+      };
+
+      var web = new WebService({node: node});
+      (function() {
+        var events = web.getEventNames();
+      }).should.throw('Duplicate event event1');
+    });
+  });
+
   describe('#socketHandler', function() {
     var bus = new EventEmitter();
 
@@ -127,6 +175,7 @@ describe('WebService', function() {
 
     it('on message should call socketMessageHandler', function(done) {
       web = new WebService({node: node});
+      web.eventNames = web.getEventNames();
       web.socketMessageHandler = function(param1) {
         param1.should.equal('data');
         done();
