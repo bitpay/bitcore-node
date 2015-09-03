@@ -39,15 +39,20 @@ describe('WebService', function() {
         on: sinon.spy(),
         services: {
           one: {
-            setupRoutes: sinon.spy()
+            setupRoutes: sinon.spy(),
+            getRoutePrefix: sinon.stub().returns('one')
           },
           two: {
-            setupRoutes: sinon.spy()
+            setupRoutes: sinon.spy(),
+            getRoutePrefix: sinon.stub().returns('two')
           }
         }
       };
 
       var web = new WebService({node: node});
+      web.app = {
+        use: sinon.spy()
+      };
 
       web.setupAllRoutes();
       node.services.one.setupRoutes.callCount.should.equal(1);
@@ -104,7 +109,8 @@ describe('WebService', function() {
     Module1.prototype.getPublishEvents = function() {
       return [
         {
-          name: 'event1'
+          name: 'event1',
+          extraEvents: ['event2']
         }
       ];
     };
@@ -149,13 +155,13 @@ describe('WebService', function() {
     });
 
     it('publish events from bus should be emitted from socket', function(done) {
-      socket.once('event1', function(param1, param2) {
+      socket.once('event2', function(param1, param2) {
         param1.should.equal('param1');
         param2.should.equal('param2');
         done();
       });
       socket.connected = true;
-      bus.emit('event1', 'param1', 'param2');
+      bus.emit('event2', 'param1', 'param2');
     });
 
     it('on disconnect should close bus', function(done) {
