@@ -15,7 +15,7 @@ describe('#remove', function() {
   var testDir = path.resolve(basePath, 'temporary-test-data');
   var startConfig = {
     name: 'My Node',
-    modules: ['a', 'b', 'c']
+    services: ['a', 'b', 'c']
   };
   var startPackage = {};
 
@@ -56,7 +56,7 @@ describe('#remove', function() {
     it('will give an error if expected files do not exist', function(done) {
       remove({
         path: path.resolve(testDir, 's0'),
-        modules: ['b']
+        services: ['b']
       }, function(err) {
         should.exist(err);
         err.message.match(/^Invalid state/);
@@ -64,7 +64,7 @@ describe('#remove', function() {
       });
     });
 
-    it('will update bitcore-node.json modules', function(done) {
+    it('will update bitcore-node.json services', function(done) {
       var spawn = sinon.stub().returns({
         stdout: {
           on: sinon.stub()
@@ -89,12 +89,12 @@ describe('#remove', function() {
       });
       removetest({
         path: path.resolve(testDir, 's0/s1/'),
-        modules: ['b']
+        services: ['b']
       }, function(err) {
         should.not.exist(err);
         var configPath = path.resolve(testDir, 's0/s1/bitcore-node.json');
         var config = JSON.parse(fs.readFileSync(configPath));
-        config.modules.should.deep.equal(['a', 'c']);
+        config.services.should.deep.equal(['a', 'c']);
         done();
       });
     });
@@ -125,10 +125,10 @@ describe('#remove', function() {
 
       removetest({
         path: path.resolve(testDir, 's0/s1/'),
-        modules: ['b']
+        services: ['b']
       }, function(err) {
         should.exist(err);
-        err.message.should.equal('There was an error uninstalling module: b');
+        err.message.should.equal('There was an error uninstalling service(s): b');
         done();
       });
     });

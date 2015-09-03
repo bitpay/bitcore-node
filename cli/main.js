@@ -58,20 +58,23 @@ function main() {
     });
 
   program
-    .command('add <modules...>')
+    .command('add <services...>')
     .alias('install')
-    .description('Install a module for the current node')
-    .action(function(modules){
+    .description('Install a service for the current node')
+    .action(function(services){
       var configInfo = findConfig(process.cwd());
       if (!configInfo) {
         throw new Error('Could not find configuration, see `bitcore-node create --help`');
       }
       var opts = {
         path: configInfo.path,
-        modules: modules
+        services: services
       };
-      add(opts, function() {
-        console.log('Successfully added module(s):', modules.join(', '));
+      add(opts, function(err) {
+        if (err) {
+          throw err;
+        }
+        console.log('Successfully added services(s):', services.join(', '));
       });
     }).on('--help', function() {
       console.log('  Examples:');
@@ -82,20 +85,23 @@ function main() {
     });
 
   program
-    .command('remove <modules...>')
+    .command('remove <services...>')
     .alias('uninstall')
-    .description('Uninstall a module for the current node')
-    .action(function(modules){
+    .description('Uninstall a service for the current node')
+    .action(function(services){
       var configInfo = findConfig(process.cwd());
       if (!configInfo) {
         throw new Error('Could not find configuration, see `bitcore-node create --help`');
       }
       var opts = {
         path: configInfo.path,
-        modules: modules
+        services: services
       };
-      remove(opts, function() {
-        console.log('Successfully removed module(s):', modules.join(', '));
+      remove(opts, function(err) {
+        if (err) {
+          throw err;
+        }
+        console.log('Successfully removed services(s):', services.join(', '));
       });
     }).on('--help', function() {
       console.log('  Examples:');
