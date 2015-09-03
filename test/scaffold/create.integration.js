@@ -74,8 +74,7 @@ describe('#create', function() {
       should.equal(fs.existsSync(bitcoinConfig), true);
 
       var config = JSON.parse(fs.readFileSync(configPath));
-      config.name.should.equal('My Node 1');
-      config.services.should.deep.equal(['address']);
+      config.services.should.deep.equal(['bitcoind', 'db', 'address', 'web']);
       config.datadir.should.equal('./data');
       config.network.should.equal('livenet');
 

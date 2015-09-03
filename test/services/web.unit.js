@@ -39,15 +39,20 @@ describe('WebService', function() {
         on: sinon.spy(),
         services: {
           one: {
-            setupRoutes: sinon.spy()
+            setupRoutes: sinon.spy(),
+            getRoutePrefix: sinon.stub().returns('one')
           },
           two: {
-            setupRoutes: sinon.spy()
+            setupRoutes: sinon.spy(),
+            getRoutePrefix: sinon.stub().returns('two')
           }
         }
       };
 
       var web = new WebService({node: node});
+      web.app = {
+        use: sinon.spy()
+      };
 
       web.setupAllRoutes();
       node.services.one.setupRoutes.callCount.should.equal(1);
@@ -97,6 +102,54 @@ describe('WebService', function() {
     });
   });
 
+  describe('#getEventNames', function() {
+    it('should get event names', function() {
+      var Module1 = function() {};
+      Module1.prototype.getPublishEvents = function() {
+        return [
+          {
+            name: 'event1',
+            extraEvents: ['event2']
+          }
+        ];
+      };
+
+      var module1 = new Module1();
+      var node = {
+        on: sinon.spy(),
+        getAllPublishEvents: sinon.stub().returns(module1.getPublishEvents())
+      };
+
+      var web = new WebService({node: node});
+      var events = web.getEventNames();
+
+      events.should.deep.equal(['event1', 'event2']);
+    });
+
+    it('should throw an error if there is a duplicate event', function() {
+      var Module1 = function() {};
+      Module1.prototype.getPublishEvents = function() {
+        return [
+          {
+            name: 'event1',
+            extraEvents: ['event1']
+          }
+        ];
+      };
+
+      var module1 = new Module1();
+      var node = {
+        on: sinon.spy(),
+        getAllPublishEvents: sinon.stub().returns(module1.getPublishEvents())
+      };
+
+      var web = new WebService({node: node});
+      (function() {
+        var events = web.getEventNames();
+      }).should.throw('Duplicate event event1');
+    });
+  });
+
   describe('#socketHandler', function() {
     var bus = new EventEmitter();
 
@@ -104,7 +157,8 @@ describe('WebService', function() {
     Module1.prototype.getPublishEvents = function() {
       return [
         {
-          name: 'event1'
+          name: 'event1',
+          extraEvents: ['event2']
         }
       ];
     };
@@ -121,6 +175,7 @@ describe('WebService', function() {
 
     it('on message should call socketMessageHandler', function(done) {
       web = new WebService({node: node});
+      web.eventNames = web.getEventNames();
       web.socketMessageHandler = function(param1) {
         param1.should.equal('data');
         done();
@@ -149,13 +204,13 @@ describe('WebService', function() {
     });
 
     it('publish events from bus should be emitted from socket', function(done) {
-      socket.once('event1', function(param1, param2) {
+      socket.once('event2', function(param1, param2) {
         param1.should.equal('param1');
         param2.should.equal('param2');
         done();
       });
       socket.connected = true;
-      bus.emit('event1', 'param1', 'param2');
+      bus.emit('event2', 'param1', 'param2');
     });
 
     it('on disconnect should close bus', function(done) {
