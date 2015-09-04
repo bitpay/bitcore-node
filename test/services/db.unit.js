@@ -162,19 +162,20 @@ describe('DB Service', function() {
     });
 
     it('metadata from the database if it exists', function(done) {
+      var tipHash = '00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206';
       var node = {
         network: Networks.testnet,
         datadir: 'testdir',
         services: {
           bitcoind: {
             genesisBuffer: genesisBuffer,
+            getBlockIndex: sinon.stub().returns({tip:tipHash}),
             on: sinon.stub()
           }
         }
       };
       var tip = Block.fromBuffer(genesisBuffer);
       var db = new TestDB({node: node});
-      var tipHash = '00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206';
       db.getMetadata = sinon.stub().callsArgWith(0, null, {
         tip: tipHash,
         tipHeight: 0
@@ -535,12 +536,7 @@ describe('DB Service', function() {
         put: function(key, value, options, callback) {
           key.should.equal('metadata');
           JSON.parse(value).should.deep.equal({
-            tip: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
-            tipHeight: 0,
-            cache: {
-              hashes: {},
-              chainHashes: {}
-            }
+            tip: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'
           });
           options.should.deep.equal({});
           callback.should.be.a('function');
@@ -548,22 +544,6 @@ describe('DB Service', function() {
         }
       };
       db.saveMetadata();
-    });
-    it('will not call store with threshold', function(done) {
-      var db = new DB(baseConfig);
-      db.lastSavedMetadata = new Date();
-      db.lastSavedMetadataThreshold = 30000;
-      var put = sinon.stub();
-      db.store = {
-        put: put
-      };
-      db.saveMetadata(function(err) {
-        if (err) {
-          throw err;
-        }
-        put.callCount.should.equal(0);
-        done();
-      });
     });
   });
 
@@ -689,88 +669,79 @@ describe('DB Service', function() {
     });
   });
 
-  describe('#getHashes', function() {
-
-    it('should get an array of chain hashes', function(done) {
-
-      var blocks = {};
-      var genesisBlock = Block.fromBuffer(new Buffer(chainData[0], 'hex'));
-      var block1 = Block.fromBuffer(new Buffer(chainData[1], 'hex'));
-      var block2 = Block.fromBuffer(new Buffer(chainData[2], 'hex'));
-      blocks[genesisBlock.hash] = genesisBlock;
-      blocks[block1.hash] = block1;
-      blocks[block2.hash] = block2;
-
-      var db = new DB(baseConfig);
-      db.genesis = genesisBlock;
-      db.getPrevHash = function(blockHash, cb) {
-        // TODO: expose prevHash as a string from bitcore
-        var prevHash = BufferUtil.reverse(blocks[blockHash].header.prevHash).toString('hex');
-        cb(null, prevHash);
-      };
-
-      db.tip = block2;
-
-      // the test
-      db.getHashes(block2.hash, function(err, hashes) {
-        should.not.exist(err);
-        should.exist(hashes);
-        hashes.length.should.equal(3);
-        done();
-      });
-
-    });
-  });
-
   describe('#findCommonAncestor', function() {
-    it('will find an ancestor 6 deep', function() {
+    it('will find an ancestor 6 deep', function(done) {
       var db = new DB(baseConfig);
-      db.getHashes = function(tipHash, callback) {
-        callback(null, chainHashes);
-      };
       db.tip = {
-        hash: chainHashes[chainHashes.length]
+        hash: chainHashes[chainHashes.length - 1]
       };
+
       var expectedAncestor = chainHashes[chainHashes.length - 6];
+
+      var mainBlocks = {};
+      for(var i = chainHashes.length - 1; i > chainHashes.length - 10; i--) {
+        var hash = chainHashes[i];
+        var prevHash = hexlebuf(chainHashes[i - 1]);
+        mainBlocks[hash] = {
+          header: {
+            prevHash: prevHash
+          }
+        };
+      }
 
       var forkedBlocks = {
         'd7fa6f3d5b2fe35d711e6aca5530d311b8c6e45f588a65c642b8baf4b4441d82': {
           header: {
             prevHash: hexlebuf('76d920dbd83beca9fa8b2f346d5c5a81fe4a350f4b355873008229b1e6f8701a')
-          }
+          },
+          hash: 'd7fa6f3d5b2fe35d711e6aca5530d311b8c6e45f588a65c642b8baf4b4441d82'
         },
         '76d920dbd83beca9fa8b2f346d5c5a81fe4a350f4b355873008229b1e6f8701a': {
           header: {
             prevHash: hexlebuf('f0a0d76a628525243c8af7606ee364741ccd5881f0191bbe646c8a4b2853e60c')
-          }
+          },
+          hash: '76d920dbd83beca9fa8b2f346d5c5a81fe4a350f4b355873008229b1e6f8701a'
         },
         'f0a0d76a628525243c8af7606ee364741ccd5881f0191bbe646c8a4b2853e60c': {
           header: {
             prevHash: hexlebuf('2f72b809d5ccb750c501abfdfa8c4c4fad46b0b66c088f0568d4870d6f509c31')
-          }
+          },
+          hash: 'f0a0d76a628525243c8af7606ee364741ccd5881f0191bbe646c8a4b2853e60c'
         },
         '2f72b809d5ccb750c501abfdfa8c4c4fad46b0b66c088f0568d4870d6f509c31': {
           header: {
             prevHash: hexlebuf('adf66e6ae10bc28fc22bc963bf43e6b53ef4429269bdb65038927acfe66c5453')
-          }
+          },
+          hash: '2f72b809d5ccb750c501abfdfa8c4c4fad46b0b66c088f0568d4870d6f509c31'
         },
         'adf66e6ae10bc28fc22bc963bf43e6b53ef4429269bdb65038927acfe66c5453': {
           header: {
             prevHash: hexlebuf('3ea12707e92eed024acf97c6680918acc72560ec7112cf70ac213fb8bb4fa618')
-          }
+          },
+          hash: 'adf66e6ae10bc28fc22bc963bf43e6b53ef4429269bdb65038927acfe66c5453'
         },
         '3ea12707e92eed024acf97c6680918acc72560ec7112cf70ac213fb8bb4fa618': {
           header: {
             prevHash: hexlebuf(expectedAncestor)
-          }
-        },
+          },
+          hash: '3ea12707e92eed024acf97c6680918acc72560ec7112cf70ac213fb8bb4fa618'
+        }
       };
       db.node.services = {};
       db.node.services.bitcoind = {
         getBlockIndex: function(hash) {
-          var block = forkedBlocks[hash];
+          var forkedBlock = forkedBlocks[hash];
+          var mainBlock = mainBlocks[hash];
+          var prevHash;
+          if (forkedBlock && forkedBlock.header.prevHash) {
+            prevHash = BufferUtil.reverse(forkedBlock.header.prevHash).toString('hex');
+          } else if (mainBlock && mainBlock.header.prevHash){
+            prevHash = BufferUtil.reverse(mainBlock.header.prevHash).toString('hex');
+          } else {
+            return null;
+          }
           return {
-            prevHash: BufferUtil.reverse(block.header.prevHash).toString('hex')
+            prevHash: prevHash
           };
         }
       };
@@ -780,6 +751,7 @@ describe('DB Service', function() {
           throw err;
         }
         ancestorHash.should.equal(expectedAncestor);
+        done();
       });
     });
   });
@@ -854,7 +826,6 @@ describe('DB Service', function() {
         __height: 0,
         hash: lebufhex(block.header.prevHash)
       };
-      db.getHashes = sinon.stub().callsArgWith(1, null);
       db.saveMetadata = sinon.stub();
       db.emit = sinon.stub();
       db.cache = {
