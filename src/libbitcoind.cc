@@ -1448,7 +1448,7 @@ NAN_METHOD(SendTransaction) {
     // Attempt to add the transaction to the mempool
     if (!AcceptToMemoryPool(mempool, state, tx, false, &fMissingInputs, !allowAbsurdFees)) {
       if (state.IsInvalid()) {
-        char *errorMessage;
+        char *errorMessage = NULL;
         sprintf(errorMessage, "%i: %s", state.GetRejectCode(), state.GetRejectReason().c_str());
         return NanThrowError(errorMessage);
       } else {
