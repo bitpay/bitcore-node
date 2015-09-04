@@ -7,6 +7,9 @@ describe('#defaultConfig', function() {
 
   it('will return expected configuration', function() {
     var cwd = process.cwd();
+    delete process.env.BITCORENODE_DIR;
+    delete process.env.BITCORENODE_NETWORK;
+    delete process.env.BITCORENODE_PORT;
     var home = process.env.HOME;
     var info = defaultConfig();
     info.path.should.equal(cwd);

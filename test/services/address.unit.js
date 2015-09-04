@@ -767,7 +767,8 @@ describe('Address Service', function() {
         height: 1,
         timestamp: 1438289011844,
         satoshis: 5000,
-        getFee: sinon.stub().returns(1000)
+        getFee: sinon.stub().throws(new Error('inputs not populated')),
+        isCoinbase: sinon.stub().returns(true)
       },
       {
         txid: 'tx3',
@@ -775,7 +776,8 @@ describe('Address Service', function() {
         height: 3,
         timestamp: 1438289031844,
         satoshis: 2000,
-        getFee: sinon.stub().returns(1000)
+        getFee: sinon.stub().returns(1000),
+        isCoinbase: sinon.stub().returns(false)
       },
       {
         txid: 'tx4',
@@ -785,7 +787,8 @@ describe('Address Service', function() {
         height: 4,
         timestamp: 1438289041844,
         satoshis: 3000,
-        getFee: sinon.stub().returns(1000)
+        getFee: sinon.stub().returns(1000),
+        isCoinbase: sinon.stub().returns(false)
       },
     ];
 
@@ -801,7 +804,8 @@ describe('Address Service', function() {
             }
           }
         ],
-        getFee: sinon.stub().returns(1000)
+        getFee: sinon.stub().returns(1000),
+        isCoinbase: sinon.stub().returns(false)
       },
       {
         txid: 'tx5',
@@ -815,7 +819,8 @@ describe('Address Service', function() {
             }
           }
         ],
-        getFee: sinon.stub().returns(1000)
+        getFee: sinon.stub().returns(1000),
+        isCoinbase: sinon.stub().returns(false)
       }
     ];
 
@@ -836,6 +841,7 @@ describe('Address Service', function() {
             transaction.__height = incoming[i].height;
             transaction.__timestamp = incoming[i].timestamp;
             transaction.getFee = incoming[i].getFee;
+            transaction.isCoinbase = incoming[i].isCoinbase;
             return callback(null, transaction);
           }
         }
@@ -850,6 +856,7 @@ describe('Address Service', function() {
             transaction.__timestamp = outgoing[i].timestamp;
             transaction.inputs = outgoing[i].inputs;
             transaction.getFee = outgoing[i].getFee;
+            transaction.isCoinbase = outgoing[i].isCoinbase;
             return callback(null, transaction);
           }
         }
@@ -890,7 +897,7 @@ describe('Address Service', function() {
         history[0].satoshis.should.equal(5000);
         history[0].height.should.equal(1);
         history[0].timestamp.should.equal(1438289011844);
-        history[0].fees.should.equal(1000);
+        should.equal(history[0].fees, null);
         history[1].tx.hash.should.equal('tx2');
         history[1].satoshis.should.equal(-5000);
         history[1].height.should.equal(2);
