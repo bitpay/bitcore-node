@@ -117,6 +117,12 @@ describe('Node Functionality', function() {
         });
       });
 
+      node.start(function(err) {
+        if (err) {
+          throw err;
+        }
+      });
+
 
     });
   });

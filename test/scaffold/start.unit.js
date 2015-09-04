@@ -124,6 +124,55 @@ describe('#start', function() {
       }, 35);
     });
   });
+  describe('#cleanShutdown', function() {
+    it('will call node stop and process exit', function() {
+      var log = {
+        info: sinon.stub(),
+        error: sinon.stub()
+      };
+      var cleanShutdown = proxyquire('../../lib/scaffold/start', {
+        '../': {
+          log: log
+        }
+      }).cleanShutdown;
+      var node = {
+        stop: sinon.stub().callsArg(0)
+      };
+      var _process = {
+        exit: sinon.stub()
+      };
+      cleanShutdown(_process, node);
+      setImmediate(function() {
+        node.stop.callCount.should.equal(1);
+        _process.exit.callCount.should.equal(1);
+        _process.exit.args[0][0].should.equal(0);
+      });
+    });
+    it('will log error during shutdown and exit with status 1', function() {
+      var log = {
+        info: sinon.stub(),
+        error: sinon.stub()
+      };
+      var cleanShutdown = proxyquire('../../lib/scaffold/start', {
+        '../': {
+          log: log
+        }
+      }).cleanShutdown;
+      var node = {
+        stop: sinon.stub().callsArgWith(0, new Error('test'))
+      };
+      var _process = {
+        exit: sinon.stub()
+      };
+      cleanShutdown(_process, node);
+      setImmediate(function() {
+        node.stop.callCount.should.equal(1);
+        log.error.callCount.should.equal(1);
+        _process.exit.callCount.should.equal(1);
+        _process.exit.args[0][0].should.equal(1);
+      });
+    });
+  });
   describe('#registerExitHandlers', function() {
     var log = {
       info: sinon.stub(),

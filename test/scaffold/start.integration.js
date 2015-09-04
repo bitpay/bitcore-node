@@ -18,6 +18,7 @@ describe('#start', function() {
           config: {}
         });
       };
+      TestNode.prototype.start = sinon.stub().callsArg(0);
       TestNode.prototype.on = sinon.stub();
       TestNode.prototype.chain = {
         on: sinon.stub()
@@ -39,7 +40,29 @@ describe('#start', function() {
       node.should.be.instanceof(TestNode);
       done();
     });
-
+    it('shutdown with an error from start', function(done) {
+      var TestNode = proxyquire('../../lib/node', {});
+      TestNode.prototype.start = function(callback) {
+        setImmediate(function() {
+          callback(new Error('error'));
+        });
+      };
+      var starttest = proxyquire('../../lib/scaffold/start', {
+        '../node': TestNode
+      });
+      starttest.cleanShutdown = sinon.stub();
+      starttest({
+        path: __dirname,
+        config: {
+          services: [],
+          datadir: './testdir'
+        }
+      });
+      setImmediate(function() {
+        starttest.cleanShutdown.callCount.should.equal(1);
+        done();
+      });
+    });
     it('require each bitcore-node service with explicit config', function(done) {
       var node;
       var TestNode = function(options) {
@@ -51,6 +74,7 @@ describe('#start', function() {
           }
         });
       };
+      TestNode.prototype.start = sinon.stub().callsArg(0);
       TestNode.prototype.on = sinon.stub();
       TestNode.prototype.chain = {
         on: sinon.stub()

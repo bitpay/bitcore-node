@@ -65,7 +65,6 @@ describe('Bitcore Node', function() {
       var TestNode = proxyquire('../lib/node', {});
       TestNode.prototype.start = sinon.spy();
       var node = new TestNode(config);
-      TestNode.prototype.start.callCount.should.equal(1);
       node._unloadedServices.length.should.equal(1);
       node._unloadedServices[0].name.should.equal('test1');
       node._unloadedServices[0].module.should.equal(TestService);
@@ -104,29 +103,6 @@ describe('Bitcore Node', function() {
       var regtest = Networks.get('regtest');
       should.exist(regtest);
       node.network.should.equal(regtest);
-    });
-    it('should emit error if an error occurred starting services', function(done) {
-      var config = {
-        datadir: 'testdir',
-        services: [
-          {
-            name: 'test1',
-            module: TestService
-          }
-        ],
-      };
-      var TestNode = proxyquire('../lib/node', {});
-      TestNode.prototype.start = function(callback) {
-        setImmediate(function() {
-          callback(new Error('error'));
-        });
-      };
-      var node = new TestNode(config);
-      node.once('error', function(err) {
-        should.exist(err);
-        err.message.should.equal('error');
-        done();
-      });
     });
   });
 
@@ -214,11 +190,12 @@ describe('Bitcore Node', function() {
     });
   });
 
-  describe('#_instantiateService', function() {
+  describe('#_startService', function() {
     it('will instantiate an instance and load api methods', function() {
       var node = new Node(baseConfig);
       function TestService() {}
       util.inherits(TestService, BaseService);
+      TestService.prototype.start = sinon.stub().callsArg(0);
       TestService.prototype.getData = function() {};
       TestService.prototype.getAPIMethods = function() {
         return [
@@ -230,9 +207,28 @@ describe('Bitcore Node', function() {
         module: TestService,
         config: {}
       };
-      node._instantiateService(service);
-      should.exist(node.services.testservice);
-      should.exist(node.getData);
+      node._startService(service, function(err) {
+        if (err) {
+          throw err;
+        }
+        TestService.prototype.start.callCount.should.equal(1);
+        should.exist(node.services.testservice);
+        should.exist(node.getData);
+      });
+    });
+    it('will give an error from start', function() {
+      var node = new Node(baseConfig);
+      function TestService() {}
+      util.inherits(TestService, BaseService);
+      TestService.prototype.start = sinon.stub().callsArgWith(0, new Error('test'));
+      var service = {
+        name: 'testservice',
+        module: TestService,
+        config: {}
+      };
+      node._startService(service, function(err) {
+        err.message.should.equal('test');
+      });
     });
   });
 
@@ -318,7 +314,7 @@ describe('Bitcore Node', function() {
 
       node.start(function(err) {
         should.exist(err);
-        err.message.should.match(/^Existing API method exists/);
+        err.message.should.match(/^Existing API method\(s\) exists\:/);
         done();
       });
 
