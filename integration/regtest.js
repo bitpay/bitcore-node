@@ -280,8 +280,10 @@ describe('Daemon Binding Functionality', function() {
     it('will get an event when the tip is new', function(done) {
       this.timeout(4000);
       bitcoind.on('tip', function(height) {
-        height.should.equal(151);
-        done();
+        if (height == 151) {
+          height.should.equal(151);
+          done();
+        }
       });
       client.generate(1, function(err, response) {
         if (err) {
