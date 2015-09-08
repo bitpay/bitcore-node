@@ -75,6 +75,33 @@ describe('Bitcoin Service', function() {
         bitcoind._loadConfiguration({datadir: './test'});
       }).should.throw('Txindex option');
     });
+    describe('reindex', function() {
+      var log = require('../../lib/').log;
+      var stub;
+      beforeEach(function() {
+        stub = sinon.stub(log, 'warn');
+      });
+      after(function() {
+        stub.restore();
+      });
+      it('should warn the user if reindex is set to 1 in the bitcoin.conf file', function() {
+        var readFileSync = function() {
+          return "txindex=1\nreindex=1";
+        };
+        var testbitcoin = proxyquire('../../lib/services/bitcoind', {
+          fs: {
+            readFileSync: readFileSync,
+            existsSync: sinon.stub().returns(true)
+          },
+          mkdirp: {
+            sync: sinon.stub()
+          },
+        });
+        var bitcoind = new testbitcoin(baseConfig);
+        bitcoind._loadConfiguration();
+        stub.callCount.should.equal(1);
+      });
+    });
   });
   describe('#_registerEventHandlers', function() {
     it('will emit tx with transactions from bindings', function(done) {
@@ -250,6 +277,48 @@ describe('Bitcoin Service', function() {
         should.exist(err);
         err.message.should.equal('test');
         done();
+      });
+    });
+    describe('reindex', function() {
+      var log = require('../../lib/').log;
+      var info;
+      beforeEach(function() {
+        info = sinon.stub(log, 'info');
+      });
+      afterEach(function() {
+        info.restore();
+      });
+      it('will wait for a reindex to complete before calling the callback.', function(done) {
+        var start = sinon.stub().callsArgWith(1, null);
+        var onBlocksReady = sinon.stub().callsArg(0);
+        var percentage = 98;
+        var TestBitcoin = proxyquire('../../lib/services/bitcoind', {
+          fs: {
+            readFileSync: readFileSync
+          },
+          bindings: function(name) {
+            return {
+              start: start,
+              onBlocksReady: onBlocksReady,
+              syncPercentage: function() {
+                return percentage;
+              }
+            };
+          }
+        });
+        var bitcoind = new TestBitcoin(baseConfig);
+        bitcoind._reindex = true;
+        bitcoind._reindexWait = 1;
+        bitcoind._onReady = sinon.stub().callsArg(1);
+        bitcoind._loadConfiguration = sinon.stub();
+        bitcoind.start(function() {
+          info.callCount.should.be.within(2,3);
+          bitcoind._reindex.should.be.false;
+          done();
+        });
+        setTimeout(function() {
+          percentage = 100;
+        }, 2);
       });
     });
   });
