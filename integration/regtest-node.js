@@ -131,6 +131,8 @@ describe('Node Functionality', function() {
     });
   });
 
+  var invalidatedBlockHash;
+
   it('will handle a reorganization', function(done) {
 
     var count;
@@ -151,12 +153,12 @@ describe('Node Functionality', function() {
           if (err) {
             return next(err);
           }
-          blockHash = response.result;
+          invalidatedBlockHash = response.result;
           next();
         });
       },
       function(next) {
-        client.invalidateBlock(blockHash, next);
+        client.invalidateBlock(invalidatedBlockHash, next);
       },
       function(next) {
         client.getBlockCount(function(err, response) {
@@ -205,5 +207,10 @@ describe('Node Functionality', function() {
       });
     });
 
+  });
+
+  it('isMainChain() will return false for stale/orphan block', function(done) {
+    bitcoind.isMainChain(invalidatedBlockHash).should.equal(false);
+    setImmediate(done);
   });
 });

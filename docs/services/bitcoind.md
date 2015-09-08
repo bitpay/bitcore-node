@@ -8,6 +8,7 @@ The bitcoin service adds a native interface to Bitcoin Core for querying informa
 - `bitcoind.getBlock(blockHash|blockHeight, callback)` - Get any block asynchronously by block hash or height as a node buffer.
 - `bitcoind.isSpent(txid, outputIndex)` - Returns a boolean if a txid and outputIndex is already spent.
 - `bitcoind.getBlockIndex(blockHash)` - Will return the block chain work and previous hash.
+- `bitcoind.isMainChain(blockHash)` - Returns true if block is on the main chain. Returns false if it is an orphan.
 - `bitcoind.estimateFee(blocks)` - Estimates the fees required to have a transaction included in the number of blocks specified as the first argument.
 - `bitcoind.sendTransaction(transaction, allowAbsurdFees)` - Will attempt to add a transaction to the mempool and broadcast to peers.
 - `bitcoind.getTransaction(txid, queryMempool, callback)` - Get any tx asynchronously by reading it from disk, with an argument to optionally not include the mempool.

@@ -371,6 +371,7 @@ describe('Bitcoin Service', function() {
       ['getBlock', 2],
       ['isSpent', 2],
       ['getBlockIndex', 1],
+      ['isMainChain', 1],
       ['estimateFee', 1],
       ['sendTransaction', 2],
       ['getTransaction', 3],
