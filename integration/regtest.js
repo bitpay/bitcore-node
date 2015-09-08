@@ -251,7 +251,7 @@ describe('Daemon Binding Functionality', function() {
     });
   });
 
-  describe('isMainChain', funciton() {
+  describe('isMainChain', function() {
     [1,2,3,4,5,6,7,8,9].forEach(function(i) {
       it('block ' + i + ' is on the main chain', function() {
         bitcoind.isMainChain(blockHashes[i]).should.equal(true);
