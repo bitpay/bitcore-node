@@ -46,6 +46,7 @@ function main() {
     .command('start')
     .description('Start the current node')
     .option('-c, --config <dir>', 'Specify the directory with Bitcore Node configuration')
+    .option('-d, --daemon', 'Make bitcore-node a daemon (running in the background)')
     .action(function(cmd){
       if (cmd.config) {
         cmd.config = path.resolve(process.cwd(), cmd.config);
@@ -53,6 +54,9 @@ function main() {
       var configInfo = findConfig(cmd.config || process.cwd());
       if (!configInfo) {
         configInfo = defaultConfig();
+      }
+      if(cmd.daemon) {
+        configInfo.config.daemon = true;
       }
       start(configInfo);
     });
