@@ -210,7 +210,7 @@ describe('Node Functionality', function() {
   });
 
   it('isMainChain() will return false for stale/orphan block', function(done) {
-    bitcoind.isMainChain(invalidatedBlockHash).should.equal(false);
+    node.services.bitcoind.isMainChain(invalidatedBlockHash).should.equal(false);
     setImmediate(done);
   });
 });
