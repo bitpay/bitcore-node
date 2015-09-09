@@ -6,8 +6,17 @@ A Bitcoin full node for building applications and services with Node.js. A node 
 ## Install
 
 ```bash
-npm install -g bitcore-node@0.2.0-beta.5
+npm install -g bitcore-node@0.2.0-beta.6
+```
+
+```bash
 bitcore-node start
+```
+
+or to start and immediately fork (daemon) 
+
+```bash
+bitcore-node start --daemon
 ```
 
 Note: For your convenience, we distribute binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. For more detailed installation instructions, or if you want to compile the project yourself, then please see the [Build & Install](docs/build.md) documentation to build the project from source.
