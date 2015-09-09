@@ -1478,10 +1478,7 @@ NAN_METHOD(SendTransaction) {
     // Attempt to add the transaction to the mempool
     if (!AcceptToMemoryPool(mempool, state, tx, false, &fMissingInputs, !allowAbsurdFees)) {
       if (state.IsInvalid()) {
-      // TODO: use boost::lexical_cast or C++11 std::to_string
-        char errorMessage [1024];
-        sprintf(errorMessage, "%i: %s", state.GetRejectCode(), state.GetRejectReason().c_str());
-        return NanThrowError(errorMessage);
+        return NanThrowError((boost::lexical_cast<std::string>(state.GetRejectCode()) + ": " + state.GetRejectReason()).c_str());
       } else {
         if (fMissingInputs) {
           return NanThrowError("Missing inputs");
