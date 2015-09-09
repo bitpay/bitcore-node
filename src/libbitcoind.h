@@ -22,6 +22,8 @@ NAN_METHOD(OnBlocksReady);
 NAN_METHOD(OnTipUpdate);
 NAN_METHOD(StopBitcoind);
 NAN_METHOD(GetBlock);
+NAN_METHOD(GetBlockIndex);
+NAN_METHOD(IsMainChain);
 NAN_METHOD(GetTransaction);
 NAN_METHOD(GetInfo);
 NAN_METHOD(IsSpent);

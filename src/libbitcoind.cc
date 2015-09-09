@@ -1350,6 +1350,36 @@ NAN_METHOD(GetBlockIndex) {
   NanReturnValue(obj);
 };
 
+
+/**
+ * IsMainChain()
+ * bitcoind.isMainChain()
+ *
+ * @param {string} - block hash
+ * @returns {boolean} - True if the block is in the main chain. False if it is an orphan.
+ */
+NAN_METHOD(IsMainChain) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  CBlockIndex* blockIndex;
+
+  String::Utf8Value hash_(args[0]->ToString());
+  std::string hashStr = std::string(*hash_);
+  uint256 hash = uint256S(hashStr);
+  if (mapBlockIndex.count(hash) == 0) {
+    NanReturnValue(Undefined(isolate));
+  } else {
+    blockIndex = mapBlockIndex[hash];
+  }
+
+  if (chainActive.Contains(blockIndex)) {
+    NanReturnValue(NanNew<Boolean>(true));
+  } else {
+    NanReturnValue(NanNew<Boolean>(false));
+  }
+}
+
 /**
  * GetInfo()
  * bitcoindjs.getInfo()
@@ -1606,6 +1636,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "getInfo", GetInfo);
   NODE_SET_METHOD(target, "isSpent", IsSpent);
   NODE_SET_METHOD(target, "getBlockIndex", GetBlockIndex);
+  NODE_SET_METHOD(target, "isMainChain", IsMainChain);
   NODE_SET_METHOD(target, "getMempoolOutputs", GetMempoolOutputs);
   NODE_SET_METHOD(target, "addMempoolUncheckedTransaction", AddMempoolUncheckedTransaction);
   NODE_SET_METHOD(target, "sendTransaction", SendTransaction);
