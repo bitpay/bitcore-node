@@ -7,6 +7,9 @@ node_js:
 before_install:
   - git config --global user.email "dev@bitpay.com"
   - git config --global user.name "BitPay, Inc."
+install:
+  - npm install
+  - npm install bitcore
 script:
   - _mocha -R spec integration/regtest.js
   - _mocha -R spec integration/regtest-node.js
