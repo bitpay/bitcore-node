@@ -630,6 +630,9 @@ describe('DB Service', function() {
     Service1.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op1', 'op2', 'op3']);
     var Service2 = function() {};
     Service2.prototype.blockHandler = sinon.stub().callsArgWith(2, null, ['op4', 'op5']);
+    var Service3 = function() {};
+    var Service4 = function() {};
+    Service4.prototype.blockHandler = sinon.stub().callsArgWith(2, null, 'bad-value');
     db.node = {};
     db.node.services = {
       service1: new Service1(),
@@ -656,6 +659,31 @@ describe('DB Service', function() {
         should.exist(err);
         done();
       });
+    });
+
+    it('should not give an error if a service does not have blockHandler', function(done) {
+      db.node = {};
+      db.node.services = {
+        service3: new Service3()
+      };
+
+      db.runAllBlockHandlers('block', true, function(err) {
+        should.not.exist(err);
+        done();
+      });
+    });
+
+    it('should throw an error if blockHandler gives unexpected result', function() {
+      db.node = {};
+      db.node.services = {
+        service4: new Service4()
+      };
+
+      (function() {
+        db.runAllBlockHandlers('block', true, function(err) {
+          should.not.exist(err);
+        });
+      }).should.throw('bitcore.ErrorInvalidArgument');
     });
   });
 
