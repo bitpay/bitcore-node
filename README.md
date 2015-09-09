@@ -6,7 +6,7 @@ A Bitcoin full node for building applications and services with Node.js. A node 
 ## Install
 
 ```bash
-npm install -g bitcore-node@0.2.0-beta.5
+npm install -g bitcore-node@0.2.0-beta.6
 bitcore-node start
 ```
 
@@ -24,6 +24,12 @@ bitcore-node add https://github.com/yourname/helloworld
 ```
 
 This will create a directory with configuration files for your node and install the necessary dependencies. For more information about (and developing) services, please see the [Service Documentation](docs/services.md).
+
+To start bitcore-node as a daemon:
+
+```bash
+bitcore-node start --daemon
+```
 
 ## Documentation
 
