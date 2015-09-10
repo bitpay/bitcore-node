@@ -17,6 +17,20 @@ var fsStub = {
   }
 };
 
+var fakeSocketListener = new EventEmitter();
+var fakeSocket = new EventEmitter();
+
+fakeSocket.on('test/event1', function(data) {
+  data.should.equal('testdata');
+  done();
+});
+
+fakeSocketListener.emit('connection', fakeSocket);
+
+fakeSocket.emit('subscribe', 'test/event1');
+
+
+
 var WebService = proxyquire('../../lib/services/web', {http: httpStub, https: httpsStub, fs: fsStub});
 
 describe('WebService', function() {
@@ -27,17 +41,8 @@ describe('WebService', function() {
       httpStub.createServer.reset();
       httpsStub.createServer.reset();
     });
-    it('should create an http server if no options are specified and bitcoind is not configured for https', function(done) {
-      var node = new EventEmitter();
-      node.services = {
-        bitcoind: {
-          configuration: {
-            rpcssl: 0
-          }
-        }
-      };
-
-      var web = new WebService({node: node});
+    it('should create an http server if no options are specified and node is not configured for https', function(done) {
+      var web = new WebService({node: defaultNode});
       web.deriveHttpsOptions = sinon.spy();
       web.start(function(err) {
         should.not.exist(err);
@@ -46,18 +51,12 @@ describe('WebService', function() {
       });
     });
 
-    it('should create an https server if no options are specified and bitcoind is configured for https', function(done) {
+    it('should create an https server if no options are specified and node is configured for https', function(done) {
       var node = new EventEmitter();
-      node.services = {
-        bitcoind: {
-          configuration: {
-            rpcssl: 1
-          }
-        }
-      };
+      node.https = true;
 
       var web = new WebService({node: node});
-      web.deriveHttpsOptions = sinon.spy();
+      web.transformHttpsOptions = sinon.spy();
       web.start(function(err) {
         should.not.exist(err);
         httpsStub.createServer.called.should.equal(true);
@@ -340,7 +339,7 @@ describe('WebService', function() {
   });
 
   describe('#deriveHttpsOptions', function() {
-    it('should use the httpsOptions from the config if specified', function() {
+    it('should read key and cert from files specified', function() {
       var web = new WebService({
         node: defaultNode,
         https: true,
@@ -350,31 +349,10 @@ describe('WebService', function() {
         }
       });
 
-      web.deriveHttpsOptions();
+      web.transformHttpsOptions();
       web.httpsOptions.key.should.equal('key-buffer');
       web.httpsOptions.cert.should.equal('cert-buffer');
     });
-
-    it('should use bitcoind\'s https options if there is no config', function() {
-      var node = new EventEmitter();
-      node.services = {
-        bitcoind: {
-          configuration: {
-            rpcssl: 1,
-            rpcsslprivatekeyfile: 'rpckey',
-            rpcsslcertificatechainfile: 'rpccert'
-          }
-        }
-      };
-      var web = new WebService({
-        node: node
-      });
-
-      web.deriveHttpsOptions();
-      web.httpsOptions.key.should.equal('rpckey-buffer');
-      web.httpsOptions.cert.should.equal('rpccert-buffer');
-    });
-
     it('should throw an error if https is specified but key or cert is not specified', function() {
       var web = new WebService({
         node: defaultNode,
@@ -385,7 +363,7 @@ describe('WebService', function() {
       });
 
       (function() {
-        web.deriveHttpsOptions();
+        web.transformHttpsOptions();
       }).should.throw('Missing https options');
     });
   });
