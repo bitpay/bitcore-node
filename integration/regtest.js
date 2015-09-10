@@ -275,6 +275,17 @@ describe('Daemon Binding Functionality', function() {
       hash.should.equal(tx.hash);
     });
 
+    it('will throw an error if an unsigned transaction is sent', function() {
+
+      var tx = bitcore.Transaction();
+      tx.from(utxos[1]);
+      tx.change(privateKey.toAddress());
+      tx.to(destKey.toAddress(), utxos[1].amount * 1e8 - 1000);
+      (function() {
+        bitcoind.sendTransaction(tx.uncheckedSerialize());
+      }).should.throw('\x10: mandatory-script-verify-flag-failed (Operation not valid with the current stack size)');
+    });
+
   });
 
   describe('fee estimation', function() {
