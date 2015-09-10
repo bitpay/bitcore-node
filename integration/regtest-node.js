@@ -219,4 +219,23 @@ describe('Node Functionality', function() {
     node.services.bitcoind.isMainChain(invalidatedBlockHash).should.equal(false);
     setImmediate(done);
   });
+
+  describe('Bus Functionality', function() {
+    it('subscribes and unsubscribes to an event on the bus', function(done) {
+      var bus = node.openBus();
+      var block;
+      bus.subscribe('db/block');
+      bus.on('block', function(data) {
+        bus.unsubscribe('db/block');
+        data.should.be.equal(block);
+        done();
+      });
+      client.generate(1, function(err, response) {
+        if (err) {
+          throw err;
+        }
+        block = response.result[0];
+      });
+    });
+  });
 });
