@@ -70,11 +70,9 @@ describe('#create', function() {
 
       var configPath = testDir + '/mynode/bitcore-node.json';
       var packagePath = testDir + '/mynode/package.json';
-      var bitcoinConfig = testDir + '/mynode/data/bitcoin.conf';
 
       should.equal(fs.existsSync(configPath), true);
       should.equal(fs.existsSync(packagePath), true);
-      should.equal(fs.existsSync(bitcoinConfig), true);
 
       var config = JSON.parse(fs.readFileSync(configPath));
       config.services.should.deep.equal(['bitcoind', 'db', 'address', 'web']);
@@ -99,26 +97,6 @@ describe('#create', function() {
     }, function(err) {
       should.exist(err);
       err.message.should.match(/^Directory/);
-    });
-
-  });
-
-  it('will not create bitcoin.conf if it already exists', function() {
-
-    create({
-      cwd: testDir,
-      dirname: 'mynode2',
-      name: 'My Node 2',
-      isGlobal: false,
-      datadir: '../.bitcoin'
-    }, function(err) {
-      if (err) {
-        throw err;
-      }
-
-      var bitcoinConfig = testDir + '/.bitcoin/bitcoin.conf';
-      should.equal(fs.existsSync(bitcoinConfig), false);
-
     });
 
   });

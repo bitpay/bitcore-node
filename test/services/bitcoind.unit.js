@@ -75,6 +75,36 @@ describe('Bitcoin Service', function() {
         bitcoind._loadConfiguration({datadir: './test'});
       }).should.throw('Txindex option');
     });
+    it('should set https options if node https options are set', function() {
+      var writeFileSync = function(path, config) {
+        config.should.equal('whitelist=127.0.0.1\ntxindex=1\nrpcssl=1\nrpcsslprivatekeyfile=key.pem\nrpcsslcertificatechainfile=cert.pem\n');
+      };
+      var TestBitcoin = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          writeFileSync: writeFileSync,
+          readFileSync: readFileSync,
+          existsSync: sinon.stub().returns(false)
+        },
+        mkdirp: {
+          sync: sinon.stub()
+        }
+      });
+      var config = {
+        node: {
+          datadir: 'testdir',
+          network: {
+            name: 'regtest'
+          },
+          https: true,
+          httpsOptions: {
+            key: 'key.pem',
+            cert: 'cert.pem'
+          }
+        }
+      };
+      var bitcoind = new TestBitcoin(config);
+      bitcoind._loadConfiguration({datadir: process.env.HOME + '/.bitcoin'});
+    });
     describe('reindex', function() {
       var log = require('../../lib/').log;
       var stub;
