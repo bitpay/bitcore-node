@@ -276,13 +276,21 @@ describe('DB Service', function() {
   });
 
   describe('#stop', function() {
-    it('should immediately call the callback', function(done) {
+    it('should wait until db has stopped syncing before closing leveldb', function(done) {
       var db = new DB(baseConfig);
+      db.store = {
+        close: sinon.stub().callsArg(0)
+      };
+      db.bitcoindSyncing = true;
 
       db.stop(function(err) {
         should.not.exist(err);
         done();
       });
+
+      setTimeout(function() {
+        db.bitcoindSyncing = false;
+      }, 15);
     });
   });
 
