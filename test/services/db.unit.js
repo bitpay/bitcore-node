@@ -369,6 +369,62 @@ describe('DB Service', function() {
     });
   });
 
+  describe('#getBlockHashesByTimestamp', function() {
+    it('should get the correct block hashes', function(done) {
+      var db = new DB(baseConfig);
+      var readStream = new EventEmitter();
+      db.store = {
+        createReadStream: sinon.stub().returns(readStream)
+      };
+
+      var block1 = {
+        hash: '00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b',
+        timestamp: 1441911909
+      };
+
+      var block2 = {
+        hash: '000000000383752a55a0b2891ce018fd0fdc0b6352502772b034ec282b4a1bf6',
+        timestamp: 1441913112
+      };
+
+      db.getBlockHashesByTimestamp(1441911000, 1441914000, function(err, hashes) {
+        should.not.exist(err);
+        hashes.should.deep.equal([block1.hash, block2.hash]);
+        done();
+      });
+
+      readStream.emit('data', {
+        key: 'blk-' + block1.timestamp,
+        value: block1.hash
+      });
+
+      readStream.emit('data', {
+        key: 'blk-' + block2.timestamp,
+        value: block2.hash
+      });
+
+      readStream.emit('close');
+    });
+
+    it('should give an error if the stream has an error', function(done) {
+      var db = new DB(baseConfig);
+      var readStream = new EventEmitter();
+      db.store = {
+        createReadStream: sinon.stub().returns(readStream)
+      };
+
+      db.getBlockHashesByTimestamp(1441911000, 1441914000, function(err, hashes) {
+        should.exist(err);
+        err.message.should.equal('error');
+        done();
+      });
+
+      readStream.emit('error', new Error('error'));
+
+      readStream.emit('close');
+    });
+  });
+
   describe('#getPrevHash', function() {
     it('should return prevHash from bitcoind', function(done) {
       var db = new DB(baseConfig);
@@ -650,10 +706,22 @@ describe('DB Service', function() {
       batch: sinon.stub().callsArg(1)
     };
 
+    var block = {
+      hash: '00000000000000000d0aaf93e464ddeb503655a0750f8b9c6eed0bdf0ccfc863',
+      header: {
+        timestamp: 1441906365
+      }
+    };
+
     it('should call blockHandler in all services and perform operations', function(done) {
-      db.runAllBlockHandlers('block', true, function(err) {
+      db.runAllBlockHandlers(block, true, function(err) {
         should.not.exist(err);
-        db.store.batch.args[0][0].should.deep.equal(['op1', 'op2', 'op3', 'op4', 'op5']);
+        var blockOp = {
+          type: 'put',
+          key: 'blk-1441906365',
+          value: '00000000000000000d0aaf93e464ddeb503655a0750f8b9c6eed0bdf0ccfc863'
+        }
+        db.store.batch.args[0][0].should.deep.equal([blockOp, 'op1', 'op2', 'op3', 'op4', 'op5']);
         done();
       });
     });
@@ -663,7 +731,7 @@ describe('DB Service', function() {
       Service3.prototype.blockHandler = sinon.stub().callsArgWith(2, new Error('error'));
       db.node.services.service3 = new Service3();
 
-      db.runAllBlockHandlers('block', true, function(err) {
+      db.runAllBlockHandlers(block, true, function(err) {
         should.exist(err);
         done();
       });
@@ -675,7 +743,7 @@ describe('DB Service', function() {
         service3: new Service3()
       };
 
-      db.runAllBlockHandlers('block', true, function(err) {
+      db.runAllBlockHandlers(block, true, function(err) {
         should.not.exist(err);
         done();
       });
@@ -688,7 +756,7 @@ describe('DB Service', function() {
       };
 
       (function() {
-        db.runAllBlockHandlers('block', true, function(err) {
+        db.runAllBlockHandlers(block, true, function(err) {
           should.not.exist(err);
         });
       }).should.throw('bitcore.ErrorInvalidArgument');
@@ -701,7 +769,7 @@ describe('DB Service', function() {
       db.node = {};
       db.node.services = {};
       var methods = db.getAPIMethods();
-      methods.length.should.equal(5);
+      methods.length.should.equal(6);
     });
   });
 
