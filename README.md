@@ -37,6 +37,7 @@ bitcore-node start --daemon
   - [Bitcoind](docs/services/bitcoind.md) - Native bindings to Bitcoin Core
   - [Database](docs/services/db.md) - The foundation API methods for getting information about blocks and transactions.
   - [Address](docs/services/address.md) - Adds additional API methods for querying and subscribing to events with bitcoin addresses.
+  - [Web](docs/services/web.md) - Creates an express application over which services can expose their web/API content
 - [Build & Install](docs/build.md) - How to build and install from source
 - [Testing & Development](docs/testing.md) - Developer guide for testing
 - [Node](docs/node.md) - Details on the node constructor
