@@ -304,12 +304,78 @@ describe('#start', function() {
     });
     it('call spawnChildProcess if there is a config option to do so', function() {
       start(options);
+      registerSync.callCount.should.equal(1);
+      registerExit.callCount.should.equal(1);
       spawn.callCount.should.equal(1);
     });
     it('not call spawnChildProcess if there is not an option to do so', function() {
       options.config.daemon = false;
       start(options);
+      registerSync.callCount.should.equal(1);
+      registerExit.callCount.should.equal(1);
       spawn.callCount.should.equal(0);
+    });
+  });
+  describe('#registerExitHandlers', function() {
+    var stub;
+    var registerExitHandlers = require('../../lib/scaffold/start').registerExitHandlers;
+
+    before(function() {
+      stub = sinon.stub(process, 'on');
+    });
+
+    after(function() {
+      stub.restore();
+    });
+
+    it('should setup two listeners on process when registering exit handlers', function() {
+      registerExitHandlers(process, {});
+      stub.callCount.should.equal(2);
+    });
+
+    describe('#exitHandler', function() {
+      var sandbox;
+      var cleanShutdown;
+      var exitHandler;
+      var logStub;
+
+      before(function() {
+        sandbox = sinon.sandbox.create();
+        var start = require('../../lib/scaffold/start');
+        var log = require('../../lib').log;
+        logStub = sandbox.stub(log, 'error');
+        cleanShutdown = sandbox.stub(start, 'cleanShutdown', function() {});
+        exitHandler = require('../../lib/scaffold/start').exitHandler;
+      });
+
+      after(function() {
+        sandbox.restore();
+      });
+
+      it('should replace the listener for SIGINT after the first SIGINT is handled', function() {
+        var  options = { sigint: true };
+        var node = {};
+        var replacementFunc = sinon.stub();
+        replacementFunc.withArgs('SIGINT', function(){});
+        var testProcess = {
+          on: replacementFunc
+        }
+        exitHandler(options, testProcess, node);
+        cleanShutdown.callCount.should.equal(1);
+        replacementFunc.callCount.should.equal(1);
+      });
+
+      it('should log all errors and stops the services nonetheless', function() {
+        var  options = { sigint: true };
+        var stop = sinon.stub();
+        var node = {
+          stop: stop
+        };
+        exitHandler(options, process, node, new Error('some error'));
+        logStub.callCount.should.equal(2);
+        stop.callCount.should.equal(1);
+      });
+
     });
   });
 });
