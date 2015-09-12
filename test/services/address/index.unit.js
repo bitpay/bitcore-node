@@ -74,13 +74,15 @@ describe('Address Service', function() {
       var am = new AddressService({node: mocknode});
       am.node.network = Networks.livenet;
       var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
+      var hashHex = bitcore.Address(address).hashBuffer.toString('hex');
       var messages = {};
       am.transactionOutputHandler(messages, tx, 0, true);
-      should.exist(messages[address]);
-      var message = messages[address];
+      should.exist(messages[hashHex]);
+      var message = messages[hashHex];
       message.tx.should.equal(tx);
       message.outputIndexes.should.deep.equal([0]);
-      message.address.should.equal(address);
+      message.addressInfo.hashBuffer.toString('hex').should.equal(hashHex);
+      message.addressInfo.hashHex.should.equal(hashHex);
       message.rejected.should.equal(true);
     });
   });
@@ -109,7 +111,7 @@ describe('Address Service', function() {
     var data = [
       {
         key: {
-          address: '1F1MAvhTKg2VG29w8cXsiSN2PJ8gSsrJw',
+          hashHex: bitcore.Address('1F1MAvhTKg2VG29w8cXsiSN2PJ8gSsrJw').hashBuffer.toString('hex'),
           height: 345003,
           txid: 'fdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e16923',
           outputIndex: 0
@@ -122,7 +124,7 @@ describe('Address Service', function() {
       },
       {
         key: {
-          address: '1Q8ec8kG7c7HqgK7uSzQyWsX9tzepRcKEL',
+          hashHex: bitcore.Address('1Q8ec8kG7c7HqgK7uSzQyWsX9tzepRcKEL').hashBuffer.toString('hex'),
           height: 345003,
           prevTxId: '3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a9',
           prevOutputIndex: 32
@@ -134,7 +136,7 @@ describe('Address Service', function() {
       },
       {
         key: {
-          address: '1Ep5LA4T6Y7zaBPiwruUJurjGFvCJHzJhm',
+          hashHex: bitcore.Address('1Ep5LA4T6Y7zaBPiwruUJurjGFvCJHzJhm').hashBuffer.toString('hex'),
           height: 345003,
           txid: 'e66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d',
           outputIndex: 1
@@ -171,15 +173,15 @@ describe('Address Service', function() {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('put');
-        var expected0 = ['outs', key0.address, key0.height, key0.txid, key0.outputIndex].join('-');
+        var expected0 = ['outs', key0.hashHex, key0.height, key0.txid, key0.outputIndex].join('-');
         operations[0].key.should.equal(expected0);
         operations[0].value.should.equal([value0.satoshis, value0.script].join(':'));
         operations[3].type.should.equal('put');
-        var expected3 = ['sp', key3.address, key3.height, key3.prevTxId, key3.prevOutputIndex].join('-');
+        var expected3 = ['sp', key3.hashHex, key3.height, key3.prevTxId, key3.prevOutputIndex].join('-');
         operations[3].key.should.equal(expected3);
         operations[3].value.should.equal([value3.txid, value3.inputIndex].join(':'));
         operations[64].type.should.equal('put');
-        var expected64 = ['outs', key64.address, key64.height, key64.txid, key64.outputIndex].join('-');
+        var expected64 = ['outs', key64.hashHex, key64.height, key64.txid, key64.outputIndex].join('-');
         operations[64].key.should.equal(expected64);
         operations[64].value.should.equal([value64.satoshis, value64.script].join(':'));
         done();
@@ -197,13 +199,13 @@ describe('Address Service', function() {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('del');
-        operations[0].key.should.equal(['outs', key0.address, key0.height, key0.txid, key0.outputIndex].join('-'));
+        operations[0].key.should.equal(['outs', key0.hashHex, key0.height, key0.txid, key0.outputIndex].join('-'));
         operations[0].value.should.equal([value0.satoshis, value0.script].join(':'));
         operations[3].type.should.equal('del');
-        operations[3].key.should.equal(['sp', key3.address, key3.height, key3.prevTxId, key3.prevOutputIndex].join('-'));
+        operations[3].key.should.equal(['sp', key3.hashHex, key3.height, key3.prevTxId, key3.prevOutputIndex].join('-'));
         operations[3].value.should.equal([value3.txid, value3.inputIndex].join(':'));
         operations[64].type.should.equal('del');
-        operations[64].key.should.equal(['outs', key64.address, key64.height, key64.txid, key64.outputIndex].join('-'));
+        operations[64].key.should.equal(['outs', key64.hashHex, key64.height, key64.txid, key64.outputIndex].join('-'));
         operations[64].value.should.equal([value64.satoshis, value64.script].join(':'));
         done();
       });
@@ -277,16 +279,16 @@ describe('Address Service', function() {
     it('will emit a transaction if there is a subscriber', function(done) {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
-      am.subscriptions['address/transaction'] = {
-        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
-      };
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      am.subscriptions['address/transaction'] = {};
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')] = [emitter];
       var block = {
         __height: 0,
         timestamp: new Date()
       };
       var tx = {};
       emitter.on('address/transaction', function(obj) {
-        obj.address.should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+        obj.address.toString().should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
         obj.tx.should.equal(tx);
         obj.timestamp.should.equal(block.timestamp);
         obj.height.should.equal(block.__height);
@@ -294,7 +296,11 @@ describe('Address Service', function() {
         done();
       });
       am.transactionEventHandler({
-        address: '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N',
+        addressInfo: {
+          hashHex: address.hashBuffer.toString('hex'),
+          hashBuffer: address.hashBuffer,
+          addressType: address.type
+        },
         height: block.__height,
         timestamp: block.timestamp,
         outputIndexes: [1],
@@ -307,19 +313,22 @@ describe('Address Service', function() {
     it('will emit a balance if there is a subscriber', function(done) {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
-      am.subscriptions['address/balance'] = {
-        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
-      };
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')] = [emitter];
       var block = {};
       var balance = 1000;
       am.getBalance = sinon.stub().callsArgWith(2, null, balance);
-      emitter.on('address/balance', function(address, bal, b) {
-        address.should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      emitter.on('address/balance', function(a, bal, b) {
+        a.toString().should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
         bal.should.equal(balance);
         b.should.equal(block);
         done();
       });
-      am.balanceEventHandler(block, '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      am.balanceEventHandler(block, {
+        hashHex: address.hashBuffer.toString('hex'),
+        hashBuffer: address.hashBuffer,
+        addressType: address.type
+      });
     });
   });
 
@@ -328,34 +337,40 @@ describe('Address Service', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
 
-      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
       var name = 'address/transaction';
       am.subscribe(name, emitter, [address]);
-      am.subscriptions['address/transaction'][address].should.deep.equal([emitter]);
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter]);
 
-      var address2 = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var address2 = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W');
       am.subscribe(name, emitter, [address2]);
-      am.subscriptions['address/transaction'][address2].should.deep.equal([emitter]);
+      am.subscriptions['address/transaction'][address2.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter]);
 
       var emitter2 = new EventEmitter();
       am.subscribe(name, emitter2, [address]);
-      am.subscriptions['address/transaction'][address].should.deep.equal([emitter, emitter2]);
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter, emitter2]);
     });
     it('will add an emitter to the subscribers array (balance)', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
       var name = 'address/balance';
-      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
       am.subscribe(name, emitter, [address]);
-      am.subscriptions['address/balance'][address].should.deep.equal([emitter]);
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter]);
 
-      var address2 = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var address2 = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W');
       am.subscribe(name, emitter, [address2]);
-      am.subscriptions['address/balance'][address2].should.deep.equal([emitter]);
+      am.subscriptions['address/balance'][address2.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter]);
 
       var emitter2 = new EventEmitter();
       am.subscribe(name, emitter2, [address]);
-      am.subscriptions['address/balance'][address].should.deep.equal([emitter, emitter2]);
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter, emitter2]);
     });
   });
 
@@ -364,35 +379,37 @@ describe('Address Service', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
-      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
-      am.subscriptions['address/transaction'][address] = [emitter, emitter2];
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')] = [emitter, emitter2];
       var name = 'address/transaction';
       am.unsubscribe(name, emitter, [address]);
-      am.subscriptions['address/transaction'][address].should.deep.equal([emitter2]);
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter2]);
     });
     it('will remove emitter from subscribers array (balance)', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
-      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
       var name = 'address/balance';
-      am.subscriptions['address/balance'][address] = [emitter, emitter2];
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')] = [emitter, emitter2];
       am.unsubscribe(name, emitter, [address]);
-      am.subscriptions['address/balance'][address].should.deep.equal([emitter2]);
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter2]);
     });
     it('should unsubscribe from all addresses if no addresses are specified', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
-      am.subscriptions['address/balance'] = {
-        '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W': [emitter, emitter2],
-        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter2, emitter]
-      };
+      var address1 = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W');
+      var hashHex1 = address1.hashBuffer.toString('hex');
+      var address2 = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      var hashHex2 = address2.hashBuffer.toString('hex');
+      am.subscriptions['address/balance'][hashHex1] = [emitter, emitter2];
+      am.subscriptions['address/balance'][hashHex2] = [emitter2, emitter];
       am.unsubscribe('address/balance', emitter);
-      am.subscriptions['address/balance'].should.deep.equal({
-        '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W': [emitter2],
-        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter2]
-      });
+      am.subscriptions['address/balance'][hashHex1].should.deep.equal([emitter2]);
+      am.subscriptions['address/balance'][hashHex2].should.deep.equal([emitter2]);
     });
   });
 
@@ -425,6 +442,7 @@ describe('Address Service', function() {
   describe('#getInputs', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+    var hashHex = bitcore.Address(address).hashBuffer.toString('hex');
     var db = {
       tip: {
         __height: 1
@@ -452,8 +470,8 @@ describe('Address Service', function() {
       var createReadStreamCallCount = 0;
       am.node.services.db.store = {
         createReadStream: function(ops) {
-          ops.start.should.equal([AddressService.PREFIXES.SPENTS, address, 12].join('-'));
-          ops.end.should.equal([AddressService.PREFIXES.SPENTS, address, 16].join('-'));
+          ops.start.should.equal([AddressService.PREFIXES.SPENTS, hashHex, 12].join('-'));
+          ops.end.should.equal([AddressService.PREFIXES.SPENTS, hashHex, 16].join('-'));
           createReadStreamCallCount++;
           return testStream;
         }
@@ -486,8 +504,8 @@ describe('Address Service', function() {
       var createReadStreamCallCount = 0;
       am.node.services.db.store = {
         createReadStream: function(ops) {
-          ops.start.should.equal([AddressService.PREFIXES.SPENTS, address].join('-'));
-          ops.end.should.equal([AddressService.PREFIXES.SPENTS, address].join('-') + '~');
+          ops.start.should.equal([AddressService.PREFIXES.SPENTS, hashHex].join('-'));
+          ops.end.should.equal([AddressService.PREFIXES.SPENTS, hashHex].join('-') + '~');
           createReadStreamCallCount++;
           return testStream;
         }
@@ -535,6 +553,7 @@ describe('Address Service', function() {
   describe('#getOutputs', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+    var hashHex = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W').hashBuffer.toString('hex');
     var db = {
       tip: {
         __height: 1
@@ -566,8 +585,8 @@ describe('Address Service', function() {
       var createReadStreamCallCount = 0;
       am.node.services.db.store = {
         createReadStream: function(ops) {
-          ops.start.should.equal([AddressService.PREFIXES.OUTPUTS, address, 12].join('-'));
-          ops.end.should.equal([AddressService.PREFIXES.OUTPUTS, address, 16].join('-'));
+          ops.start.should.equal([AddressService.PREFIXES.OUTPUTS, hashHex, 12].join('-'));
+          ops.end.should.equal([AddressService.PREFIXES.OUTPUTS, hashHex, 16].join('-'));
           createReadStreamCallCount++;
           return testStream;
         }
