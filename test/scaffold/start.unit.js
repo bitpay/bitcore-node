@@ -355,14 +355,10 @@ describe('#start', function() {
       it('should replace the listener for SIGINT after the first SIGINT is handled', function() {
         var  options = { sigint: true };
         var node = {};
-        var replacementFunc = sinon.stub();
-        replacementFunc.withArgs('SIGINT', function(){});
-        var testProcess = {
-          on: replacementFunc
-        }
-        exitHandler(options, testProcess, node);
+        exitHandler(options, process, node);
         cleanShutdown.callCount.should.equal(1);
-        replacementFunc.callCount.should.equal(1);
+        exitHandler(options, process, node);
+        cleanShutdown.callCount.should.equal(1);
       });
 
       it('should log all errors and stops the services nonetheless', function() {
