@@ -221,19 +221,165 @@ describe('Address Service History', function() {
     it('will sort latest to oldest using height', function() {
       var transactionInfo = [
         {
-          height: 12
+          height: 276328
         },
         {
-          height: 14,
+          height: 273845,
         },
         {
-          height: 13
+          height: 555655
+        },
+        {
+          height: 325496
+        },
+        {
+          height: 329186
+        },
+        {
+          height: 534195
         }
       ];
       transactionInfo.sort(AddressHistory.sortByHeight);
-      transactionInfo[0].height.should.equal(14);
-      transactionInfo[1].height.should.equal(13);
-      transactionInfo[2].height.should.equal(12);
+      transactionInfo[0].height.should.equal(555655);
+      transactionInfo[1].height.should.equal(534195);
+      transactionInfo[2].height.should.equal(329186);
+      transactionInfo[3].height.should.equal(325496);
+      transactionInfo[4].height.should.equal(276328);
+      transactionInfo[5].height.should.equal(273845);
+    });
+    it('mempool and tip with time in the future', function() {
+      var transactionInfo = [
+        {
+          timestamp: 1442050425439,
+          height: 14,
+        },
+        {
+          timestamp: 1442050424328,
+          height: -1
+        },
+        {
+          timestamp: 1442050424429,
+          height: -1
+        },
+        {
+          timestamp: 1442050425439,
+          height: 15
+        }
+      ];
+      transactionInfo.sort(AddressHistory.sortByHeight);
+      transactionInfo[0].height.should.equal(-1);
+      transactionInfo[0].timestamp.should.equal(1442050424429);
+      transactionInfo[1].height.should.equal(-1);
+      transactionInfo[1].timestamp.should.equal(1442050424328);
+      transactionInfo[2].height.should.equal(15);
+      transactionInfo[3].height.should.equal(14);
+    });
+    it('tip with time in the future and mempool', function() {
+      var transactionInfo = [
+        {
+          timestamp: 1442050425439,
+          height: 14,
+        },
+        {
+          timestamp: 1442050424328,
+          height: -1
+        }
+      ];
+      transactionInfo.sort(AddressHistory.sortByHeight);
+      transactionInfo[0].height.should.equal(-1);
+      transactionInfo[1].height.should.equal(14);
+    });
+    it('many transactions in the mempool', function() {
+      var transactionInfo = [
+        {
+          timestamp: 1442259670462,
+          height: -1
+        },
+        {
+          timestamp: 1442259785114,
+          height: -1
+        },
+        {
+          timestamp: 1442259759896,
+          height: -1
+        },
+        {
+          timestamp: 1442259692601,
+          height: -1
+        },
+        {
+          timestamp: 1442259692601,
+          height: 100
+        },
+        {
+          timestamp: 1442259749463,
+          height: -1
+        },
+        {
+          timestamp: 1442259737719,
+          height: -1
+        },
+        {
+          timestamp: 1442259773138,
+          height: -1,
+        }
+      ];
+      transactionInfo.sort(AddressHistory.sortByHeight);
+      transactionInfo[0].timestamp.should.equal(1442259785114);
+      transactionInfo[1].timestamp.should.equal(1442259773138);
+      transactionInfo[2].timestamp.should.equal(1442259759896);
+      transactionInfo[3].timestamp.should.equal(1442259749463);
+      transactionInfo[4].timestamp.should.equal(1442259737719);
+      transactionInfo[5].timestamp.should.equal(1442259692601);
+      transactionInfo[6].timestamp.should.equal(1442259670462);
+      transactionInfo[7].height.should.equal(100);
+    });
+    it('mempool and mempool', function() {
+      var transactionInfo = [
+        {
+          timestamp: 1442050424328,
+          height: -1
+        },
+        {
+          timestamp: 1442050425439,
+          height: -1,
+        }
+      ];
+      transactionInfo.sort(AddressHistory.sortByHeight);
+      transactionInfo[0].timestamp.should.equal(1442050425439);
+      transactionInfo[1].timestamp.should.equal(1442050424328);
+    });
+    it('mempool and mempool with the same timestamp', function() {
+      var transactionInfo = [
+        {
+          timestamp: 1442050425439,
+          height: -1,
+          txid: '1',
+        },
+        {
+          timestamp: 1442050425439,
+          height: -1,
+          txid: '2'
+        }
+      ];
+      transactionInfo.sort(AddressHistory.sortByHeight);
+      transactionInfo[0].txid.should.equal('1');
+      transactionInfo[1].txid.should.equal('2');
+    });
+    it('matching block heights', function() {
+      var transactionInfo = [
+        {
+          height: 325496,
+          txid: '1',
+        },
+        {
+          height: 325496,
+          txid: '2'
+        }
+      ];
+      transactionInfo.sort(AddressHistory.sortByHeight);
+      transactionInfo[0].txid.should.equal('1');
+      transactionInfo[1].txid.should.equal('2');
     });
   });
 
