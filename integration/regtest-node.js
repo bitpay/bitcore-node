@@ -518,6 +518,20 @@ describe('Node Functionality', function() {
         });
       });
 
+      it('total transaction count (sending and receiving)', function(done) {
+        var addresses = [
+          address
+        ];
+        var options = {};
+        node.services.address.getAddressHistoryCount(addresses, options, function(err, count) {
+          if (err) {
+            throw err;
+          }
+          count.should.equal(6);
+          done();
+        });
+      });
+
       describe('Pagination', function() {
         it('from 0 to 1', function(done) {
           var options = {

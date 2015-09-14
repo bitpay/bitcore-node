@@ -857,6 +857,25 @@ describe('Address Service', function() {
     });
   });
 
+  describe('#getAddressHistoryCount', function() {
+    it('will call getCount on address history instance', function(done) {
+      function TestAddressHistory(args) {
+        args.node.should.equal(mocknode);
+        args.addresses.should.deep.equal([]);
+        args.options.should.deep.equal({});
+      }
+      TestAddressHistory.prototype.getCount = sinon.stub().callsArg(0);
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        './history': TestAddressHistory
+      });
+      var am = new TestAddressService({node: mocknode});
+      am.getAddressHistoryCount([], {}, function(err, history) {
+        TestAddressHistory.prototype.getCount.callCount.should.equal(1);
+        done();
+      });
+    });
+  });
+
   describe('#getAddressHistory', function() {
     it('will call get on address history instance', function(done) {
       function TestAddressHistory(args) {
