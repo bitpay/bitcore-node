@@ -465,6 +465,29 @@ describe('Node Functionality', function() {
         });
       });
 
+      it('five addresses (limited by height 155 to 154)', function(done) {
+        var addresses = [
+          address2,
+          address3,
+          address4,
+          address5,
+          address6
+        ];
+        var options = {
+          start: 155,
+          end: 154
+        };
+        node.services.address.getAddressHistory(addresses, options, function(err, history) {
+          if (err) {
+            throw err;
+          }
+          history.length.should.equal(2);
+          history[0].height.should.equal(155);
+          history[1].height.should.equal(154);
+          done();
+        });
+      });
+
       it('five addresses (paginated by index)', function(done) {
         var addresses = [
           address2,
