@@ -29,7 +29,7 @@ describe('Address Service', function() {
     it('should return the correct methods', function() {
       var am = new AddressService({node: mocknode});
       var methods = am.getAPIMethods();
-      methods.length.should.equal(5);
+      methods.length.should.equal(6);
     });
   });
 
