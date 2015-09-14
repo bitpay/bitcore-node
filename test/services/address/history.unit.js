@@ -23,9 +23,9 @@ describe('Address Service History', function() {
       history.node.should.equal(node);
       history.options.should.equal(options);
       history.addresses.should.equal(addresses);
-      history.transactions.should.deep.equal({});
       history.transactionInfo.should.deep.equal([]);
-      history.sortedArray.should.deep.equal([]);
+      history.combinedArray.should.deep.equal([]);
+      history.detailedArray.should.deep.equal([]);
     });
     it('will set addresses an array if only sent a string', function() {
       var history = new AddressHistory({
@@ -46,10 +46,11 @@ describe('Address Service History', function() {
         addresses: addresses
       });
       var expected = [{}];
-      history.sortedArray = expected;
-      history.transactionInfo = [{}];
+      history.detailedArray = expected;
+      history.combinedArray = [{}];
       history.getTransactionInfo = sinon.stub().callsArg(1);
-      history.paginateSortedArray = sinon.stub();
+      history.combineTransactionInfo = sinon.stub();
+      history.sortAndPaginateCombinedArray = sinon.stub();
       history.getDetailedInfo = sinon.stub().callsArg(1);
       history.sortTransactionsIntoArray = sinon.stub();
       history.get(function(err, results) {
@@ -58,8 +59,8 @@ describe('Address Service History', function() {
         }
         history.getTransactionInfo.callCount.should.equal(1);
         history.getDetailedInfo.callCount.should.equal(1);
-        history.sortTransactionsIntoArray.callCount.should.equal(1);
-        history.paginateSortedArray.callCount.should.equal(1);
+        history.combineTransactionInfo.callCount.should.equal(1);
+        history.sortAndPaginateCombinedArray.callCount.should.equal(1);
         results.should.equal(expected);
         done();
       });
@@ -236,7 +237,7 @@ describe('Address Service History', function() {
     });
   });
 
-  describe('#paginateSortedArray', function() {
+  describe('#sortAndPaginateCombinedArray', function() {
     it('from 0 to 2', function() {
       var history = new AddressHistory({
         node: {},
@@ -246,21 +247,21 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.sortedArray = [
+      history.combinedArray = [
         {
-          height: 14
+          height: 13
         },
         {
-          height: 13,
+          height: 14,
         },
         {
           height: 12
         }
       ];
-      history.paginateSortedArray();
-      history.sortedArray.length.should.equal(2);
-      history.sortedArray[0].height.should.equal(14);
-      history.sortedArray[1].height.should.equal(13);
+      history.sortAndPaginateCombinedArray();
+      history.combinedArray.length.should.equal(2);
+      history.combinedArray[0].height.should.equal(14);
+      history.combinedArray[1].height.should.equal(13);
     });
     it('from 0 to 4 (exceeds length)', function() {
       var history = new AddressHistory({
@@ -271,22 +272,22 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.sortedArray = [
+      history.combinedArray = [
         {
-          height: 14
+          height: 13
         },
         {
-          height: 13,
+          height: 14,
         },
         {
           height: 12
         }
       ];
-      history.paginateSortedArray();
-      history.sortedArray.length.should.equal(3);
-      history.sortedArray[0].height.should.equal(14);
-      history.sortedArray[1].height.should.equal(13);
-      history.sortedArray[2].height.should.equal(12);
+      history.sortAndPaginateCombinedArray();
+      history.combinedArray.length.should.equal(3);
+      history.combinedArray[0].height.should.equal(14);
+      history.combinedArray[1].height.should.equal(13);
+      history.combinedArray[2].height.should.equal(12);
     });
     it('from 0 to 1', function() {
       var history = new AddressHistory({
@@ -297,20 +298,20 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.sortedArray = [
+      history.combinedArray = [
         {
-          height: 14
+          height: 13
         },
         {
-          height: 13,
+          height: 14,
         },
         {
           height: 12
         }
       ];
-      history.paginateSortedArray();
-      history.sortedArray.length.should.equal(1);
-      history.sortedArray[0].height.should.equal(14);
+      history.sortAndPaginateCombinedArray();
+      history.combinedArray.length.should.equal(1);
+      history.combinedArray[0].height.should.equal(14);
     });
     it('from 2 to 3', function() {
       var history = new AddressHistory({
@@ -321,20 +322,20 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.sortedArray = [
+      history.combinedArray = [
         {
-          height: 14
+          height: 13
         },
         {
-          height: 13,
+          height: 14,
         },
         {
           height: 12
         }
       ];
-      history.paginateSortedArray();
-      history.sortedArray.length.should.equal(1);
-      history.sortedArray[0].height.should.equal(12);
+      history.sortAndPaginateCombinedArray();
+      history.combinedArray.length.should.equal(1);
+      history.combinedArray[0].height.should.equal(12);
     });
     it('from 10 to 20 (out of range)', function() {
       var history = new AddressHistory({
@@ -345,19 +346,19 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.sortedArray = [
+      history.combinedArray = [
         {
-          height: 14
+          height: 13
         },
         {
-          height: 13,
+          height: 14,
         },
         {
           height: 12
         }
       ];
-      history.paginateSortedArray();
-      history.sortedArray.length.should.equal(0);
+      history.sortAndPaginateCombinedArray();
+      history.combinedArray.length.should.equal(0);
     });
   });
 
@@ -375,13 +376,10 @@ describe('Address Service History', function() {
         options: {},
         addresses: []
       });
-      history.transactions[txid] = {};
-      history.amendDetailedInfoWithSatoshis = sinon.stub();
       history.getDetailedInfo(txid, function(err) {
         if (err) {
           throw err;
         }
-        history.amendDetailedInfoWithSatoshis.callCount.should.equal(1);
         history.node.services.db.getTransactionsWithBlockInfo.callCount.should.equal(0);
       });
     });
@@ -460,7 +458,8 @@ describe('Address Service History', function() {
       var transactionInfo = {
         txid: txid,
         timestamp: 1407292005,
-        outputIndex: 1,
+        outputIndexes: [1],
+        inputIndexes: [],
         satoshis: 48020000,
         address: txAddress
       };
@@ -468,7 +467,7 @@ describe('Address Service History', function() {
         if (err) {
           throw err;
         }
-        var info = history.transactions[txAddress][txid];
+        var info = history.detailedArray[0];
         info.address.should.equal(txAddress);
         info.satoshis.should.equal(48020000);
         info.height.should.equal(314159);
@@ -481,94 +480,47 @@ describe('Address Service History', function() {
       });
     });
   });
-
-  describe('#amendDetailedInfoWithSatoshis', function() {
-    it('will amend info with inputIndex and subtract satoshis', function() {
-      var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
+  describe('#getConfirmationsDetail', function() {
+    it('the correct confirmations when included in the tip', function() {
       var history = new AddressHistory({
-        node: {},
-        options: {},
-        addresses: []
-      });
-      history.transactions[address] = {};
-      history.transactions[address][txid] = {
-        inputIndexes: [],
-        satoshis: 10,
-        tx: {
-          inputs: [
-            {
-              output: {
-                satoshis: 3000
+        node: {
+          services: {
+            db: {
+              tip: {
+                __height: 100
               }
             }
-          ]
-        }
-      };
-      history.amendDetailedInfoWithSatoshis({
-        address: address,
-        txid: txid,
-        inputIndex: 0
+          }
+        },
+        options: {},
+        addresses: []
       });
-      history.transactions[address][txid].inputIndexes.should.deep.equal([0]);
-      history.transactions[address][txid].satoshis.should.equal(-2990);
+      var transaction = {
+        __height: 100
+      };
+      history.getConfirmationsDetail(transaction).should.equal(1);
     });
-    it('will amend info with outputIndex and add satoshis', function() {
-      var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
+  });
+  describe('#getSatoshisDetail', function() {
+    it('subtract inputIndexes satoshis without outputIndexes', function() {
       var history = new AddressHistory({
         node: {},
         options: {},
         addresses: []
       });
-      history.transactions[address] = {};
-      history.transactions[address][txid] = {
-        outputIndexes: [],
-        satoshis: 10
-      };
-      history.amendDetailedInfoWithSatoshis({
-        address: address,
-        txid: txid,
-        outputIndex: 10,
-        satoshis: 2000
-      });
-      history.transactions[address][txid].outputIndexes.should.deep.equal([10]);
-      history.transactions[address][txid].satoshis.should.equal(2010);
-    });
-  });
-
-  describe('#sortTransactionIntoArray', function() {
-    it('will convert this.transactions into an array and sort by height', function() {
-      var history = new AddressHistory({
-        node: {},
-        options: {
-          from: 10,
-          to: 20
-        },
-        addresses: []
-      });
-      history.transactions = {
-        address1: {
-          txid1: {
-            height: 12
-          },
-          txid2: {
-            height: 14,
-          },
-          txid3: {
-            height: 13
+      var transaction = {
+        inputs: [
+          {
+            output: {
+              satoshis: 10000
+            }
           }
-        },
-        address2: {
-          txid4: {
-            height: 15
-          }
-        }
+        ]
       };
-      history.sortTransactionsIntoArray();
-      history.sortedArray.length.should.equal(4);
-      history.sortedArray[0].height.should.equal(15);
-      history.sortedArray[1].height.should.equal(14);
-      history.sortedArray[2].height.should.equal(13);
-      history.sortedArray[3].height.should.equal(12);
+      var txInfo = {
+        inputIndexes: [0]
+      };
+      history.getSatoshisDetail(transaction, txInfo).should.equal(-10000);
     });
   });
 });
