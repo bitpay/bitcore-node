@@ -387,20 +387,20 @@ describe('DB Service', function() {
         timestamp: 1441913112
       };
 
-      db.getBlockHashesByTimestamp(1441911000, 1441914000, function(err, hashes) {
+      db.getBlockHashesByTimestamp(1441914000, 1441911000, function(err, hashes) {
         should.not.exist(err);
-        hashes.should.deep.equal([block1.hash, block2.hash]);
+        hashes.should.deep.equal([block2.hash, block1.hash]);
         done();
-      });
-
-      readStream.emit('data', {
-        key: db._encodeBlockIndexKey(block1.timestamp),
-        value: db._encodeBlockIndexValue(block1.hash)
       });
 
       readStream.emit('data', {
         key: db._encodeBlockIndexKey(block2.timestamp),
         value: db._encodeBlockIndexValue(block2.hash)
+      });
+
+      readStream.emit('data', {
+        key: db._encodeBlockIndexKey(block1.timestamp),
+        value: db._encodeBlockIndexValue(block1.hash)
       });
 
       readStream.emit('close');
