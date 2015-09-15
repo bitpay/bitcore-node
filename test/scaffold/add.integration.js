@@ -91,6 +91,13 @@ describe('#add', function() {
     });
 
     it('will update bitcore-node.json services', function(done) {
+      var callCount = 0;
+      var oldPackage = {
+        dependencies: {
+          'bitcore': '^v0.13.1',
+          'bitcore-node': '^v0.2.0'
+        }
+      };
       var spawn = sinon.stub().returns({
         stdout: {
           on: sinon.stub()
@@ -103,6 +110,19 @@ describe('#add', function() {
       var addtest = proxyquire('../../lib/scaffold/add', {
         'child_process': {
           spawn: spawn
+        },
+        'fs': {
+          readFileSync: function() {
+            if (callCount === 1){
+              oldPackage.dependencies.a = '^v0.1';
+            } else if (callCount === 2){
+              oldPackage.dependencies.b = '^v0.1';
+            } else if (callCount === 3){
+              oldPackage.dependencies.c = '^v0.1';
+            }
+            callCount++;
+            return JSON.stringify(oldPackage);
+          }
         }
       });
       addtest({
