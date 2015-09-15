@@ -278,8 +278,9 @@ describe('Node Functionality', function() {
         if (err) {
           throw err;
         }
-        results.length.should.equal(1);
-        var info = results[0];
+        var items = results.items;
+        items.length.should.equal(1);
+        var info = items[0];
         should.exist(info.addresses[address]);
         info.addresses[address].outputIndexes.length.should.equal(1);
         info.addresses[address].outputIndexes[0].should.be.within(0, 1);
@@ -419,10 +420,12 @@ describe('Node Functionality', function() {
           address6
         ];
         var options = {};
-        node.services.address.getAddressHistory(addresses, options, function(err, history) {
+        node.services.address.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
+          results.totalCount.should.equal(4);
+          var history = results.items;
           history.length.should.equal(4);
           history[0].height.should.equal(157);
           history[0].confirmations.should.equal(1);
@@ -450,10 +453,12 @@ describe('Node Functionality', function() {
           start: 157,
           end: 156
         };
-        node.services.address.getAddressHistory(addresses, options, function(err, history) {
+        node.services.address.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
+          results.totalCount.should.equal(2);
+          var history = results.items;
           history.length.should.equal(2);
           history[0].height.should.equal(157);
           history[0].confirmations.should.equal(1);
@@ -475,10 +480,12 @@ describe('Node Functionality', function() {
           start: 155,
           end: 154
         };
-        node.services.address.getAddressHistory(addresses, options, function(err, history) {
+        node.services.address.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
+          results.totalCount.should.equal(2);
+          var history = results.items;
           history.length.should.equal(2);
           history[0].height.should.equal(155);
           history[1].height.should.equal(154);
@@ -498,10 +505,12 @@ describe('Node Functionality', function() {
           from: 0,
           to: 3
         };
-        node.services.address.getAddressHistory(addresses, options, function(err, history) {
+        node.services.address.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
+          results.totalCount.should.equal(4);
+          var history = results.items;
           history.length.should.equal(3);
           history[0].height.should.equal(157);
           history[0].confirmations.should.equal(1);
@@ -516,10 +525,12 @@ describe('Node Functionality', function() {
           address
         ];
         var options = {};
-        node.services.address.getAddressHistory(addresses, options, function(err, history) {
+        node.services.address.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
+          results.totalCount.should.equal(6);
+          var history = results.items;
           history.length.should.equal(6);
           history[0].height.should.equal(157);
           history[0].addresses[address].inputIndexes.should.deep.equal([0, 1]);
@@ -543,11 +554,11 @@ describe('Node Functionality', function() {
           address
         ];
         var options = {};
-        node.services.address.getAddressHistoryCount(addresses, options, function(err, count) {
+        node.services.address.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
-          count.should.equal(6);
+          results.totalCount.should.equal(6);
           done();
         });
       });
@@ -558,10 +569,11 @@ describe('Node Functionality', function() {
             from: 0,
             to: 1
           };
-          node.services.address.getAddressHistory(address, options, function(err, history) {
+          node.services.address.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
+            var history = results.items;
             history.length.should.equal(1);
             history[0].height.should.equal(157);
             done();
@@ -572,10 +584,11 @@ describe('Node Functionality', function() {
             from: 1,
             to: 2
           };
-          node.services.address.getAddressHistory(address, options, function(err, history) {
+          node.services.address.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
+            var history = results.items;
             history.length.should.equal(1);
             history[0].height.should.equal(156);
             done();
@@ -586,10 +599,11 @@ describe('Node Functionality', function() {
             from: 2,
             to: 3
           };
-          node.services.address.getAddressHistory(address, options, function(err, history) {
+          node.services.address.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
+            var history = results.items;
             history.length.should.equal(1);
             history[0].height.should.equal(155);
             done();
@@ -600,10 +614,11 @@ describe('Node Functionality', function() {
             from: 3,
             to: 4
           };
-          node.services.address.getAddressHistory(address, options, function(err, history) {
+          node.services.address.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
+            var history = results.items;
             history.length.should.equal(1);
             history[0].height.should.equal(154);
             done();
@@ -614,10 +629,11 @@ describe('Node Functionality', function() {
             from: 4,
             to: 5
           };
-          node.services.address.getAddressHistory(address, options, function(err, history) {
+          node.services.address.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
+            var history = results.items;
             history.length.should.equal(1);
             history[0].height.should.equal(153);
             history[0].satoshis.should.equal(-10000);
@@ -631,10 +647,11 @@ describe('Node Functionality', function() {
             from: 5,
             to: 6
           };
-          node.services.address.getAddressHistory(address, options, function(err, history) {
+          node.services.address.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
+            var history = results.items;
             history.length.should.equal(1);
             history[0].height.should.equal(150);
             history[0].satoshis.should.equal(10 * 1e8);

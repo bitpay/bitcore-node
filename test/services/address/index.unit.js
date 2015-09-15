@@ -29,7 +29,7 @@ describe('Address Service', function() {
     it('should return the correct methods', function() {
       var am = new AddressService({node: mocknode});
       var methods = am.getAPIMethods();
-      methods.length.should.equal(6);
+      methods.length.should.equal(5);
     });
   });
 
@@ -852,25 +852,6 @@ describe('Address Service', function() {
     it('should give true if bitcoind.isSpent gives true', function(done) {
       am.isSpent('output', true, function(spent) {
         spent.should.equal(true);
-        done();
-      });
-    });
-  });
-
-  describe('#getAddressHistoryCount', function() {
-    it('will call getCount on address history instance', function(done) {
-      function TestAddressHistory(args) {
-        args.node.should.equal(mocknode);
-        args.addresses.should.deep.equal([]);
-        args.options.should.deep.equal({});
-      }
-      TestAddressHistory.prototype.getCount = sinon.stub().callsArg(0);
-      var TestAddressService = proxyquire('../../../lib/services/address', {
-        './history': TestAddressHistory
-      });
-      var am = new TestAddressService({node: mocknode});
-      am.getAddressHistoryCount([], {}, function(err, history) {
-        TestAddressHistory.prototype.getCount.callCount.should.equal(1);
         done();
       });
     });
