@@ -333,8 +333,10 @@ describe('Bitcore Node', function() {
           ['getData', this, this.getData, 1]
         ];
       };
+      var testService = new TestService({node: node});
+      node._loadingServices = {'test1': testService};
       node.services = {
-        'test1': new TestService({node: node})
+        'test1': testService
       };
       node.test2 = {};
       node.test2.stop = sinon.stub().callsArg(0);
