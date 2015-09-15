@@ -280,14 +280,14 @@ describe('Node Functionality', function() {
         }
         results.length.should.equal(1);
         var info = results[0];
-        info.address.should.equal(address);
+        should.exist(info.addresses[address]);
+        info.addresses[address].outputIndexes.length.should.equal(1);
+        info.addresses[address].outputIndexes[0].should.be.within(0, 1);
+        info.addresses[address].inputIndexes.should.deep.equal([]);
         info.satoshis.should.equal(10 * 1e8);
         info.confirmations.should.equal(3);
         info.timestamp.should.be.a('number');
         info.fees.should.be.within(190, 193);
-        info.outputIndexes.length.should.equal(1);
-        info.outputIndexes[0].should.be.within(0, 1);
-        info.inputIndexes.should.deep.equal([]);
         info.tx.should.be.an.instanceof(Transaction);
         done();
       });
@@ -423,18 +423,17 @@ describe('Node Functionality', function() {
           if (err) {
             throw err;
           }
-          history.length.should.equal(5);
+          history.length.should.equal(4);
           history[0].height.should.equal(157);
           history[0].confirmations.should.equal(1);
-          history[1].height.should.equal(157);
-          history[2].height.should.equal(156);
-          history[2].address.should.equal(address4);
-          history[3].height.should.equal(155);
-          history[3].address.should.equal(address3);
-          history[4].height.should.equal(154);
-          history[4].address.should.equal(address2);
-          history[4].satoshis.should.equal(99990000);
-          history[4].confirmations.should.equal(4);
+          history[1].height.should.equal(156);
+          should.exist(history[1].addresses[address4]);
+          history[2].height.should.equal(155);
+          should.exist(history[2].addresses[address3]);
+          history[3].height.should.equal(154);
+          should.exist(history[3].addresses[address2]);
+          history[3].satoshis.should.equal(99990000);
+          history[3].confirmations.should.equal(4);
           done();
         });
       });
@@ -455,12 +454,11 @@ describe('Node Functionality', function() {
           if (err) {
             throw err;
           }
-          history.length.should.equal(3);
+          history.length.should.equal(2);
           history[0].height.should.equal(157);
           history[0].confirmations.should.equal(1);
-          history[1].height.should.equal(157);
-          history[2].height.should.equal(156);
-          history[2].address.should.equal(address4);
+          history[1].height.should.equal(156);
+          should.exist(history[1].addresses[address4]);
           done();
         });
       });
@@ -507,9 +505,8 @@ describe('Node Functionality', function() {
           history.length.should.equal(3);
           history[0].height.should.equal(157);
           history[0].confirmations.should.equal(1);
-          history[1].height.should.equal(157);
-          history[2].height.should.equal(156);
-          history[2].address.should.equal(address4);
+          history[1].height.should.equal(156);
+          should.exist(history[1].addresses[address4]);
           done();
         });
       });
@@ -525,16 +522,16 @@ describe('Node Functionality', function() {
           }
           history.length.should.equal(6);
           history[0].height.should.equal(157);
-          history[0].inputIndexes.should.deep.equal([0, 1]);
-          history[0].outputIndexes.should.deep.equal([2]);
+          history[0].addresses[address].inputIndexes.should.deep.equal([0, 1]);
+          history[0].addresses[address].outputIndexes.should.deep.equal([2]);
           history[0].confirmations.should.equal(1);
           history[1].height.should.equal(156);
           history[2].height.should.equal(155);
           history[3].height.should.equal(154);
           history[4].height.should.equal(153);
           history[4].satoshis.should.equal(-10000);
-          history[4].outputIndexes.should.deep.equal([0, 1, 2, 3, 4]);
-          history[4].inputIndexes.should.deep.equal([0]);
+          history[4].addresses[address].outputIndexes.should.deep.equal([0, 1, 2, 3, 4]);
+          history[4].addresses[address].inputIndexes.should.deep.equal([0]);
           history[5].height.should.equal(150);
           history[5].satoshis.should.equal(10 * 1e8);
           done();
@@ -624,8 +621,8 @@ describe('Node Functionality', function() {
             history.length.should.equal(1);
             history[0].height.should.equal(153);
             history[0].satoshis.should.equal(-10000);
-            history[0].outputIndexes.should.deep.equal([0, 1, 2, 3, 4]);
-            history[0].inputIndexes.should.deep.equal([0]);
+            history[0].addresses[address].outputIndexes.should.deep.equal([0, 1, 2, 3, 4]);
+            history[0].addresses[address].inputIndexes.should.deep.equal([0]);
             done();
           });
         });

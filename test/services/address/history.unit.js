@@ -639,26 +639,29 @@ describe('Address Service History', function() {
         addresses: []
       });
       var transactionInfo = {
+        addresses: {},
         txid: txid,
         timestamp: 1407292005,
-        outputIndexes: [1],
-        inputIndexes: [],
         satoshis: 48020000,
         address: txAddress
       };
+      transactionInfo.addresses[txAddress] = {};
+      transactionInfo.addresses[txAddress].outputIndexes = [1];
+      transactionInfo.addresses[txAddress].inputIndexes = [];
       history.getDetailedInfo(transactionInfo, function(err) {
         if (err) {
           throw err;
         }
         var info = history.detailedArray[0];
-        info.address.should.equal(txAddress);
+        info.addresses[txAddress].should.deep.equal({
+          outputIndexes: [1],
+          inputIndexes: []
+        });
         info.satoshis.should.equal(48020000);
         info.height.should.equal(314159);
         info.confirmations.should.equal(1);
         info.timestamp.should.equal(1407292005);
         info.fees.should.equal(20000);
-        info.outputIndexes.should.deep.equal([1]);
-        info.inputIndexes.should.deep.equal([]);
         info.tx.should.equal(transaction);
       });
     });
@@ -701,8 +704,10 @@ describe('Address Service History', function() {
         ]
       };
       var txInfo = {
-        inputIndexes: [0]
+        addresses: {}
       };
+      txInfo.addresses[address] = {};
+      txInfo.addresses[address].inputIndexes = [0];
       history.getSatoshisDetail(transaction, txInfo).should.equal(-10000);
     });
   });
