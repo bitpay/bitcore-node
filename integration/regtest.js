@@ -286,6 +286,24 @@ describe('Daemon Binding Functionality', function() {
       }).should.throw('\x10: mandatory-script-verify-flag-failed (Operation not valid with the current stack size)');
     });
 
+    it('will emit "tx" events', function(done) {
+      var tx = bitcore.Transaction();
+      tx.from(utxos[2]);
+      tx.change(privateKey.toAddress());
+      tx.to(destKey.toAddress(), utxos[2].amount * 1e8 - 1000);
+      tx.sign(bitcore.PrivateKey.fromWIF(utxos[2].privateKeyWIF));
+
+      var serialized = tx.serialize();
+
+      bitcoind.on('tx', function(result) {
+        result.buffer.toString('hex').should.equal(serialized);
+        result.hash.should.equal(tx.hash);
+        result.mempool.should.equal(true);
+        done();
+      });
+      bitcoind.sendTransaction(serialized);
+    });
+
   });
 
   describe('fee estimation', function() {
