@@ -37,43 +37,6 @@ describe('Address Service History', function() {
     });
   });
 
-  describe('#getCount', function() {
-    it('will complete the async each limit series', function(done) {
-      var addresses = [address];
-      var history = new AddressHistory({
-        node: {},
-        options: {},
-        addresses: addresses
-      });
-      history.getTransactionInfo = sinon.stub().callsArg(1);
-      history.combineTransactionInfo = sinon.stub();
-      history.get(function(err, results) {
-        if (err) {
-          throw err;
-        }
-        history.getTransactionInfo.callCount.should.equal(1);
-        history.combineTransactionInfo.callCount.should.equal(1);
-        done();
-      });
-    });
-    it('handle an error from getTransactionInfo', function(done) {
-      var addresses = [address];
-      var history = new AddressHistory({
-        node: {},
-        options: {},
-        addresses: addresses
-      });
-      var expected = [{}];
-      history.sortedArray = expected;
-      history.transactionInfo = [{}];
-      history.getTransactionInfo = sinon.stub().callsArgWith(1, new Error('test'));
-      history.get(function(err) {
-        err.message.should.equal('test');
-        done();
-      });
-    });
-  });
-
   describe('#get', function() {
     it('will complete the async each limit series', function(done) {
       var addresses = [address];
@@ -98,7 +61,10 @@ describe('Address Service History', function() {
         history.getDetailedInfo.callCount.should.equal(1);
         history.combineTransactionInfo.callCount.should.equal(1);
         history.sortAndPaginateCombinedArray.callCount.should.equal(1);
-        results.should.equal(expected);
+        results.should.deep.equal({
+          totalCount: 1,
+          items: expected
+        });
         done();
       });
     });
