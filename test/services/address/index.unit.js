@@ -2,14 +2,14 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
-var bitcorenode = require('../../');
+var proxyquire = require('proxyquire');
+var bitcorenode = require('../../../');
 var AddressService = bitcorenode.services.Address;
-var blockData = require('../data/livenet-345003.json');
+var blockData = require('../../data/livenet-345003.json');
 var bitcore = require('bitcore');
 var Networks = bitcore.Networks;
 var EventEmitter = require('events').EventEmitter;
 var errors = bitcorenode.errors;
-var levelup = require('levelup');
 
 var mockdb = {
 };
@@ -29,7 +29,7 @@ describe('Address Service', function() {
     it('should return the correct methods', function() {
       var am = new AddressService({node: mocknode});
       var methods = am.getAPIMethods();
-      methods.length.should.equal(5);
+      methods.length.should.equal(6);
     });
   });
 
@@ -74,13 +74,15 @@ describe('Address Service', function() {
       var am = new AddressService({node: mocknode});
       am.node.network = Networks.livenet;
       var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
+      var hashHex = bitcore.Address(address).hashBuffer.toString('hex');
       var messages = {};
       am.transactionOutputHandler(messages, tx, 0, true);
-      should.exist(messages[address]);
-      var message = messages[address];
+      should.exist(messages[hashHex]);
+      var message = messages[hashHex];
       message.tx.should.equal(tx);
       message.outputIndexes.should.deep.equal([0]);
-      message.address.should.equal(address);
+      message.addressInfo.hashBuffer.toString('hex').should.equal(hashHex);
+      message.addressInfo.hashHex.should.equal(hashHex);
       message.rejected.should.equal(true);
     });
   });
@@ -106,52 +108,6 @@ describe('Address Service', function() {
     var am;
     var testBlock = bitcore.Block.fromString(blockData);
 
-    var data = [
-      {
-        key: {
-          address: '1F1MAvhTKg2VG29w8cXsiSN2PJ8gSsrJw',
-          timestamp: 1424836934,
-          txid: 'fdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e16923',
-          outputIndex: 0
-        },
-        value: {
-          satoshis: 2502227470,
-          script: '76a91402a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b88ac',
-          blockHeight: 345003
-        }
-      },
-      {
-        key: {
-          prevTxId: '3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a9',
-          prevOutputIndex: 32
-        },
-        value: {
-          txid: '5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca',
-          inputIndex: 0,
-          timestamp: 1424836934
-        }
-      },
-      {
-        key: {
-          address: '1Ep5LA4T6Y7zaBPiwruUJurjGFvCJHzJhm',
-          timestamp: 1424836934,
-          txid: 'e66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d',
-          outputIndex: 1
-        },
-        value: {
-          satoshis: 3100000,
-          script: '76a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac',
-          blockHeight: 345003
-        }
-      }
-    ];
-    var key0 = data[0].key;
-    var value0 = data[0].value;
-    var key3 = data[1].key;
-    var value3 = data[1].value;
-    var key64 = data[2].key;
-    var value64 = data[2].value;
-
     before(function() {
       am = new AddressService({node: mocknode});
       am.node.network = Networks.livenet;
@@ -170,17 +126,14 @@ describe('Address Service', function() {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('put');
-        var expected0 = ['outs', key0.address, key0.timestamp, key0.txid, key0.outputIndex].join('-');
-        operations[0].key.should.equal(expected0);
-        operations[0].value.should.equal([value0.satoshis, value0.script, value0.blockHeight].join(':'));
+        operations[0].key.toString('hex').should.equal('3202a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b00000543abfdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e1692300000000');
+        operations[0].value.toString('hex').should.equal('41e2a49ec1c0000076a91402a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b88ac');
         operations[3].type.should.equal('put');
-        var expected3 = ['sp', key3.prevTxId, key3.prevOutputIndex].join('-');
-        operations[3].key.should.equal(expected3);
-        operations[3].value.should.equal([value3.txid, value3.inputIndex].join(':'));
+        operations[3].key.toString('hex').should.equal('33fdbd324b28ea69e49c998816407dc055fb81d06e00000543ab3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a900000020');
+        operations[3].value.toString('hex').should.equal('5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca00000000');
         operations[64].type.should.equal('put');
-        var expected64 = ['outs', key64.address, key64.timestamp, key64.txid, key64.outputIndex].join('-');
-        operations[64].key.should.equal(expected64);
-        operations[64].value.should.equal([value64.satoshis, value64.script, value64.blockHeight].join(':'));
+        operations[64].key.toString('hex').should.equal('329780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
+        operations[64].value.toString('hex').should.equal('4147a6b00000000076a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac');
         done();
       });
     });
@@ -196,14 +149,14 @@ describe('Address Service', function() {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('del');
-        operations[0].key.should.equal(['outs', key0.address, key0.timestamp, key0.txid, key0.outputIndex].join('-'));
-        operations[0].value.should.equal([value0.satoshis, value0.script, value0.blockHeight].join(':'));
+        operations[0].key.toString('hex').should.equal('3202a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b00000543abfdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e1692300000000');
+        operations[0].value.toString('hex').should.equal('41e2a49ec1c0000076a91402a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b88ac');
         operations[3].type.should.equal('del');
-        operations[3].key.should.equal(['sp', key3.prevTxId, key3.prevOutputIndex].join('-'));
-        operations[3].value.should.equal([value3.txid, value3.inputIndex].join(':'));
+        operations[3].key.toString('hex').should.equal('33fdbd324b28ea69e49c998816407dc055fb81d06e00000543ab3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a900000020');
+        operations[3].value.toString('hex').should.equal('5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca00000000');
         operations[64].type.should.equal('del');
-        operations[64].key.should.equal(['outs', key64.address, key64.timestamp, key64.txid, key64.outputIndex].join('-'));
-        operations[64].value.should.equal([value64.satoshis, value64.script, value64.blockHeight].join(':'));
+        operations[64].key.toString('hex').should.equal('329780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
+        operations[64].value.toString('hex').should.equal('4147a6b00000000076a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac');
         done();
       });
     });
@@ -276,16 +229,16 @@ describe('Address Service', function() {
     it('will emit a transaction if there is a subscriber', function(done) {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
-      am.subscriptions['address/transaction'] = {
-        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
-      };
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      am.subscriptions['address/transaction'] = {};
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')] = [emitter];
       var block = {
         __height: 0,
         timestamp: new Date()
       };
       var tx = {};
       emitter.on('address/transaction', function(obj) {
-        obj.address.should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+        obj.address.toString().should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
         obj.tx.should.equal(tx);
         obj.timestamp.should.equal(block.timestamp);
         obj.height.should.equal(block.__height);
@@ -293,7 +246,11 @@ describe('Address Service', function() {
         done();
       });
       am.transactionEventHandler({
-        address: '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N',
+        addressInfo: {
+          hashHex: address.hashBuffer.toString('hex'),
+          hashBuffer: address.hashBuffer,
+          addressType: address.type
+        },
         height: block.__height,
         timestamp: block.timestamp,
         outputIndexes: [1],
@@ -306,19 +263,22 @@ describe('Address Service', function() {
     it('will emit a balance if there is a subscriber', function(done) {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
-      am.subscriptions['address/balance'] = {
-        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter]
-      };
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')] = [emitter];
       var block = {};
       var balance = 1000;
       am.getBalance = sinon.stub().callsArgWith(2, null, balance);
-      emitter.on('address/balance', function(address, bal, b) {
-        address.should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      emitter.on('address/balance', function(a, bal, b) {
+        a.toString().should.equal('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
         bal.should.equal(balance);
         b.should.equal(block);
         done();
       });
-      am.balanceEventHandler(block, '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      am.balanceEventHandler(block, {
+        hashHex: address.hashBuffer.toString('hex'),
+        hashBuffer: address.hashBuffer,
+        addressType: address.type
+      });
     });
   });
 
@@ -327,34 +287,40 @@ describe('Address Service', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
 
-      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
       var name = 'address/transaction';
       am.subscribe(name, emitter, [address]);
-      am.subscriptions['address/transaction'][address].should.deep.equal([emitter]);
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter]);
 
-      var address2 = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var address2 = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W');
       am.subscribe(name, emitter, [address2]);
-      am.subscriptions['address/transaction'][address2].should.deep.equal([emitter]);
+      am.subscriptions['address/transaction'][address2.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter]);
 
       var emitter2 = new EventEmitter();
       am.subscribe(name, emitter2, [address]);
-      am.subscriptions['address/transaction'][address].should.deep.equal([emitter, emitter2]);
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter, emitter2]);
     });
     it('will add an emitter to the subscribers array (balance)', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
       var name = 'address/balance';
-      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
       am.subscribe(name, emitter, [address]);
-      am.subscriptions['address/balance'][address].should.deep.equal([emitter]);
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter]);
 
-      var address2 = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var address2 = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W');
       am.subscribe(name, emitter, [address2]);
-      am.subscriptions['address/balance'][address2].should.deep.equal([emitter]);
+      am.subscriptions['address/balance'][address2.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter]);
 
       var emitter2 = new EventEmitter();
       am.subscribe(name, emitter2, [address]);
-      am.subscriptions['address/balance'][address].should.deep.equal([emitter, emitter2]);
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter, emitter2]);
     });
   });
 
@@ -363,35 +329,37 @@ describe('Address Service', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
-      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
-      am.subscriptions['address/transaction'][address] = [emitter, emitter2];
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')] = [emitter, emitter2];
       var name = 'address/transaction';
       am.unsubscribe(name, emitter, [address]);
-      am.subscriptions['address/transaction'][address].should.deep.equal([emitter2]);
+      am.subscriptions['address/transaction'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter2]);
     });
     it('will remove emitter from subscribers array (balance)', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
-      var address = '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N';
+      var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
       var name = 'address/balance';
-      am.subscriptions['address/balance'][address] = [emitter, emitter2];
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')] = [emitter, emitter2];
       am.unsubscribe(name, emitter, [address]);
-      am.subscriptions['address/balance'][address].should.deep.equal([emitter2]);
+      am.subscriptions['address/balance'][address.hashBuffer.toString('hex')]
+        .should.deep.equal([emitter2]);
     });
     it('should unsubscribe from all addresses if no addresses are specified', function() {
       var am = new AddressService({node: mocknode});
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
-      am.subscriptions['address/balance'] = {
-        '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W': [emitter, emitter2],
-        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter2, emitter]
-      };
+      var address1 = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W');
+      var hashHex1 = address1.hashBuffer.toString('hex');
+      var address2 = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
+      var hashHex2 = address2.hashBuffer.toString('hex');
+      am.subscriptions['address/balance'][hashHex1] = [emitter, emitter2];
+      am.subscriptions['address/balance'][hashHex2] = [emitter2, emitter];
       am.unsubscribe('address/balance', emitter);
-      am.subscriptions['address/balance'].should.deep.equal({
-        '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W': [emitter2],
-        '1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N': [emitter2]
-      });
+      am.subscriptions['address/balance'][hashHex1].should.deep.equal([emitter2]);
+      am.subscriptions['address/balance'][hashHex2].should.deep.equal([emitter2]);
     });
   });
 
@@ -421,9 +389,10 @@ describe('Address Service', function() {
 
   });
 
-  describe('#getOutputs', function() {
+  describe('#getInputs', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+    var hashBuffer = bitcore.Address(address).hashBuffer;
     var db = {
       tip: {
         __height: 1
@@ -437,9 +406,168 @@ describe('Address Service', function() {
         }
       }
     };
+    before(function() {
+      am = new AddressService({node: testnode});
+    });
+
+    it('will get inputs for an address and timestamp', function(done) {
+      var testStream = new EventEmitter();
+      var args = {
+        start: 15,
+        end: 12,
+        queryMempool: true
+      };
+      var createReadStreamCallCount = 0;
+      am.node.services.db.store = {
+        createReadStream: function(ops) {
+          var gte = Buffer.concat([AddressService.PREFIXES.SPENTS, hashBuffer, new Buffer('000000000c', 'hex')]);
+          ops.gte.toString('hex').should.equal(gte.toString('hex'));
+          var lte = Buffer.concat([AddressService.PREFIXES.SPENTS, hashBuffer, new Buffer('0000000010', 'hex')]);
+          ops.lte.toString('hex').should.equal(lte.toString('hex'));
+          createReadStreamCallCount++;
+          return testStream;
+        }
+      };
+      am.node.services.bitcoind = {
+        getMempoolInputs: sinon.stub().returns([])
+      };
+      am.getInputs(address, args, function(err, inputs) {
+        should.not.exist(err);
+        inputs.length.should.equal(1);
+        inputs[0].address.should.equal(address);
+        inputs[0].txid.should.equal('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7');
+        inputs[0].inputIndex.should.equal(0);
+        inputs[0].height.should.equal(15);
+        done();
+      });
+      createReadStreamCallCount.should.equal(1);
+      var data = {
+        key: new Buffer('33038a213afdfc551fc658e9a2a58a86e98d69b687000000000f125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf8700000001', 'hex'),
+        value: new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae700000000', 'hex')
+      };
+      testStream.emit('data', data);
+      testStream.emit('close');
+    });
+    it('should get inputs for address', function(done) {
+      var testStream = new EventEmitter();
+      var args = {
+        queryMempool: true
+      };
+      var createReadStreamCallCount = 0;
+      am.node.services.db.store = {
+        createReadStream: function(ops) {
+          var gte = Buffer.concat([AddressService.PREFIXES.SPENTS, hashBuffer, new Buffer('00', 'hex')]);
+          ops.gte.toString('hex').should.equal(gte.toString('hex'));
+          var lte = Buffer.concat([AddressService.PREFIXES.SPENTS, hashBuffer, new Buffer('ff', 'hex')]);
+          ops.lte.toString('hex').should.equal(lte.toString('hex'));
+          createReadStreamCallCount++;
+          return testStream;
+        }
+      };
+      am.node.services.bitcoind = {
+        getMempoolInputs: sinon.stub().returns([])
+      };
+      am.getInputs(address, args, function(err, inputs) {
+        should.not.exist(err);
+        inputs.length.should.equal(1);
+        inputs[0].address.should.equal(address);
+        inputs[0].txid.should.equal('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7');
+        inputs[0].inputIndex.should.equal(0);
+        inputs[0].height.should.equal(15);
+        done();
+      });
+      createReadStreamCallCount.should.equal(1);
+      var data = {
+        key: new Buffer('33038a213afdfc551fc658e9a2a58a86e98d69b687000000000f125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf8700000001', 'hex'),
+        value: new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae700000000', 'hex')
+      };
+      testStream.emit('data', data);
+      testStream.emit('close');
+    });
+    it('should give an error if the readstream has an error', function(done) {
+      var testStream = new EventEmitter();
+      am.node.services.db.store = {
+        createReadStream: sinon.stub().returns(testStream)
+      };
+
+      am.getOutputs(address, {}, function(err, outputs) {
+        should.exist(err);
+        err.message.should.equal('readstreamerror');
+        done();
+      });
+
+      testStream.emit('error', new Error('readstreamerror'));
+      setImmediate(function() {
+        testStream.emit('close');
+      });
+    });
+
+  });
+
+  describe('#getOutputs', function() {
+    var am;
+    var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+    var hashBuffer = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W').hashBuffer;
+    var db = {
+      tip: {
+        __height: 1
+      }
+    };
+    var testnode = {
+      services: {
+        db: db,
+        bitcoind: {
+          on: sinon.stub()
+        }
+      }
+    };
+    var options = {
+      queryMempool: true
+    };
 
     before(function() {
       am = new AddressService({node: testnode});
+    });
+
+    it('will get outputs for an address and timestamp', function(done) {
+      var testStream = new EventEmitter();
+      var args = {
+        start: 15,
+        end: 12,
+        queryMempool: true
+      };
+      var createReadStreamCallCount = 0;
+      am.node.services.db.store = {
+        createReadStream: function(ops) {
+          var gte = Buffer.concat([AddressService.PREFIXES.OUTPUTS, hashBuffer, new Buffer('000000000c', 'hex')]);
+          ops.gte.toString('hex').should.equal(gte.toString('hex'));
+          var lte = Buffer.concat([AddressService.PREFIXES.OUTPUTS, hashBuffer, new Buffer('0000000010', 'hex')]);
+          ops.lte.toString('hex').should.equal(lte.toString('hex'));
+          createReadStreamCallCount++;
+          return testStream;
+        }
+      };
+      am.node.services.bitcoind = {
+        getMempoolOutputs: sinon.stub().returns([])
+      };
+      am.getOutputs(address, args, function(err, outputs) {
+        should.not.exist(err);
+        outputs.length.should.equal(1);
+        outputs[0].address.should.equal(address);
+        outputs[0].txid.should.equal('125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf87');
+        outputs[0].outputIndex.should.equal(1);
+        outputs[0].satoshis.should.equal(4527773864);
+        outputs[0].script.should.equal('76a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac');
+        outputs[0].height.should.equal(15);
+        done();
+      });
+      createReadStreamCallCount.should.equal(1);
+      var data = {
+        key: new Buffer('32038a213afdfc551fc658e9a2a58a86e98d69b687000000000f125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf8700000001', 'hex'),
+        value: new Buffer('41f0de058a80000076a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac', 'hex')
+      };
+      testStream.emit('data', data);
+      testStream.emit('close');
     });
 
     it('should get outputs for an address', function(done) {
@@ -452,7 +580,7 @@ describe('Address Service', function() {
           address: '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W',
           txid: 'aa2db23f670596e96ed94c405fd11848c8f236d266ee96da37ecd919e53b4371',
           satoshis: 307627737,
-          script: 'OP_DUP OP_HASH160 f6db95c81dea3d10f0ff8d890927751bf7b203c1 OP_EQUALVERIFY OP_CHECKSIG',
+          script: '76a914f6db95c81dea3d10f0ff8d890927751bf7b203c188ac',
           blockHeight: 352532
         }
       ];
@@ -460,38 +588,36 @@ describe('Address Service', function() {
         getMempoolOutputs: sinon.stub().returns(mempoolOutputs)
       };
 
-      am.getOutputs(address, true, function(err, outputs) {
+      am.getOutputs(address, options, function(err, outputs) {
         should.not.exist(err);
         outputs.length.should.equal(3);
         outputs[0].address.should.equal(address);
         outputs[0].txid.should.equal('125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf87');
         outputs[0].outputIndex.should.equal(1);
         outputs[0].satoshis.should.equal(4527773864);
-        outputs[0].script.should.equal('OP_DUP OP_HASH160 038a213afdfc551fc658e9a2a58a86e98d69b687 OP_EQUALVERIFY OP_CHECKSIG');
-        outputs[0].blockHeight.should.equal(345000);
-        outputs[0].timestamp.should.equal(1424835319000);
+        outputs[0].script.should.equal('76a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac');
+        outputs[0].height.should.equal(345000);
         outputs[1].address.should.equal(address);
         outputs[1].txid.should.equal('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7');
         outputs[1].outputIndex.should.equal(2);
         outputs[1].satoshis.should.equal(10000);
-        outputs[1].script.should.equal('OP_DUP OP_HASH160 038a213afdfc551fc658e9a2a58a86e98d69b687 OP_EQUALVERIFY OP_CHECKSIG');
-        outputs[1].blockHeight.should.equal(345004);
-        outputs[1].timestamp.should.equal(1424837300000);
+        outputs[1].script.should.equal('76a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac');
+        outputs[1].height.should.equal(345004);
         outputs[2].address.should.equal(address);
         outputs[2].txid.should.equal('aa2db23f670596e96ed94c405fd11848c8f236d266ee96da37ecd919e53b4371');
-        outputs[2].script.should.equal('OP_DUP OP_HASH160 f6db95c81dea3d10f0ff8d890927751bf7b203c1 OP_EQUALVERIFY OP_CHECKSIG');
+        outputs[2].script.should.equal('76a914f6db95c81dea3d10f0ff8d890927751bf7b203c188ac');
         outputs[2].blockHeight.should.equal(352532);
         done();
       });
 
       var data1 = {
-        key: ['outs', address, 1424835319000, '125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf87', '1'].join('-'),
-        value: ['4527773864', 'OP_DUP OP_HASH160 038a213afdfc551fc658e9a2a58a86e98d69b687 OP_EQUALVERIFY OP_CHECKSIG', '345000'].join(':')
+        key: new Buffer('32038a213afdfc551fc658e9a2a58a86e98d69b68700000543a8125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf8700000001', 'hex'),
+        value: new Buffer('41f0de058a80000076a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac', 'hex')
       };
 
       var data2 = {
-        key: ['outs', address, 1424837300000, '3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', '2'].join('-'),
-        value: ['10000', 'OP_DUP OP_HASH160 038a213afdfc551fc658e9a2a58a86e98d69b687 OP_EQUALVERIFY OP_CHECKSIG', '345004'].join(':')
+        key: new Buffer('32038a213afdfc551fc658e9a2a58a86e98d69b68700000543ac3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae700000002', 'hex'),
+        value: new Buffer('40c388000000000076a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac', 'hex')
       };
 
       readStream1.emit('data', data1);
@@ -505,14 +631,14 @@ describe('Address Service', function() {
         createReadStream: sinon.stub().returns(readStream2)
       };
 
-      am.getOutputs(address, true, function(err, outputs) {
+      am.getOutputs(address, options, function(err, outputs) {
         should.exist(err);
         err.message.should.equal('readstreamerror');
         done();
       });
 
       readStream2.emit('error', new Error('readstreamerror'));
-      process.nextTick(function() {
+      setImmediate(function() {
         readStream2.emit('close');
       });
     });
@@ -731,245 +857,39 @@ describe('Address Service', function() {
     });
   });
 
-  describe('#getSpendInfoForOutput', function() {
-    it('should call store.get the right values', function(done) {
-      var db = {
-        store: {
-          get: sinon.stub().callsArgWith(1, null, 'spendtxid:1')
-        }
-      };
-      var testnode = {
-        services: {
-          db: db,
-          bitcoind: {
-            on: sinon.stub()
-          }
-        }
-      };
-      var am = new AddressService({node: testnode});
-      am.getSpendInfoForOutput('txid', 3, function(err, info) {
-        should.not.exist(err);
-        info.txid.should.equal('spendtxid');
-        info.inputIndex.should.equal('1');
-        db.store.get.args[0][0].should.equal('sp-txid-3');
+  describe('#getAddressHistoryCount', function() {
+    it('will call getCount on address history instance', function(done) {
+      function TestAddressHistory(args) {
+        args.node.should.equal(mocknode);
+        args.addresses.should.deep.equal([]);
+        args.options.should.deep.equal({});
+      }
+      TestAddressHistory.prototype.getCount = sinon.stub().callsArg(0);
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        './history': TestAddressHistory
+      });
+      var am = new TestAddressService({node: mocknode});
+      am.getAddressHistoryCount([], {}, function(err, history) {
+        TestAddressHistory.prototype.getCount.callCount.should.equal(1);
         done();
       });
     });
   });
 
   describe('#getAddressHistory', function() {
-    var incoming = [
-      {
-        txid: 'tx1',
-        outputIndex: 0,
-        spentTx: 'tx2',
-        inputIndex: 0,
-        height: 1,
-        timestamp: 1438289011844,
-        satoshis: 5000,
-        getFee: sinon.stub().throws(new Error('inputs not populated')),
-        isCoinbase: sinon.stub().returns(true)
-      },
-      {
-        txid: 'tx3',
-        outputIndex: 1,
-        height: 3,
-        timestamp: 1438289031844,
-        satoshis: 2000,
-        getFee: sinon.stub().returns(1000),
-        isCoinbase: sinon.stub().returns(false)
-      },
-      {
-        txid: 'tx4',
-        outputIndex: 2,
-        spentTx: 'tx5',
-        inputIndex: 1,
-        height: 4,
-        timestamp: 1438289041844,
-        satoshis: 3000,
-        getFee: sinon.stub().returns(1000),
-        isCoinbase: sinon.stub().returns(false)
-      },
-    ];
-
-    var outgoing = [
-      {
-        txid: 'tx2',
-        height: 2,
-        timestamp: 1438289021844,
-        inputs: [
-          {
-            output: {
-              satoshis: 5000
-            }
-          }
-        ],
-        getFee: sinon.stub().returns(1000),
-        isCoinbase: sinon.stub().returns(false)
-      },
-      {
-        txid: 'tx5',
-        height: 5,
-        timestamp: 1438289051844,
-        inputs: [
-          {},
-          {
-            output: {
-              satoshis: 3000
-            }
-          }
-        ],
-        getFee: sinon.stub().returns(1000),
-        isCoinbase: sinon.stub().returns(false)
+    it('will call get on address history instance', function(done) {
+      function TestAddressHistory(args) {
+        args.node.should.equal(mocknode);
+        args.addresses.should.deep.equal([]);
+        args.options.should.deep.equal({});
       }
-    ];
-
-    var db = {
-      tip: {
-        __height: 1
-      },
-      getTransactionWithBlockInfo: function(txid, queryMempool, callback) {
-        var transaction = {
-          populateInputs: sinon.stub().callsArg(2)
-        };
-        for(var i = 0; i < incoming.length; i++) {
-          if(incoming[i].txid === txid) {
-            if(incoming[i].error) {
-              return callback(new Error(incoming[i].error));
-            }
-            transaction.hash = txid;
-            transaction.__height = incoming[i].height;
-            transaction.__timestamp = incoming[i].timestamp;
-            transaction.getFee = incoming[i].getFee;
-            transaction.isCoinbase = incoming[i].isCoinbase;
-            return callback(null, transaction);
-          }
-        }
-
-        for(var i = 0; i < outgoing.length; i++) {
-          if(outgoing[i].txid === txid) {
-            if(outgoing[i].error) {
-              return callback(new Error(outgoing[i].error));
-            }
-            transaction.hash = txid;
-            transaction.__height = outgoing[i].height;
-            transaction.__timestamp = outgoing[i].timestamp;
-            transaction.inputs = outgoing[i].inputs;
-            transaction.getFee = outgoing[i].getFee;
-            transaction.isCoinbase = outgoing[i].isCoinbase;
-            return callback(null, transaction);
-          }
-        }
-        callback(new Error('tx ' + txid + ' not found'));
-      }
-    };
-    var testnode = {
-      services: {
-        db: db,
-        bitcoind: {
-          on: sinon.stub()
-        }
-      }
-    };
-    var am = new AddressService({node: testnode});
-
-    am.getOutputs = sinon.stub().callsArgWith(2, null, incoming);
-    am.getSpendInfoForOutput = function(txid, outputIndex, callback) {
-      for(var i = 0; i < incoming.length; i++) {
-        if(incoming[i].txid === txid && incoming[i].outputIndex === outputIndex && incoming[i].spentTx) {
-          if(incoming[i].spendError) {
-            return callback(new Error(incoming[i].spendError));
-          }
-          return callback(null, {
-            txid: incoming[i].spentTx,
-            inputIndex: incoming[i].inputIndex
-          });
-        }
-      }
-
-      callback(new levelup.errors.NotFoundError());
-    };
-
-    it('should give transaction history for an address', function(done) {
-      am.getAddressHistory('address', true, function(err, history) {
-        should.not.exist(err);
-        history[0].tx.hash.should.equal('tx1');
-        history[0].satoshis.should.equal(5000);
-        history[0].height.should.equal(1);
-        history[0].timestamp.should.equal(1438289011844);
-        should.equal(history[0].fees, null);
-        history[1].tx.hash.should.equal('tx2');
-        history[1].satoshis.should.equal(-5000);
-        history[1].height.should.equal(2);
-        history[1].timestamp.should.equal(1438289021844);
-        history[1].fees.should.equal(1000);
-        history[2].tx.hash.should.equal('tx3');
-        history[2].satoshis.should.equal(2000);
-        history[2].height.should.equal(3);
-        history[2].timestamp.should.equal(1438289031844);
-        history[2].fees.should.equal(1000);
-        history[3].tx.hash.should.equal('tx4');
-        history[3].satoshis.should.equal(3000);
-        history[3].height.should.equal(4);
-        history[3].timestamp.should.equal(1438289041844);
-        history[3].fees.should.equal(1000);
-        history[4].tx.hash.should.equal('tx5');
-        history[4].satoshis.should.equal(-3000);
-        history[4].height.should.equal(5);
-        history[4].timestamp.should.equal(1438289051844);
-        history[4].fees.should.equal(1000);
-        done();
+      TestAddressHistory.prototype.get = sinon.stub().callsArg(0);
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        './history': TestAddressHistory
       });
-    });
-
-    it('should give an error if the second getTransactionInfo gives an error', function(done) {
-      outgoing[0].error = 'txinfo2err';
-      am.getAddressHistory('address', true, function(err, history) {
-        should.exist(err);
-        err.message.should.equal('txinfo2err');
-        outgoing[0].error = null;
-        done();
-      });
-    });
-
-    it('should give an error if getSpendInfoForOutput gives an error', function(done) {
-      incoming[0].spendError = 'spenderr';
-      am.getAddressHistory('address', true, function(err, history) {
-        should.exist(err);
-        err.message.should.equal('spenderr');
-        incoming[0].spendError = null;
-        done();
-      });
-    });
-
-    it('should give an error if the first getTransactionInfo gives an error', function(done) {
-      incoming[1].error = 'txinfo1err';
-      am.getAddressHistory('address', true, function(err, history) {
-        should.exist(err);
-        err.message.should.equal('txinfo1err');
-        incoming[1].error = null;
-        done();
-      });
-    });
-
-    it('should give an error if populateInputs gives an error', function(done) {
-      var populateStub = sinon.stub().callsArgWith(2, new Error('populateerr'));
-      sinon.stub(db, 'getTransactionWithBlockInfo').callsArgWith(2, null, {
-        populateInputs: populateStub
-      });
-      am.getAddressHistory('address', true, function(err, history) {
-        should.exist(err);
-        err.message.should.equal('populateerr');
-        db.getTransactionWithBlockInfo.restore();
-        done();
-      });
-    });
-
-    it('should give an error if getOutputs gives an error', function(done) {
-      am.getOutputs = sinon.stub().callsArgWith(2, new Error('getoutputserr'));
-      am.getAddressHistory('address', true, function(err, history) {
-        should.exist(err);
-        err.message.should.equal('getoutputserr');
+      var am = new TestAddressService({node: mocknode});
+      am.getAddressHistory([], {}, function(err, history) {
+        TestAddressHistory.prototype.get.callCount.should.equal(1);
         done();
       });
     });
