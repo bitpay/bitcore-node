@@ -394,13 +394,13 @@ describe('DB Service', function() {
       });
 
       readStream.emit('data', {
-        key: 'blk-' + block1.timestamp,
-        value: block1.hash
+        key: db._encodeBlockIndexKey(block1.timestamp),
+        value: db._encodeBlockIndexValue(block1.hash)
       });
 
       readStream.emit('data', {
-        key: 'blk-' + block2.timestamp,
-        value: block2.hash
+        key: db._encodeBlockIndexKey(block2.timestamp),
+        value: db._encodeBlockIndexValue(block2.hash)
       });
 
       readStream.emit('close');
@@ -718,9 +718,9 @@ describe('DB Service', function() {
         should.not.exist(err);
         var blockOp = {
           type: 'put',
-          key: 'blk-1441906365',
-          value: '00000000000000000d0aaf93e464ddeb503655a0750f8b9c6eed0bdf0ccfc863'
-        }
+          key: db._encodeBlockIndexKey(1441906365),
+          value: db._encodeBlockIndexValue('00000000000000000d0aaf93e464ddeb503655a0750f8b9c6eed0bdf0ccfc863')
+        };
         db.store.batch.args[0][0].should.deep.equal([blockOp, 'op1', 'op2', 'op3', 'op4', 'op5']);
         done();
       });

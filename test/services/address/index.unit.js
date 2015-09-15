@@ -126,13 +126,13 @@ describe('Address Service', function() {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('put');
-        operations[0].key.toString('hex').should.equal('3202a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b00000543abfdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e1692300000000');
+        operations[0].key.toString('hex').should.equal('0202a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b00000543abfdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e1692300000000');
         operations[0].value.toString('hex').should.equal('41e2a49ec1c0000076a91402a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b88ac');
         operations[3].type.should.equal('put');
-        operations[3].key.toString('hex').should.equal('33fdbd324b28ea69e49c998816407dc055fb81d06e00000543ab3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a900000020');
+        operations[3].key.toString('hex').should.equal('03fdbd324b28ea69e49c998816407dc055fb81d06e00000543ab3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a900000020');
         operations[3].value.toString('hex').should.equal('5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca00000000');
         operations[64].type.should.equal('put');
-        operations[64].key.toString('hex').should.equal('329780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
+        operations[64].key.toString('hex').should.equal('029780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
         operations[64].value.toString('hex').should.equal('4147a6b00000000076a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac');
         done();
       });
@@ -149,13 +149,13 @@ describe('Address Service', function() {
         should.not.exist(err);
         operations.length.should.equal(81);
         operations[0].type.should.equal('del');
-        operations[0].key.toString('hex').should.equal('3202a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b00000543abfdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e1692300000000');
+        operations[0].key.toString('hex').should.equal('0202a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b00000543abfdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e1692300000000');
         operations[0].value.toString('hex').should.equal('41e2a49ec1c0000076a91402a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b88ac');
         operations[3].type.should.equal('del');
-        operations[3].key.toString('hex').should.equal('33fdbd324b28ea69e49c998816407dc055fb81d06e00000543ab3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a900000020');
+        operations[3].key.toString('hex').should.equal('03fdbd324b28ea69e49c998816407dc055fb81d06e00000543ab3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a900000020');
         operations[3].value.toString('hex').should.equal('5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca00000000');
         operations[64].type.should.equal('del');
-        operations[64].key.toString('hex').should.equal('329780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
+        operations[64].key.toString('hex').should.equal('029780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
         operations[64].value.toString('hex').should.equal('4147a6b00000000076a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac');
         done();
       });
@@ -563,7 +563,7 @@ describe('Address Service', function() {
       });
       createReadStreamCallCount.should.equal(1);
       var data = {
-        key: new Buffer('32038a213afdfc551fc658e9a2a58a86e98d69b687000000000f125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf8700000001', 'hex'),
+        key: new Buffer('02038a213afdfc551fc658e9a2a58a86e98d69b687000000000f125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf8700000001', 'hex'),
         value: new Buffer('41f0de058a80000076a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac', 'hex')
       };
       testStream.emit('data', data);
@@ -611,12 +611,12 @@ describe('Address Service', function() {
       });
 
       var data1 = {
-        key: new Buffer('32038a213afdfc551fc658e9a2a58a86e98d69b68700000543a8125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf8700000001', 'hex'),
+        key: new Buffer('02038a213afdfc551fc658e9a2a58a86e98d69b68700000543a8125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf8700000001', 'hex'),
         value: new Buffer('41f0de058a80000076a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac', 'hex')
       };
 
       var data2 = {
-        key: new Buffer('32038a213afdfc551fc658e9a2a58a86e98d69b68700000543ac3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae700000002', 'hex'),
+        key: new Buffer('02038a213afdfc551fc658e9a2a58a86e98d69b68700000543ac3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae700000002', 'hex'),
         value: new Buffer('40c388000000000076a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac', 'hex')
       };
 
