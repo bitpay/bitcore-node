@@ -32,3 +32,14 @@ node.getBlock(blockHash, function(err, block) {
   //...
 });
 ```
+
+Get Block Hashes by Timestamp Range
+
+```js
+var newest = 1441914000; // Notice time is in seconds not milliseconds
+var oldest = 1441911000;
+
+node.getBlockHashesByTimestamp(newest, oldest, function(err, hashes) {
+  //...
+});
+```
