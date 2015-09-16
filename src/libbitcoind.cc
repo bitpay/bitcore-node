@@ -1337,14 +1337,20 @@ NAN_METHOD(GetBlockIndex) {
     }
   }
 
+  Local<Object> obj = NanNew<Object>();
+
   arith_uint256 cw = blockIndex->nChainWork;
   CBlockIndex* prevBlockIndex = blockIndex->pprev;
-  const uint256* prevHash = prevBlockIndex->phashBlock;
+  if (&prevBlockIndex->phashBlock != 0) {
+    const uint256* prevHash = prevBlockIndex->phashBlock;
+    obj->Set(NanNew<String>("prevHash"), NanNew<String>(prevHash->GetHex()));
+  } else {
+    obj->Set(NanNew<String>("prevHash"), NanNull());
+  }
 
-  Local<Object> obj = NanNew<Object>();
   obj->Set(NanNew<String>("hash"), NanNew<String>(blockIndex->phashBlock->GetHex()));
   obj->Set(NanNew<String>("chainWork"), NanNew<String>(cw.GetHex()));
-  obj->Set(NanNew<String>("prevHash"), NanNew<String>(prevHash->GetHex()));
+
   obj->Set(NanNew<String>("height"), NanNew<Number>(blockIndex->nHeight));
 
   NanReturnValue(obj);
