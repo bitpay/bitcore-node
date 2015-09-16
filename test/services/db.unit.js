@@ -423,6 +423,20 @@ describe('DB Service', function() {
 
       readStream.emit('close');
     });
+
+    it('should give an error if the timestamp is out of range', function(done) {
+      var db = new DB(baseConfig);
+      var readStream = new EventEmitter();
+      db.store = {
+        createReadStream: sinon.stub().returns(readStream)
+      };
+
+      db.getBlockHashesByTimestamp(-1, -5, function(err, hashes) {
+        should.exist(err);
+        err.message.should.equal('Invalid Argument: timestamp out of bounds');
+        done();
+      });
+    });
   });
 
   describe('#getPrevHash', function() {
