@@ -96,6 +96,7 @@ init(Handle<Object>);
 static std::vector<CDataStream> txmon_messages;
 static uv_async_t txmon_async;
 static Eternal<Function> txmon_callback;
+static bool txmon_callback_available;
 
 static volatile bool shutdown_complete = false;
 static char *g_data_dir = NULL;
@@ -219,6 +220,7 @@ NAN_METHOD(StartTxMon) {
   Local<Function> callback = Local<Function>::Cast(args[0]);
   Eternal<Function> cb(isolate, callback);
   txmon_callback = cb;
+  txmon_callback_available = true;
 
   CNodeSignals& nodeSignals = GetNodeSignals();
   nodeSignals.ProcessMessages.connect(&scan_messages, boost::signals2::at_front);
@@ -1498,6 +1500,32 @@ NAN_METHOD(SendTransaction) {
 
   // Relay the transaction connect peers
   RelayTransaction(tx);
+
+  // Notify any listeners about the transaction
+  if(txmon_callback_available) {
+
+    Local<Array> results = Array::New(isolate);
+    Local<Object> obj = NanNew<Object>();
+
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    ssTx << tx;
+    std::string stx = ssTx.str();
+    Local<Value> txBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
+
+    obj->Set(NanNew<String>("buffer"), txBuffer);
+    obj->Set(NanNew<String>("hash"), NanNew<String>(hashTx.GetHex()));
+    obj->Set(NanNew<String>("mempool"), NanNew<Boolean>(true));
+
+    results->Set(0, obj);
+
+    const unsigned argc = 1;
+    Local<Value> argv[argc] = {
+      Local<Value>::New(isolate, results)
+    };
+    Local<Function> cb = txmon_callback.Get(isolate);
+
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+  }
 
   NanReturnValue(Local<Value>::New(isolate, NanNew<String>(hashTx.GetHex())));
 }
