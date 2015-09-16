@@ -29,7 +29,7 @@ NAN_METHOD(GetTransaction);
 NAN_METHOD(GetInfo);
 NAN_METHOD(IsSpent);
 NAN_METHOD(GetBlockIndex);
-NAN_METHOD(GetMempoolOutputs);
+NAN_METHOD(GetMempoolTransactions);
 NAN_METHOD(AddMempoolUncheckedTransaction);
 NAN_METHOD(SendTransaction);
 NAN_METHOD(EstimateFee);

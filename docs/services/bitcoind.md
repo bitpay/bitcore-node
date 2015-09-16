@@ -13,7 +13,7 @@ The bitcoin service adds a native interface to Bitcoin Core for querying informa
 - `bitcoind.sendTransaction(transaction, allowAbsurdFees)` - Will attempt to add a transaction to the mempool and broadcast to peers.
 - `bitcoind.getTransaction(txid, queryMempool, callback)` - Get any tx asynchronously by reading it from disk, with an argument to optionally not include the mempool.
 - `bitcoind.getTransactionWithBlockInfo(txid, queryMempool, callback)` - Similar to getTransaction but will also include the block timestamp and height.
-- `bitcoind.getMempoolOutputs(address)` - Will return an array of outputs that match an address from the mempool.
+- `bitcoind.getMempoolTransactions()` - Will return an array of transaction buffers.
 - `bitcoind.getInfo()` - Basic information about the chain including total number of blocks.
 - `bitcoind.isSynced()` - Returns a boolean if the daemon is fully synced (not the initial block download)
 - `bitcoind.syncPercentage()` - Returns the current estimate of blockchain download as a percentage.

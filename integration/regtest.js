@@ -300,7 +300,7 @@ describe('Daemon Binding Functionality', function() {
 
       var serialized = tx.serialize();
 
-      bitcoind.on('tx', function(result) {
+      bitcoind.once('tx', function(result) {
         result.buffer.toString('hex').should.equal(serialized);
         result.hash.should.equal(tx.hash);
         result.mempool.should.equal(true);
@@ -357,6 +357,18 @@ describe('Daemon Binding Functionality', function() {
     tx.change(changeAddress);
     tx.sign(privateKey1);
 
+    var tx2;
+    var tx2Key;
+
+    before(function() {
+      tx2 = bitcore.Transaction();
+      tx2.from(utxos[3]);
+      tx2.change(privateKey.toAddress());
+      tx2.to(destKey.toAddress(), utxos[3].amount * 1e8 - 1000);
+      tx2Key = bitcore.PrivateKey.fromWIF(utxos[3].privateKeyWIF);
+      tx2.sign(tx2Key);
+    });
+
     it('will add an unchecked transaction', function() {
       var added = bitcoind.addMempoolUncheckedTransaction(tx.serialize());
       added.should.equal(true);
@@ -370,18 +382,17 @@ describe('Daemon Binding Functionality', function() {
 
     });
 
-    it('get outputs by address', function() {
-      var outputs = bitcoind.getMempoolOutputs(changeAddress);
-      var expected = [
-        {
-          address: 'mgBCJAsvzgT2qNNeXsoECg2uPKrUsZ76up',
-          script: '76a914073b7eae2823efa349e3b9155b8a735526463a0f88ac',
-          satoshis: 40000,
-          txid: tx.hash,
-          outputIndex: 1
-        }
-      ];
-      outputs.should.deep.equal(expected);
+    it('get one transaction', function() {
+      var transactions = bitcoind.getMempoolTransactions();
+      transactions[0].toString('hex').should.equal(tx.serialize());
+    });
+
+    it('get multiple transactions', function() {
+      bitcoind.sendTransaction(tx2.serialize());
+      var transactions = bitcoind.getMempoolTransactions();
+      var expected = [tx.serialize(), tx2.serialize()];
+      expected.should.contain(transactions[0].toString('hex'));
+      expected.should.contain(transactions[1].toString('hex'));
     });
 
   });
