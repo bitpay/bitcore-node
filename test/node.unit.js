@@ -324,7 +324,6 @@ describe('Bitcore Node', function() {
   describe('#stop', function() {
     it('will call stop for each service', function(done) {
       var node = new Node(baseConfig);
-      node.started = true;
       function TestService() {}
       util.inherits(TestService, BaseService);
       TestService.prototype.stop = sinon.stub().callsArg(0);
