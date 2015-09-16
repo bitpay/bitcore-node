@@ -231,6 +231,11 @@ describe('Daemon Binding Functionality', function() {
         blockIndex.height.should.equal(i + 1);
       });
     });
+    it('will get null prevHash for the genesis block', function() {
+      var blockIndex = bitcoind.getBlockIndex(0);
+      should.exist(blockIndex);
+      should.equal(blockIndex.prevHash, null);
+    });
   });
 
   describe('get block index by height', function() {
