@@ -10,6 +10,8 @@ var bitcore = require('bitcore');
 var Networks = bitcore.Networks;
 var EventEmitter = require('events').EventEmitter;
 var errors = bitcorenode.errors;
+var Transaction = require('../../../lib/transaction');
+var txData = require('../../data/transaction.json');
 
 var mockdb = {
 };
@@ -24,7 +26,7 @@ var mocknode = {
 };
 
 describe('Address Service', function() {
-
+  var txBuf = new Buffer(txData[0], 'hex');
   describe('#getAPIMethods', function() {
     it('should return the correct methods', function() {
       var am = new AddressService({node: mocknode});
@@ -547,9 +549,6 @@ describe('Address Service', function() {
           return testStream;
         }
       };
-      am.node.services.bitcoind = {
-        getMempoolOutputs: sinon.stub().returns([])
-      };
       am.getOutputs(address, args, function(err, outputs) {
         should.not.exist(err);
         outputs.length.should.equal(1);
@@ -575,18 +574,17 @@ describe('Address Service', function() {
       am.node.services.db.store = {
         createReadStream: sinon.stub().returns(readStream1)
       };
-      var mempoolOutputs = [
+
+      am.mempoolOutputIndex = {};
+
+      am.mempoolOutputIndex[address] = [
         {
-          address: '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W',
           txid: 'aa2db23f670596e96ed94c405fd11848c8f236d266ee96da37ecd919e53b4371',
           satoshis: 307627737,
           script: '76a914f6db95c81dea3d10f0ff8d890927751bf7b203c188ac',
-          blockHeight: 352532
+          outputIndex: 0
         }
-      ];
-      am.node.services.bitcoind = {
-        getMempoolOutputs: sinon.stub().returns(mempoolOutputs)
-      };
+      ]
 
       am.getOutputs(address, options, function(err, outputs) {
         should.not.exist(err);
@@ -606,7 +604,8 @@ describe('Address Service', function() {
         outputs[2].address.should.equal(address);
         outputs[2].txid.should.equal('aa2db23f670596e96ed94c405fd11848c8f236d266ee96da37ecd919e53b4371');
         outputs[2].script.should.equal('76a914f6db95c81dea3d10f0ff8d890927751bf7b203c188ac');
-        outputs[2].blockHeight.should.equal(352532);
+        outputs[2].height.should.equal(-1);
+        outputs[2].confirmations.should.equal(0);
         done();
       });
 
@@ -875,5 +874,47 @@ describe('Address Service', function() {
       });
     });
   });
+  describe('#updateMempoolIndex', function() {
+    var am;
+    var db = {};
+    var tx = Transaction().fromBuffer(txBuf);
 
+    before(function() {
+      am = new AddressService({node: mocknode});
+    });
+
+    it('will update the input and output indexes', function() {
+      am.updateMempoolIndex(tx);
+      am.mempoolInputIndex['18Z29uNgWyUDtNyTKE1PaurbSR131EfANc'][0].txid.should.equal('45202ffdeb8344af4dec07cddf0478485dc65cc7d08303e45959630c89b51ea2');
+      am.mempoolOutputIndex['12w93weN8oti3P1e5VYEuygqyujhADF7J5'][0].txid.should.equal('45202ffdeb8344af4dec07cddf0478485dc65cc7d08303e45959630c89b51ea2');
+      am.mempoolInputIndex['1JT7KDYwT9JY9o2vyqcKNSJgTWeKfV3ui8'].length.should.equal(12);
+      am.mempoolOutputIndex['12w93weN8oti3P1e5VYEuygqyujhADF7J5'].length.should.equal(1);
+    });
+
+  });
+  describe('#resetMempoolIndex', function() {
+    var am;
+    var db = {};
+
+    before(function() {
+      var testnode = {
+        db: db,
+        services: {
+          bitcoind: {
+            getMempoolTransactions: sinon.stub().returns([txBuf]),
+            on: sinon.stub()
+          }
+        }
+      };
+      am = new AddressService({node: testnode});
+      am.updateMempoolIndex = sinon.stub();
+
+    });
+    it('will reset the input and output indexes', function(done) {
+      am.resetMempoolIndex(function() {
+        am.updateMempoolIndex.callCount.should.equal(1);
+        done();
+      });
+    });
+  });
 });

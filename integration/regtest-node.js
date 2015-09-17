@@ -686,9 +686,9 @@ describe('Node Functionality', function() {
         node.services.bitcoind.sendTransaction(tx.serialize());
 
         setImmediate(function() {
-          var length = node.services.address.mempoolIndex[address].length;
+          var length = node.services.address.mempoolOutputIndex[address].length;
           length.should.equal(1);
-          should.exist(node.services.address.mempoolIndex[address]);
+          should.exist(node.services.address.mempoolOutputIndex[address]);
           done();
         });
 
