@@ -412,6 +412,43 @@ describe('Address Service', function() {
       am = new AddressService({node: testnode});
     });
 
+    it('will add mempool inputs on close', function(done) {
+      var testStream = new EventEmitter();
+      var db = {
+        store: {
+          createReadStream: sinon.stub().returns(testStream)
+        }
+      }
+      var testnode = {
+        services: {
+          db: db,
+          bitcoind: {
+            on: sinon.stub()
+          }
+        }
+      };
+      var am = new AddressService({node: testnode});
+      var args = {
+        start: 15,
+        end: 12,
+        queryMempool: true
+      };
+      am.mempoolInputIndex[address] = [
+        {
+          address: address,
+          height: -1,
+          confirmations: 0
+        }
+      ]
+      am.getInputs(address, args, function(err, inputs) {
+        should.not.exist(err);
+        inputs.length.should.equal(1);
+        inputs[0].address.should.equal(address);
+        inputs[0].height.should.equal(-1);
+        done();
+      });
+      testStream.emit('close');
+    });
     it('will get inputs for an address and timestamp', function(done) {
       var testStream = new EventEmitter();
       var args = {
