@@ -409,6 +409,7 @@ describe('Bitcoin Service', function() {
       ['getMempoolOutputs', 1],
       ['addMempoolUncheckedTransaction', 1],
       ['getTxOutSetInfo', 0],
+      ['getBestBlockHash', 0],
       ['getInfo', 0]
     ];
 

@@ -229,6 +229,13 @@ NAN_METHOD(GetTxOutSetInfo) {
 
 };
 
+NAN_METHOD(GetBestBlockHash) {
+  {
+    LOCK(cs_main);
+    NanReturnValue(NanNew<String>(chainActive.Tip()->GetBlockHash().GetHex()));
+  }
+}
+
 /**
  * IsSynced()
  * bitcoind.isSynced()
@@ -1702,6 +1709,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "syncPercentage", SyncPercentage);
   NODE_SET_METHOD(target, "isSynced", IsSynced);
   NODE_SET_METHOD(target, "getTxOutSetInfo", GetTxOutSetInfo);
+  NODE_SET_METHOD(target, "getBestBlockHash", GetBestBlockHash);
 
 }
 

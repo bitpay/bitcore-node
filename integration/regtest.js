@@ -400,9 +400,11 @@ describe('Daemon Binding Functionality', function() {
   });
 
   describe('get transaction output set information', function() {
+    var bestblock;
     it('will get the correct info', function() {
       var info = bitcoind.getTxOutSetInfo();
       info.bestblock.should.be.a('string');
+      bestblock = info.bestblock;
       info.bestblock.length.should.equal(64);
       info.bytes_serialized.should.equal(10431);
       info.hash_serialized.should.be.a('string');
@@ -411,6 +413,10 @@ describe('Daemon Binding Functionality', function() {
       info.total_amount.should.equal(750000000000);
       info.transactions.should.equal(151);
       info.txouts.should.equal(151);
+    });
+    it('will get the best block hash', function() {
+      var best = bitcoind.getBestBlockHash();
+      best.should.equal(bestblock);
     });
   });
 });
