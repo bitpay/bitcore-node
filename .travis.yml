@@ -3,7 +3,7 @@ language: node_js
 env:
 - BITCORENODE_ENV=test BITCORENODE_ASSUME_YES=true
 node_js:
-  - "0.12"
+  - "v0.12.7"
 before_install:
   - git config --global user.email "dev@bitpay.com"
   - git config --global user.name "BitPay, Inc."
@@ -13,4 +13,4 @@ script:
   - _mocha -R spec --recursive
 cache:
   directories:
-    - cache 
+    - cache
