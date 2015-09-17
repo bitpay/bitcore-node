@@ -203,6 +203,32 @@ NAN_METHOD(SyncPercentage) {
   NanReturnValue(NanNew<Number>(progress * 100));
 };
 
+NAN_METHOD(GetTxOutSetInfo) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  {
+
+    LOCK(cs_main);
+
+    CCoinsStats stats;
+    FlushStateToDisk();
+    if (pcoinsTip->GetStats(stats)) {
+      Local<Object> obj = NanNew<Object>();
+      obj->Set(NanNew<String>("height"), NanNew<Number>((int64_t)stats.nHeight));
+      obj->Set(NanNew<String>("bestblock"), NanNew<String>(stats.hashBlock.GetHex()));
+      obj->Set(NanNew<String>("transactions"), NanNew<Number>((int64_t)stats.nTransactions));
+      obj->Set(NanNew<String>("txouts"), NanNew<Number>((int64_t)stats.nTransactionOutputs));
+      obj->Set(NanNew<String>("bytes_serialized"), NanNew<Number>((int64_t)stats.nSerializedSize));
+      obj->Set(NanNew<String>("hash_serialized"), NanNew<String>(stats.hashSerialized.GetHex()));
+      obj->Set(NanNew<String>("total_amount"), NanNew<Number>(stats.nTotalAmount));
+      NanReturnValue(obj);
+    }
+  }
+
+  NanReturnValue(NanNull());
+
+};
+
 /**
  * IsSynced()
  * bitcoind.isSynced()
@@ -1675,6 +1701,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "startTxMon", StartTxMon);
   NODE_SET_METHOD(target, "syncPercentage", SyncPercentage);
   NODE_SET_METHOD(target, "isSynced", IsSynced);
+  NODE_SET_METHOD(target, "getTxOutSetInfo", GetTxOutSetInfo);
 
 }
 
