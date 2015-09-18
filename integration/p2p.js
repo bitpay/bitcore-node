@@ -208,19 +208,22 @@ describe('P2P Functionality', function() {
         peer.sendMessage(txMessage);
       }
     });
-    async.whilst(function() {
-      return txs.length > 0;
-    },
-    function(callback) {
-      var tx = txs.pop();
-      usedTxs[tx.id] = tx;
-      var message = messages.Inventory.forTransaction(tx.hash);
-      peer.sendMessage(message);
-      callback();
-    },
-    function(err) {
-    });
+    async.whilst(
+      function() {
+        return txs.length > 0;
+      },
+      function(callback) {
+        var tx = txs.pop();
+        usedTxs[tx.id] = tx;
+        var message = messages.Inventory.forTransaction(tx.hash);
+        peer.sendMessage(message);
+        callback();
+      },
+      function(err) {
+        if (err) {
+          throw err;
+        }
+      });
   });
-
 
 });
