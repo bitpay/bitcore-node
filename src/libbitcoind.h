@@ -36,3 +36,5 @@ NAN_METHOD(EstimateFee);
 NAN_METHOD(StartTxMon);
 NAN_METHOD(SyncPercentage);
 NAN_METHOD(IsSynced);
+NAN_METHOD(GetTxOutSetInfo);
+NAN_METHOD(GetBestBlockHash);
