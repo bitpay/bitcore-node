@@ -33,6 +33,8 @@ var testWIF = 'cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG';
 var testKey;
 var client;
 
+var outputForIsSpentTest1;
+
 describe('Node Functionality', function() {
 
   var regtest;
@@ -264,7 +266,7 @@ describe('Node Functionality', function() {
           throw err;
         }
         results.length.should.equal(1);
-        unspentOutput = results[0];
+        unspentOutput = outputForIsSpentTest1 = results[0];
         done();
       });
     });
@@ -713,6 +715,37 @@ describe('Node Functionality', function() {
 
       });
 
+    });
+
+    describe('isSpent', function() {
+      it('will return true if an input is spent in a confirmed transaction', function(done) {
+        var result = node.services.bitcoind.isSpent(outputForIsSpentTest1.txid, outputForIsSpentTest1.outputIndex);
+        result.should.equal(true);
+        done();
+      });
+      it('will incorrectly return false for an input that is spent in an unconfirmed transaction', function(done) {
+        node.services.address.getUnspentOutputs(address, false, function(err, results) {
+          if (err) {
+            throw err;
+          }
+
+          var unspentOutput = results[0];
+
+          var tx = new Transaction();
+          tx.from(unspentOutput);
+          tx.to(address, unspentOutput.satoshis - 1000);
+          tx.fee(1000);
+          tx.sign(testKey);
+
+          node.services.bitcoind.sendTransaction(tx.serialize());
+
+          setImmediate(function() {
+            var result = node.services.bitcoind.isSpent(unspentOutput.txid, unspentOutput.outputIndex);
+            result.should.equal(false);
+            done();
+          });
+        });
+      });
     });
   });
 });
