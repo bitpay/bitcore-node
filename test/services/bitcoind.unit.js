@@ -406,7 +406,7 @@ describe('Bitcoin Service', function() {
       ['sendTransaction', 2],
       ['getTransaction', 3],
       ['getTransactionWithBlockInfo', 3],
-      ['getMempoolOutputs', 1],
+      ['getMempoolTransactions', 0],
       ['addMempoolUncheckedTransaction', 1],
       ['getInfo', 0]
     ];

@@ -661,5 +661,39 @@ describe('Node Functionality', function() {
 
       });
     });
+
+    describe('Mempool Index', function() {
+      var unspentOutput;
+      before(function(done) {
+        node.services.address.getUnspentOutputs(address, false, function(err, results) {
+          if (err) {
+            throw err;
+          }
+          results.length.should.equal(1);
+          unspentOutput = results[0];
+          done();
+        });
+      });
+
+      it('will update the mempool index after new tx', function(done) {
+
+        var tx = new Transaction();
+        tx.from(unspentOutput);
+        tx.to(address, unspentOutput.satoshis - 1000);
+        tx.fee(1000);
+        tx.sign(testKey);
+
+        node.services.bitcoind.sendTransaction(tx.serialize());
+
+        setImmediate(function() {
+          var length = node.services.address.mempoolOutputIndex[address].length;
+          length.should.equal(1);
+          should.exist(node.services.address.mempoolOutputIndex[address]);
+          done();
+        });
+
+      });
+
+    });
   });
 });

@@ -1531,84 +1531,38 @@ NAN_METHOD(SendTransaction) {
 }
 
 /**
- * GetMempoolOutputs
- * bitcoindjs.getMempoolOutputs()
- * Will return outputs by address from the mempool.
+ * GetMempoolTransactions
+ * bitcoind.getMempoolTransactions()
+ * Will return an array of transaction buffers.
  */
-NAN_METHOD(GetMempoolOutputs) {
-  Isolate* isolate = Isolate::GetCurrent();
+NAN_METHOD(GetMempoolTransactions) {
+  Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
 
-  // Instatiate an empty array that we will fill later
-  // with matching outputs.
-  Local<Array> outputs = Array::New(isolate);
+  Local<Array> transactions = Array::New(isolate);
   int arrayIndex = 0;
 
-  // Decode the input address into the hash bytes
-  // that we can then match to the scriptPubKeys data
-  v8::String::Utf8Value param1(args[0]->ToString());
-  std::string *input = new std::string(*param1);
-  const char* psz = input->c_str();
-  std::vector<unsigned char> vAddress;
-  DecodeBase58(psz, vAddress);
-  vector<unsigned char> hashBytes(vAddress.begin()+1, vAddress.begin()+21);
+  {
+    LOCK(mempool.cs);
 
-  // Iterate through the entire mempool
-  std::map<uint256, CTxMemPoolEntry> mapTx = mempool.mapTx;
+    // Iterate through the entire mempool
+    std::map<uint256, CTxMemPoolEntry> mapTx = mempool.mapTx;
 
-  for(std::map<uint256, CTxMemPoolEntry>::iterator it = mapTx.begin(); it != mapTx.end(); it++) {
-
-    uint256 txid = it->first;
-    CTxMemPoolEntry entry = it->second;
-    const CTransaction tx = entry.GetTx();
-
-    int outputIndex = 0;
-
-    // Iterate through each output
-    BOOST_FOREACH(const CTxOut& txout, tx.vout) {
-
-      CScript script = txout.scriptPubKey;
-
-      txnouttype type;
-      std::vector<std::vector<unsigned char> > hashResults;
-
-      if (Solver(script, type, hashResults)) {
-
-        // See if the script is any of the standard address types
-        if (type == TX_PUBKEYHASH || type == TX_SCRIPTHASH) {
-
-          vector<unsigned char> scripthashBytes = hashResults.front();
-
-          // Compare the hash bytes with the input hash bytes
-          if(equal(hashBytes.begin(), hashBytes.end(), scripthashBytes.begin())) {
-
-            Local<Object> output = NanNew<Object>();
-
-            output->Set(NanNew<String>("address"), NanNew<String>(psz));
-
-            std::string scriptHex = HexStr(script.begin(), script.end());
-            output->Set(NanNew<String>("script"), NanNew<String>(scriptHex));
-
-            uint64_t satoshis = txout.nValue;
-            output->Set(NanNew<String>("satoshis"), NanNew<Number>(satoshis)); // can't go above 2 ^ 53 -1
-            output->Set(NanNew<String>("txid"), NanNew<String>(txid.GetHex()));
-
-            output->Set(NanNew<String>("outputIndex"), NanNew<Number>(outputIndex));
-
-            // We have a match and push the results to the array
-            // that is returned as the result
-            outputs->Set(arrayIndex, output);
-            arrayIndex++;
-
-          }
-        }
-      }
-
-      outputIndex++;
+    for(std::map<uint256, CTxMemPoolEntry>::iterator it = mapTx.begin();
+        it != mapTx.end();
+        it++) {
+      CTxMemPoolEntry entry = it->second;
+      const CTransaction tx = entry.GetTx();
+      CDataStream dataStreamTx(SER_NETWORK, PROTOCOL_VERSION);
+      dataStreamTx << tx;
+      std::string txString = dataStreamTx.str();
+      Local<Value> txBuffer = node::Buffer::New(isolate, txString.c_str(), txString.size());
+      transactions->Set(arrayIndex, txBuffer);
+      arrayIndex++;
     }
   }
 
-  NanReturnValue(outputs);
+  NanReturnValue(transactions);
 
 }
 
@@ -1668,7 +1622,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "isSpent", IsSpent);
   NODE_SET_METHOD(target, "getBlockIndex", GetBlockIndex);
   NODE_SET_METHOD(target, "isMainChain", IsMainChain);
-  NODE_SET_METHOD(target, "getMempoolOutputs", GetMempoolOutputs);
+  NODE_SET_METHOD(target, "getMempoolTransactions", GetMempoolTransactions);
   NODE_SET_METHOD(target, "addMempoolUncheckedTransaction", AddMempoolUncheckedTransaction);
   NODE_SET_METHOD(target, "sendTransaction", SendTransaction);
   NODE_SET_METHOD(target, "estimateFee", EstimateFee);
