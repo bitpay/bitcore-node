@@ -293,6 +293,25 @@ describe('Node Functionality', function() {
         done();
       });
     });
+    it('correctly give the summary for the address', function(done) {
+      var options = {
+        queryMempool: false
+      };
+      node.services.address.getAddressSummary(address, options, function(err, results) {
+        if (err) {
+          throw err;
+        }
+
+        results.totalReceived.should.equal(1000000000);
+        results.totalSpent.should.equal(0);
+        results.balance.should.equal(1000000000);
+        results.unconfirmedBalance.should.equal(1000000000);
+        results.appearances.should.equal(1);
+        results.unconfirmedAppearances.should.equal(0);
+        results.txids.length.should.equal(1);
+        done();
+      });
+    });
     describe('History', function() {
 
       this.timeout(20000);
