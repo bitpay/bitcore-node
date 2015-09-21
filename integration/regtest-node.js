@@ -570,6 +570,23 @@ describe('Node Functionality', function() {
         });
       });
 
+      it('summary for an address (sending and receiving)', function(done) {
+        node.services.address.getAddressSummary(address, {}, function(err, results) {
+          if (err) {
+            throw err;
+          }
+          results.totalReceived.should.equal(2000000000);
+          results.totalSpent.should.equal(1999990000);
+          results.balance.should.equal(10000);
+          results.unconfirmedBalance.should.equal(10000);
+          results.appearances.should.equal(6);
+          results.unconfirmedAppearances.should.equal(0);
+          results.txids.length.should.equal(6);
+          done();
+        });
+      });
+
+
       it('total transaction count (sending and receiving)', function(done) {
         var addresses = [
           address
