@@ -10,7 +10,6 @@ before_install:
 script:
   - _mocha -R spec integration/regtest.js
   - _mocha -R spec integration/regtest-node.js
-  - _mocha -R spec integration/p2p.js
   - _mocha -R spec --recursive
 cache:
   directories:
