@@ -430,4 +430,20 @@ describe('Daemon Binding Functionality', function() {
       best.should.equal(bestblock);
     });
   });
+
+  describe('get next block hash', function() {
+    it('will get next block hash', function() {
+      var nextBlockHash = bitcoind.getNextBlockHash(blockHashes[0]);
+      nextBlockHash.should.equal(blockHashes[1]);
+      var nextnextBlockHash = bitcoind.getNextBlockHash(nextBlockHash);
+      nextnextBlockHash.should.equal(blockHashes[2]);
+    });
+
+    it('will get a null response if the tip hash is provided', function() {
+      var bestBlockHash = bitcoind.getBestBlockHash();
+      var nextBlockHash = bitcoind.getNextBlockHash(bestBlockHash);
+      should.not.exist(nextBlockHash);
+    });
+  });
+
 });

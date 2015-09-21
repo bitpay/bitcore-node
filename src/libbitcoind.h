@@ -38,3 +38,4 @@ NAN_METHOD(SyncPercentage);
 NAN_METHOD(IsSynced);
 NAN_METHOD(GetTxOutSetInfo);
 NAN_METHOD(GetBestBlockHash);
+NAN_METHOD(GetNextBlockHash);

@@ -2,7 +2,7 @@
  * bitcoind.js - a binding for node.js which links to libbitcoind.so/dylib.
  * Copyright (c) 2015, BitPay (MIT License)
  *
- * bitcoindjs.cc:
+ * libbitcoind.cc:
  *   A bitcoind node.js binding.
  */
 
@@ -91,7 +91,7 @@ init(Handle<Object>);
 
 /**
  * Private Global Variables
- * Used only by bitcoindjs functions.
+ * Used only by bitcoind functions.
  */
 static std::vector<CDataStream> txmon_messages;
 static uv_async_t txmon_async;
@@ -234,6 +234,28 @@ NAN_METHOD(GetBestBlockHash) {
     LOCK(cs_main);
     NanReturnValue(NanNew<String>(chainActive.Tip()->GetBlockHash().GetHex()));
   }
+}
+
+NAN_METHOD(GetNextBlockHash) {
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return NanThrowError("Usage: bitcoind.getNextBlockHash(blockhash)");
+  }
+
+  CBlockIndex* pblockindex;
+  v8::String::Utf8Value param1(args[0]->ToString());
+  std::string *hash = new std::string(*param1);
+  uint256 shash = uint256S(*hash);
+  pblockindex = mapBlockIndex[shash];
+  CBlockIndex* pnextblockindex = chainActive.Next(pblockindex);
+  if (pnextblockindex) {
+    uint256 nexthash = pnextblockindex->GetBlockHash();
+    std::string rethash = nexthash.ToString();
+    NanReturnValue(NanNew<String>(rethash));
+  } else {
+    NanReturnValue(NanNull());
+  }
+
 }
 
 /**
@@ -914,7 +936,7 @@ NAN_METHOD(GetBlock) {
       || (!args[0]->IsString() && !args[0]->IsNumber())
       || !args[1]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getBlock([blockhash,blockheight], callback)");
+      "Usage: bitcoind.getBlock([blockhash,blockheight], callback)");
   }
 
   async_block_data *req = new async_block_data();
@@ -1177,7 +1199,7 @@ NAN_METHOD(GetTransactionWithBlockInfo) {
       || !args[1]->IsBoolean()
       || !args[2]->IsFunction()) {
     return NanThrowError(
-      "Usage: bitcoindjs.getTransactionWithBlockInfo(txid, queryMempool, callback)");
+      "Usage: bitcoind.getTransactionWithBlockInfo(txid, queryMempool, callback)");
   }
 
   String::Utf8Value txid_(args[0]->ToString());
@@ -1307,7 +1329,7 @@ async_get_tx_and_info_after(uv_work_t *r) {
 
 /**
  * IsSpent()
- * bitcoindjs.isSpent()
+ * bitcoind.isSpent()
  * Determine if an outpoint is spent
  */
 NAN_METHOD(IsSpent) {
@@ -1315,7 +1337,7 @@ NAN_METHOD(IsSpent) {
 
   if (args.Length() > 2) {
     return NanThrowError(
-      "Usage: bitcoindjs.isSpent(txid, outputIndex)");
+      "Usage: bitcoind.isSpent(txid, outputIndex)");
   }
 
   String::Utf8Value arg(args[0]->ToString());
@@ -1341,7 +1363,7 @@ NAN_METHOD(IsSpent) {
 
 /**
  * GetBlockIndex()
- * bitcoindjs.getBlockIndex()
+ * bitcoind.getBlockIndex()
  * Get index information about a block by hash including:
  * - the total amount of work (expected number of hashes) in the chain up to
  *   and including this block.
@@ -1423,7 +1445,7 @@ NAN_METHOD(IsMainChain) {
 
 /**
  * GetInfo()
- * bitcoindjs.getInfo()
+ * bitcoind.getInfo()
  * Get miscellaneous information
  */
 
@@ -1432,7 +1454,7 @@ NAN_METHOD(GetInfo) {
 
   if (args.Length() > 0) {
     return NanThrowError(
-      "Usage: bitcoindjs.getInfo()");
+      "Usage: bitcoind.getInfo()");
   }
 
   Local<Object> obj = NanNew<Object>();
@@ -1482,7 +1504,7 @@ NAN_METHOD(EstimateFee) {
 
 /**
  * Send Transaction
- * bitcoindjs.sendTransaction()
+ * bitcoind.sendTransaction()
  * Will add a transaction to the mempool and broadcast to connected peers.
  * @param {string} - The serialized hex string of the transaction.
  * @param {boolean} - Skip absurdly high fee checks
@@ -1637,7 +1659,7 @@ set_cooked(void) {
 
 /**
  * Init()
- * Initialize the singleton object known as bitcoindjs.
+ * Initialize the singleton object known as bitcoind.
  */
 
 extern "C" void
@@ -1664,6 +1686,7 @@ init(Handle<Object> target) {
   NODE_SET_METHOD(target, "isSynced", IsSynced);
   NODE_SET_METHOD(target, "getTxOutSetInfo", GetTxOutSetInfo);
   NODE_SET_METHOD(target, "getBestBlockHash", GetBestBlockHash);
+  NODE_SET_METHOD(target, "getNextBlockHash", GetNextBlockHash);
 
 }
 
