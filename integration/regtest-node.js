@@ -723,7 +723,8 @@ describe('Node Functionality', function() {
         result.should.equal(true);
         done();
       });
-      it('will incorrectly return false for an input that is spent in an unconfirmed transaction', function(done) {
+      //CCoinsViewMemPool only checks for spent outputs that are not the mempool
+      it('will correctly return false for an input that is spent in an unconfirmed transaction', function(done) {
         node.services.address.getUnspentOutputs(address, false, function(err, results) {
           if (err) {
             throw err;
