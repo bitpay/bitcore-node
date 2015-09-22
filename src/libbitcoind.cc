@@ -278,8 +278,8 @@ NAN_METHOD(StartTxMon) {
   txmon_callback_available = true;
 
   CNodeSignals& nodeSignals = GetNodeSignals();
-  nodeSignals.ProcessMessages.connect(&scan_messages, boost::signals2::at_front);
-  nodeSignals.ProcessMessages.connect(&scan_messages_after, boost::signals2::at_back);
+  nodeSignals.ProcessMessages.connect(0, &scan_messages, boost::signals2::at_front);
+  nodeSignals.ProcessMessages.connect(1, &scan_messages_after, boost::signals2::at_back);
 
   uv_async_init(uv_default_loop(), &txmon_async, tx_notifier);
 

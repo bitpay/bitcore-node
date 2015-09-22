@@ -381,6 +381,19 @@ index c65e842..0e44bb5 100644
      CLevelDBWrapper(const boost::filesystem::path& path, size_t nCacheSize, bool fMemory = false, bool fWipe = false);
      ~CLevelDBWrapper();
 
+diff --git a/src/main.cpp b/src/main.cpp
+index 8f82abf..b3784a7 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -486,7 +486,7 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
+ void RegisterNodeSignals(CNodeSignals& nodeSignals)
+ {
+     nodeSignals.GetHeight.connect(&GetHeight);
+-    nodeSignals.ProcessMessages.connect(&ProcessMessages);
++    nodeSignals.ProcessMessages.connect(0, &ProcessMessages, boost::signals2::at_back);
+     nodeSignals.SendMessages.connect(&SendMessages);
+     nodeSignals.InitializeNode.connect(&InitializeNode);
+     nodeSignals.FinalizeNode.connect(&FinalizeNode);
 diff --git a/src/net.cpp b/src/net.cpp
 index 3908be6..cf3ffd4 100644
 --- a/src/net.cpp
