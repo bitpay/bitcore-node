@@ -513,6 +513,21 @@ describe('DB Service', function() {
   });
 
   describe('#sendTransaction', function() {
+    it('should handle a basic serialized transaction hex string', function(done) {
+      var db = new DB(baseConfig);
+      db.node = {};
+      db.node.services = {};
+      db.node.services.bitcoind = {
+        sendTransaction: sinon.stub().returns('txid')
+      };
+
+      var tx = 'hexstring';
+      db.sendTransaction(tx, function(err, txid) {
+        should.not.exist(err);
+        txid.should.equal('txid');
+        done();
+      });
+    });
     it('should give the txid on success', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
@@ -522,8 +537,10 @@ describe('DB Service', function() {
       };
 
       var tx = new Transaction();
+      tx.serialize = sinon.stub().returns('txstring');
       db.sendTransaction(tx, function(err, txid) {
         should.not.exist(err);
+        tx.serialize.callCount.should.equal(1);
         txid.should.equal('txid');
         done();
       });
@@ -537,7 +554,9 @@ describe('DB Service', function() {
       };
 
       var tx = new Transaction();
+      tx.serialize = sinon.stub().returns('txstring');
       db.sendTransaction(tx, function(err, txid) {
+        tx.serialize.callCount.should.equal(1);
         should.exist(err);
         done();
       });

@@ -454,7 +454,7 @@ describe('Address Service', function() {
         store: {
           createReadStream: sinon.stub().returns(testStream)
         }
-      }
+      };
       var testnode = {
         services: {
           db: db,
@@ -475,7 +475,7 @@ describe('Address Service', function() {
           height: -1,
           confirmations: 0
         }
-      ]
+      ];
       am.getInputs(address, args, function(err, inputs) {
         should.not.exist(err);
         inputs.length.should.equal(1);
@@ -657,7 +657,7 @@ describe('Address Service', function() {
           script: '76a914f6db95c81dea3d10f0ff8d890927751bf7b203c188ac',
           outputIndex: 0
         }
-      ]
+      ];
 
       am.getOutputs(address, options, function(err, outputs) {
         should.not.exist(err);
@@ -836,7 +836,7 @@ describe('Address Service', function() {
 
       var am = new AddressService({node: mocknode});
       am.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
-      am.isUnspent = function(output, queryMempool, callback) {
+      am.isUnspent = function(output, callback) {
         callback(!outputs[i].spent);
         i++;
       };
@@ -878,24 +878,24 @@ describe('Address Service', function() {
     });
 
     it('should give true when isSpent() gives false', function(done) {
-      am.isSpent = sinon.stub().callsArgWith(2, false);
-      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(unspent) {
+      am.isSpent = sinon.stub().callsArgWith(1, false);
+      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', function(unspent) {
         unspent.should.equal(true);
         done();
       });
     });
 
     it('should give false when isSpent() gives true', function(done) {
-      am.isSpent = sinon.stub().callsArgWith(2, true);
-      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(unspent) {
+      am.isSpent = sinon.stub().callsArgWith(1, true);
+      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', function(unspent) {
         unspent.should.equal(false);
         done();
       });
     });
 
     it('should give false when isSpent() returns an error', function(done) {
-      am.isSpent = sinon.stub().callsArgWith(2, new Error('error'));
-      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(unspent) {
+      am.isSpent = sinon.stub().callsArgWith(1, new Error('error'));
+      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', function(unspent) {
         unspent.should.equal(false);
         done();
       });
@@ -922,7 +922,7 @@ describe('Address Service', function() {
     });
 
     it('should give true if bitcoind.isSpent gives true', function(done) {
-      am.isSpent('output', true, function(spent) {
+      am.isSpent('output', function(spent) {
         spent.should.equal(true);
         done();
       });
@@ -1001,30 +1001,30 @@ describe('Address Service', function() {
     };
     var inputs = [
       {
-        "txid": "9f183412de12a6c1943fc86c390174c1cde38d709217fdb59dcf540230fa58a6",
-        "height": -1,
-        "confirmations": 0,
-        "addresses": {
-          "mpkDdnLq26djg17s6cYknjnysAm3QwRzu2": {
-            "outputIndexes": [],
-            "inputIndexes": [
+        'txid': '9f183412de12a6c1943fc86c390174c1cde38d709217fdb59dcf540230fa58a6',
+        'height': -1,
+        'confirmations': 0,
+        'addresses': {
+          'mpkDdnLq26djg17s6cYknjnysAm3QwRzu2': {
+            'outputIndexes': [],
+            'inputIndexes': [
               3
             ]
           }
         },
-        "address": "mpkDdnLq26djg17s6cYknjnysAm3QwRzu2"
+        'address': 'mpkDdnLq26djg17s6cYknjnysAm3QwRzu2'
       }
     ];
 
     var outputs = [
       {
-        "address": "mpkDdnLq26djg17s6cYknjnysAm3QwRzu2",
-        "txid": "689e9f543fa4aa5b2daa3b5bb65f9a00ad5aa1a2e9e1fc4e11061d85f2aa9bc5",
-        "outputIndex": 0,
-        "height": 556351,
-        "satoshis": 3487110,
-        "script": "76a914653b58493c2208481e0902a8ffb97b8112b13fe188ac",
-        "confirmations": 13190
+        'address': 'mpkDdnLq26djg17s6cYknjnysAm3QwRzu2',
+        'txid': '689e9f543fa4aa5b2daa3b5bb65f9a00ad5aa1a2e9e1fc4e11061d85f2aa9bc5',
+        'outputIndex': 0,
+        'height': 556351,
+        'satoshis': 3487110,
+        'script': '76a914653b58493c2208481e0902a8ffb97b8112b13fe188ac',
+        'confirmations': 13190
       }
     ];
 

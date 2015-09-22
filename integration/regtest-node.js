@@ -231,7 +231,7 @@ describe('Node Functionality', function() {
       var bus = node.openBus();
       var block;
       bus.subscribe('db/block');
-      bus.on('block', function(data) {
+      bus.on('db/block', function(data) {
         bus.unsubscribe('db/block');
         data.should.be.equal(block);
         done();
@@ -303,7 +303,6 @@ describe('Node Functionality', function() {
         if (err) {
           throw err;
         }
-
         results.totalReceived.should.equal(1000000000);
         results.totalSpent.should.equal(0);
         results.balance.should.equal(1000000000);
