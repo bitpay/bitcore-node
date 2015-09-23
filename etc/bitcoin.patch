@@ -382,18 +382,17 @@ index c65e842..0e44bb5 100644
      ~CLevelDBWrapper();
 
 diff --git a/src/main.cpp b/src/main.cpp
-index 8f82abf..b3784a7 100644
+index 8f82abf..42bea1c 100644
 --- a/src/main.cpp
 +++ b/src/main.cpp
-@@ -486,7 +486,7 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
- void RegisterNodeSignals(CNodeSignals& nodeSignals)
- {
-     nodeSignals.GetHeight.connect(&GetHeight);
--    nodeSignals.ProcessMessages.connect(&ProcessMessages);
-+    nodeSignals.ProcessMessages.connect(0, &ProcessMessages, boost::signals2::at_back);
-     nodeSignals.SendMessages.connect(&SendMessages);
-     nodeSignals.InitializeNode.connect(&InitializeNode);
-     nodeSignals.FinalizeNode.connect(&FinalizeNode);
+@@ -1058,6 +1058,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+
+         // Store transaction in memory
+         pool.addUnchecked(hash, entry, !IsInitialBlockDownload());
++        GetNodeSignals().TxToMemPool(tx);
+     }
+
+     SyncWithWallets(tx, NULL);
 diff --git a/src/net.cpp b/src/net.cpp
 index 3908be6..cf3ffd4 100644
 --- a/src/net.cpp
@@ -408,3 +407,17 @@ index 3908be6..cf3ffd4 100644
 -                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>()), nBestHeight, true);
 +                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, bitcore_node), nBestHeight, true);
  }
+
+
+diff --git a/src/net.h b/src/net.h
+index 17502b9..e181d68 100644
+--- a/src/net.h
++++ b/src/net.h
+@@ -99,6 +99,7 @@ struct CNodeSignals
+ {
+     boost::signals2::signal<int ()> GetHeight;
+     boost::signals2::signal<bool (CNode*), CombinerAll> ProcessMessages;
++    boost::signals2::signal<bool (const CTransaction&)> TxToMemPool;
+     boost::signals2::signal<bool (CNode*, bool), CombinerAll> SendMessages;
+     boost::signals2::signal<void (NodeId, const CNode*)> InitializeNode;
+     boost::signals2::signal<void (NodeId)> FinalizeNode;
