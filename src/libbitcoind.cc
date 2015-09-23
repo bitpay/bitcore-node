@@ -81,10 +81,7 @@ static void
 async_get_tx_and_info_after(uv_work_t *req);
 
 static bool
-scan_messages(CNode* pfrom);
-
-static bool
-scan_messages_after(CNode* pfrom);
+queueTx(const CTransaction&);
 
 extern "C" void
 init(Handle<Object>);
@@ -93,7 +90,7 @@ init(Handle<Object>);
  * Private Global Variables
  * Used only by bitcoind functions.
  */
-static std::vector<CDataStream> txmon_messages;
+static std::vector<CTransaction> txQueue;
 static uv_async_t txmon_async;
 static Eternal<Function> txmon_callback;
 static bool txmon_callback_available;
@@ -278,8 +275,7 @@ NAN_METHOD(StartTxMon) {
   txmon_callback_available = true;
 
   CNodeSignals& nodeSignals = GetNodeSignals();
-  nodeSignals.ProcessMessages.connect(&scan_messages, boost::signals2::at_front);
-  nodeSignals.ProcessMessages.connect(&scan_messages_after, boost::signals2::at_back);
+  nodeSignals.TxToMemPool.connect(&queueTx);
 
   uv_async_init(uv_default_loop(), &txmon_async, tx_notifier);
 
@@ -291,131 +287,47 @@ tx_notifier(uv_async_t *handle) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
-  {
+  Local<Array> results = Array::New(isolate);
+  int arrayIndex = 0;
 
-    LOCK(cs_main);
+  LOCK(cs_main);
+  BOOST_FOREACH(const CTransaction& tx, txQueue) {
 
-    Local<Array> results = Array::New(isolate);
-    int arrayIndex = 0;
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    ssTx << tx;
+    std::string stx = ssTx.str();
+    Local<Value> txBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
 
-    BOOST_FOREACH(CDataStream& vRecvCopy, txmon_messages) {
+    uint256 hash = tx.GetHash();
 
-      std::string vRecvStr = vRecvCopy.str();
+    Local<Object> obj = NanNew<Object>();
 
-      Local<Value> txBuffer = node::Buffer::New(isolate, vRecvStr.c_str(), vRecvStr.size());
+    obj->Set(NanNew<String>("buffer"), txBuffer);
+    obj->Set(NanNew<String>("hash"), NanNew<String>(hash.GetHex()));
+    obj->Set(NanNew<String>("mempool"), NanNew<Boolean>(true));
 
-      CTransaction tx;
-      vRecvCopy >> tx;
-      uint256 hash = tx.GetHash();
-
-      Local<Object> obj = NanNew<Object>();
-
-      bool existsInMempool = false;
-
-      CTransaction mtx;
-
-      if (mempool.lookup(hash, mtx))
-      {
-        existsInMempool = true;
-      }
-
-      obj->Set(NanNew<String>("buffer"), txBuffer);
-      obj->Set(NanNew<String>("hash"), NanNew<String>(hash.GetHex()));
-      obj->Set(NanNew<String>("mempool"), NanNew<Boolean>(existsInMempool));
-
-      results->Set(arrayIndex, obj);
-      arrayIndex++;
-    }
-
-    const unsigned argc = 1;
-    Local<Value> argv[argc] = {
-      Local<Value>::New(isolate, results)
-    };
-
-    Local<Function> cb = txmon_callback.Get(isolate);
-
-    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
-
-    txmon_messages.clear();
-
+    results->Set(arrayIndex, obj);
+    arrayIndex++;
   }
+
+  const unsigned argc = 1;
+  Local<Value> argv[argc] = {
+    Local<Value>::New(isolate, results)
+  };
+
+  Local<Function> cb = txmon_callback.Get(isolate);
+
+  cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+
+  txQueue.clear();
 
 }
-
 static bool
-scan_messages_after(CNode* pfrom) {
-  if(txmon_messages.size() > 0) {
-    uv_async_send(&txmon_async);
-  }
+queueTx(const CTransaction& tx) {
+  LOCK(cs_main);
+  txQueue.push_back(tx);
+  uv_async_send(&txmon_async);
   return true;
-}
-
-static bool
-scan_messages(CNode* pfrom) {
-
-  bool fOk = true;
-
-  std::deque<CNetMessage>::iterator it = pfrom->vRecvMsg.begin();
-  while (!pfrom->fDisconnect && it != pfrom->vRecvMsg.end()) {
-    // Don't bother if send buffer is too full to respond anyway
-    if (pfrom->nSendSize >= SendBufferSize()) {
-      break;
-    }
-
-    // get next message
-    CNetMessage& msg = *it;
-
-    // end, if an incomplete message is found
-    if (!msg.complete()) {
-      break;
-    }
-
-    // at this point, any failure means we can delete the current message
-    it++;
-
-    // Scan for message start
-    if (memcmp(msg.hdr.pchMessageStart, Params().MessageStart(), MESSAGE_START_SIZE) != 0) {
-      fOk = false;
-      break;
-    }
-
-    // Read header
-    CMessageHeader& hdr = msg.hdr;
-    if (!hdr.IsValid(Params().MessageStart())) {
-      continue;
-    }
-
-    std::string strCommand = hdr.GetCommand();
-
-    if (strCommand == (std::string)"tx") {
-
-      // Message size
-      unsigned int nMessageSize = hdr.nMessageSize;
-
-      // Checksum
-      CDataStream& vRecv = msg.vRecv;
-      uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
-      unsigned int nChecksum = 0;
-      memcpy(&nChecksum, &hash, sizeof(nChecksum));
-      if (nChecksum != hdr.nChecksum) {
-        continue;
-      }
-
-      // Copy the stream so that it can later be processed into the mempool
-      CDataStream vRecvCopy(vRecv.begin(), vRecv.end(), vRecv.GetType(), vRecv.GetVersion());
-
-      {
-        LOCK(cs_main);
-        txmon_messages.push_back(vRecvCopy);
-      }
-
-    }
-
-    boost::this_thread::interruption_point();
-    break;
-  }
-
-  return fOk;
 }
 
 /**
@@ -1555,32 +1467,6 @@ NAN_METHOD(SendTransaction) {
 
   // Relay the transaction connect peers
   RelayTransaction(tx);
-
-  // Notify any listeners about the transaction
-  if(txmon_callback_available) {
-
-    Local<Array> results = Array::New(isolate);
-    Local<Object> obj = NanNew<Object>();
-
-    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-    ssTx << tx;
-    std::string stx = ssTx.str();
-    Local<Value> txBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
-
-    obj->Set(NanNew<String>("buffer"), txBuffer);
-    obj->Set(NanNew<String>("hash"), NanNew<String>(hashTx.GetHex()));
-    obj->Set(NanNew<String>("mempool"), NanNew<Boolean>(true));
-
-    results->Set(0, obj);
-
-    const unsigned argc = 1;
-    Local<Value> argv[argc] = {
-      Local<Value>::New(isolate, results)
-    };
-    Local<Function> cb = txmon_callback.Get(isolate);
-
-    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
-  }
 
   NanReturnValue(Local<Value>::New(isolate, NanNew<String>(hashTx.GetHex())));
 }
