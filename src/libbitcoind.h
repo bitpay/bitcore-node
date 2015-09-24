@@ -17,25 +17,3 @@
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
-
-NAN_METHOD(StartBitcoind);
-NAN_METHOD(OnBlocksReady);
-NAN_METHOD(OnTipUpdate);
-NAN_METHOD(StopBitcoind);
-NAN_METHOD(GetBlock);
-NAN_METHOD(GetBlockIndex);
-NAN_METHOD(IsMainChain);
-NAN_METHOD(GetTransaction);
-NAN_METHOD(GetInfo);
-NAN_METHOD(IsSpent);
-NAN_METHOD(GetBlockIndex);
-NAN_METHOD(GetMempoolTransactions);
-NAN_METHOD(AddMempoolUncheckedTransaction);
-NAN_METHOD(SendTransaction);
-NAN_METHOD(EstimateFee);
-NAN_METHOD(StartTxMon);
-NAN_METHOD(SyncPercentage);
-NAN_METHOD(IsSynced);
-NAN_METHOD(GetTxOutSetInfo);
-NAN_METHOD(GetBestBlockHash);
-NAN_METHOD(GetNextBlockHash);
