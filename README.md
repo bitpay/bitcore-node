@@ -6,7 +6,7 @@ A Bitcoin full node for building applications and services with Node.js. A node 
 ## Install
 
 ```bash
-npm install -g bitcore-node@0.2.0-beta.X
+npm install -g bitcore-node@latest
 bitcore-node start
 ```
 
@@ -30,6 +30,13 @@ To start bitcore-node as a daemon:
 ```bash
 bitcore-node start --daemon
 ```
+
+## Add-on Services
+
+There are several add-on services available to extend the functionality of Bitcore Node:
+
+- [Insight API](https://github.com/bitpay/insight-api/tree/v0.3.0)
+- [Insight UI](https://github.com/bitpay/insight/tree/v0.3.0)
 
 ## Documentation
 

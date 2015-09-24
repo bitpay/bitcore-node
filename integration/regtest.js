@@ -446,4 +446,19 @@ describe('Daemon Binding Functionality', function() {
     });
   });
 
+  describe('#getInfo', function() {
+    it('will get information', function() {
+      var info = bitcoind.getInfo();
+      should.exist(info);
+      should.exist(info.version);
+      should.exist(info.blocks);
+      should.exist(info.timeoffset);
+      should.exist(info.connections);
+      should.exist(info.difficulty);
+      should.exist(info.testnet);
+      should.exist(info.relayfee);
+      should.exist(info.errors);
+    });
+  });
+
 });
