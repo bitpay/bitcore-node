@@ -207,27 +207,6 @@ NAN_METHOD(SyncPercentage) {
   info.GetReturnValue().Set(progress * 100);
 };
 
-NAN_METHOD(GetTxOutSetInfo) {
-  {
-    LOCK(cs_main);
-    CCoinsStats stats;
-    FlushStateToDisk();
-    if (pcoinsTip->GetStats(stats)) {
-      Local<Object> obj = New<Object>();
-      Set(obj, New("height").ToLocalChecked(), New<Number>((int64_t)stats.nHeight));
-      Set(obj, New("bestblock").ToLocalChecked(), New(stats.hashBlock.GetHex().c_str()).ToLocalChecked());
-      Set(obj, New("transactions").ToLocalChecked(), New<Number>((int64_t)stats.nTransactions));
-      Set(obj, New("txouts").ToLocalChecked(), New<Number>((int64_t)stats.nTransactionOutputs));
-      Set(obj, New("bytes_serialized").ToLocalChecked(), New<Number>((int64_t)stats.nSerializedSize));
-      Set(obj, New("hash_serialized").ToLocalChecked(), New(stats.hashSerialized.GetHex()).ToLocalChecked());
-      Set(obj, New("total_amount").ToLocalChecked(), New<Number>(stats.nTotalAmount));
-      info.GetReturnValue().Set(obj);
-      return;
-    }
-  }
-  info.GetReturnValue().Set(Null());
-};
-
 NAN_METHOD(GetBestBlockHash) {
   LOCK(cs_main);
   info.GetReturnValue().Set(New(chainActive.Tip()->GetBlockHash().GetHex()).ToLocalChecked());
@@ -1558,7 +1537,6 @@ NAN_MODULE_INIT(init) {
   Set(target, New("startTxMon").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartTxMon)).ToLocalChecked());
   Set(target, New("syncPercentage").ToLocalChecked(), GetFunction(New<FunctionTemplate>(SyncPercentage)).ToLocalChecked());
   Set(target, New("isSynced").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsSynced)).ToLocalChecked());
-  Set(target, New("getTxOutSetInfo").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetTxOutSetInfo)).ToLocalChecked());
   Set(target, New("getBestBlockHash").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBestBlockHash)).ToLocalChecked());
   Set(target, New("getNextBlockHash").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetNextBlockHash)).ToLocalChecked());
 }

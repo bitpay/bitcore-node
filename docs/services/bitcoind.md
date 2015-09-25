@@ -92,7 +92,6 @@ console.log(spent);
 
 - `bitcoind.start(callback)` - Start the JavaScript Bitcoin node, the callback is called when the daemon is ready.
 - `bitcoind.getInfo()` - Basic information about the chain including total number of blocks.
-- `bitcoind.getTxOutSetInfo()` - Basic information about the chain including total number of blocks.
 - `bitcoind.isSynced()` - Returns a boolean if the daemon is fully synced (not the initial block download)
 - `bitcoind.syncPercentage()` - Returns the current estimate of blockchain download as a percentage.
 - `bitcoind.stop(callback)` - Stop the JavaScript bitcoin node safely, the callback will be called when bitcoind is closed. This will also be done automatically on `process.exit`. It also takes the bitcoind node off the libuv event loop. If the daemon object is the only thing on the event loop. Node will simply close.
