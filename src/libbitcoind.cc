@@ -273,15 +273,15 @@ tx_notifier(uv_async_t *handle) {
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << tx;
     std::string stx = ssTx.str();
-    Local<Value> txBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
+    Nan::MaybeLocal<v8::Object> txBuffer = Nan::NewBuffer((char *)stx.c_str(), stx.size());
 
     uint256 hash = tx.GetHash();
 
     Local<Object> obj = New<Object>();
 
-    Set(obj, New("buffer").ToLocalChecked(), txBuffer);
-    Set(obj, New("hash").ToLocalChecked(), New(hash.GetHex()).ToLocalChecked());
-    Set(obj, New("mempool").ToLocalChecked(), New<Boolean>(true));
+    Nan::Set(obj, New("buffer").ToLocalChecked(), txBuffer.ToLocalChecked());
+    Nan::Set(obj, New("hash").ToLocalChecked(), New(hash.GetHex()).ToLocalChecked());
+    Nan::Set(obj, New("mempool").ToLocalChecked(), New<Boolean>(true));
 
     results->Set(arrayIndex, obj);
     arrayIndex++;
@@ -926,14 +926,14 @@ async_get_block_after(uv_work_t *r) {
     cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   } else {
 
-    Local<Value> rawNodeBuffer = node::Buffer::New(isolate, req->buffer, req->size);
+    Nan::MaybeLocal<v8::Object> rawNodeBuffer = Nan::NewBuffer(req->buffer, req->size);
 
     delete req->buffer;
     req->buffer = NULL;
 
     Local<Value> argv[2] = {
       Local<Value>::New(isolate, Null()),
-      rawNodeBuffer
+      rawNodeBuffer.ToLocalChecked()
     };
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
   }
@@ -1049,18 +1049,18 @@ async_get_tx_after(uv_work_t *r) {
     cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   } else {
 
-    Local<Value> result = Local<Value>::New(isolate, Null());
+    Nan::MaybeLocal<v8::Object> result = Local<Value>::New(isolate, Null());
 
     if (!ctx.IsNull()) {
       CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
       ssTx << ctx;
       std::string stx = ssTx.str();
-      result = node::Buffer::New(isolate, stx.c_str(), stx.size());
+      result = Nan::NewBuffer((char *)stx.c_str(), stx.size());
     }
 
     Local<Value> argv[2] = {
       Local<Value>::New(isolate, Null()),
-      result
+      result.ToLocalChecked()
     };
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
   }
@@ -1195,12 +1195,12 @@ async_get_tx_and_info_after(uv_work_t *r) {
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << ctx;
     std::string stx = ssTx.str();
-    Local<Value> rawNodeBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
+    Nan::MaybeLocal<v8::Object> rawNodeBuffer = Nan::NewBuffer((char *)stx.c_str(), stx.size());
 
-    Set(obj, New("blockHash").ToLocalChecked(), New(req->blockHash).ToLocalChecked());
-    Set(obj, New("height").ToLocalChecked(), New<Number>(req->height));
-    Set(obj, New("timestamp").ToLocalChecked(), New<Number>(req->nTime));
-    Set(obj, New("buffer").ToLocalChecked(), rawNodeBuffer);
+    Nan::Set(obj, New("blockHash").ToLocalChecked(), New(req->blockHash).ToLocalChecked());
+    Nan::Set(obj, New("height").ToLocalChecked(), New<Number>(req->height));
+    Nan::Set(obj, New("timestamp").ToLocalChecked(), New<Number>(req->nTime));
+    Nan::Set(obj, New("buffer").ToLocalChecked(), rawNodeBuffer.ToLocalChecked());
 
     Local<Value> argv[2] = {
       Local<Value>::New(isolate, Null()),
@@ -1290,15 +1290,15 @@ NAN_METHOD(GetBlockIndex) {
   CBlockIndex* prevBlockIndex = blockIndex->pprev;
   if (&prevBlockIndex->phashBlock != 0) {
     const uint256* prevHash = prevBlockIndex->phashBlock;
-    Set(obj, New("prevHash").ToLocalChecked(), New(prevHash->GetHex()).ToLocalChecked());
+    Nan::Set(obj, New("prevHash").ToLocalChecked(), New(prevHash->GetHex()).ToLocalChecked());
   } else {
-    Set(obj, New("prevHash").ToLocalChecked(), Null());
+    Nan::Set(obj, New("prevHash").ToLocalChecked(), Null());
   }
 
-  Set(obj, New("hash").ToLocalChecked(), New(blockIndex->phashBlock->GetHex()).ToLocalChecked());
-  Set(obj, New("chainWork").ToLocalChecked(), New(cw.GetHex()).ToLocalChecked());
+  Nan::Set(obj, New("hash").ToLocalChecked(), New(blockIndex->phashBlock->GetHex()).ToLocalChecked());
+  Nan::Set(obj, New("chainWork").ToLocalChecked(), New(cw.GetHex()).ToLocalChecked());
 
-  Set(obj, New("height").ToLocalChecked(), New<Number>(blockIndex->nHeight));
+  Nan::Set(obj, New("height").ToLocalChecked(), New<Number>(blockIndex->nHeight));
 
   info.GetReturnValue().Set(obj);
 };
@@ -1350,15 +1350,15 @@ NAN_METHOD(GetInfo) {
   proxyType proxy;
   GetProxy(NET_IPV4, proxy);
 
-  Set(obj, New("version").ToLocalChecked(), New<Number>(CLIENT_VERSION));
-  Set(obj, New("protocolversion").ToLocalChecked(), New<Number>(PROTOCOL_VERSION));
-  Set(obj, New("blocks").ToLocalChecked(), New<Number>((int)chainActive.Height())->ToInt32());
-  Set(obj, New("timeoffset").ToLocalChecked(), New<Number>(GetTimeOffset()));
-  Set(obj, New("connections").ToLocalChecked(), New<Number>((int)vNodes.size())->ToInt32());
-  Set(obj, New("difficulty").ToLocalChecked(), New<Number>((double)GetDifficulty()));
-  Set(obj, New("testnet").ToLocalChecked(), New<Boolean>(Params().NetworkIDString() == "test"));
-  Set(obj, New("relayfee").ToLocalChecked(), New<Number>(::minRelayTxFee.GetFeePerK())); // double
-  Set(obj, New("errors").ToLocalChecked(), New(GetWarnings("statusbar")).ToLocalChecked());
+  Nan::Set(obj, New("version").ToLocalChecked(), New<Number>(CLIENT_VERSION));
+  Nan::Set(obj, New("protocolversion").ToLocalChecked(), New<Number>(PROTOCOL_VERSION));
+  Nan::Set(obj, New("blocks").ToLocalChecked(), New<Number>((int)chainActive.Height())->ToInt32());
+  Nan::Set(obj, New("timeoffset").ToLocalChecked(), New<Number>(GetTimeOffset()));
+  Nan::Set(obj, New("connections").ToLocalChecked(), New<Number>((int)vNodes.size())->ToInt32());
+  Nan::Set(obj, New("difficulty").ToLocalChecked(), New<Number>((double)GetDifficulty()));
+  Nan::Set(obj, New("testnet").ToLocalChecked(), New<Boolean>(Params().NetworkIDString() == "test"));
+  Nan::Set(obj, New("relayfee").ToLocalChecked(), New<Number>(::minRelayTxFee.GetFeePerK())); // double
+  Nan::Set(obj, New("errors").ToLocalChecked(), New(GetWarnings("statusbar")).ToLocalChecked());
 
   info.GetReturnValue().Set(obj);
 }
@@ -1473,8 +1473,8 @@ NAN_METHOD(GetMempoolTransactions) {
       CDataStream dataStreamTx(SER_NETWORK, PROTOCOL_VERSION);
       dataStreamTx << tx;
       std::string txString = dataStreamTx.str();
-      Local<Value> txBuffer = node::Buffer::New(isolate, txString.c_str(), txString.size());
-      transactions->Set(arrayIndex, txBuffer);
+      Nan::MaybeLocal<v8::Object> txBuffer = Nan::NewBuffer((char *)txString.c_str(), txString.size());
+      transactions->Set(arrayIndex, txBuffer.ToLocalChecked());
       arrayIndex++;
     }
   }
@@ -1523,26 +1523,26 @@ set_cooked(void) {
  */
 
 NAN_MODULE_INIT(init) {
-  Set(target, New("start").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartBitcoind)).ToLocalChecked());
-  Set(target, New("onBlocksReady").ToLocalChecked(), GetFunction(New<FunctionTemplate>(OnBlocksReady)).ToLocalChecked());
-  Set(target, New("onTipUpdate").ToLocalChecked(), GetFunction(New<FunctionTemplate>(OnTipUpdate)).ToLocalChecked());
-  Set(target, New("stop").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StopBitcoind)).ToLocalChecked());
-  Set(target, New("getBlock").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBlock)).ToLocalChecked());
-  Set(target, New("getTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetTransaction)).ToLocalChecked());
-  Set(target, New("getTransactionWithBlockInfo").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetTransactionWithBlockInfo)).ToLocalChecked());
-  Set(target, New("getInfo").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetInfo)).ToLocalChecked());
-  Set(target, New("isSpent").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsSpent)).ToLocalChecked());
-  Set(target, New("getBlockIndex").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBlockIndex)).ToLocalChecked());
-  Set(target, New("isMainChain").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsMainChain)).ToLocalChecked());
-  Set(target, New("getMempoolTransactions").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetMempoolTransactions)).ToLocalChecked());
-  Set(target, New("addMempoolUncheckedTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(AddMempoolUncheckedTransaction)).ToLocalChecked());
-  Set(target, New("sendTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(SendTransaction)).ToLocalChecked());
-  Set(target, New("estimateFee").ToLocalChecked(), GetFunction(New<FunctionTemplate>(EstimateFee)).ToLocalChecked());
-  Set(target, New("startTxMon").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartTxMon)).ToLocalChecked());
-  Set(target, New("syncPercentage").ToLocalChecked(), GetFunction(New<FunctionTemplate>(SyncPercentage)).ToLocalChecked());
-  Set(target, New("isSynced").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsSynced)).ToLocalChecked());
-  Set(target, New("getBestBlockHash").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBestBlockHash)).ToLocalChecked());
-  Set(target, New("getNextBlockHash").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetNextBlockHash)).ToLocalChecked());
+  Nan::Set(target, New("start").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartBitcoind)).ToLocalChecked());
+  Nan::Set(target, New("onBlocksReady").ToLocalChecked(), GetFunction(New<FunctionTemplate>(OnBlocksReady)).ToLocalChecked());
+  Nan::Set(target, New("onTipUpdate").ToLocalChecked(), GetFunction(New<FunctionTemplate>(OnTipUpdate)).ToLocalChecked());
+  Nan::Set(target, New("stop").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StopBitcoind)).ToLocalChecked());
+  Nan::Set(target, New("getBlock").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBlock)).ToLocalChecked());
+  Nan::Set(target, New("getTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetTransaction)).ToLocalChecked());
+  Nan::Set(target, New("getTransactionWithBlockInfo").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetTransactionWithBlockInfo)).ToLocalChecked());
+  Nan::Set(target, New("getInfo").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetInfo)).ToLocalChecked());
+  Nan::Set(target, New("isSpent").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsSpent)).ToLocalChecked());
+  Nan::Set(target, New("getBlockIndex").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBlockIndex)).ToLocalChecked());
+  Nan::Set(target, New("isMainChain").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsMainChain)).ToLocalChecked());
+  Nan::Set(target, New("getMempoolTransactions").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetMempoolTransactions)).ToLocalChecked());
+  Nan::Set(target, New("addMempoolUncheckedTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(AddMempoolUncheckedTransaction)).ToLocalChecked());
+  Nan::Set(target, New("sendTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(SendTransaction)).ToLocalChecked());
+  Nan::Set(target, New("estimateFee").ToLocalChecked(), GetFunction(New<FunctionTemplate>(EstimateFee)).ToLocalChecked());
+  Nan::Set(target, New("startTxMon").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartTxMon)).ToLocalChecked());
+  Nan::Set(target, New("syncPercentage").ToLocalChecked(), GetFunction(New<FunctionTemplate>(SyncPercentage)).ToLocalChecked());
+  Nan::Set(target, New("isSynced").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsSynced)).ToLocalChecked());
+  Nan::Set(target, New("getBestBlockHash").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBestBlockHash)).ToLocalChecked());
+  Nan::Set(target, New("getNextBlockHash").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetNextBlockHash)).ToLocalChecked());
 }
 
 NODE_MODULE(libbitcoind, init);
