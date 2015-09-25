@@ -12,6 +12,13 @@ using namespace std;
 using namespace boost;
 using namespace node;
 using namespace v8;
+using Nan::New;
+using Nan::Null;
+using Nan::Set;
+using Nan::ThrowError;
+using Nan::GetCurrentContext;
+using Nan::GetFunction;
+using v8::FunctionTemplate;
 
 /**
  * Bitcoin Globals
@@ -197,50 +204,43 @@ NAN_METHOD(SyncPercentage) {
   const CChainParams& chainParams = Params();
   float progress = 0;
   progress = Checkpoints::GuessVerificationProgress(chainParams.Checkpoints(), chainActive.Tip());
-  NanReturnValue(NanNew<Number>(progress * 100));
+  info.GetReturnValue().Set(progress * 100);
 };
 
 NAN_METHOD(GetTxOutSetInfo) {
-  Isolate* isolate = args.GetIsolate();
-  HandleScope scope(isolate);
   {
-
     LOCK(cs_main);
-
     CCoinsStats stats;
     FlushStateToDisk();
     if (pcoinsTip->GetStats(stats)) {
-      Local<Object> obj = NanNew<Object>();
-      obj->Set(NanNew<String>("height"), NanNew<Number>((int64_t)stats.nHeight));
-      obj->Set(NanNew<String>("bestblock"), NanNew<String>(stats.hashBlock.GetHex()));
-      obj->Set(NanNew<String>("transactions"), NanNew<Number>((int64_t)stats.nTransactions));
-      obj->Set(NanNew<String>("txouts"), NanNew<Number>((int64_t)stats.nTransactionOutputs));
-      obj->Set(NanNew<String>("bytes_serialized"), NanNew<Number>((int64_t)stats.nSerializedSize));
-      obj->Set(NanNew<String>("hash_serialized"), NanNew<String>(stats.hashSerialized.GetHex()));
-      obj->Set(NanNew<String>("total_amount"), NanNew<Number>(stats.nTotalAmount));
-      NanReturnValue(obj);
+      Local<Object> obj = New<Object>();
+      Set(obj, New("height").ToLocalChecked(), New<Number>((int64_t)stats.nHeight));
+      Set(obj, New("bestblock").ToLocalChecked(), New(stats.hashBlock.GetHex().c_str()).ToLocalChecked());
+      Set(obj, New("transactions").ToLocalChecked(), New<Number>((int64_t)stats.nTransactions));
+      Set(obj, New("txouts").ToLocalChecked(), New<Number>((int64_t)stats.nTransactionOutputs));
+      Set(obj, New("bytes_serialized").ToLocalChecked(), New<Number>((int64_t)stats.nSerializedSize));
+      Set(obj, New("hash_serialized").ToLocalChecked(), New(stats.hashSerialized.GetHex()).ToLocalChecked());
+      Set(obj, New("total_amount").ToLocalChecked(), New<Number>(stats.nTotalAmount));
+      info.GetReturnValue().Set(obj);
+      return;
     }
   }
-
-  NanReturnValue(NanNull());
-
+  info.GetReturnValue().Set(Null());
 };
 
 NAN_METHOD(GetBestBlockHash) {
-  {
-    LOCK(cs_main);
-    NanReturnValue(NanNew<String>(chainActive.Tip()->GetBlockHash().GetHex()));
-  }
+  LOCK(cs_main);
+  info.GetReturnValue().Set(New(chainActive.Tip()->GetBlockHash().GetHex()).ToLocalChecked());
 }
 
 NAN_METHOD(GetNextBlockHash) {
 
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    return NanThrowError("Usage: bitcoind.getNextBlockHash(blockhash)");
+  if (info.Length() < 1 || !info[0]->IsString()) {
+    return ThrowError("Usage: bitcoind.getNextBlockHash(blockhash)");
   }
 
   CBlockIndex* pblockindex;
-  v8::String::Utf8Value param1(args[0]->ToString());
+  v8::String::Utf8Value param1(info[0]->ToString());
   std::string *hash = new std::string(*param1);
   uint256 shash = uint256S(*hash);
   pblockindex = mapBlockIndex[shash];
@@ -248,9 +248,9 @@ NAN_METHOD(GetNextBlockHash) {
   if (pnextblockindex) {
     uint256 nexthash = pnextblockindex->GetBlockHash();
     std::string rethash = nexthash.ToString();
-    NanReturnValue(NanNew<String>(rethash));
+    info.GetReturnValue().Set(New(rethash).ToLocalChecked());
   } else {
-    NanReturnValue(NanNull());
+    info.GetReturnValue().Set(Null());
   }
 
 }
@@ -262,14 +262,12 @@ NAN_METHOD(GetNextBlockHash) {
  */
 NAN_METHOD(IsSynced) {
   bool isDownloading = IsInitialBlockDownload();
-  NanReturnValue(NanNew<Boolean>(!isDownloading));
+  info.GetReturnValue().Set(New(!isDownloading));
 };
 
 NAN_METHOD(StartTxMon) {
-  Isolate* isolate = Isolate::GetCurrent();
-  HandleScope scope(isolate);
-
-  Local<Function> callback = Local<Function>::Cast(args[0]);
+  Isolate* isolate = info.GetIsolate();
+  Local<Function> callback = Local<Function>::Cast(info[0]);
   Eternal<Function> cb(isolate, callback);
   txmon_callback = cb;
   txmon_callback_available = true;
@@ -279,12 +277,12 @@ NAN_METHOD(StartTxMon) {
 
   uv_async_init(uv_default_loop(), &txmon_async, tx_notifier);
 
-  NanReturnValue(Undefined(isolate));
+  info.GetReturnValue().Set(Null());
 };
 
 static void
 tx_notifier(uv_async_t *handle) {
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = GetCurrentContext()->GetIsolate();
   HandleScope scope(isolate);
 
   Local<Array> results = Array::New(isolate);
@@ -300,11 +298,11 @@ tx_notifier(uv_async_t *handle) {
 
     uint256 hash = tx.GetHash();
 
-    Local<Object> obj = NanNew<Object>();
+    Local<Object> obj = New<Object>();
 
-    obj->Set(NanNew<String>("buffer"), txBuffer);
-    obj->Set(NanNew<String>("hash"), NanNew<String>(hash.GetHex()));
-    obj->Set(NanNew<String>("mempool"), NanNew<Boolean>(true));
+    Set(obj, New("buffer").ToLocalChecked(), txBuffer);
+    Set(obj, New("hash").ToLocalChecked(), New(hash.GetHex()).ToLocalChecked());
+    Set(obj, New("mempool").ToLocalChecked(), New<Boolean>(true));
 
     results->Set(arrayIndex, obj);
     arrayIndex++;
@@ -335,12 +333,12 @@ queueTx(const CTransaction& tx) {
  */
 
 NAN_METHOD(OnTipUpdate) {
-  Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
 
   async_tip_update_data *req = new async_tip_update_data();
 
-  Local<Function> callback = Local<Function>::Cast(args[0]);
+  Local<Function> callback = Local<Function>::Cast(info[0]);
   req->callback.Reset(isolate, callback);
   req->req.data = req;
   req->isolate = isolate;
@@ -351,8 +349,7 @@ NAN_METHOD(OnTipUpdate) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined(isolate));
-
+  info.GetReturnValue().Set(Null());
 }
 
 static void
@@ -380,7 +377,7 @@ async_tip_update_after(uv_work_t *r) {
   Local<Value> result = Undefined(isolate);
 
   if (!shutdown_complete) {
-    result = NanNew<Number>(req->result);
+    result = New<Number>(req->result);
   }
   Local<Value> argv[1] = {
     Local<Value>::New(isolate, result)
@@ -395,7 +392,7 @@ async_tip_update_after(uv_work_t *r) {
 }
 
 NAN_METHOD(OnBlocksReady) {
-  Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
 
   async_block_ready_data *req = new async_block_ready_data();
@@ -404,7 +401,7 @@ NAN_METHOD(OnBlocksReady) {
   req->req.data = req;
   req->isolate = isolate;
 
-  Local<Function> callback = Local<Function>::Cast(args[0]);
+  Local<Function> callback = Local<Function>::Cast(info[0]);
   req->callback.Reset(isolate, callback);
 
   int status = uv_queue_work(uv_default_loop(),
@@ -413,7 +410,7 @@ NAN_METHOD(OnBlocksReady) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined(isolate));
+  info.GetReturnValue().Set(Null());
 }
 
 /**
@@ -471,13 +468,13 @@ async_blocks_ready_after(uv_work_t *r) {
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
-    Local<Value> err = Exception::Error(NanNew<String>(req->err_msg));
+    Local<Value> err = Exception::Error(New(req->err_msg).ToLocalChecked());
     Local<Value> argv[1] = { err };
     cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   } else {
     Local<Value> argv[2] = {
      v8::Null(isolate),
-     Local<Value>::New(isolate, NanNew<String>(req->result))
+     Local<Value>::New(isolate, New(req->result).ToLocalChecked())
     };
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
   }
@@ -496,7 +493,7 @@ async_blocks_ready_after(uv_work_t *r) {
  * Start the bitcoind node with AppInit2() on a separate thread.
  */
 NAN_METHOD(StartBitcoind) {
-  Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
 
   Local<Function> callback;
@@ -506,17 +503,17 @@ NAN_METHOD(StartBitcoind) {
   bool regtest = false;
   bool txindex = false;
 
-  if (args.Length() >= 2 && args[0]->IsObject() && args[1]->IsFunction()) {
-    Local<Object> options = Local<Object>::Cast(args[0]);
-    if (options->Get(NanNew<String>("datadir"))->IsString()) {
-      String::Utf8Value datadir_(options->Get(NanNew<String>("datadir"))->ToString());
+  if (info.Length() >= 2 && info[0]->IsObject() && info[1]->IsFunction()) {
+    Local<Object> options = Local<Object>::Cast(info[0]);
+    if (options->Get(New("datadir").ToLocalChecked())->IsString()) {
+      String::Utf8Value datadir_(options->Get(New("datadir").ToLocalChecked())->ToString());
       datadir = std::string(*datadir_);
     }
-    if (options->Get(NanNew<String>("rpc"))->IsBoolean()) {
-      rpc = options->Get(NanNew<String>("rpc"))->ToBoolean()->IsTrue();
+    if (options->Get(New("rpc").ToLocalChecked())->IsBoolean()) {
+      rpc = options->Get(New("rpc").ToLocalChecked())->ToBoolean()->IsTrue();
     }
-    if (options->Get(NanNew<String>("network"))->IsString()) {
-      String::Utf8Value network_(options->Get(NanNew<String>("network"))->ToString());
+    if (options->Get(New("network").ToLocalChecked())->IsString()) {
+      String::Utf8Value network_(options->Get(New("network").ToLocalChecked())->ToString());
       std::string network = std::string(*network_);
       if (network == "testnet") {
           testnet = true;
@@ -524,18 +521,18 @@ NAN_METHOD(StartBitcoind) {
           regtest = true;
       }
     }
-    if (options->Get(NanNew<String>("txindex"))->IsBoolean()) {
-      txindex = options->Get(NanNew<String>("txindex"))->ToBoolean()->IsTrue();
+    if (options->Get(New("txindex").ToLocalChecked())->IsBoolean()) {
+      txindex = options->Get(New("txindex").ToLocalChecked())->ToBoolean()->IsTrue();
     }
-    callback = Local<Function>::Cast(args[1]);
-  } else if (args.Length() >= 2
-             && (args[0]->IsUndefined() || args[0]->IsNull())
-             && args[1]->IsFunction()) {
-    callback = Local<Function>::Cast(args[1]);
-  } else if (args.Length() >= 1 && args[0]->IsFunction()) {
-    callback = Local<Function>::Cast(args[0]);
+    callback = Local<Function>::Cast(info[1]);
+  } else if (info.Length() >= 2
+             && (info[0]->IsUndefined() || info[0]->IsNull())
+             && info[1]->IsFunction()) {
+    callback = Local<Function>::Cast(info[1]);
+  } else if (info.Length() >= 1 && info[0]->IsFunction()) {
+    callback = Local<Function>::Cast(info[0]);
   } else {
-    return NanThrowError(
+    return ThrowError(
       "Usage: bitcoind.start(callback)");
   }
 
@@ -562,7 +559,7 @@ NAN_METHOD(StartBitcoind) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined(isolate));
+  info.GetReturnValue().Set(Null());
 }
 
 /**
@@ -603,13 +600,13 @@ async_start_node_after(uv_work_t *r) {
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
-    Local<Value> err = Exception::Error(NanNew<String>(req->err_msg));
+    Local<Value> err = Exception::Error(New(req->err_msg).ToLocalChecked());
     Local<Value> argv[1] = { err };
     cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   } else {
     Local<Value> argv[2] = {
      v8::Null(isolate),
-     Local<Value>::New(isolate, NanNew<String>(req->result))
+     Local<Value>::New(isolate, New(req->result).ToLocalChecked())
     };
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
   }
@@ -754,15 +751,15 @@ start_node_thread(void) {
  */
 
 NAN_METHOD(StopBitcoind) {
-  Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
 
-  if (args.Length() < 1 || !args[0]->IsFunction()) {
-    return NanThrowError(
+  if (info.Length() < 1 || !info[0]->IsFunction()) {
+    return ThrowError(
       "Usage: bitcoind.stop(callback)");
   }
 
-  Local<Function> callback = Local<Function>::Cast(args[0]);
+  Local<Function> callback = Local<Function>::Cast(info[0]);
 
   //
   // Run bitcoind's StartShutdown() on a separate thread.
@@ -780,7 +777,7 @@ NAN_METHOD(StopBitcoind) {
     (uv_after_work_cb)async_stop_node_after);
 
   assert(status == 0);
-  NanReturnValue(Undefined(isolate));
+  info.GetReturnValue().Set(Null());
 
 }
 
@@ -817,13 +814,13 @@ async_stop_node_after(uv_work_t *r) {
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
-    Local<Value> err = Exception::Error(NanNew<String>(req->err_msg));
+    Local<Value> err = Exception::Error(New(req->err_msg).ToLocalChecked());
     Local<Value> argv[1] = { err };
     cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   } else {
     Local<Value> argv[2] = {
-      Local<Value>::New(isolate, NanNull()),
-      Local<Value>::New(isolate, NanNew<String>(req->result))
+      Local<Value>::New(isolate, Null()),
+      Local<Value>::New(isolate, New(req->result).ToLocalChecked())
     };
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
   }
@@ -842,31 +839,31 @@ async_stop_node_after(uv_work_t *r) {
  */
 
 NAN_METHOD(GetBlock) {
-  Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
-  if (args.Length() < 2
-      || (!args[0]->IsString() && !args[0]->IsNumber())
-      || !args[1]->IsFunction()) {
-    return NanThrowError(
+  if (info.Length() < 2
+      || (!info[0]->IsString() && !info[0]->IsNumber())
+      || !info[1]->IsFunction()) {
+    return ThrowError(
       "Usage: bitcoind.getBlock([blockhash,blockheight], callback)");
   }
 
   async_block_data *req = new async_block_data();
 
-  if (args[0]->IsNumber()) {
-    int64_t height = args[0]->IntegerValue();
+  if (info[0]->IsNumber()) {
+    int64_t height = info[0]->IntegerValue();
     req->err_msg = std::string("");
     req->hash = std::string("");
     req->height = height;
   } else {
-    String::Utf8Value hash_(args[0]->ToString());
+    String::Utf8Value hash_(info[0]->ToString());
     std::string hash = std::string(*hash_);
     req->err_msg = std::string("");
     req->hash = hash;
     req->height = -1;
   }
 
-  Local<Function> callback = Local<Function>::Cast(args[1]);
+  Local<Function> callback = Local<Function>::Cast(info[1]);
   req->req.data = req;
   req->isolate = isolate;
   req->callback.Reset(isolate, callback);
@@ -877,7 +874,7 @@ NAN_METHOD(GetBlock) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined(isolate));
+  info.GetReturnValue().Set(Null());
 }
 
 static void
@@ -945,7 +942,7 @@ async_get_block_after(uv_work_t *r) {
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
-    Local<Value> err = Exception::Error(NanNew<String>(req->err_msg));
+    Local<Value> err = Exception::Error(New(req->err_msg).ToLocalChecked());
     Local<Value> argv[1] = { err };
     cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   } else {
@@ -956,7 +953,7 @@ async_get_block_after(uv_work_t *r) {
     req->buffer = NULL;
 
     Local<Value> argv[2] = {
-      Local<Value>::New(isolate, NanNull()),
+      Local<Value>::New(isolate, Null()),
       rawNodeBuffer
     };
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
@@ -977,19 +974,19 @@ async_get_block_after(uv_work_t *r) {
  */
 
 NAN_METHOD(GetTransaction) {
-  Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
-  if (args.Length() < 3
-      || !args[0]->IsString()
-      || !args[1]->IsBoolean()
-      || !args[2]->IsFunction()) {
-    return NanThrowError(
+  if (info.Length() < 3
+      || !info[0]->IsString()
+      || !info[1]->IsBoolean()
+      || !info[2]->IsFunction()) {
+    return ThrowError(
       "Usage: daemon.getTransaction(txid, queryMempool, callback)");
   }
 
-  String::Utf8Value txid_(args[0]->ToString());
-  bool queryMempool = args[1]->BooleanValue();
-  Local<Function> callback = Local<Function>::Cast(args[2]);
+  String::Utf8Value txid_(info[0]->ToString());
+  bool queryMempool = info[1]->BooleanValue();
+  Local<Function> callback = Local<Function>::Cast(info[2]);
 
   async_tx_data *req = new async_tx_data();
 
@@ -1010,7 +1007,7 @@ NAN_METHOD(GetTransaction) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined(isolate));
+  info.GetReturnValue().Set(Null());
 }
 
 static void
@@ -1068,12 +1065,12 @@ async_get_tx_after(uv_work_t *r) {
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
-    Local<Value> err = Exception::Error(NanNew<String>(req->err_msg));
+    Local<Value> err = Exception::Error(New(req->err_msg).ToLocalChecked());
     Local<Value> argv[1] = { err };
     cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   } else {
 
-    Local<Value> result = Local<Value>::New(isolate, NanNull());
+    Local<Value> result = Local<Value>::New(isolate, Null());
 
     if (!ctx.IsNull()) {
       CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -1083,7 +1080,7 @@ async_get_tx_after(uv_work_t *r) {
     }
 
     Local<Value> argv[2] = {
-      Local<Value>::New(isolate, NanNull()),
+      Local<Value>::New(isolate, Null()),
       result
     };
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
@@ -1104,19 +1101,19 @@ async_get_tx_after(uv_work_t *r) {
  */
 
 NAN_METHOD(GetTransactionWithBlockInfo) {
-  Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
-  if (args.Length() < 3
-      || !args[0]->IsString()
-      || !args[1]->IsBoolean()
-      || !args[2]->IsFunction()) {
-    return NanThrowError(
+  if (info.Length() < 3
+      || !info[0]->IsString()
+      || !info[1]->IsBoolean()
+      || !info[2]->IsFunction()) {
+    return ThrowError(
       "Usage: bitcoind.getTransactionWithBlockInfo(txid, queryMempool, callback)");
   }
 
-  String::Utf8Value txid_(args[0]->ToString());
-  bool queryMempool = args[1]->BooleanValue();
-  Local<Function> callback = Local<Function>::Cast(args[2]);
+  String::Utf8Value txid_(info[0]->ToString());
+  bool queryMempool = info[1]->BooleanValue();
+  Local<Function> callback = Local<Function>::Cast(info[2]);
 
   async_tx_data *req = new async_tx_data();
 
@@ -1137,7 +1134,7 @@ NAN_METHOD(GetTransactionWithBlockInfo) {
 
   assert(status == 0);
 
-  NanReturnValue(Undefined(isolate));
+  info.GetReturnValue().Set(Null());
 }
 
 static void
@@ -1208,10 +1205,10 @@ async_get_tx_and_info_after(uv_work_t *r) {
   CTransaction ctx = req->ctx;
   TryCatch try_catch;
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
-  Local<Object> obj = NanNew<Object>();
+  Local<Object> obj = New<Object>();
 
   if (req->err_msg != "") {
-    Local<Value> err = Exception::Error(NanNew<String>(req->err_msg));
+    Local<Value> err = Exception::Error(New(req->err_msg).ToLocalChecked());
     Local<Value> argv[1] = { err };
     cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   } else {
@@ -1221,13 +1218,13 @@ async_get_tx_and_info_after(uv_work_t *r) {
     std::string stx = ssTx.str();
     Local<Value> rawNodeBuffer = node::Buffer::New(isolate, stx.c_str(), stx.size());
 
-    obj->Set(NanNew<String>("blockHash"), NanNew<String>(req->blockHash));
-    obj->Set(NanNew<String>("height"), NanNew<Number>(req->height));
-    obj->Set(NanNew<String>("timestamp"), NanNew<Number>(req->nTime));
-    obj->Set(NanNew<String>("buffer"), rawNodeBuffer);
+    Set(obj, New("blockHash").ToLocalChecked(), New(req->blockHash).ToLocalChecked());
+    Set(obj, New("height").ToLocalChecked(), New<Number>(req->height));
+    Set(obj, New("timestamp").ToLocalChecked(), New<Number>(req->nTime));
+    Set(obj, New("buffer").ToLocalChecked(), rawNodeBuffer);
 
     Local<Value> argv[2] = {
-      Local<Value>::New(isolate, NanNull()),
+      Local<Value>::New(isolate, Null()),
       obj
     };
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
@@ -1245,17 +1242,15 @@ async_get_tx_and_info_after(uv_work_t *r) {
  * Determine if an outpoint is spent
  */
 NAN_METHOD(IsSpent) {
-  NanScope();
-
-  if (args.Length() > 2) {
-    return NanThrowError(
+  if (info.Length() > 2) {
+    return ThrowError(
       "Usage: bitcoind.isSpent(txid, outputIndex)");
   }
 
-  String::Utf8Value arg(args[0]->ToString());
+  String::Utf8Value arg(info[0]->ToString());
   std::string argStr = std::string(*arg);
   const uint256 txid = uint256S(argStr);
-  int outputIndex = args[1]->IntegerValue();
+  int outputIndex = info[1]->IntegerValue();
 
   CCoinsView dummy;
   CCoinsViewCache view(&dummy);
@@ -1266,11 +1261,11 @@ NAN_METHOD(IsSpent) {
   if (view.HaveCoins(txid)) {
     const CCoins* coins = view.AccessCoins(txid);
     if (coins && coins->IsAvailable(outputIndex)) {
-      NanReturnValue(NanNew<Boolean>(false));
+      info.GetReturnValue().Set(New<Boolean>(false));
       return;
     }
   }
-  NanReturnValue(NanNew<Boolean>(true));
+  info.GetReturnValue().Set(New<Boolean>(true));
 };
 
 /**
@@ -1287,42 +1282,42 @@ NAN_METHOD(GetBlockIndex) {
 
   CBlockIndex* blockIndex;
 
-  if (args[0]->IsNumber()) {
-    int64_t height = args[0]->IntegerValue();
+  if (info[0]->IsNumber()) {
+    int64_t height = info[0]->IntegerValue();
     blockIndex = chainActive[height];
 
     if (blockIndex == NULL) {
-      NanReturnValue(Undefined(isolate));
+      info.GetReturnValue().Set(Null());
     }
 
   } else {
-    String::Utf8Value hash_(args[0]->ToString());
+    String::Utf8Value hash_(info[0]->ToString());
     std::string hashStr = std::string(*hash_);
     uint256 hash = uint256S(hashStr);
     if (mapBlockIndex.count(hash) == 0) {
-      NanReturnValue(Undefined(isolate));
+      info.GetReturnValue().Set(Null());
     } else {
       blockIndex = mapBlockIndex[hash];
     }
   }
 
-  Local<Object> obj = NanNew<Object>();
+  Local<Object> obj = New<Object>();
 
   arith_uint256 cw = blockIndex->nChainWork;
   CBlockIndex* prevBlockIndex = blockIndex->pprev;
   if (&prevBlockIndex->phashBlock != 0) {
     const uint256* prevHash = prevBlockIndex->phashBlock;
-    obj->Set(NanNew<String>("prevHash"), NanNew<String>(prevHash->GetHex()));
+    Set(obj, New("prevHash").ToLocalChecked(), New(prevHash->GetHex()).ToLocalChecked());
   } else {
-    obj->Set(NanNew<String>("prevHash"), NanNull());
+    Set(obj, New("prevHash").ToLocalChecked(), Null());
   }
 
-  obj->Set(NanNew<String>("hash"), NanNew<String>(blockIndex->phashBlock->GetHex()));
-  obj->Set(NanNew<String>("chainWork"), NanNew<String>(cw.GetHex()));
+  Set(obj, New("hash").ToLocalChecked(), New(blockIndex->phashBlock->GetHex()).ToLocalChecked());
+  Set(obj, New("chainWork").ToLocalChecked(), New(cw.GetHex()).ToLocalChecked());
 
-  obj->Set(NanNew<String>("height"), NanNew<Number>(blockIndex->nHeight));
+  Set(obj, New("height").ToLocalChecked(), New<Number>(blockIndex->nHeight));
 
-  NanReturnValue(obj);
+  info.GetReturnValue().Set(obj);
 };
 
 
@@ -1339,19 +1334,19 @@ NAN_METHOD(IsMainChain) {
 
   CBlockIndex* blockIndex;
 
-  String::Utf8Value hash_(args[0]->ToString());
+  String::Utf8Value hash_(info[0]->ToString());
   std::string hashStr = std::string(*hash_);
   uint256 hash = uint256S(hashStr);
   if (mapBlockIndex.count(hash) == 0) {
-    NanReturnValue(Undefined(isolate));
+    info.GetReturnValue().Set(Null());
   } else {
     blockIndex = mapBlockIndex[hash];
   }
 
   if (chainActive.Contains(blockIndex)) {
-    NanReturnValue(NanNew<Boolean>(true));
+    info.GetReturnValue().Set(New<Boolean>(true));
   } else {
-    NanReturnValue(NanNew<Boolean>(false));
+    info.GetReturnValue().Set(New<Boolean>(false));
   }
 }
 
@@ -1362,29 +1357,27 @@ NAN_METHOD(IsMainChain) {
  */
 
 NAN_METHOD(GetInfo) {
-  NanScope();
-
-  if (args.Length() > 0) {
-    return NanThrowError(
+  if (info.Length() > 0) {
+    return ThrowError(
       "Usage: bitcoind.getInfo()");
   }
 
-  Local<Object> obj = NanNew<Object>();
+  Local<Object> obj = New<Object>();
 
   proxyType proxy;
   GetProxy(NET_IPV4, proxy);
 
-  obj->Set(NanNew<String>("version"), NanNew<Number>(CLIENT_VERSION));
-  obj->Set(NanNew<String>("protocolversion"), NanNew<Number>(PROTOCOL_VERSION));
-  obj->Set(NanNew<String>("blocks"), NanNew<Number>((int)chainActive.Height())->ToInt32());
-  obj->Set(NanNew<String>("timeoffset"), NanNew<Number>(GetTimeOffset()));
-  obj->Set(NanNew<String>("connections"), NanNew<Number>((int)vNodes.size())->ToInt32());
-  obj->Set(NanNew<String>("difficulty"), NanNew<Number>((double)GetDifficulty()));
-  obj->Set(NanNew<String>("testnet"), NanNew<Boolean>(Params().NetworkIDString() == "test"));
-  obj->Set(NanNew<String>("relayfee"), NanNew<Number>(::minRelayTxFee.GetFeePerK())); // double
-  obj->Set(NanNew<String>("errors"), NanNew<String>(GetWarnings("statusbar")));
+  Set(obj, New("version").ToLocalChecked(), New<Number>(CLIENT_VERSION));
+  Set(obj, New("protocolversion").ToLocalChecked(), New<Number>(PROTOCOL_VERSION));
+  Set(obj, New("blocks").ToLocalChecked(), New<Number>((int)chainActive.Height())->ToInt32());
+  Set(obj, New("timeoffset").ToLocalChecked(), New<Number>(GetTimeOffset()));
+  Set(obj, New("connections").ToLocalChecked(), New<Number>((int)vNodes.size())->ToInt32());
+  Set(obj, New("difficulty").ToLocalChecked(), New<Number>((double)GetDifficulty()));
+  Set(obj, New("testnet").ToLocalChecked(), New<Boolean>(Params().NetworkIDString() == "test"));
+  Set(obj, New("relayfee").ToLocalChecked(), New<Number>(::minRelayTxFee.GetFeePerK())); // double
+  Set(obj, New("errors").ToLocalChecked(), New(GetWarnings("statusbar")).ToLocalChecked());
 
-  NanReturnValue(obj);
+  info.GetReturnValue().Set(obj);
 }
 
 /**
@@ -1396,7 +1389,7 @@ NAN_METHOD(EstimateFee) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
-  int nBlocks = args[0]->NumberValue();
+  int nBlocks = info[0]->NumberValue();
   if (nBlocks < 1) {
     nBlocks = 1;
   }
@@ -1404,13 +1397,13 @@ NAN_METHOD(EstimateFee) {
   CFeeRate feeRate = mempool.estimateFee(nBlocks);
 
   if (feeRate == CFeeRate(0)) {
-    NanReturnValue(NanNew<Number>(-1.0));
+    info.GetReturnValue().Set(New<Number>(-1.0));
     return;
   }
 
   CAmount nFee = feeRate.GetFeePerK();
 
-  NanReturnValue(NanNew<Number>(nFee));
+  info.GetReturnValue().Set(New<Number>(nFee));
 
 }
 
@@ -1428,18 +1421,18 @@ NAN_METHOD(SendTransaction) {
   LOCK(cs_main);
 
   // Decode the transaction
-  v8::String::Utf8Value param1(args[0]->ToString());
+  v8::String::Utf8Value param1(info[0]->ToString());
   std::string *input = new std::string(*param1);
   CTransaction tx;
   if (!DecodeHexTx(tx, *input)) {
-    return NanThrowError("TX decode failed");
+    return ThrowError("TX decode failed");
   }
   uint256 hashTx = tx.GetHash();
 
   // Skip absurdly high fee check
   bool allowAbsurdFees = false;
-  if (args.Length() > 1) {
-    allowAbsurdFees = args[1]->BooleanValue();
+  if (info.Length() > 1) {
+    allowAbsurdFees = info[1]->BooleanValue();
   }
 
   CCoinsViewCache &view = *pcoinsTip;
@@ -1453,22 +1446,22 @@ NAN_METHOD(SendTransaction) {
     // Attempt to add the transaction to the mempool
     if (!AcceptToMemoryPool(mempool, state, tx, false, &fMissingInputs, !allowAbsurdFees)) {
       if (state.IsInvalid()) {
-        return NanThrowError((boost::lexical_cast<std::string>(state.GetRejectCode()) + ": " + state.GetRejectReason()).c_str());
+        return ThrowError((boost::lexical_cast<std::string>(state.GetRejectCode()) + ": " + state.GetRejectReason()).c_str());
       } else {
         if (fMissingInputs) {
-          return NanThrowError("Missing inputs");
+          return ThrowError("Missing inputs");
         }
-        return NanThrowError(state.GetRejectReason().c_str());
+        return ThrowError(state.GetRejectReason().c_str());
       }
     }
   } else if (fHaveChain) {
-    return NanThrowError("transaction already in block chain");
+    return ThrowError("transaction already in block chain");
   }
 
   // Relay the transaction connect peers
   RelayTransaction(tx);
 
-  NanReturnValue(Local<Value>::New(isolate, NanNew<String>(hashTx.GetHex())));
+  info.GetReturnValue().Set(Local<Value>::New(isolate, New(hashTx.GetHex()).ToLocalChecked()));
 }
 
 /**
@@ -1477,7 +1470,7 @@ NAN_METHOD(SendTransaction) {
  * Will return an array of transaction buffers.
  */
 NAN_METHOD(GetMempoolTransactions) {
-  Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
 
   Local<Array> transactions = Array::New(isolate);
@@ -1503,7 +1496,7 @@ NAN_METHOD(GetMempoolTransactions) {
     }
   }
 
-  NanReturnValue(transactions);
+  info.GetReturnValue().Set(transactions);
 
 }
 
@@ -1511,17 +1504,15 @@ NAN_METHOD(GetMempoolTransactions) {
   * AddMempoolUncheckedTransaction
   */
 NAN_METHOD(AddMempoolUncheckedTransaction) {
-  NanScope();
-
-  v8::String::Utf8Value param1(args[0]->ToString());
+  v8::String::Utf8Value param1(info[0]->ToString());
   std::string *input = new std::string(*param1);
 
   CTransaction tx;
   if (!DecodeHexTx(tx, *input)) {
-    return NanThrowError("could not decode tx");
+    return ThrowError("could not decode tx");
   }
   bool added = mempool.addUnchecked(tx.GetHash(), CTxMemPoolEntry(tx, 0, 0, 0.0, 1));
-  NanReturnValue(NanNew<Boolean>(added));
+  info.GetReturnValue().Set(New<Boolean>(added));
 
 }
 
@@ -1548,32 +1539,28 @@ set_cooked(void) {
  * Initialize the singleton object known as bitcoind.
  */
 
-extern "C" void
-init(Handle<Object> target) {
-  NanScope();
-
-  NODE_SET_METHOD(target, "start", StartBitcoind);
-  NODE_SET_METHOD(target, "onBlocksReady", OnBlocksReady);
-  NODE_SET_METHOD(target, "onTipUpdate", OnTipUpdate);
-  NODE_SET_METHOD(target, "stop", StopBitcoind);
-  NODE_SET_METHOD(target, "getBlock", GetBlock);
-  NODE_SET_METHOD(target, "getTransaction", GetTransaction);
-  NODE_SET_METHOD(target, "getTransactionWithBlockInfo", GetTransactionWithBlockInfo);
-  NODE_SET_METHOD(target, "getInfo", GetInfo);
-  NODE_SET_METHOD(target, "isSpent", IsSpent);
-  NODE_SET_METHOD(target, "getBlockIndex", GetBlockIndex);
-  NODE_SET_METHOD(target, "isMainChain", IsMainChain);
-  NODE_SET_METHOD(target, "getMempoolTransactions", GetMempoolTransactions);
-  NODE_SET_METHOD(target, "addMempoolUncheckedTransaction", AddMempoolUncheckedTransaction);
-  NODE_SET_METHOD(target, "sendTransaction", SendTransaction);
-  NODE_SET_METHOD(target, "estimateFee", EstimateFee);
-  NODE_SET_METHOD(target, "startTxMon", StartTxMon);
-  NODE_SET_METHOD(target, "syncPercentage", SyncPercentage);
-  NODE_SET_METHOD(target, "isSynced", IsSynced);
-  NODE_SET_METHOD(target, "getTxOutSetInfo", GetTxOutSetInfo);
-  NODE_SET_METHOD(target, "getBestBlockHash", GetBestBlockHash);
-  NODE_SET_METHOD(target, "getNextBlockHash", GetNextBlockHash);
-
+NAN_MODULE_INIT(init) {
+  Set(target, New("start").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartBitcoind)).ToLocalChecked());
+  Set(target, New("onBlocksReady").ToLocalChecked(), GetFunction(New<FunctionTemplate>(OnBlocksReady)).ToLocalChecked());
+  Set(target, New("onTipUpdate").ToLocalChecked(), GetFunction(New<FunctionTemplate>(OnTipUpdate)).ToLocalChecked());
+  Set(target, New("stop").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StopBitcoind)).ToLocalChecked());
+  Set(target, New("getBlock").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBlock)).ToLocalChecked());
+  Set(target, New("getTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetTransaction)).ToLocalChecked());
+  Set(target, New("getTransactionWithBlockInfo").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetTransactionWithBlockInfo)).ToLocalChecked());
+  Set(target, New("getInfo").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetInfo)).ToLocalChecked());
+  Set(target, New("isSpent").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsSpent)).ToLocalChecked());
+  Set(target, New("getBlockIndex").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBlockIndex)).ToLocalChecked());
+  Set(target, New("isMainChain").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsMainChain)).ToLocalChecked());
+  Set(target, New("getMempoolTransactions").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetMempoolTransactions)).ToLocalChecked());
+  Set(target, New("addMempoolUncheckedTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(AddMempoolUncheckedTransaction)).ToLocalChecked());
+  Set(target, New("sendTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(SendTransaction)).ToLocalChecked());
+  Set(target, New("estimateFee").ToLocalChecked(), GetFunction(New<FunctionTemplate>(EstimateFee)).ToLocalChecked());
+  Set(target, New("startTxMon").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartTxMon)).ToLocalChecked());
+  Set(target, New("syncPercentage").ToLocalChecked(), GetFunction(New<FunctionTemplate>(SyncPercentage)).ToLocalChecked());
+  Set(target, New("isSynced").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsSynced)).ToLocalChecked());
+  Set(target, New("getTxOutSetInfo").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetTxOutSetInfo)).ToLocalChecked());
+  Set(target, New("getBestBlockHash").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBestBlockHash)).ToLocalChecked());
+  Set(target, New("getNextBlockHash").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetNextBlockHash)).ToLocalChecked());
 }
 
-NODE_MODULE(libbitcoind, init)
+NODE_MODULE(libbitcoind, init);
