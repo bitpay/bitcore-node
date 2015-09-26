@@ -161,7 +161,7 @@ struct async_node_data {
 struct async_block_data {
   uv_work_t req;
   std::string err_msg;
-  std::string hash;
+  uint256 hash;
   int64_t height;
   char* buffer;
   uint32_t size;
@@ -352,7 +352,7 @@ async_tip_update_after(uv_work_t *r) {
   HandleScope scope(isolate);
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
-  TryCatch try_catch;
+  Nan::TryCatch try_catch;
   Local<Value> result = Undefined(isolate);
 
   if (!shutdown_complete) {
@@ -363,11 +363,10 @@ async_tip_update_after(uv_work_t *r) {
   };
   cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
+    Nan::FatalException(try_catch);
   }
 
   req->callback.Reset();
-  delete req;
 }
 
 NAN_METHOD(OnBlocksReady) {
@@ -443,7 +442,7 @@ async_blocks_ready_after(uv_work_t *r) {
   Isolate* isolate = req->isolate;
   HandleScope scope(isolate);
 
-  TryCatch try_catch;
+  Nan::TryCatch try_catch;
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
@@ -459,11 +458,10 @@ async_blocks_ready_after(uv_work_t *r) {
   }
 
   if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
+    Nan::FatalException(try_catch);
   }
 
   req->callback.Reset();
-  delete req;
 }
 
 /**
@@ -575,7 +573,7 @@ async_start_node_after(uv_work_t *r) {
   Isolate* isolate = req->isolate;
   HandleScope scope(isolate);
 
-  TryCatch try_catch;
+  Nan::TryCatch try_catch;
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
@@ -591,11 +589,10 @@ async_start_node_after(uv_work_t *r) {
   }
 
   if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
+    Nan::FatalException(try_catch);
   }
 
   req->callback.Reset();
-  delete req;
 }
 
 /**
@@ -789,7 +786,7 @@ async_stop_node_after(uv_work_t *r) {
   Isolate* isolate = req->isolate;
   HandleScope scope(isolate);
 
-  TryCatch try_catch;
+  Nan::TryCatch try_catch;
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
@@ -805,10 +802,9 @@ async_stop_node_after(uv_work_t *r) {
   }
 
   if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
+    Nan::FatalException(try_catch);
   }
   req->callback.Reset();
-  delete req;
 }
 
 /**
@@ -832,13 +828,11 @@ NAN_METHOD(GetBlock) {
   if (info[0]->IsNumber()) {
     int64_t height = info[0]->IntegerValue();
     req->err_msg = std::string("");
-    req->hash = std::string("");
     req->height = height;
   } else {
-    String::Utf8Value hash_(info[0]->ToString());
-    std::string hash = std::string(*hash_);
+    std::string hash = *Nan::Utf8String(info[0]);
     req->err_msg = std::string("");
-    req->hash = hash;
+    req->hash = uint256S(hash);
     req->height = -1;
   }
 
@@ -861,7 +855,6 @@ async_get_block(uv_work_t *req) {
   async_block_data* data = reinterpret_cast<async_block_data*>(req->data);
 
   CBlockIndex* pblockindex;
-  uint256 hash = uint256S(data->hash);
 
   if (data->height != -1) {
     pblockindex = chainActive[data->height];
@@ -870,11 +863,11 @@ async_get_block(uv_work_t *req) {
       return;
     }
   } else {
-    if (mapBlockIndex.count(hash) == 0) {
+    if (mapBlockIndex.count(data->hash) == 0) {
       data->err_msg = std::string("Block not found.");
       return;
     } else {
-      pblockindex = mapBlockIndex[hash];
+      pblockindex = mapBlockIndex[data->hash];
     }
   }
 
@@ -917,7 +910,7 @@ async_get_block_after(uv_work_t *r) {
   Isolate *isolate = req->isolate;
   HandleScope scope(isolate);
 
-  TryCatch try_catch;
+  Nan::TryCatch try_catch;
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
@@ -928,9 +921,6 @@ async_get_block_after(uv_work_t *r) {
 
     Nan::MaybeLocal<v8::Object> rawNodeBuffer = Nan::NewBuffer(req->buffer, req->size);
 
-    delete req->buffer;
-    req->buffer = NULL;
-
     Local<Value> argv[2] = {
       Local<Value>::New(isolate, Null()),
       rawNodeBuffer.ToLocalChecked()
@@ -939,11 +929,10 @@ async_get_block_after(uv_work_t *r) {
   }
 
   if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
+    Nan::FatalException(try_catch);
   }
 
   req->callback.Reset();
-  delete req;
 }
 
 /**
@@ -963,17 +952,14 @@ NAN_METHOD(GetTransaction) {
       "Usage: daemon.getTransaction(txid, queryMempool, callback)");
   }
 
-  String::Utf8Value txid_(info[0]->ToString());
+  std::string txid = *Nan::Utf8String(info[0]);
+
   bool queryMempool = info[1]->BooleanValue();
   Local<Function> callback = Local<Function>::Cast(info[2]);
 
   async_tx_data *req = new async_tx_data();
 
   req->err_msg = std::string("");
-  req->txid = std::string("");
-
-  std::string txid = std::string(*txid_);
-
   req->txid = txid;
   req->queryMempool = queryMempool;
   req->isolate = isolate;
@@ -993,8 +979,8 @@ static void
 async_get_tx(uv_work_t *req) {
   async_tx_data* data = reinterpret_cast<async_tx_data*>(req->data);
 
-  uint256 hash = uint256S(data->txid);
   uint256 blockhash;
+  uint256 hash = uint256S(data->txid);
   CTransaction ctx;
 
   if (data->queryMempool) {
@@ -1040,7 +1026,7 @@ async_get_tx_after(uv_work_t *r) {
   HandleScope scope(isolate);
 
   CTransaction ctx = req->ctx;
-  TryCatch try_catch;
+  Nan::TryCatch try_catch;
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
 
   if (req->err_msg != "") {
@@ -1049,28 +1035,32 @@ async_get_tx_after(uv_work_t *r) {
     cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
   } else {
 
-    Nan::MaybeLocal<v8::Object> result = Local<Value>::New(isolate, Null());
-
     if (!ctx.IsNull()) {
       CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
       ssTx << ctx;
       std::string stx = ssTx.str();
-      result = Nan::NewBuffer((char *)stx.c_str(), stx.size());
+      Nan::MaybeLocal<v8::Object> result = Nan::NewBuffer((char *)stx.c_str(), stx.size());
+      Local<Value> argv[2] = {
+        Local<Value>::New(isolate, Null()),
+        result.ToLocalChecked()
+      };
+      cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
+
+    } else {
+      Local<Value> argv[2] = {
+        Local<Value>::New(isolate, Null()),
+        Local<Value>::New(isolate, Null())
+      };
+      cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
     }
 
-    Local<Value> argv[2] = {
-      Local<Value>::New(isolate, Null()),
-      result.ToLocalChecked()
-    };
-    cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
   }
 
   if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
+    Nan::FatalException(try_catch);
   }
 
   req->callback.Reset();
-  delete req;
 }
 
 /**
@@ -1182,7 +1172,7 @@ async_get_tx_and_info_after(uv_work_t *r) {
   HandleScope scope(isolate);
 
   CTransaction ctx = req->ctx;
-  TryCatch try_catch;
+  Nan::TryCatch try_catch;
   Local<Function> cb = Local<Function>::New(isolate, req->callback);
   Local<Object> obj = New<Object>();
 
@@ -1209,10 +1199,9 @@ async_get_tx_and_info_after(uv_work_t *r) {
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
   }
   if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
+    Nan::FatalException(try_catch);
   }
   req->callback.Reset();
-  delete req;
 }
 
 /**
