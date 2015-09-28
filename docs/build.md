@@ -93,4 +93,14 @@ Once everything is built, you can run bitcore-node via:
 npm start
 ```
 
+## Cross-Compiling for ARM processors such as Android devices and Raspberry Pi-type devices
+
+Bitcore-node has been tested on recent ARM processors like ARM CORTEX-A7 on Linux variants. We've tested Bitcore-node with armhf (hardware floating point support). It is much easier to cross-compile on a faster computer and transfer to the target device. Please refer to: https://wiki.debian.org/CrossToolchains. The following is the command to run on a linux build computer for a linux-based Raspberry Pi.
+
+```bash
+CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ npm install #note the CC and CXX environment variables
+scp build/Release/bitcoind.node <user>@<arm host>:<dir of bitcore-node>/build/Release
+```
+
+
 This will then start the syncing process for Bitcoin Core and the extended capabilities as provided by the built-in Address Module (details below).

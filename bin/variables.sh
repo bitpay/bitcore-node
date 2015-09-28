@@ -5,9 +5,29 @@ exec 2> /dev/null
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 bitcoin_dir="${root_dir}"/libbitcoind
 cache_dir="${root_dir}"/cache
+depends_dir="${bitcoin_dir}"/depends
+leveldb="${cache_dir}"/src/leveldb/libleveldb.a
+memenv="${cache_dir}"/src/leveldb/libmemenv.a
+libsecp256k1="${cache_dir}"/src/secp256k1/.libs/libsecp256k1.a
 
-platform=`uname -a | awk '{print tolower($1)}'`
-arch=`uname -m`
+get_host_and_platform () {
+  #if this is set, then we might be using a cross compiler for something like arm
+  if [ -n "${CXX}" ] && [ "${CXX}" != "g++" ]; then
+    COMPILER="${CXX}"
+  elif [ -n "${CC}" ] && [ "${CC}" != "gcc" ]; then
+    COMPILER="${CC}"
+  fi
+  if [ -n "${COMPILER}" ]; then
+    IFS='-' read -ra SYS <<< "${COMPILER}"
+    platform="${SYS[1]}"-"${SYS[2]}"
+    arch="${SYS[0]}"
+  else
+    platform=`uname -a | awk '{print tolower($1)}'`
+    arch=`uname -m`
+  fi
+}
+
+get_host_and_platform
 host="${arch}"-"${platform}"
 
 mac_response=
@@ -23,15 +43,11 @@ check_mac_build_system () {
   fi
 }
 
-depends_dir="${bitcoin_dir}"/depends
 thread="${cache_dir}"/depends/"${host}"/lib/libboost_thread-mt.a
 filesystem="${cache_dir}"/depends/"${host}"/lib/libboost_filesystem-mt.a
 chrono="${cache_dir}"/depends/"${host}"/lib/libboost_chrono-mt.a
 program_options="${cache_dir}"/depends/"${host}"/lib/libboost_program_options-mt.a
 system="${cache_dir}"/depends/"${host}"/lib/libboost_system-mt.a
-leveldb="${cache_dir}"/src/leveldb/libleveldb.a
-memenv="${cache_dir}"/src/leveldb/libmemenv.a
-libsecp256k1="${cache_dir}"/src/secp256k1/.libs/libsecp256k1.a
 ssl="${cache_dir}"/depends/"${host}"/lib/libssl.a
 crypto="${cache_dir}"/depends/"${host}"/lib/libcrypto.a
 
@@ -123,6 +139,12 @@ fi
 if test -z "$1" -o x"$1" = x'wallet_enabled'; then
   if [ "${BITCORENODE_ENV}" == "test" ]; then
     echo -n "-DENABLE_WALLET"
+  fi
+fi
+
+if test -z "$1" -o x"$1" = x'sys'; then
+  if [ -n "${SYS}" ]; then
+    echo -n "--arch=${SYS[0]}"
   fi
 fi
 
