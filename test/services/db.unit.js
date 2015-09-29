@@ -38,6 +38,9 @@ describe('DB Service', function() {
     store: memdown
   };
 
+  var genesisBuffer = new Buffer('0100000043497fd7f826957108f4a30fd9cec3aeba79972084e90ead01ea330900000000bac8b0fa927c0ac8234287e33c5f74d38d354820e24756ad709d7038fc5f31f020e7494dffff001d03e4b6720101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0e0420e7494d017f062f503253482fffffffff0100f2052a010000002321021aeaf2f8638a129a3156fbe7e5ef635226b0bafd495ff03afe2c843d7e3a4b51ac00000000', 'hex');
+
+
   describe('#_setDataPath', function() {
     it('should set the database path', function() {
       var config = {
@@ -104,7 +107,6 @@ describe('DB Service', function() {
 
   describe('#start', function() {
     var TestDB;
-    var genesisBuffer;
 
     before(function() {
       TestDB = proxyquire('../../lib/services/db', {
@@ -113,7 +115,6 @@ describe('DB Service', function() {
         },
         levelup: sinon.stub()
       });
-      genesisBuffer = new Buffer('0100000043497fd7f826957108f4a30fd9cec3aeba79972084e90ead01ea330900000000bac8b0fa927c0ac8234287e33c5f74d38d354820e24756ad709d7038fc5f31f020e7494dffff001d03e4b6720101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0e0420e7494d017f062f503253482fffffffff0100f2052a010000002321021aeaf2f8638a129a3156fbe7e5ef635226b0bafd495ff03afe2c843d7e3a4b51ac00000000', 'hex');
     });
 
     it('should emit ready', function(done) {
@@ -124,9 +125,8 @@ describe('DB Service', function() {
         on: sinon.spy(),
         genesisBuffer: genesisBuffer
       };
-      db.getMetadata = sinon.stub().callsArg(0);
+      db.loadTip = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
-      db.saveMetadata = sinon.stub();
       db.sync = sinon.stub();
       var readyFired = false;
       db.on('ready', function() {
@@ -138,111 +138,13 @@ describe('DB Service', function() {
       });
     });
 
-    it('genesis block if no metadata is found in the db', function(done) {
-      var node = {
-        network: Networks.testnet,
-        datadir: 'testdir',
-        services: {
-          bitcoind: {
-            genesisBuffer: genesisBuffer,
-            on: sinon.stub()
-          }
-        }
-      };
-      var db = new TestDB({node: node});
-      db.getMetadata = sinon.stub().callsArgWith(0, null, null);
-      db.connectBlock = sinon.stub().callsArg(1);
-      db.saveMetadata = sinon.stub();
-      db.sync = sinon.stub();
-      db.start(function() {
-        should.exist(db.tip);
-        db.tip.hash.should.equal('00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206');
-        done();
-      });
-    });
-
-    it('metadata from the database if it exists', function(done) {
-      var tipHash = '00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206';
-      var node = {
-        network: Networks.testnet,
-        datadir: 'testdir',
-        services: {
-          bitcoind: {
-            genesisBuffer: genesisBuffer,
-            getBlockIndex: sinon.stub().returns({tip:tipHash}),
-            on: sinon.stub()
-          }
-        }
-      };
-      var tip = Block.fromBuffer(genesisBuffer);
-      var db = new TestDB({node: node});
-      db.getMetadata = sinon.stub().callsArgWith(0, null, {
-        tip: tipHash,
-        tipHeight: 0
-      });
-      db.getBlock = sinon.stub().callsArgWith(1, null, tip);
-      db.saveMetadata = sinon.stub();
-      db.sync = sinon.stub();
-      db.start(function() {
-        should.exist(db.tip);
-        db.tip.hash.should.equal(tipHash);
-        done();
-      });
-    });
-
-    it('emit error from getMetadata', function(done) {
-      var node = {
-        network: Networks.testnet,
-        datadir: 'testdir',
-        services: {
-          bitcoind: {
-            genesisBuffer: genesisBuffer,
-            on: sinon.stub()
-          }
-        }
-      };
-      var db = new TestDB({node: node});
-      db.getMetadata = sinon.stub().callsArgWith(0, new Error('test'));
-      db.start(function(err) {
-        should.exist(err);
-        err.message.should.equal('test');
-        done();
-      });
-    });
-
-    it('emit error from getBlock', function(done) {
-      var node = {
-        network: Networks.testnet,
-        datadir: 'testdir',
-        services: {
-          bitcoind: {
-            genesisBuffer: genesisBuffer,
-            on: sinon.stub()
-          }
-        }
-      };
-      var db = new TestDB({node: node});
-      var tipHash = '00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206';
-      db.getMetadata = sinon.stub().callsArgWith(0, null, {
-        tip: tipHash,
-        tipHeigt: 0
-      });
-      db.getBlock = sinon.stub().callsArgWith(1, new Error('test'));
-      db.start(function(err) {
-        should.exist(err);
-        err.message.should.equal('test');
-        done();
-      });
-    });
-
     it('will call sync when there is a new tip', function(done) {
       var db = new TestDB(baseConfig);
       db.node.services = {};
       db.node.services.bitcoind = new EventEmitter();
       db.node.services.bitcoind.genesisBuffer = genesisBuffer;
-      db.getMetadata = sinon.stub().callsArg(0);
+      db.loadTip = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
-      db.saveMetadata = sinon.stub();
       db.sync = sinon.stub();
       db.start(function() {
         db.sync = function() {
@@ -258,9 +160,8 @@ describe('DB Service', function() {
       db.node.services.bitcoind = new EventEmitter();
       db.node.services.bitcoind.syncPercentage = sinon.spy();
       db.node.services.bitcoind.genesisBuffer = genesisBuffer;
-      db.getMetadata = sinon.stub().callsArg(0);
+      db.loadTip = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
-      db.saveMetadata = sinon.stub();
       db.node.stopping = true;
       db.sync = sinon.stub();
       db.start(function() {
@@ -334,6 +235,98 @@ describe('DB Service', function() {
           throw err;
         }
         should.exist(tx);
+        done();
+      });
+    });
+  });
+
+  describe('#loadTip', function() {
+    it('genesis block if no metadata is found in the db', function(done) {
+      var db = new DB(baseConfig);
+      db.genesis = Block.fromBuffer(genesisBuffer);
+      db.store = {
+        get: sinon.stub().callsArgWith(2, new levelup.errors.NotFoundError())
+      };
+      db.connectBlock = sinon.stub().callsArg(1);
+      db.sync = sinon.stub();
+      db.loadTip(function() {
+        should.exist(db.tip);
+        db.tip.hash.should.equal('00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206');
+        done();
+      });
+    });
+
+    it('tip from the database if it exists', function(done) {
+      var node = {
+        network: Networks.testnet,
+        datadir: 'testdir',
+        services: {
+          bitcoind: {
+            genesisBuffer: genesisBuffer,
+            on: sinon.stub(),
+            getBlockIndex: sinon.stub().returns({height: 1})
+          }
+        }
+      };
+      var tipHash = '00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206';
+      var tip = Block.fromBuffer(genesisBuffer);
+      var db = new DB({node: node});
+      db.store = {
+        get: sinon.stub().callsArgWith(2, null, new Buffer(tipHash, 'hex'))
+      };
+      db.getBlock = sinon.stub().callsArgWith(1, null, tip);
+      db.sync = sinon.stub();
+      db.loadTip(function() {
+        should.exist(db.tip);
+        db.tip.hash.should.equal(tipHash);
+        db.tip.__height.should.equal(1);
+        done();
+      });
+    });
+
+    it('give error if levelup error', function(done) {
+      var node = {
+        network: Networks.testnet,
+        datadir: 'testdir',
+        services: {
+          bitcoind: {
+            genesisBuffer: genesisBuffer,
+            on: sinon.stub()
+          }
+        }
+      };
+      var db = new DB({node: node});
+      db.store = {
+        get: sinon.stub().callsArgWith(2, new Error('test'))
+      };
+      db.loadTip(function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+
+    it('give error from getBlock', function(done) {
+      var node = {
+        network: Networks.testnet,
+        datadir: 'testdir',
+        services: {
+          bitcoind: {
+            genesisBuffer: genesisBuffer,
+            on: sinon.stub(),
+            getBlockIndex: sinon.stub().returns({height: 1})
+          }
+        }
+      };
+      var db = new DB({node: node});
+      var tipHash = '00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206';
+      db.store = {
+        get: sinon.stub().callsArgWith(2, null, new Buffer(tipHash, 'hex'))
+      };
+      db.getBlock = sinon.stub().callsArgWith(1, new Error('test'));
+      db.loadTip(function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
         done();
       });
     });
@@ -581,119 +574,6 @@ describe('DB Service', function() {
     });
   });
 
-  describe('#saveMetadata', function() {
-    it('will emit an error with default callback', function(done) {
-      var db = new DB(baseConfig);
-      db.cache = {
-        hashes: {},
-        chainHashes: {}
-      };
-      db.tip = {
-        hash: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
-        __height: 0
-      };
-      db.store = {
-        put: sinon.stub().callsArgWith(3, new Error('test'))
-      };
-      db.on('error', function(err) {
-        err.message.should.equal('test');
-        done();
-      });
-      db.saveMetadata();
-    });
-    it('will give an error with callback', function(done) {
-      var db = new DB(baseConfig);
-      db.cache = {
-        hashes: {},
-        chainHashes: {}
-      };
-      db.tip = {
-        hash: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
-        __height: 0
-      };
-      db.store = {
-        put: sinon.stub().callsArgWith(3, new Error('test'))
-      };
-      db.saveMetadata(function(err) {
-        err.message.should.equal('test');
-        done();
-      });
-    });
-    it('will call store with the correct arguments', function(done) {
-      var db = new DB(baseConfig);
-      db.cache = {
-        hashes: {},
-        chainHashes: {}
-      };
-      db.tip = {
-        hash: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
-        __height: 0
-      };
-      db.store = {
-        put: function(key, value, options, callback) {
-          key.should.equal('metadata');
-          JSON.parse(value).should.deep.equal({
-            tip: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f'
-          });
-          options.should.deep.equal({});
-          callback.should.be.a('function');
-          done();
-        }
-      };
-      db.saveMetadata();
-    });
-  });
-
-  describe('#getMetadata', function() {
-    it('will get metadata', function() {
-      var db = new DB(baseConfig);
-      var json = JSON.stringify({
-        tip: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
-        tipHeight: 101,
-        cache: {
-          hashes: {},
-          chainHashes: {}
-        }
-      });
-      db.store = {};
-      db.store.get = sinon.stub().callsArgWith(2, null, json);
-      db.getMetadata(function(err, data) {
-        data.tip.should.equal('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f');
-        data.tipHeight.should.equal(101);
-        data.cache.should.deep.equal({
-          hashes: {},
-          chainHashes: {}
-        });
-      });
-    });
-    it('will handle a notfound error from leveldb', function() {
-      var db = new DB(baseConfig);
-      db.store = {};
-      var error = new levelup.errors.NotFoundError();
-      db.store.get = sinon.stub().callsArgWith(2, error);
-      db.getMetadata(function(err, data) {
-        should.not.exist(err);
-        data.should.deep.equal({});
-      });
-    });
-    it('will handle error from leveldb', function() {
-      var db = new DB(baseConfig);
-      db.store = {};
-      db.store.get = sinon.stub().callsArgWith(2, new Error('test'));
-      db.getMetadata(function(err) {
-        err.message.should.equal('test');
-      });
-    });
-    it('give an error when parsing invalid json', function() {
-      var db = new DB(baseConfig);
-      db.store = {};
-      db.store.get = sinon.stub().callsArgWith(2, null, '{notvalid@json}');
-      db.getMetadata(function(err) {
-        err.message.should.equal('Could not parse metadata');
-      });
-    });
-  });
-
   describe('#connectBlock', function() {
     it('should remove block from mempool and call blockHandler with true', function(done) {
       var db = new DB(baseConfig);
@@ -749,12 +629,17 @@ describe('DB Service', function() {
     it('should call blockHandler in all services and perform operations', function(done) {
       db.runAllBlockHandlers(block, true, function(err) {
         should.not.exist(err);
+        var tipOp = {
+          type: 'put',
+          key: DB.PREFIXES.TIP,
+          value: new Buffer('00000000000000000d0aaf93e464ddeb503655a0750f8b9c6eed0bdf0ccfc863', 'hex')
+        }
         var blockOp = {
           type: 'put',
           key: db._encodeBlockIndexKey(1441906365),
           value: db._encodeBlockIndexValue('00000000000000000d0aaf93e464ddeb503655a0750f8b9c6eed0bdf0ccfc863')
         };
-        db.store.batch.args[0][0].should.deep.equal([blockOp, 'op1', 'op2', 'op3', 'op4', 'op5']);
+        db.store.batch.args[0][0].should.deep.equal([tipOp, blockOp, 'op1', 'op2', 'op3', 'op4', 'op5']);
         done();
       });
     });
@@ -904,7 +789,6 @@ describe('DB Service', function() {
           prevHash: hexlebuf(chainHashes[chainHashes.length - 1])
         }
       };
-      db.saveMetadata = sinon.stub();
       db.emit = sinon.stub();
       db.getBlock = function(hash, callback) {
         setImmediate(function() {
@@ -964,7 +848,6 @@ describe('DB Service', function() {
         __height: 0,
         hash: lebufhex(block.header.prevHash)
       };
-      db.saveMetadata = sinon.stub();
       db.emit = sinon.stub();
       db.cache = {
         hashes: {}
@@ -1009,7 +892,6 @@ describe('DB Service', function() {
         __height: 0,
         hash: block.prevHash
       };
-      db.saveMetadata = sinon.stub();
       db.emit = sinon.stub();
       db.cache = {
         hashes: {}
