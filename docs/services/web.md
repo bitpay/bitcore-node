@@ -1,3 +1,7 @@
+---
+title: Web Service
+description: Overview of the Web Service for Bitcore Node
+---
 # Web Service
 
 The web service creates an express app which can be used by services for setting up web routes for API's, static content, web applications, etc. This allows users to interact with various bitcore node services over one http or https port.

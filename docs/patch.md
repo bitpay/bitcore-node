@@ -1,3 +1,7 @@
+---
+title: Bitcoin Core Patch
+description: Description of the patch applied to Bitcoin Core to compile as a static library
+---
 # Static Library Patch
 
 To provide native bindings to JavaScript *(or any other language for that matter)*, Bitcoin code, itself, must be linkable. Currently, Bitcoin Core provides a JSON RPC interface to bitcoind as well as a shared library for script validation *(and hopefully more)* called libbitcoinconsensus. There is a node module, [node-libbitcoinconsensus](https://github.com/bitpay/node-libbitcoinconsensus), that exposes these methods. While these interfaces are useful for several use cases, there are additional use cases that are not fulfilled, and being able to implement customized interfaces is necessary. To be able to do this a few simple changes need to be made to Bitcoin Core to compile as a static library.

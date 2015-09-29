@@ -1,6 +1,10 @@
+---
+title: Bitcoin Service
+description: Overview of the Bitcoin Service for Bitcore Node
+---
 # Bitcoin Service
 
-The Bitcoin Service adds a native Node.js interface to Bitcoin Core for querying information about the Bitcoin blockchain. Bindings are linked to Bitcoin Core compiled as a static library.
+The Bitcoin Service adds a native [Node.js](https://nodejs.org) interface to [Bitcoin Core](https://github.com/bitcoin/bitcoin) for querying information about the Bitcoin blockchain. Bindings are linked to Bitcoin Core compiled as a static library.
 
 ## API Documentation
 
