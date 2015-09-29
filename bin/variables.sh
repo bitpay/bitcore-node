@@ -24,6 +24,11 @@ get_host_and_platform () {
   else
     platform=`uname -a | awk '{print tolower($1)}'`
     arch=`uname -m`
+    #for arm architectures, in order to get the right compiler later, use a predefined host
+    if [ "${arch:0:3}" == "arm" ]; then
+      platform="linux-gnueabihf"
+      arch="arm"
+    fi
   fi
 }
 
