@@ -12,6 +12,13 @@ bitcore-node start
 
 Note: For your convenience, we distribute binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. For more detailed installation instructions, or if you want to compile the project yourself, then please see the [Build & Install](build.md) documentation to build the project from source.
 
+## Prerequisites
+
+- Node.js v0.12
+- ~100GB of disk storage
+- ~1GB of RAM
+- Mac OS X >= 10.9, Ubuntu >= 12.04 (libc >= 2.15 and libstdc++ >= 6.0.16)
+
 ## Configuration
 
 Bitcore Node includes a Command Line Interface (CLI) for managing, configuring and interfacing with your Bitcore Node.
