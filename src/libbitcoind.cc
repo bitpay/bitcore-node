@@ -1267,6 +1267,7 @@ NAN_METHOD(GetBlockIndex) {
 
     if (blockIndex == NULL) {
       info.GetReturnValue().Set(Null());
+      return;
     }
 
   } else {

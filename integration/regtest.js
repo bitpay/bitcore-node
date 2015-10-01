@@ -184,6 +184,14 @@ describe('Daemon Binding Functionality', function() {
         });
       });
     });
+
+    it('will get error with number greater than tip', function(done) {
+      bitcoind.getBlock(1000000000, function(err, response) {
+        should.exist(err);
+        done();
+      });
+    });
+
   });
 
   describe('get transactions by hash', function() {
@@ -253,6 +261,11 @@ describe('Daemon Binding Functionality', function() {
         blockIndex.prevHash.should.equal(blockHashes[i - 2]);
         blockIndex.height.should.equal(i);
       });
+    });
+    it('will get null with number greater than tip', function(done) {
+      var index = bitcoind.getBlockIndex(100000);
+      should.equal(index, null);
+      done();
     });
   });
 
