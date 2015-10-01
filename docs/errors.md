@@ -1,3 +1,7 @@
+---
+title: Errors
+description: Errors for Bitcore Node
+---
 # Errors
 
 Many times there are cases where an error condition can be gracefully handled depending on a particular use. To assist in better error handling, errors will have different types so that it's possible to determine the type of error and handle appropriatly.

@@ -1,4 +1,8 @@
-## Build & Install
+---
+title: Build & Install
+description: Build & installation instructions for Bitcore Node
+---
+# Build & Install
 
 This includes a detailed instructions for compiling. There are two main parts of the build, compiling Bitcoin Core as a static library and the Node.js bindings.
 

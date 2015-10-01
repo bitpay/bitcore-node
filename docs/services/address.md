@@ -1,3 +1,7 @@
+---
+title: Address Service
+description: Overview of the Address Service for Bitcore Node
+---
 # Address Service
 
 The address service builds on the [Bitcoin Service](bitcoind.md) and the [Database Service](db.md) to add additional functionality for querying and subscribing to information based on bitcoin addresses. This will typically represent the core functionality for wallet applications.

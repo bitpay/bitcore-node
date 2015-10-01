@@ -1,4 +1,8 @@
-## Development & Testing
+---
+title: Development & Testing
+description: Notes for development and debugging Bitcore Node
+---
+# Development & Testing
 
 To run all of the JavaScript tests:
 

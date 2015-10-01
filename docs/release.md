@@ -1,3 +1,7 @@
+---
+title: Release Process
+description: Description to verify releases
+---
 # Release Process
 
 Binaries for the C++ binding file (which includes libbitcoind statically linked in) are distributed for convenience. The binary binding file `bitcoind.node` is signed and published to S3 for later download and installation. Source files can also be built if binaries are not desired.

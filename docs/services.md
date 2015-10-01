@@ -1,10 +1,8 @@
+---
+title: Services
+description: Overview of Bitcore Node services architecture.
+---
 # Services
-
-## Available Services
-
-- [Bitcoin Daemon](services/bitcoind.md)
-- [DB](services/db.md)
-- [Address](services/address.md)
 
 ## Overview
 

@@ -1,3 +1,7 @@
+---
+title: Database Service
+description: Overview of the Database Service for Bitcore Node
+---
 # Database Service
 
 This service synchronizes a leveldb database with the [Bitcoin Service](bitcoind.md) block chain by connecting and disconnecting blocks to build new indexes that can be queried. Other services can extend the data that is indexed by implementing a `blockHandler` method, similar to the built-in [Address Service](address.md).

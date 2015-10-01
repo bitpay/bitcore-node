@@ -1,3 +1,7 @@
+---
+title: Node
+description: A collection of services run as node.
+---
 # Node
 
 A node represents a collection of services that are loaded together. For more information about services, please see the [Services Documentation](services.md).

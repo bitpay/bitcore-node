@@ -1,3 +1,7 @@
+---
+title: Scaffolding
+description: Description of functions for Bitcore Node configuration
+---
 # Scaffold
 
 A collection of functions for creating, managing, starting, stopping and interacting with a Bitcore Node. 
@@ -29,4 +33,3 @@ This function will remove a service from a node by uninstalling the necessary de
 ## Call Method
 
 This function will call an API method on a node via the JSON-RPC interface.
-
