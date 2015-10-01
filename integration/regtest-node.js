@@ -34,6 +34,7 @@ var testKey;
 var client;
 
 var outputForIsSpentTest1;
+var unspentOutputSpentTxId;
 
 describe('Node Functionality', function() {
 
@@ -355,6 +356,8 @@ describe('Node Functionality', function() {
         tx.fee(10000);
         tx.change(address);
         tx.sign(testKey);
+
+        unspentOutputSpentTxId = tx.id;
 
         node.services.bitcoind.sendTransaction(tx.serialize());
 
@@ -733,9 +736,28 @@ describe('Node Functionality', function() {
 
     });
 
-    describe('isSpent', function() {
+    describe('#getInputForOutput(db)', function() {
+      it('will get the input txid and input index', function(done) {
+        var txid = outputForIsSpentTest1.txid;
+        var outputIndex = outputForIsSpentTest1.outputIndex;
+        var options = {
+          queryMempool: true
+        };
+        node.services.address.getInputForOutput(txid, outputIndex, options, function(err, result) {
+          result.inputTxId.should.equal(unspentOutputSpentTxId);
+          result.inputIndex.should.equal(0);
+          done();
+        });
+      });
+    });
+
+    describe('#isSpent and #getInputForOutput(mempool)', function() {
+      var spentOutput;
+      var spentOutputInputTxId;
       it('will return true if an input is spent in a confirmed transaction', function(done) {
-        var result = node.services.bitcoind.isSpent(outputForIsSpentTest1.txid, outputForIsSpentTest1.outputIndex);
+        var txid = outputForIsSpentTest1.txid;
+        var outputIndex = outputForIsSpentTest1.outputIndex;
+        var result = node.services.bitcoind.isSpent(txid, outputIndex);
         result.should.equal(true);
         done();
       });
@@ -755,6 +777,8 @@ describe('Node Functionality', function() {
           tx.sign(testKey);
 
           node.services.bitcoind.sendTransaction(tx.serialize());
+          spentOutput = unspentOutput;
+          spentOutputInputTxId = tx.hash;
 
           setImmediate(function() {
             var result = node.services.bitcoind.isSpent(unspentOutput.txid, unspentOutput.outputIndex);
@@ -763,6 +787,21 @@ describe('Node Functionality', function() {
           });
         });
       });
+
+      it('will get the input txid and input index (mempool)', function(done) {
+        var txid = spentOutput.txid;
+        var outputIndex = spentOutput.outputIndex;
+        var options = {
+          queryMempool: true
+        };
+        node.services.address.getInputForOutput(txid, outputIndex, options, function(err, result) {
+          result.inputTxId.should.equal(spentOutputInputTxId);
+          result.inputIndex.should.equal(0);
+          done();
+        });
+      });
+
     });
+
   });
 });
