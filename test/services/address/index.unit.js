@@ -92,7 +92,7 @@ describe('Address Service', function() {
   });
 
   describe('#transactionHandler', function() {
-    it('will pass outputs to transactionOutputHandler and call transactionEventHandler', function() {
+    it('will pass outputs to transactionOutputHandler and call transactionEventHandler and balanceEventHandler', function() {
       var txBuf = new Buffer('01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000', 'hex');
       var am = new AddressService({node: mocknode});
       var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
@@ -101,10 +101,12 @@ describe('Address Service', function() {
         messages[address] = message;
       };
       am.transactionEventHandler = sinon.spy();
+      am.balanceEventHandler = sinon.spy();
       am.transactionHandler({
         buffer: txBuf
       });
       am.transactionEventHandler.callCount.should.equal(1);
+      am.balanceEventHandler.callCount.should.equal(1);
     });
   });
 
