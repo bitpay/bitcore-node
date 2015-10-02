@@ -306,7 +306,7 @@ describe('DB Service', function() {
       });
     });
 
-    it('give error from getBlock', function(done) {
+    it('should try 3 times before giving error from getBlock', function(done) {
       var node = {
         network: Networks.testnet,
         datadir: 'testdir',
@@ -319,6 +319,7 @@ describe('DB Service', function() {
         }
       };
       var db = new DB({node: node});
+      db.retryInterval = 10;
       var tipHash = '00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206';
       db.store = {
         get: sinon.stub().callsArgWith(2, null, new Buffer(tipHash, 'hex'))
@@ -326,6 +327,7 @@ describe('DB Service', function() {
       db.getBlock = sinon.stub().callsArgWith(1, new Error('test'));
       db.loadTip(function(err) {
         should.exist(err);
+        db.getBlock.callCount.should.equal(3);
         err.message.should.equal('test');
         done();
       });
