@@ -1231,17 +1231,20 @@ NAN_METHOD(IsSpent) {
   const uint256 txid = uint256S(argStr);
   int outputIndex = info[1]->IntegerValue();
 
-  CCoinsView dummy;
-  CCoinsViewCache view(&dummy);
+  {
+    LOCK(mempool.cs);
+    CCoinsView dummy;
+    CCoinsViewCache view(&dummy);
 
-  CCoinsViewMemPool viewMemPool(pcoinsTip, mempool);
-  view.SetBackend(viewMemPool);
+    CCoinsViewMemPool viewMemPool(pcoinsTip, mempool);
+    view.SetBackend(viewMemPool);
 
-  if (view.HaveCoins(txid)) {
-    const CCoins* coins = view.AccessCoins(txid);
-    if (coins && coins->IsAvailable(outputIndex)) {
-      info.GetReturnValue().Set(New<Boolean>(false));
-      return;
+    if (view.HaveCoins(txid)) {
+      const CCoins* coins = view.AccessCoins(txid);
+      if (coins && coins->IsAvailable(outputIndex)) {
+        info.GetReturnValue().Set(New<Boolean>(false));
+        return;
+      }
     }
   }
   info.GetReturnValue().Set(New<Boolean>(true));
