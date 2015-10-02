@@ -33,7 +33,7 @@ describe('Address Service', function() {
     it('should return the correct methods', function() {
       var am = new AddressService({node: mocknode});
       var methods = am.getAPIMethods();
-      methods.length.should.equal(6);
+      methods.length.should.equal(7);
     });
   });
 
@@ -162,16 +162,19 @@ describe('Address Service', function() {
 
       am.blockHandler(block, true, function(err, operations) {
         should.not.exist(err);
-        operations.length.should.equal(81);
+        operations.length.should.equal(151);
         operations[0].type.should.equal('put');
         operations[0].key.toString('hex').should.equal('0202a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b00000543abfdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e1692300000000');
         operations[0].value.toString('hex').should.equal('41e2a49ec1c0000076a91402a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b88ac');
         operations[3].type.should.equal('put');
         operations[3].key.toString('hex').should.equal('03fdbd324b28ea69e49c998816407dc055fb81d06e00000543ab3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a900000020');
         operations[3].value.toString('hex').should.equal('5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca00000000');
-        operations[64].type.should.equal('put');
-        operations[64].key.toString('hex').should.equal('029780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
-        operations[64].value.toString('hex').should.equal('4147a6b00000000076a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac');
+        operations[4].type.should.equal('put');
+        operations[4].key.toString('hex').should.equal('053d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a900000020');
+        operations[4].value.toString('hex').should.equal('5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca00000000');
+        operations[121].type.should.equal('put');
+        operations[121].key.toString('hex').should.equal('029780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
+        operations[121].value.toString('hex').should.equal('4147a6b00000000076a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac');
         done();
       });
     });
@@ -185,16 +188,16 @@ describe('Address Service', function() {
       };
       am.blockHandler(block, false, function(err, operations) {
         should.not.exist(err);
-        operations.length.should.equal(81);
+        operations.length.should.equal(151);
         operations[0].type.should.equal('del');
         operations[0].key.toString('hex').should.equal('0202a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b00000543abfdbefe0d064729d85556bd3ab13c3a889b685d042499c02b4aa2064fb1e1692300000000');
         operations[0].value.toString('hex').should.equal('41e2a49ec1c0000076a91402a61d2066d19e9e2fd348a8320b7ebd4dd3ca2b88ac');
         operations[3].type.should.equal('del');
         operations[3].key.toString('hex').should.equal('03fdbd324b28ea69e49c998816407dc055fb81d06e00000543ab3d7d5d98df753ef2a4f82438513c509e3b11f3e738e94a7234967b03a03123a900000020');
         operations[3].value.toString('hex').should.equal('5780f3ee54889a0717152a01abee9a32cec1b0cdf8d5537a08c7bd9eeb6bfbca00000000');
-        operations[64].type.should.equal('del');
-        operations[64].key.toString('hex').should.equal('029780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
-        operations[64].value.toString('hex').should.equal('4147a6b00000000076a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac');
+        operations[121].type.should.equal('del');
+        operations[121].key.toString('hex').should.equal('029780ccd5356e2acc0ee439ee04e0fe69426c752800000543abe66f3b989c790178de2fc1a5329f94c0d8905d0d3df4e7ecf0115e7f90a6283d00000001');
+        operations[121].value.toString('hex').should.equal('4147a6b00000000076a9149780ccd5356e2acc0ee439ee04e0fe69426c752888ac');
         done();
       });
     });
@@ -208,6 +211,7 @@ describe('Address Service', function() {
         },
         transactions: [
           {
+            id: '3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7',
             inputs: [],
             outputs: [
               {
@@ -260,6 +264,36 @@ describe('Address Service', function() {
           am.balanceEventHandler.callCount.should.equal(11);
         }
       );
+    });
+  });
+
+  describe('#_encodeInputKeyMap/#_decodeInputKeyMap roundtrip', function() {
+    var encoded;
+    var outputTxIdBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
+    it('encode key', function() {
+      var am = new AddressService({node: mocknode});
+      encoded = am._encodeInputKeyMap(outputTxIdBuffer, 13);
+    });
+    it('decode key', function() {
+      var am = new AddressService({node: mocknode});
+      var key = am._decodeInputKeyMap(encoded);
+      key.outputTxId.toString('hex').should.equal(outputTxIdBuffer.toString('hex'));
+      key.outputIndex.should.equal(13);
+    });
+  });
+
+  describe('#_encodeInputValueMap/#_decodeInputValueMap roundtrip', function() {
+    var encoded;
+    var inputTxIdBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
+    it('encode key', function() {
+      var am = new AddressService({node: mocknode});
+      encoded = am._encodeInputValueMap(inputTxIdBuffer, 7);
+    });
+    it('decode key', function() {
+      var am = new AddressService({node: mocknode});
+      var key = am._decodeInputValueMap(encoded);
+      key.inputTxId.toString('hex').should.equal(inputTxIdBuffer.toString('hex'));
+      key.inputIndex.should.equal(7);
     });
   });
 
