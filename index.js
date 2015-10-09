@@ -10,6 +10,7 @@ module.exports.services = {};
 module.exports.services.Address = require('./lib/services/address');
 module.exports.services.Bitcoin = require('./lib/services/bitcoind');
 module.exports.services.DB = require('./lib/services/db');
+module.exports.services.Web = require('./lib/services/web');
 
 module.exports.scaffold = {};
 module.exports.scaffold.create = require('./lib/scaffold/create');
