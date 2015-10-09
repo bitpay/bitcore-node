@@ -1422,23 +1422,36 @@ NAN_METHOD(SendTransaction) {
   const CCoins* existingCoins = view.AccessCoins(hashTx);
   bool fHaveMempool = mempool.exists(hashTx);
   bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
+  bool fhaveError = false;
+  Local<Object> error = New<Object>();
+  unsigned char code = 0;
+  std::string message;
+
   if (!fHaveMempool && !fHaveChain) {
     CValidationState state;
     bool fMissingInputs;
 
     // Attempt to add the transaction to the mempool
     if (!AcceptToMemoryPool(mempool, state, tx, false, &fMissingInputs, !allowAbsurdFees)) {
+      fhaveError = true;
+      message = state.GetRejectReason();
       if (state.IsInvalid()) {
-        return ThrowError((boost::lexical_cast<std::string>(state.GetRejectCode()) + ": " + state.GetRejectReason()).c_str());
+        code = state.GetRejectCode();
       } else {
         if (fMissingInputs) {
-          return ThrowError("Missing inputs");
+          message = "Missing inputs";
         }
-        return ThrowError(state.GetRejectReason().c_str());
       }
     }
   } else if (fHaveChain) {
-    return ThrowError("transaction already in block chain");
+    fhaveError = true;
+    message = "transaction already in blockchain";
+  }
+
+  if (fhaveError) {
+    Set(error, New("code").ToLocalChecked(), New<Number>(code));
+    Set(error, New("message").ToLocalChecked(), New(message).ToLocalChecked());
+    return info.GetReturnValue().Set(error);
   }
 
   // Relay the transaction connect peers
