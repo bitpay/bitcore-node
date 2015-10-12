@@ -872,7 +872,7 @@ describe('Address Service', function() {
 
       var am = new AddressService({node: mocknode});
       am.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
-      am.isUnspent = function(output, callback) {
+      am.isUnspent = function(output, options, callback) {
         callback(!outputs[i].spent);
         i++;
       };
@@ -914,24 +914,24 @@ describe('Address Service', function() {
     });
 
     it('should give true when isSpent() gives false', function(done) {
-      am.isSpent = sinon.stub().callsArgWith(1, false);
-      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', function(unspent) {
+      am.isSpent = sinon.stub().callsArgWith(2, false);
+      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', {}, function(unspent) {
         unspent.should.equal(true);
         done();
       });
     });
 
     it('should give false when isSpent() gives true', function(done) {
-      am.isSpent = sinon.stub().callsArgWith(1, true);
-      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', function(unspent) {
+      am.isSpent = sinon.stub().callsArgWith(2, true);
+      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', {},function(unspent) {
         unspent.should.equal(false);
         done();
       });
     });
 
     it('should give false when isSpent() returns an error', function(done) {
-      am.isSpent = sinon.stub().callsArgWith(1, new Error('error'));
-      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', function(unspent) {
+      am.isSpent = sinon.stub().callsArgWith(2, new Error('error'));
+      am.isUnspent('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', {}, function(unspent) {
         unspent.should.equal(false);
         done();
       });
@@ -939,7 +939,6 @@ describe('Address Service', function() {
   });
 
   describe('#isSpent', function() {
-    var am;
     var db = {};
     var testnode = {
       db: db,
@@ -949,16 +948,70 @@ describe('Address Service', function() {
         }
       }
     };
-    before(function() {
-      am = new AddressService({node: testnode});
+    it('should give true if bitcoind.isSpent gives true', function(done) {
+      var am = new AddressService({node: testnode});
       am.node.services.bitcoind = {
         isSpent: sinon.stub().returns(true),
         on: sinon.stub()
       };
+      am.isSpent({}, {}, function(spent) {
+        spent.should.equal(true);
+        done();
+      });
     });
-
-    it('should give true if bitcoind.isSpent gives true', function(done) {
-      am.isSpent('output', function(spent) {
+    it('should give true if bitcoind.isSpent is false and mempoolSpentIndex is true', function(done) {
+      var am = new AddressService({node: testnode});
+      am.node.services.bitcoind = {
+        isSpent: sinon.stub().returns(false),
+        on: sinon.stub()
+      };
+      var txid = '3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7';
+      var outputIndex = 0;
+      var output = {
+        prevTxId: new Buffer(txid, 'hex'),
+        outputIndex: outputIndex
+      };
+      var spentKey = [txid, outputIndex].join('-');
+      am.mempoolSpentIndex[spentKey] = new Buffer(5);
+      am.isSpent(output, {queryMempool: true}, function(spent) {
+        spent.should.equal(true);
+        done();
+      });
+    });
+    it('should give false if spent in mempool with queryMempool set to false', function(done) {
+      var am = new AddressService({node: testnode});
+      am.node.services.bitcoind = {
+        isSpent: sinon.stub().returns(false),
+        on: sinon.stub()
+      };
+      var txid = '3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7';
+      var outputIndex = 0;
+      var output = {
+        prevTxId: new Buffer(txid, 'hex'),
+        outputIndex: outputIndex
+      };
+      var spentKey = [txid, outputIndex].join('-');
+      am.mempoolSpentIndex[spentKey] = new Buffer(5);
+      am.isSpent(output, {queryMempool: false}, function(spent) {
+        spent.should.equal(false);
+        done();
+      });
+    });
+    it('default to querying the mempool', function(done) {
+      var am = new AddressService({node: testnode});
+      am.node.services.bitcoind = {
+        isSpent: sinon.stub().returns(false),
+        on: sinon.stub()
+      };
+      var txid = '3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7';
+      var outputIndex = 0;
+      var output = {
+        prevTxId: new Buffer(txid, 'hex'),
+        outputIndex: outputIndex
+      };
+      var spentKey = [txid, outputIndex].join('-');
+      am.mempoolSpentIndex[spentKey] = new Buffer(5);
+      am.isSpent(output, {}, function(spent) {
         spent.should.equal(true);
         done();
       });
