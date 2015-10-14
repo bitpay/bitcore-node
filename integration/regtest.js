@@ -304,6 +304,18 @@ describe('Daemon Binding Functionality', function() {
       }).should.throw('\x10: mandatory-script-verify-flag-failed (Operation not valid with the current stack size)');
     });
 
+    it('will throw an error for unexpected types', function() {
+      var garbage = new Buffer('abcdef', 'hex');
+      (function() {
+        bitcoind.sendTransaction(garbage);
+      }).should.throw('TX decode failed');
+
+      var num = 23;
+      (function() {
+        bitcoind.sendTransaction(num);
+      }).should.throw('TX decode failed');
+    });
+
     it('will emit "tx" events', function(done) {
       var tx = bitcore.Transaction();
       tx.from(utxos[2]);
