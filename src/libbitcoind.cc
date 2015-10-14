@@ -88,7 +88,7 @@ static void
 async_get_tx_and_info_after(uv_work_t *req);
 
 static bool
-queueTx(const CTransaction&);
+queueTx(const CTransaction&, bool);
 
 extern "C" void
 init(Handle<Object>);
@@ -97,7 +97,8 @@ init(Handle<Object>);
  * Private Global Variables
  * Used only by bitcoind functions.
  */
-static std::vector<CTransaction> txQueue;
+typedef std::pair<CTransaction, bool> tx_pair_t;
+static std::vector<tx_pair_t> txQueue;
 static uv_async_t txmon_async;
 static Eternal<Function> txmon_callback;
 static bool txmon_callback_available;
@@ -268,8 +269,9 @@ tx_notifier(uv_async_t *handle) {
   int arrayIndex = 0;
 
   LOCK(cs_main);
-  BOOST_FOREACH(const CTransaction& tx, txQueue) {
-
+  BOOST_FOREACH(tx_pair_t& tx_pair, txQueue) {
+    const CTransaction tx = tx_pair.first;
+    const bool added = tx_pair.second;
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << tx;
     std::string stx = ssTx.str();
@@ -281,7 +283,7 @@ tx_notifier(uv_async_t *handle) {
 
     Set(obj, New("buffer").ToLocalChecked(), txBuffer);
     Set(obj, New("hash").ToLocalChecked(), New(hash.GetHex()).ToLocalChecked());
-    Set(obj, New("mempool").ToLocalChecked(), New<Boolean>(true));
+    Set(obj, New("mempool").ToLocalChecked(), New<Boolean>(added));
 
     results->Set(arrayIndex, obj);
     arrayIndex++;
@@ -300,9 +302,11 @@ tx_notifier(uv_async_t *handle) {
 
 }
 static bool
-queueTx(const CTransaction& tx) {
+queueTx(const CTransaction& tx, bool added) {
   LOCK(cs_main);
-  txQueue.push_back(tx);
+  tx_pair_t pair;
+  pair = (tx_pair_t)std::make_pair(tx, added);
+  txQueue.push_back(pair);
   uv_async_send(&txmon_async);
   return true;
 }
