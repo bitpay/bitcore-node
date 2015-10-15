@@ -23,7 +23,7 @@ CustomService.prototype.blockHandler = function(block, add, callback) {
 };
 ```
 
-Take a look at the Address Service implementation for more details about how to encode the key, value for the best effeciency and ways to format the keys for streaming reads.
+Take a look at the Address Service implementation for more details about how to encode the key, value for the best efficiency and ways to format the keys for streaming reads.
 
 Additionally the mempool can have an index, the mempool index will be updated once bitcoind and the db have both fully synced. A service can implement a `resetMempoolIndex` method that will be run during this time, and the "synced" event will wait until this task has been finished:
 

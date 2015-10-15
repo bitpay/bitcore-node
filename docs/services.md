@@ -37,6 +37,59 @@ Services correspond with a Node.js module as described in 'package.json', for ex
 
 *Note:* If you already have a bitcore-node database, and you want to query data from previous blocks in the blockchain, you will need to reindex. Reindexing right now means deleting your bitcore-node database and resyncing.
 
+## Using Services Programmatically
+If instead you would like to run a custom node, you can include services by including them in your configuration object when initializing a new node.
+
+```js
+//Require bitcore
+var bitcore = require('bitcore-node');
+
+//Services
+var Address = bitcore.services.Address;
+var Bitcoin = bitcore.services.Bitcoin;
+var DB      = bitcore.services.DB;
+var Web     = bitcore.services.Web;
+
+var myNode = new bitcore.Node({
+  datadir: '~/.bitcore',
+  network: {
+    name: 'livenet'
+  },
+  "services": [
+    {
+      name: "address",
+      module: Address,
+      config: {}
+    },
+    {
+      name: 'bitcoind',
+      module: Bitcoin,
+      config: {}
+    },
+    {
+      name: 'db',
+      module: DB,
+      config: {}
+    },
+    {
+      name: 'web',
+      module: Web,
+      config: {
+        port: 3001
+      }
+    }
+  ]
+});
+```
+Now that you've loaded your services you can access them via `myNode.services.<service-name>.<method-name>`. For example
+if you wanted to check the balance of an address, you could access the address service like so.
+
+```js
+myNode.services.address.getBalance('1HB5XMLmzFVj8ALj6mfBsbifRoD4miY36v', false, function(err, total) {
+  console.log(total); //Satoshi amount of this address
+});
+```
+
 ## Writing a Service
 
 A new service can be created by inheriting from `Node.Service` and implementing these methods and properties:
@@ -51,4 +104,106 @@ A new service can be created by inheriting from `Node.Service` and implementing 
 
 The `package.json` for the service module can either export the `Node.Service` directly, or specify a specific module to load by including `"bitcoreNode": "lib/bitcore-node.js"`.
 
-Please take a look at some of the existing services for implemenation specifics.
+Please take a look at some of the existing services for implementation specifics.
+
+### Adding an index
+
+One quite useful feature exposed to services is the ability to index arbitrary data in the blockchain. To do so we make
+use of leveldb, a simple key-value store. As a service we can expose a 'blockHandler' function which is called each time
+a new block is added or removed from the blockchain. This gives us access to every new transaction received, allowing 
+us to index them. Let's take a look at an example where we will index the time that a transaction was confirmed.
+
+```js
+//Index prefix, so that we can determine the difference between our index 
+//and the indexes provided by other services
+MyService.datePrefix = new Buffer('10');
+
+MyService.minPosition = new Buffer('00000');
+MyService.maxPosition = new Buffer('99999');
+
+//This function is automatically called when a block is added or receieved
+MyService.prototype.prototype.blockHandler = function(block, addOutput, callback) {
+
+  //Determine if the block is added or removed, and therefore whether we are adding
+  //or deleting indexes
+  var databaseAction = 'put';
+  if (!addOutput) {
+    databaseAction = 'del';
+  }
+
+  //An array of all leveldb operations we will be committing
+  var operations = [];
+
+  //Timestamp of the current block
+  var blocktime = new Buffer(block.header.time);
+
+  for (var i = 0; i < block.transactions.length; i++) {
+    var transaction = block.transactions[i];
+    var txid = new Buffer(transaction.id, 'hex');
+    var position = new Buffer(('0000' + i).slice(-5));
+
+    //To be able to query this txid by the block date we create an index, leading with the prefix we
+    //defined earlier, the the current blocktime, and finally a differentiator, in this case the index
+    //of this transaction in the block's transaction list
+    var indexOperation = {
+      type: databaseAction,
+      key: Buffer.concat([this.datePrefix, blockTime, position]),
+      value: txid
+    };
+
+    //Now we push this index into our list of operations that should be performed
+    operations.push(indexOperation);
+  }
+
+  //Send the list of db operations back so they can be performed
+  setImmediate(function() {
+    callback(null, operations);
+  });
+};
+```
+
+### Retrieving data using an index
+With our block handler code every transaction in the blockchain will now be indexed. However, if we want to query this 
+data we need to add a method to our service to expose it.
+
+```js
+
+MyService.prototype.getTransactionIdsByDate = function(startDate, endDate, callback) {
+
+  var error;
+  var transactions = [];
+
+  //Read data from leveldb which is between our startDate and endDate
+  var stream = this.node.services.db.store.createReadStream({
+    gte: Buffer.concat([
+      MyService.datePrefix,
+      new Buffer(startDate),
+      MyService.minPosition
+    ]),
+    lte: Buffer.concat([
+      MyService.datePrefix,
+      new Buffer(endDate),
+      MyService.maxPosition
+    ]),
+    valueEncoding: 'binary',
+    keyEncoding: 'binary'
+  });
+
+  stream.on('data', function(data) {
+    transactions.push(data.value.toString('hex'));
+  });
+
+  stream.on('error', function(streamError) {
+    if (streamError) {
+      error = streamError;
+    }
+  });
+
+  stream.on('close', function() {
+    if (error) {
+      return callback(error);
+    }
+    callback(null, transactions);
+  });
+};
+```

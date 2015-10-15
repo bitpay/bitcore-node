@@ -4,7 +4,7 @@ description: Errors for Bitcore Node
 ---
 # Errors
 
-Many times there are cases where an error condition can be gracefully handled depending on a particular use. To assist in better error handling, errors will have different types so that it's possible to determine the type of error and handle appropriatly.
+Many times there are cases where an error condition can be gracefully handled depending on a particular use. To assist in better error handling, errors will have different types so that it's possible to determine the type of error and handle appropriately.
 
 ```js
 node.services.address.getUnspentOutputs('00000000839a8...', function(err, outputs) {
