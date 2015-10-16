@@ -116,10 +116,10 @@ us to index them. Let's take a look at an example where we will index the time t
 ```js
 //Index prefix, so that we can determine the difference between our index 
 //and the indexes provided by other services
-MyService.datePrefix = new Buffer('10');
+MyService.datePrefix = new Buffer('10', 'hex');
 
-MyService.minPosition = new Buffer('00000');
-MyService.maxPosition = new Buffer('99999');
+MyService.minPosition = new Buffer('00000', 'hex');
+MyService.maxPosition = new Buffer('99999', 'hex');
 
 //This function is automatically called when a block is added or receieved
 MyService.prototype.prototype.blockHandler = function(block, addOutput, callback) {
@@ -236,8 +236,8 @@ var index2value = transaction.outputs.length;
 
 
 /** Right way **/
-var index1prefix = new Buffer('11');
-var index2prefix = new Buffer('12');
+var index1prefix = new Buffer('11', 'hex');
+var index2prefix = new Buffer('12', 'hex');
 
 var index1key = Buffer.concat([index1prefix, new Buffer(transaction.id)]);
 var index1value = transaction.inputs.length;
