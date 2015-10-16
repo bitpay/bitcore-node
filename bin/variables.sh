@@ -32,6 +32,8 @@ system="${cache_dir}"/depends/"${host}"/lib/libboost_system-mt.a
 leveldb="${cache_dir}"/src/leveldb/libleveldb.a
 memenv="${cache_dir}"/src/leveldb/libmemenv.a
 libsecp256k1="${cache_dir}"/src/secp256k1/.libs/libsecp256k1.a
+ssl="${cache_dir}"/depends/"${host}"/lib/libssl.a
+crypto="${cache_dir}"/depends/"${host}"/lib/libcrypto.a
 
 if test x"$1" = x'anl'; then
   if [ "${platform}" != "darwin" ]; then
@@ -61,6 +63,14 @@ fi
 
 if test -z "$1" -o x"$1" = x'system'; then
   echo -n "${system}"
+fi
+
+if test -z "$1" -o x"$1" = x'ssl'; then
+  echo -n "${ssl}"
+fi
+
+if test -z "$1" -o x"$1" = x'crypto'; then
+  echo -n "${crypto}"
 fi
 
 if test -z "$1" -o x"$1" = x'chrono'; then
