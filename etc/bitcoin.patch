@@ -139,23 +139,22 @@ index e7aa48d..df0f7ae 100644
  endef
 
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 1c2f770..5582b7e 100644
+index 1c2f770..b6ddc16 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
-@@ -1,6 +1,12 @@
+@@ -1,6 +1,11 @@
  DIST_SUBDIRS = secp256k1
  AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS)
 
 +noinst_LTLIBRARIES =
 +libbitcoind_la_LIBADD =
 +libbitcoind_la_LDFLAGS = -no-undefined
-+STATIC_BOOST_LIBS =
 +STATIC_BDB_LIBS =
-+STATIC_EXTRA_LIBS = $(STATIC_BOOST_LIBS) $(LIBLEVELDB) $(LIBMEMENV)
++STATIC_EXTRA_LIBS = $(LIBLEVELDB) $(LIBMEMENV)
 
  if EMBEDDED_LEVELDB
  LEVELDB_CPPFLAGS += -I$(srcdir)/leveldb/include
-@@ -15,6 +21,7 @@ $(LIBLEVELDB) $(LIBMEMENV):
+@@ -15,6 +20,7 @@ $(LIBLEVELDB) $(LIBMEMENV):
  	@echo "Building LevelDB ..." && $(MAKE) -C $(@D) $(@F) CXX="$(CXX)" \
  	  CC="$(CC)" PLATFORM=$(TARGET_OS) AR="$(AR)" $(LEVELDB_TARGET_FLAGS) \
            OPT="$(CXXFLAGS) $(CPPFLAGS) -D__STDC_LIMIT_MACROS"
@@ -163,7 +162,7 @@ index 1c2f770..5582b7e 100644
  endif
 
  BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
-@@ -49,16 +56,16 @@ BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
+@@ -49,16 +55,16 @@ BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
  EXTRA_LIBRARIES += libbitcoin_wallet.a
  endif
 
@@ -187,7 +186,7 @@ index 1c2f770..5582b7e 100644
  if BUILD_BITCOIND
    bin_PROGRAMS += bitcoind
  endif
-@@ -66,6 +73,9 @@ endif
+@@ -66,6 +72,9 @@ endif
  if BUILD_BITCOIN_UTILS
    bin_PROGRAMS += bitcoin-cli bitcoin-tx
  endif
@@ -197,7 +196,7 @@ index 1c2f770..5582b7e 100644
 
  .PHONY: FORCE
  # bitcoin core #
-@@ -169,8 +179,11 @@ obj/build.h: FORCE
+@@ -169,8 +178,11 @@ obj/build.h: FORCE
  	@$(MKDIR_P) $(builddir)/obj
  	@$(top_srcdir)/share/genbuild.sh $(abs_top_builddir)/src/obj/build.h \
  	  $(abs_top_srcdir)
@@ -210,7 +209,7 @@ index 1c2f770..5582b7e 100644
  # server: shared between bitcoind and bitcoin-qt
  libbitcoin_server_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS)
  libbitcoin_server_a_SOURCES = \
-@@ -309,9 +322,18 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
+@@ -309,9 +321,18 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
  bitcoind_SOURCES = bitcoind.cpp
  bitcoind_CPPFLAGS = $(BITCOIN_INCLUDES)
  bitcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
@@ -229,7 +228,7 @@ index 1c2f770..5582b7e 100644
  endif
 
  bitcoind_LDADD = \
-@@ -326,10 +348,21 @@ bitcoind_LDADD = \
+@@ -326,10 +347,20 @@ bitcoind_LDADD = \
 
  if ENABLE_WALLET
  bitcoind_LDADD += libbitcoin_wallet.a
@@ -237,7 +236,6 @@ index 1c2f770..5582b7e 100644
 +libbitcoind_la_SOURCES += $(libbitcoin_wallet_a_SOURCES)
  endif
 
-+STATIC_BOOST_LIBS += ../depends/$(ARCH_PLATFORM)/lib/libboost_filesystem-mt.a ../depends/$(ARCH_PLATFORM)/lib/libboost_system-mt.a ../depends/$(ARCH_PLATFORM)/lib/libboost_chrono-mt.a ../depends/$(ARCH_PLATFORM)/lib/libboost_thread-mt.a ../depends/$(ARCH_PLATFORM)/lib/libboost_program_options-mt.a
 +STATIC_BDB_LIBS += ../depends/$(ARCH_PLATFORM)/lib/libdb_cxx.a
 +
  bitcoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS)

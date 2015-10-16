@@ -94,3 +94,55 @@ npm start
 ```
 
 This will then start the syncing process for Bitcoin Core and the extended capabilities as provided by the built-in Address Module (details below).
+
+
+## Cross-Compiling
+
+### ARM processors such as Android devices and Raspberry Pi-type devices
+
+Bitcore-node has been tested on recent ARM processors like ARM CORTEX-A7 on Linux variants. We've tested Bitcore-node with armhf (hardware floating point support). It is much easier to cross-compile on a faster computer and transfer to the target device. Please refer to: https://wiki.debian.org/CrossToolchains.
+
+### Installation of Cross-compiling Toolkits on Ubuntu:
+
+```bash
+sudo apt-get install gcc-multilib
+sudo apt-get install gcc-arm-linux-gnueabihf
+sudo apt-get install g++-arm-linux-gnueabihf
+```
+
+The following is the command to run on a linux build computer for a linux-based Raspberry Pi.
+
+```bash
+CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ npm install #note the CC and CXX environment variables
+scp build/Release/bitcoind.node <user>@<arm host>:<dir of bitcore-node>/build/Release
+```
+
+### Windows - 32 and 64 bit
+
+Bitcore-node has been tested on 32 and 64 bit processors and can be cross-compiled on a Linux computer for Windows hosts. This process is MUCH easier than installing all the build tools on a Windows host.
+
+### Installation of Cross-compiling Toolkits on Debian-like hosts:
+
+```bash
+sudo apt-get install mingw-w64 mingw-w64-tools
+```
+
+The following is the command to run on a linux build computer for a Windows 64 bit build.
+
+```bash
+CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ npm install
+```
+
+The following is the command to run on a linux build computer for a Windows 32 bit build.
+
+```bash
+CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ npm install
+```
+
+Once everything is built, you can run bitcore-node via:
+
+```bash
+npm start
+```
+
+This will then start the syncing process for Bitcoin Core and the extended capabilities as provided by the built-in Address Module (details below).

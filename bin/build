@@ -4,6 +4,7 @@ options=`cat ${root_dir}/bin/config_options.sh`
 depends_dir=$($root_dir/bin/variables.sh depends_dir)
 host=$(${root_dir}/bin/variables.sh host)
 btc_dir="${root_dir}/libbitcoind"
+sys=$($root_dir/bin/variables.sh sys)
 patch_sha=$($root_dir/bin/variables.sh patch_sha)
 export CPPFLAGS="-I${depends_dir}/${host}/include/boost -I${depends_dir}/${host}/include -L${depends_dir}/${host}/lib"
 echo "Using BTC directory: ${btc_dir}"
@@ -154,8 +155,11 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   ./autogen.sh || exit -1
 
   boost_libdir="--with-boost-libdir=${depends_dir}/${host}/lib"
+  ldflags="LDFLAGS=-L${depends_dir}/${host}/lib"
+  cflags="CFLAGS=-I${depends_dir}/${host}/include"
+  config_host="--host ${host}"
 
-  full_options="${options} ${boost_libdir}"
+  full_options="${options} ${ldflags} ${cflags} ${config_host} ${boost_libdir}"
   echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
   ${full_options}
 
@@ -182,4 +186,5 @@ if test x"$1" = x'debug'; then
   debug=--debug
 fi
 
-node-gyp ${debug} rebuild
+echo "running::: 'node-gyp ${sys} ${debug} rebuild'"
+node-gyp ${sys} ${debug} rebuild
