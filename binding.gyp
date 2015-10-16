@@ -13,7 +13,7 @@
       ],
       "conditions": [
         [
-          "OS==\"mac\"", 
+          "OS==\"mac\"",
           {
             "xcode_settings": {
               "GCC_ENABLE_CPP_EXCEPTIONS": "YES",
@@ -48,8 +48,8 @@
           "<!(./bin/variables.sh memenv)",
           "<!(./bin/variables.sh bdb)",
           "<!(./bin/variables.sh anl)",
-          "-lssl",
-          "-lcrypto"
+          "<!(./bin/variables.sh ssl)",
+          "<!(./bin/variables.sh crypto)"
         ],
         "ldflags": [
           "<!(./bin/variables.sh load_archive)"
