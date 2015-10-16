@@ -38,7 +38,7 @@ Services correspond with a Node.js module as described in 'package.json', for ex
 *Note:* If you already have a bitcore-node database, and you want to query data from previous blocks in the blockchain, you will need to reindex. Reindexing right now means deleting your bitcore-node database and resyncing.
 
 ## Using Services Programmatically
-If instead you would like to run a custom node, you can include services by including them in your configuration object when initializing a new node.
+If, instead, you would like to run a custom node, you can include services by including them in your configuration object when initializing a new node.
 
 ```js
 //Require bitcore
@@ -207,3 +207,59 @@ MyService.prototype.getTransactionIdsByDate = function(startDate, endDate, callb
   });
 };
 ```
+
+If you're new to leveldb and would like to better understand how createReadStream works you can find [more 
+information here](https://github.com/Level/levelup#dbcreatereadstreamoptions).
+
+### Understanding indexes
+
+You may notice there are several pieces to the index itself. Let's take a look at each piece to make them easier
+to understand.
+
+#### Prefixes
+
+Since leveldb is just a simple key-value store we need something to differentiate which keys are part of which index. If
+we had two services trying to index on the same key, say a txid, they would overwrite each other and their queries would
+return results from the other index. By introducing a unique prefix per index type that we can prepend our indexes with
+prevents these collisions.
+
+```js
+//A simple example of indexing the number of inputs and ouputs given a transaction id
+
+/** Wrong way **/
+var index1key = new Buffer(transaction.id);
+var index1value = transaction.inputs.length;
+
+//Since this key has the same value it would just overwrite index1 when we write to the db
+var index2key = new Buffer(transaction.id);
+var index2value = transaction.outputs.length;
+
+
+/** Right way **/
+var index1prefix = new Buffer('11');
+var index2prefix = new Buffer('12');
+
+var index1key = Buffer.concat([index1prefix, new Buffer(transaction.id)]);
+var index1value = transaction.inputs.length;
+
+//Now that the keys are different, this won't overwrite the index
+var index2key = Buffer.concat([index2prefix, new Buffer(transaction.id)]);
+var index2value = transaction.outputs.length;
+```
+
+Remember that all indexes are global, so check to make sure no other services you are using make use of the same prefix
+you plan to use in your service. We recommend documenting which prefixes you use and that you check for collisions with
+popular services if you plan to release your service for others to use.
+
+#### Index Key
+
+The index key is the value you want to query by. This value should be deterministic so that it can be removed in the case
+of a [re-org](https://en.bitcoin.it/wiki/Chain_Reorganization) resulting in a block removal. The value should be unique, as
+no two indexes can be the same value. If you need two indexes with the same key value, consider adding a deterministic 
+differentiator, such as a position in an array, or instead storing multiple values within the same index data.
+
+#### Index Data
+
+This is the data which is returned when you search by the index's key. This can be whatever you would like to retrieve.
+Try to be efficient by not storing data that is already available elsewhere, such as storing a transaction ID instead of
+an entire transaction.
