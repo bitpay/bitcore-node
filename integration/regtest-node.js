@@ -291,7 +291,7 @@ describe('Node Functionality', function() {
         info.satoshis.should.equal(10 * 1e8);
         info.confirmations.should.equal(3);
         info.timestamp.should.be.a('number');
-        info.fees.should.be.within(190, 193);
+        info.fees.should.be.within(950, 970);
         info.tx.should.be.an.instanceof(Transaction);
         done();
       });
