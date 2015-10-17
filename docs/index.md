@@ -26,8 +26,8 @@ Bitcore includes a Command Line Interface (CLI) for managing, configuring and in
 ```bash
 bitcore create -d <bitcoin-data-dir> mynode
 cd mynode
-bitcore add <service>
-bitcore add https://github.com/yourname/helloworld
+bitcore install <service>
+bitcore install https://github.com/yourname/helloworld
 ```
 
 This will create a directory with configuration files for your node and install the necessary dependencies. For more information about (and developing) services, please see the [Service Documentation](services.md).
