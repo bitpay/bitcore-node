@@ -28,7 +28,7 @@ Services correspond with a Node.js module as described in 'package.json', for ex
 ```json
 {
   "dependencies": {
-    "bitcore": "^0.13.1",
+    "bitcore-lib": "^0.13.7",
     "bitcore-node": "^0.2.0",
     "insight-api": "^3.0.0"
   }
@@ -47,8 +47,8 @@ var bitcore = require('bitcore-node');
 //Services
 var Address = bitcore.services.Address;
 var Bitcoin = bitcore.services.Bitcoin;
-var DB      = bitcore.services.DB;
-var Web     = bitcore.services.Web;
+var DB = bitcore.services.DB;
+var Web = bitcore.services.Web;
 
 var myNode = new bitcore.Node({
   datadir: '~/.bitcore',

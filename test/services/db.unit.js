@@ -7,18 +7,17 @@ var proxyquire = require('proxyquire');
 var index = require('../../');
 var DB = index.services.DB;
 var blockData = require('../data/livenet-345003.json');
-var bitcore = require('bitcore');
+var bitcore = require('bitcore-lib');
 var Networks = bitcore.Networks;
 var Block = bitcore.Block;
 var BufferUtil = bitcore.util.buffer;
+var Transaction = bitcore.Transaction;
 var transactionData = require('../data/bitcoin-transactions.json');
 var chainHashes = require('../data/hashes.json');
 var chainData = require('../data/testnet-blocks.json');
 var errors = index.errors;
 var memdown = require('memdown');
 var levelup = require('levelup');
-var bitcore = require('bitcore');
-var Transaction = bitcore.Transaction;
 
 describe('DB Service', function() {
 
