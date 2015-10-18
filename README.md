@@ -6,8 +6,8 @@ A Bitcoin full node for building applications and services with Node.js. A node 
 ## Install
 
 ```bash
-npm install -g bitcore
-bitcore start
+npm install -g bitcore-node
+bitcore-node start
 ```
 
 Note: For your convenience, we distribute binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. For more detailed installation instructions, or if you want to compile the project yourself, then please see the [Build & Install](docs/build.md) documentation to build the project from source.
@@ -24,18 +24,18 @@ Note: For your convenience, we distribute binaries for x86_64 Linux and x86_64 M
 Bitcore includes a Command Line Interface (CLI) for managing, configuring and interfacing with your Bitcore Node.
 
 ```bash
-bitcore create -d <bitcoin-data-dir> mynode
+bitcore-node create -d <bitcoin-data-dir> mynode
 cd mynode
-bitcore add <service>
-bitcore add https://github.com/yourname/helloworld
+bitcore-node add <service>
+bitcore-node add https://github.com/yourname/helloworld
 ```
 
 This will create a directory with configuration files for your node and install the necessary dependencies. For more information about (and developing) services, please see the [Service Documentation](docs/services.md).
 
-To start bitcore as a daemon:
+To start bitcore-node as a daemon:
 
 ```bash
-bitcore start --daemon
+bitcore-node start --daemon
 ```
 
 ## Add-on Services
