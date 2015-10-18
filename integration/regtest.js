@@ -14,7 +14,7 @@ if (process.env.BITCORENODE_ENV !== 'test') {
 }
 
 var chai = require('chai');
-var bitcore = require('bitcore');
+var bitcore = require('bitcore-lib');
 var BN = bitcore.crypto.BN;
 var async = require('async');
 var rimraf = require('rimraf');

@@ -22,4 +22,7 @@ module.exports.scaffold.findConfig = require('./lib/scaffold/find-config');
 module.exports.scaffold.defaultConfig = require('./lib/scaffold/default-config');
 
 module.exports.cli = {};
-module.exports.cli.main = require('./cli/main');
+module.exports.cli.main = require('./lib/cli/main');
+module.exports.cli.daemon = require('./lib/cli/daemon');
+module.exports.cli.bitcore = require('./lib/cli/bitcore');
+module.exports.cli.bitcored = require('./lib/cli/bitcored');
