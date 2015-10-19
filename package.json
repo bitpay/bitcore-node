@@ -78,7 +78,7 @@
     "bitcore-p2p": "~1.0.0"
   },
   "engines": {
-    "node": ">=0.12.0"
+    "node": "^0.12"
   },
   "os": [
     "darwin",
