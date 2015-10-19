@@ -1,9 +1,4 @@
----
-title: Bus
-description: An event emitter for node events
----
 # Bus
-
 The bus provides a way to subscribe to events from any of the services running. It's implemented abstract from transport specific implementation. The primary use of the bus in Bitcore Node is for subscribing to events via a web socket.
 
 ## Opening/Closing

@@ -1,13 +1,7 @@
----
-title: Address Service
-description: Overview of the Address Service for Bitcore Node
----
 # Address Service
-
 The address service builds on the [Bitcoin Service](bitcoind.md) and the [Database Service](db.md) to add additional functionality for querying and subscribing to information based on bitcoin addresses. This will typically represent the core functionality for wallet applications.
 
 ## API Documentation
-
 These methods are exposed over the JSON-RPC interface and can be called directly from a node via:
 
 ```js
@@ -54,11 +48,7 @@ node.services.address.getBalance(address, includeMempool, function(err, balance)
 
 **View Address History**
 
-This method will give history of an address limited by a range of block heights by using
-the "start" and "end" arguments. The "start" value is the more recent, and greater, block height.
-The "end" value is the older, and lesser, block height. This feature is most useful for synchronization
-as previous history can be omitted. Furthermore for large ranges of block heights, results can be
-paginated by using the "from" and "to" arguments.
+This method will give history of an address limited by a range of block heights by using the "start" and "end" arguments. The "start" value is the more recent, and greater, block height. The "end" value is the older, and lesser, block height. This feature is most useful for synchronization as previous history can be omitted. Furthermore for large ranges of block heights, results can be paginated by using the "from" and "to" arguments.
 
 ```js
 var addresses = ['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'];
@@ -73,6 +63,7 @@ node.services.address.getAddressHistory(addresses, options, function(err, histor
 ```
 
 The history format will be:
+
 ```js
 {
   totalCount: 1, // The total number of items within "start" and "end"
@@ -109,6 +100,7 @@ node.services.address.getAddressSummary(address, options, function(err, summary)
 ```
 
 The `summary` will have the format (values are in satoshis):
+
 ```js
 {
   totalReceived: 1000000000,
@@ -124,9 +116,7 @@ The `summary` will have the format (values are in satoshis):
 ```
 
 ## Events
-
 For details on instantiating a bus for a node, see the [Bus Documentation](../bus.md).
-
 - Name: `address/transaction`, Arguments: `[address, address...]`
 - Name: `address/balance`, Arguments: `[address, address...]`
 

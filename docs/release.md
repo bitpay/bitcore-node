@@ -1,9 +1,4 @@
----
-title: Release Process
-description: Description to verify releases
----
 # Release Process
-
 Binaries for the C++ binding file (which includes libbitcoind statically linked in) are distributed for convenience. The binary binding file `bitcoind.node` is signed and published to S3 for later download and installation. Source files can also be built if binaries are not desired.
 
 ## How to Verify Signatures
@@ -14,15 +9,12 @@ gpg --verify bitcoind.node.sig bitcoind.node
 ```
 
 To verify signatures, use the following PGP keys:
-
-- @braydonf: https://pgp.mit.edu/pks/lookup?op=get&search=0x9BBF07CAC07A276D
-- @kleetus: https://pgp.mit.edu/pks/lookup?op=get&search=0x33195D27EF6BDB7F
-- @pnagurny: https://pgp.mit.edu/pks/lookup?op=get&search=0x0909B33F0AA53013
+- @braydonf: [https://pgp.mit.edu/pks/lookup?op=get&search=0x9BBF07CAC07A276D](https://pgp.mit.edu/pks/lookup?op=get&search=0x9BBF07CAC07A276D)
+- @kleetus: [https://pgp.mit.edu/pks/lookup?op=get&search=0x33195D27EF6BDB7F](https://pgp.mit.edu/pks/lookup?op=get&search=0x33195D27EF6BDB7F)
+- @pnagurny: [https://pgp.mit.edu/pks/lookup?op=get&search=0x0909B33F0AA53013](https://pgp.mit.edu/pks/lookup?op=get&search=0x0909B33F0AA53013)
 
 ## How to Release
-
 Ensure you've followed the instructions in the README.md for building the project from source. When building for any platform, be sure to keep in mind the minimum supported C and C++ system libraries and build from source using this library. Example, Ubuntu 12.04 has the earliest system library for Linux that we support, so it would be easiest to build the Linux artifact using this version. You will be using node-gyp to build the C++ bindings. A script will then upload the bindings to S3 for later use. You will also need credentials for BitPay's bitcore-node S3 bucket and be listed as an author for the bitcore-node's npm module.
-
 - Create a file `.bitcore-node-upload.json` in your home directory
 - The format of this file should be:
 

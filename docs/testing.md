@@ -1,16 +1,11 @@
----
-title: Development & Testing
-description: Notes for development and debugging Bitcore Node
----
 # Development & Testing
-
 To run all of the JavaScript tests:
 
 ```bash
 npm run test
 ```
 
-To run tests against the bindings, as defined in `bindings.gyp` the regtest feature of Bitcoin Core is used, and to enable this feature we currently need to build with the wallet enabled *(not a part of the regular build)*. To do this, export an environment variable and recompile:
+To run tests against the bindings, as defined in `bindings.gyp` the regtest feature of Bitcoin Core is used, and to enable this feature we currently need to build with the wallet enabled _(not a part of the regular build)_. To do this, export an environment variable and recompile:
 
 ```bash
 export BITCORENODE_ENV=test
@@ -44,6 +39,7 @@ $ gdb --args node examples/node.js
 ```
 
 To run mocha from within gdb (notice `_mocha` and not `mocha` so that the tests run in the same process):
+
 ```bash
 $ gdb --args node /path/to/_mocha -R spec integration/regtest.js
 ```

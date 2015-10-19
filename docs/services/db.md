@@ -1,13 +1,7 @@
----
-title: Database Service
-description: Overview of the Database Service for Bitcore Node
----
 # Database Service
-
 This service synchronizes a leveldb database with the [Bitcoin Service](bitcoind.md) block chain by connecting and disconnecting blocks to build new indexes that can be queried. Other services can extend the data that is indexed by implementing a `blockHandler` method, similar to the built-in [Address Service](address.md).
 
 ## Adding Indexes
-
 For a service to include additional block data, it can implement a `blockHandler` method that will be run to when there are new blocks added or removed.
 
 ```js
@@ -36,7 +30,6 @@ CustomService.prototype.resetMempoolIndex = function(callback) {
 ```
 
 ## API Documentation
-
 These methods are exposed over the JSON-RPC interface and can be called directly from a node via:
 
 ```js
@@ -46,6 +39,7 @@ node.services.db.<methodName>
 **Query Blocks by Date**
 
 One of the additional indexes created by the Database Service is querying for blocks by ranges of dates:
+
 ```js
 var newest = 1441914000; // Notice time is in seconds not milliseconds
 var oldest = 1441911000;
@@ -53,7 +47,6 @@ var oldest = 1441911000;
 node.services.db.getBlockHashesByTimestamp(newest, oldest, function(err, hashes) {
   // hashes will be an array of block hashes
 });
-
 ```
 
 **Working with Blocks and Transactions as Bitcore Instances**
@@ -89,17 +82,15 @@ node.services.db.sendTransaction(transaction, function(err) {
   }
   // otherwise the transaction has been sent
 });
-
 ```
 
 ## Events
-
 For details on instantiating a bus for a node, see the [Bus Documentation](../bus.md).
-
 - Name: `db/transaction`
 - Name: `db/block`
 
 **Examples:**
+
 ```js
 bus.subscribe('db/transaction');
 bus.subscribe('db/block');
@@ -111,10 +102,10 @@ bus.on('db/block', function(blockHash) {
 bus.on('db/transaction', function(txInfo) {
   // see below
 });
-
 ```
 
 The `txInfo` object will have the format:
+
 ```js
 {
   rejected: true, // If the transaction was rejected into the mempool
