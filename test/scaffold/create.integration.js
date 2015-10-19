@@ -53,10 +53,6 @@ describe('#create', function() {
   });
 
   it('will create scaffold files', function() {
-    delete process.env.BITCORENODE_DIR;
-    delete process.env.BITCORENODE_NETWORK;
-    delete process.env.BITCORENODE_PORT;
-
     create({
       cwd: testDir,
       dirname: 'mynode',
