@@ -1,9 +1,4 @@
----
-title: Web Service
-description: Overview of the Web Service for Bitcore Node
----
 # Web Service
-
 The web service creates an express app which can be used by services for setting up web routes for API's, static content, web applications, etc. This allows users to interact with various bitcore node services over one http or https port.
 
 In order for your service to add routes, it must implement the `setupRoutes()` and `getRoutePrefix()` methods.
@@ -27,7 +22,6 @@ MyService.prototype.getRoutePrefix = function() {
 ```
 
 ## Configuring Web Service for HTTPS
-
 You can run the web service over https by editing your bitcore node config, setting https to true and adding httpsOptions:
 
 ```json

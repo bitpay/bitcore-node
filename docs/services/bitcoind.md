@@ -1,13 +1,7 @@
----
-title: Bitcoin Service
-description: Overview of the Bitcoin Service for Bitcore Node
----
 # Bitcoin Service
-
 The Bitcoin Service adds a native [Node.js](https://nodejs.org) interface to [Bitcoin Core](https://github.com/bitcoin/bitcoin) for querying information about the Bitcoin blockchain. Bindings are linked to Bitcoin Core compiled as a static library.
 
 ## API Documentation
-
 These methods are currently only available via directly interfacing with a node:
 
 ```js
@@ -59,7 +53,6 @@ node.services.bitcoind.getTransactionWithBlockInfo(txid, queryMempool, function(
   console.log(info.timestamp); // in seconds
   var transaction = bitcore.Transaction().fromBuffer(transactionBuffer);
 });
-
 ```
 
 Send a transaction to the network:
@@ -93,7 +86,6 @@ console.log(spent);
 ```
 
 **Miscellaneous**
-
 - `bitcoind.start(callback)` - Start the JavaScript Bitcoin node, the callback is called when the daemon is ready.
 - `bitcoind.getInfo()` - Basic information about the chain including total number of blocks.
 - `bitcoind.isSynced()` - Returns a boolean if the daemon is fully synced (not the initial block download)
@@ -101,7 +93,6 @@ console.log(spent);
 - `bitcoind.stop(callback)` - Stop the JavaScript bitcoin node safely, the callback will be called when bitcoind is closed. This will also be done automatically on `process.exit`. It also takes the bitcoind node off the libuv event loop. If the daemon object is the only thing on the event loop. Node will simply close.
 
 ## Events
-
 The Bitcoin Service doesn't expose any events via the Bus, however there are a few events that can be directly registered:
 
 ```js
@@ -115,6 +106,7 @@ node.services.bitcoind.on('tx', function(txInfo) {
 ```
 
 The `txInfo` object will have the format:
+
 ```js
 {
   buffer: <Buffer...>,

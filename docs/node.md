@@ -1,13 +1,7 @@
----
-title: Node
-description: A collection of services run as node.
----
 # Node
-
 A node represents a collection of services that are loaded together. For more information about services, please see the [Services Documentation](services.md).
 
 ## API Documentation
-
 - `start()` - Will start the node's services in the correct order based on the dependencies of a service.
 - `stop()` - Will stop the node's services.
 - `openBus()` - Will create a new event bus to subscribe to events.
@@ -50,5 +44,4 @@ node.on('error', function(err) {
 node.stop(function() {
   // the shutdown is complete
 });
-
 ```
