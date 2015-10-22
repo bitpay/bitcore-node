@@ -327,18 +327,18 @@ index f6deaa2..4251721 100644
 
      SyncWithWallets(tx, NULL);
 diff --git a/src/net.cpp b/src/net.cpp
-index f94771a..de6c7d0 100644
+index f94771a..72ee00e 100644
 --- a/src/net.cpp
 +++ b/src/net.cpp
 @@ -432,8 +432,10 @@ void CNode::PushVersion()
          LogPrint("net", "send version message: version %d, blocks=%d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, nBestHeight, addrMe.ToString(), addrYou.ToString(), id);
      else
          LogPrint("net", "send version message: version %d, blocks=%d, us=%s, peer=%d\n", PROTOCOL_VERSION, nBestHeight, addrMe.ToString(), id);
-+    std::vector<std::string> bitcore_node;
-+    bitcore_node.push_back("bitcorenode"); //the dash character is removed from the comments section
++    std::vector<std::string> bitcore;
++    bitcore.push_back("bitcore"); //the dash character is removed from the comments section
      PushMessage("version", PROTOCOL_VERSION, nLocalServices, nTime, addrYou, addrMe,
 -                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>()), nBestHeight, true);
-+                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, bitcore_node), nBestHeight, true);
++                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, bitcore), nBestHeight, true);
  }
 
 
