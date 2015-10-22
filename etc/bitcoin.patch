@@ -315,10 +315,178 @@ index dcb2b29..5ce68ba 100644
  bool ShutdownRequested();
  void Shutdown();
 diff --git a/src/main.cpp b/src/main.cpp
-index f6deaa2..4251721 100644
+index f6deaa2..5895515 100644
 --- a/src/main.cpp
 +++ b/src/main.cpp
-@@ -1081,6 +1081,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+@@ -913,32 +913,42 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+     if (pfMissingInputs)
+         *pfMissingInputs = false;
+
+-    if (!CheckTransaction(tx, state))
++    if (!CheckTransaction(tx, state)) {
++        GetNodeSignals().TxToMemPool(tx, false);
+         return error("AcceptToMemoryPool: CheckTransaction failed");
++    }
+
+     // Coinbase is only valid in a block, not as a loose transaction
+-    if (tx.IsCoinBase())
++    if (tx.IsCoinBase()) {
++        GetNodeSignals().TxToMemPool(tx, false);
+         return state.DoS(100, error("AcceptToMemoryPool: coinbase as individual tx"),
+                          REJECT_INVALID, "coinbase");
++    }
+
+     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
+     string reason;
+-    if (Params().RequireStandard() && !IsStandardTx(tx, reason))
++    if (Params().RequireStandard() && !IsStandardTx(tx, reason)) {
++        GetNodeSignals().TxToMemPool(tx, false);
+         return state.DoS(0,
+                          error("AcceptToMemoryPool: nonstandard transaction: %s", reason),
+                          REJECT_NONSTANDARD, reason);
++    }
+
+     // Only accept nLockTime-using transactions that can be mined in the next
+     // block; we don't want our mempool filled up with transactions that can't
+     // be mined yet.
+-    if (!CheckFinalTx(tx))
++    if (!CheckFinalTx(tx)) {
++        GetNodeSignals().TxToMemPool(tx, false);
+         return state.DoS(0, error("AcceptToMemoryPool: non-final"),
+                          REJECT_NONSTANDARD, "non-final");
++    }
+
+     // is it already in the memory pool?
+     uint256 hash = tx.GetHash();
+-    if (pool.exists(hash))
++    if (pool.exists(hash)) {
++        GetNodeSignals().TxToMemPool(tx, false);
+         return false;
++    }
+
+     // Check for conflicts with in-memory transactions
+     {
+@@ -949,6 +959,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+         if (pool.mapNextTx.count(outpoint))
+         {
+             // Disable replacement feature for now
++            GetNodeSignals().TxToMemPool(tx, false);
+             return false;
+         }
+     }
+@@ -965,8 +976,10 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+         view.SetBackend(viewMemPool);
+
+         // do we already have it?
+-        if (view.HaveCoins(hash))
++        if (view.HaveCoins(hash)) {
++            GetNodeSignals().TxToMemPool(tx, false);
+             return false;
++        }
+
+         // do all inputs exist?
+         // Note that this does not check for the presence of actual outputs (see the next check for that),
+@@ -975,14 +988,17 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+             if (!view.HaveCoins(txin.prevout.hash)) {
+                 if (pfMissingInputs)
+                     *pfMissingInputs = true;
++                GetNodeSignals().TxToMemPool(tx, false);
+                 return false;
+             }
+         }
+
+         // are the actual inputs available?
+-        if (!view.HaveInputs(tx))
++        if (!view.HaveInputs(tx)) {
++            GetNodeSignals().TxToMemPool(tx, false);
+             return state.Invalid(error("AcceptToMemoryPool: inputs already spent"),
+                                  REJECT_DUPLICATE, "bad-txns-inputs-spent");
++        }
+
+         // Bring the best block into scope
+         view.GetBestBlock();
+@@ -994,8 +1010,10 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+         }
+
+         // Check for non-standard pay-to-script-hash in inputs
+-        if (Params().RequireStandard() && !AreInputsStandard(tx, view))
++        if (Params().RequireStandard() && !AreInputsStandard(tx, view)) {
++            GetNodeSignals().TxToMemPool(tx, false);
+             return error("AcceptToMemoryPool: nonstandard transaction input");
++        }
+
+         // Check that the transaction doesn't have an excessive number of
+         // sigops, making it impossible to mine. Since the coinbase transaction
+@@ -1004,11 +1022,13 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+         // merely non-standard transaction.
+         unsigned int nSigOps = GetLegacySigOpCount(tx);
+         nSigOps += GetP2SHSigOpCount(tx, view);
+-        if (nSigOps > MAX_STANDARD_TX_SIGOPS)
++        if (nSigOps > MAX_STANDARD_TX_SIGOPS) {
++            GetNodeSignals().TxToMemPool(tx, false);
+             return state.DoS(0,
+                              error("AcceptToMemoryPool: too many sigops %s, %d > %d",
+                                    hash.ToString(), nSigOps, MAX_STANDARD_TX_SIGOPS),
+                              REJECT_NONSTANDARD, "bad-txns-too-many-sigops");
++        }
+
+         CAmount nValueOut = tx.GetValueOut();
+         CAmount nFees = nValueIn-nValueOut;
+@@ -1019,13 +1039,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+
+         // Don't accept it if it can't get into a block
+         CAmount txMinFee = GetMinRelayFee(tx, nSize, true);
+-        if (fLimitFree && nFees < txMinFee)
++        if (fLimitFree && nFees < txMinFee) {
++            GetNodeSignals().TxToMemPool(tx, false);
+             return state.DoS(0, error("AcceptToMemoryPool: not enough fees %s, %d < %d",
+                                       hash.ToString(), nFees, txMinFee),
+                              REJECT_INSUFFICIENTFEE, "insufficient fee");
++        }
+
+         // Require that free transactions have sufficient priority to be mined in the next block.
+         if (GetBoolArg("-relaypriority", true) && nFees < ::minRelayTxFee.GetFee(nSize) && !AllowFree(view.GetPriority(tx, chainActive.Height() + 1))) {
++            GetNodeSignals().TxToMemPool(tx, false);
+             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
+         }
+
+@@ -1046,22 +1069,27 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+             nLastTime = nNow;
+             // -limitfreerelay unit is thousand-bytes-per-minute
+             // At default rate it would take over a month to fill 1GB
+-            if (dFreeCount >= GetArg("-limitfreerelay", 15)*10*1000)
++            if (dFreeCount >= GetArg("-limitfreerelay", 15)*10*1000) {
++                GetNodeSignals().TxToMemPool(tx, false);
+                 return state.DoS(0, error("AcceptToMemoryPool: free transaction rejected by rate limiter"),
+                                  REJECT_INSUFFICIENTFEE, "rate limited free transaction");
++            }
+             LogPrint("mempool", "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount+nSize);
+             dFreeCount += nSize;
+         }
+
+-        if (fRejectAbsurdFee && nFees > ::minRelayTxFee.GetFee(nSize) * 10000)
++        if (fRejectAbsurdFee && nFees > ::minRelayTxFee.GetFee(nSize) * 10000) {
++            GetNodeSignals().TxToMemPool(tx, false);
+             return error("AcceptToMemoryPool: absurdly high fees %s, %d > %d",
+                          hash.ToString(),
+                          nFees, ::minRelayTxFee.GetFee(nSize) * 10000);
++        }
+
+         // Check against previous transactions
+         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
+         if (!CheckInputs(tx, state, view, true, STANDARD_SCRIPT_VERIFY_FLAGS, true))
+         {
++            GetNodeSignals().TxToMemPool(tx, false);
+             return error("AcceptToMemoryPool: ConnectInputs failed %s", hash.ToString());
+         }
+
+@@ -1076,11 +1104,13 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+         // can be exploited as a DoS attack.
+         if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true))
+         {
++            GetNodeSignals().TxToMemPool(tx, false);
+             return error("AcceptToMemoryPool: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s", hash.ToString());
+         }
 
          // Store transaction in memory
          pool.addUnchecked(hash, entry, !IsInitialBlockDownload());
