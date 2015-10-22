@@ -121,12 +121,13 @@ MyService.prototype.prototype.blockHandler = function(block, addOutput, callback
   var operations = [];
 
   //Timestamp of the current block
-  var blocktime = new Buffer(block.header.time);
+  var blocktime = new Buffer(4);
+  blocktime.writeUInt32BE(block.header.time);
 
   for (var i = 0; i < block.transactions.length; i++) {
     var transaction = block.transactions[i];
     var txid = new Buffer(transaction.id, 'hex');
-    var position = new Buffer(('0000' + i).slice(-5));
+    var position = new Buffer(('0000' + i).slice(-5), 'hex');
 
     //To be able to query this txid by the block date we create an index, leading with the prefix we
     //defined earlier, the the current blocktime, and finally a differentiator, in this case the index
@@ -153,7 +154,7 @@ With our block handler code every transaction in the blockchain will now be inde
 
 ```js
 
-MyService.prototype.getTransactionIdsByDate = function(startDate, endDate, callback) {
+MyService.prototype.getTransactionIdsByDate = function(startDateBuffer, endDateBuffer, callback) {
 
   var error;
   var transactions = [];
@@ -162,12 +163,12 @@ MyService.prototype.getTransactionIdsByDate = function(startDate, endDate, callb
   var stream = this.node.services.db.store.createReadStream({
     gte: Buffer.concat([
       MyService.datePrefix,
-      new Buffer(startDate),
+      startDateBuffer,
       MyService.minPosition
     ]),
     lte: Buffer.concat([
       MyService.datePrefix,
-      new Buffer(endDate),
+      endDateBuffer,
       MyService.maxPosition
     ]),
     valueEncoding: 'binary',
@@ -205,11 +206,11 @@ Since leveldb is just a simple key-value store we need something to differentiat
 //A simple example of indexing the number of inputs and ouputs given a transaction id
 
 /** Wrong way **/
-var index1key = new Buffer(transaction.id);
+var index1key = new Buffer(transaction.id, 'hex');
 var index1value = transaction.inputs.length;
 
 //Since this key has the same value it would just overwrite index1 when we write to the db
-var index2key = new Buffer(transaction.id);
+var index2key = new Buffer(transaction.id, 'hex');
 var index2value = transaction.outputs.length;
 
 
@@ -217,11 +218,11 @@ var index2value = transaction.outputs.length;
 var index1prefix = new Buffer('11', 'hex');
 var index2prefix = new Buffer('12', 'hex');
 
-var index1key = Buffer.concat([index1prefix, new Buffer(transaction.id)]);
+var index1key = Buffer.concat([index1prefix, new Buffer(transaction.id, 'hex')]);
 var index1value = transaction.inputs.length;
 
 //Now that the keys are different, this won't overwrite the index
-var index2key = Buffer.concat([index2prefix, new Buffer(transaction.id)]);
+var index2key = Buffer.concat([index2prefix, new Buffer(transaction.id, 'hex')]);
 var index2value = transaction.outputs.length;
 ```
 
