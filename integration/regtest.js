@@ -299,9 +299,9 @@ describe('Daemon Binding Functionality', function() {
       tx.from(utxos[1]);
       tx.change(privateKey.toAddress());
       tx.to(destKey.toAddress(), utxos[1].amount * 1e8 - 1000);
-      (function() {
-        bitcoind.sendTransaction(tx.uncheckedSerialize());
-      }).should.throw('\x10: mandatory-script-verify-flag-failed (Operation not valid with the current stack size)');
+      var result = bitcoind.sendTransaction(tx.uncheckedSerialize());
+      result.code.should.equal(16);
+      result.message.should.equal('mandatory-script-verify-flag-failed (Operation not valid with the current stack size)');
     });
 
     it('will throw an error for unexpected types', function() {

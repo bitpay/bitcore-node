@@ -539,19 +539,20 @@ describe('DB Service', function() {
         done();
       });
     });
-    it('should give an error if bitcoind threw an error', function(done) {
+    it('should give an error object', function(done) {
       var db = new DB(baseConfig);
       db.node = {};
       db.node.services = {};
       db.node.services.bitcoind = {
-        sendTransaction: sinon.stub().throws(new Error('error'))
+        sendTransaction: sinon.stub().returns({code: 0, message: 'some error'})
       };
 
       var tx = new Transaction();
       tx.serialize = sinon.stub().returns('txstring');
       db.sendTransaction(tx, function(err, txid) {
-        tx.serialize.callCount.should.equal(1);
-        should.exist(err);
+        should.not.exist(txid);
+        err.code.should.equal(0);
+        err.message.should.equal('some error');
         done();
       });
     });
