@@ -38,6 +38,27 @@ To be able to debug you'll need to have `gdb` and `node` compiled for debugging 
 $ gdb --args node examples/node.js
 ```
 
+To be able to debug directly on an ARM device such as a Raspberry Pi or Android device, perform the same steps as above, except you will need to inform gdb that it should not halt on OpenSSL's SIGILL signal:
+
+```bash
+$ gdb --args node examples/node.js
+(gdb) handle SIGILL nostop
+```
+
+The output from the 'handle SIGILL nostop' should look similar to:
+
+> Signal        Stop      Print   Pass to program Description
+
+> SIGILL        No        Yes     Yes             Illegal instruction
+
+```bash
+(gdb) run
+```
+
+```bash
+$ gdb --args node examples/node.js
+```
+
 To run mocha from within gdb (notice `_mocha` and not `mocha` so that the tests run in the same process):
 
 ```bash
