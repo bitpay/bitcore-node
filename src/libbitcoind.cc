@@ -261,7 +261,7 @@ NAN_METHOD(StartTxMon) {
 
 static void
 tx_notifier(uv_async_t *handle) {
-  Isolate* isolate = GetCurrentContext()->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
 
   Local<Array> results = Array::New(isolate);
@@ -273,7 +273,7 @@ tx_notifier(uv_async_t *handle) {
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << tx;
     std::string stx = ssTx.str();
-    Nan::MaybeLocal<v8::Object> txBuffer = Nan::NewBuffer((char *)stx.c_str(), stx.size());
+    Nan::MaybeLocal<v8::Object> txBuffer = Nan::CopyBuffer((char *)stx.c_str(), stx.size());
 
     uint256 hash = tx.GetHash();
 
@@ -1039,7 +1039,7 @@ async_get_tx_after(uv_work_t *r) {
       CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
       ssTx << ctx;
       std::string stx = ssTx.str();
-      Nan::MaybeLocal<v8::Object> result = Nan::NewBuffer((char *)stx.c_str(), stx.size());
+      Nan::MaybeLocal<v8::Object> result = Nan::CopyBuffer((char *)stx.c_str(), stx.size());
       Local<Value> argv[2] = {
         Local<Value>::New(isolate, Null()),
         result.ToLocalChecked()
@@ -1185,7 +1185,7 @@ async_get_tx_and_info_after(uv_work_t *r) {
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << ctx;
     std::string stx = ssTx.str();
-    Nan::MaybeLocal<v8::Object> rawNodeBuffer = Nan::NewBuffer((char *)stx.c_str(), stx.size());
+    Nan::MaybeLocal<v8::Object> rawNodeBuffer = Nan::CopyBuffer((char *)stx.c_str(), stx.size());
 
     Nan::Set(obj, New("blockHash").ToLocalChecked(), New(req->blockHash).ToLocalChecked());
     Nan::Set(obj, New("height").ToLocalChecked(), New<Number>(req->height));
@@ -1462,7 +1462,7 @@ NAN_METHOD(GetMempoolTransactions) {
       CDataStream dataStreamTx(SER_NETWORK, PROTOCOL_VERSION);
       dataStreamTx << tx;
       std::string txString = dataStreamTx.str();
-      Nan::MaybeLocal<v8::Object> txBuffer = Nan::NewBuffer((char *)txString.c_str(), txString.size());
+      Nan::MaybeLocal<v8::Object> txBuffer = Nan::CopyBuffer((char *)txString.c_str(), txString.size());
       transactions->Set(arrayIndex, txBuffer.ToLocalChecked());
       arrayIndex++;
     }
@@ -1510,7 +1510,6 @@ set_cooked(void) {
  * Init()
  * Initialize the singleton object known as bitcoind.
  */
-
 NAN_MODULE_INIT(init) {
   Nan::Set(target, New("start").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartBitcoind)).ToLocalChecked());
   Nan::Set(target, New("onBlocksReady").ToLocalChecked(), GetFunction(New<FunctionTemplate>(OnBlocksReady)).ToLocalChecked());

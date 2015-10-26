@@ -48,8 +48,7 @@
           "<!(./bin/variables.sh memenv)",
           "<!(./bin/variables.sh bdb)",
           "<!(./bin/variables.sh anl)",
-          "<!(./bin/variables.sh ssl)",
-          "<!(./bin/variables.sh crypto)"
+          "<!(./bin/variables.sh ssl)"
         ],
         "ldflags": [
           "<!(./bin/variables.sh load_archive)"
