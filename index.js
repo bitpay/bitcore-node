@@ -1,17 +1,6 @@
 'use strict';
 
-var semver = require('semver');
-var packageData = require('./package.json');
-
-function nodeVersionCheck(version, expected) {
-  if (!semver.satisfies(version, expected)) {
-    throw new Error('Node.js version ' + version + ' is expected to be ' + expected);
-  }
-}
-nodeVersionCheck(process.versions.node, packageData.engines.node);
-
 module.exports = require('./lib');
-module.exports.nodeVersionCheck = nodeVersionCheck;
 module.exports.Node = require('./lib/node');
 module.exports.Transaction = require('./lib/transaction');
 module.exports.Service = require('./lib/service');
