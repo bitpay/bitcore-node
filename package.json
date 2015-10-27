@@ -54,7 +54,7 @@
     "commander": "^2.8.1",
     "errno": "^0.1.4",
     "express": "^4.13.3",
-    "leveldown": "git://github.com/Level/leveldown#86b96a823f74718f085e28086556a9697d61de84",
+    "leveldown": "^1.4.2",
     "levelup": "^1.2.1",
     "liftoff": "^2.2.0",
     "memdown": "^1.0.0",
