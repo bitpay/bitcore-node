@@ -13,7 +13,7 @@ host="${arch}"-"${platform}"
 mac_response=
 check_mac_build_system () {
   if [ "${platform}" == "darwin" ]; then
-    if [ ! -d "/usr/include" ]; then
+    if [ ! -e "/usr/include/stdlib.h" ]; then
       if hash xcode-select 2>/dev/null; then
         mac_response="Please run 'xcode-select --install' from the command line because it seems that you've got Xcode, but not the Xcode command line tools that are required for compiling this project from source..."
       else
