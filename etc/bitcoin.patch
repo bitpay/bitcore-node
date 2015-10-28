@@ -292,7 +292,7 @@ index cce687a..0f162ff 100644
  {
      SetupEnvironment();
 @@ -175,3 +180,4 @@ int main(int argc, char* argv[])
- 
+
      return (AppInit(argc, argv) ? 0 : 1);
  }
 +#endif
