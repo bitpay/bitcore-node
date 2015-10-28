@@ -79,6 +79,30 @@ index fd74aef..9c79637 100644
  LEVELDB_CPPFLAGS=
  LIBLEVELDB=
  LIBMEMENV=
+diff --git a/depends/hosts/linux.mk b/depends/hosts/linux.mk
+index b13a0f1..0513394 100644
+--- a/depends/hosts/linux.mk
++++ b/depends/hosts/linux.mk
+@@ -10,15 +10,15 @@ linux_debug_CXXFLAGS=$(linux_debug_CFLAGS)
+ linux_debug_CPPFLAGS=-D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC
+
+ ifeq (86,$(findstring 86,$(build_arch)))
+-i686_linux_CC=gcc -m32
+-i686_linux_CXX=g++ -m32
++i686_linux_CC=${CC} -m32
++i686_linux_CXX=${CXX} -m32
+ i686_linux_AR=ar
+ i686_linux_RANLIB=ranlib
+ i686_linux_NM=nm
+ i686_linux_STRIP=strip
+
+-x86_64_linux_CC=gcc -m64
+-x86_64_linux_CXX=g++ -m64
++x86_64_linux_CC=${CC} -m64
++x86_64_linux_CXX=${CXX} -m64
+ x86_64_linux_AR=ar
+ x86_64_linux_RANLIB=ranlib
+ x86_64_linux_NM=nm
 diff --git a/depends/packages/bdb.mk b/depends/packages/bdb.mk
 index 68841af..65a105b 100644
 --- a/depends/packages/bdb.mk
@@ -268,7 +292,7 @@ index cce687a..0f162ff 100644
  {
      SetupEnvironment();
 @@ -175,3 +180,4 @@ int main(int argc, char* argv[])
-
+ 
      return (AppInit(argc, argv) ? 0 : 1);
  }
 +#endif
