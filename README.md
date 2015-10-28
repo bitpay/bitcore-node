@@ -14,7 +14,7 @@ Note: For your convenience, we distribute binaries for x86_64 Linux and x86_64 M
 
 ## Prerequisites
 
-- Node.js v0.12
+- Node.js v0.12 or v4.2
 - ~100GB of disk storage
 - ~4GB of RAM
 - Mac OS X >= 10.9, Ubuntu >= 12.04 (libc >= 2.15 and libstdc++ >= 6.0.16)
