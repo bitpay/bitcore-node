@@ -5,7 +5,8 @@ function getTarballName() {
   var version = require(packageRoot + '/package.json').version;
   var platform = process.platform;
   var arch = process.arch;
-  var tarballName = 'libbitcoind-' + version + '-' + platform + '-' + arch + '.tgz';
+  var abi = process.versions.modules;
+  var tarballName = 'libbitcoind-' + version + '-node' + abi + '-' + platform + '-' + arch + '.tgz';
   return tarballName;
 }
 
