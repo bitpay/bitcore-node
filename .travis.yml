@@ -1,7 +1,13 @@
 sudo: false
 language: node_js
 env:
-- BITCORENODE_ENV=test BITCORENODE_ASSUME_YES=true
+  - BITCORENODE_ENV=test BITCORENODE_ASSUME_YES=true CXX=g++-4.8
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.8
 node_js:
   - "v0.12.7"
   - "v4"
