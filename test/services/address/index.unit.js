@@ -1036,9 +1036,8 @@ describe('Address Service', function() {
       });
     });
   });
-  describe('#updateMempoolIndex', function() {
+  describe('#updateMempoolIndex/#removeMempoolIndex', function() {
     var am;
-    var db = {};
     var tx = Transaction().fromBuffer(txBuf);
 
     before(function() {
@@ -1049,35 +1048,20 @@ describe('Address Service', function() {
       am.updateMempoolIndex(tx);
       am.mempoolInputIndex['18Z29uNgWyUDtNyTKE1PaurbSR131EfANc'][0].txid.should.equal('45202ffdeb8344af4dec07cddf0478485dc65cc7d08303e45959630c89b51ea2');
       am.mempoolOutputIndex['12w93weN8oti3P1e5VYEuygqyujhADF7J5'][0].txid.should.equal('45202ffdeb8344af4dec07cddf0478485dc65cc7d08303e45959630c89b51ea2');
+      Object.keys(am.mempoolSpentIndex).length.should.equal(14);
       am.mempoolInputIndex['1JT7KDYwT9JY9o2vyqcKNSJgTWeKfV3ui8'].length.should.equal(12);
       am.mempoolOutputIndex['12w93weN8oti3P1e5VYEuygqyujhADF7J5'].length.should.equal(1);
     });
 
-  });
-  describe('#resetMempoolIndex', function() {
-    var am;
-    var db = {};
-
-    before(function() {
-      var testnode = {
-        db: db,
-        services: {
-          bitcoind: {
-            getMempoolTransactions: sinon.stub().returns([txBuf]),
-            on: sinon.stub()
-          }
-        }
-      };
-      am = new AddressService({node: testnode});
-      am.updateMempoolIndex = sinon.stub();
-
+    it('will remove the input and output indexes', function() {
+      am.removeMempoolIndex(tx);
+      should.not.exist(am.mempoolInputIndex['18Z29uNgWyUDtNyTKE1PaurbSR131EfANc']);
+      should.not.exist(am.mempoolOutputIndex['12w93weN8oti3P1e5VYEuygqyujhADF7J5']);
+      Object.keys(am.mempoolSpentIndex).length.should.equal(0);
+      should.not.exist(am.mempoolInputIndex['1JT7KDYwT9JY9o2vyqcKNSJgTWeKfV3ui8']);
+      should.not.exist(am.mempoolOutputIndex['12w93weN8oti3P1e5VYEuygqyujhADF7J5']);
     });
-    it('will reset the input and output indexes', function(done) {
-      am.resetMempoolIndex(function() {
-        am.updateMempoolIndex.callCount.should.equal(1);
-        done();
-      });
-    });
+
   });
   describe('#getAddressSummary', function() {
     var node = {
