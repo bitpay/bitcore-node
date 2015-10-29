@@ -144,7 +144,8 @@ describe('Bitcoin Service', function() {
           name.should.equal('bitcoind.node');
           return {
             onTipUpdate: sinon.stub(),
-            startTxMon: sinon.stub().callsArgWith(0, [transaction])
+            startTxMon: sinon.stub().callsArgWith(0, [transaction]),
+            startTxMonLeave: sinon.stub().callsArgWith(0, [transaction])
           };
         }
       });
@@ -175,7 +176,8 @@ describe('Bitcoin Service', function() {
                 callback(height++);
               });
             },
-            startTxMon: sinon.stub()
+            startTxMon: sinon.stub(),
+            startTxMonLeave: sinon.stub()
           };
         }
       });
