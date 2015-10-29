@@ -54,7 +54,7 @@
     "commander": "^2.8.1",
     "errno": "^0.1.4",
     "express": "^4.13.3",
-    "leveldown": "^1.4.1",
+    "leveldown": "^1.4.2",
     "levelup": "^1.2.1",
     "liftoff": "^2.2.0",
     "memdown": "^1.0.0",
@@ -78,7 +78,7 @@
     "bitcore-p2p": "~1.0.0"
   },
   "engines": {
-    "node": "^0.12"
+    "node": "^0.12 || ^4.2"
   },
   "os": [
     "darwin",
