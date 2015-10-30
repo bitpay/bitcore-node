@@ -726,12 +726,15 @@ describe('Node Functionality', function() {
         node.services.bitcoind.sendTransaction(tx.serialize());
 
         setImmediate(function() {
-          var length = node.services.address.mempoolOutputIndex[address].length;
-          length.should.equal(1);
-          should.exist(node.services.address.mempoolOutputIndex[address]);
-          done();
+          var hashBuffer = bitcore.Address(address).hashBuffer;
+          node.services.address._getOutputsMempool(address, hashBuffer, function(err, outs) {
+            if (err) {
+              throw err;
+            }
+            outs.length.should.equal(1);
+            done();
+          });
         });
-
       });
 
     });
