@@ -104,7 +104,7 @@ node.services.bitcoind.on('tx', function(txInfo) {
   // a new transaction has entered the mempool
 });
 
-node.services.bitcoind.on('txleave', function(txInfo) {
+node.services.bitcoind.on('txleave', function(txLeaveInfo) {
   // a new transaction has left the mempool
 });
 ```
@@ -115,6 +115,15 @@ The `txInfo` object will have the format:
 {
   buffer: <Buffer...>,
   mempool: true, // will currently always be true
+  hash: '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623'
+}
+```
+
+The `txLeaveInfo` object will have the format:
+
+```js
+{
+  buffer: <Buffer...>,
   hash: '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623'
 }
 ```
