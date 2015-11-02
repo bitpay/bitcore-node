@@ -19,16 +19,6 @@ CustomService.prototype.blockHandler = function(block, add, callback) {
 
 Take a look at the Address Service implementation for more details about how to encode the key, value for the best efficiency and ways to format the keys for streaming reads.
 
-Additionally the mempool can have an index, the mempool index will be updated once bitcoind and the db have both fully synced. A service can implement a `resetMempoolIndex` method that will be run during this time, and the "synced" event will wait until this task has been finished:
-
-```js
-CustomService.prototype.resetMempoolIndex = function(callback) {
-  var transactionBuffers = this.node.services.bitcoind.getMempoolTransactions();
-  // interact over the transactions asynchronously here
-  callback();
-};
-```
-
 ## API Documentation
 These methods are exposed over the JSON-RPC interface and can be called directly from a node via:
 
