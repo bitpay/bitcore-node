@@ -101,7 +101,11 @@ node.services.bitcoind.on('tip', function(blockHash) {
 });
 
 node.services.bitcoind.on('tx', function(txInfo) {
-  // a new transaction has been broadcast in the network
+  // a new transaction has entered the mempool
+});
+
+node.services.bitcoind.on('txleave', function(txInfo) {
+  // a new transaction has left the mempool
 });
 ```
 
@@ -110,7 +114,7 @@ The `txInfo` object will have the format:
 ```js
 {
   buffer: <Buffer...>,
-  mempool: true,
+  mempool: true, // will currently always be true
   hash: '7426c707d0e9705bdd8158e60983e37d0f5d63529086d6672b07d9238d5aa623'
 }
 ```
