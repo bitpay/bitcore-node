@@ -7,6 +7,8 @@ var bitcorenode = require('../../../');
 var AddressService = bitcorenode.services.Address;
 var blockData = require('../../data/livenet-345003.json');
 var bitcore = require('bitcore-lib');
+var memdown = require('memdown');
+var leveldown = require('leveldown');
 var Script = bitcore.Script;
 var Address = bitcore.Address;
 var Networks = bitcore.Networks;
@@ -31,6 +33,258 @@ var mocknode = {
 
 describe('Address Service', function() {
   var txBuf = new Buffer(txData[0], 'hex');
+
+  describe('@constructor', function() {
+    it('config to use memdown for mempool index', function() {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.levelupStore.should.equal(memdown);
+    });
+    it('config to use leveldown for mempool index', function() {
+      var am = new AddressService({
+        node: mocknode
+      });
+      am.levelupStore.should.equal(leveldown);
+    });
+  });
+
+  describe('#start', function() {
+    it('will flush existing mempool', function(done) {
+      var leveldownmock = {
+        destroy: sinon.stub().callsArgWith(1, null)
+      };
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(true)
+        },
+        'leveldown': leveldownmock,
+        'levelup': sinon.stub().callsArgWith(2, null),
+        'mkdirp': sinon.stub().callsArgWith(1, null)
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function() {
+        leveldownmock.destroy.callCount.should.equal(1);
+        leveldownmock.destroy.args[0][0].should.equal('testdir/testnet3/bitcore-addressmempool.db');
+        done();
+      });
+    });
+    it('will mkdirp if directory does not exist', function(done) {
+      var leveldownmock = {
+        destroy: sinon.stub().callsArgWith(1, null)
+      };
+      var mkdirpmock = sinon.stub().callsArgWith(1, null);
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(false)
+        },
+        'leveldown': leveldownmock,
+        'levelup': sinon.stub().callsArgWith(2, null),
+        'mkdirp': mkdirpmock
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function() {
+        mkdirpmock.callCount.should.equal(1);
+        mkdirpmock.args[0][0].should.equal('testdir/testnet3/bitcore-addressmempool.db');
+        done();
+      });
+    });
+    it('start levelup db for mempool index', function(done) {
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(true)
+        },
+        'leveldown': {
+          destroy: sinon.stub().callsArgWith(1, null)
+        },
+        'levelup': function(dbPath, options, callback) {
+          dbPath.should.equal('testdir/testnet3/bitcore-addressmempool.db');
+          options.db.should.equal(memdown);
+          options.keyEncoding.should.equal('binary');
+          options.valueEncoding.should.equal('binary');
+          options.fillCache.should.equal(false);
+          setImmediate(callback);
+        },
+        'mkdirp': sinon.stub().callsArgWith(1, null)
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function() {
+        done();
+      });
+    });
+    it('handle error from mkdirp', function(done) {
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(false)
+        },
+        'leveldown': {
+          destroy: sinon.stub().callsArgWith(1, null)
+        },
+        'levelup': sinon.stub().callsArgWith(2, null),
+        'mkdirp': sinon.stub().callsArgWith(1, new Error('testerror'))
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function(err) {
+        err.message.should.equal('testerror');
+        done();
+      });
+    });
+    it('handle error from levelup', function(done) {
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(false)
+        },
+        'leveldown': {
+          destroy: sinon.stub().callsArgWith(1, null)
+        },
+        'levelup': sinon.stub().callsArgWith(2, new Error('leveltesterror')),
+        'mkdirp': sinon.stub().callsArgWith(1, null)
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function(err) {
+        err.message.should.equal('leveltesterror');
+        done();
+      });
+    });
+    it('handle error from leveldown.destroy', function(done) {
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(true)
+        },
+        'leveldown': {
+          destroy: sinon.stub().callsArgWith(1, new Error('destroy'))
+        },
+        'levelup': sinon.stub().callsArgWith(2, null),
+        'mkdirp': sinon.stub().callsArgWith(1, null)
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function(err) {
+        err.message.should.equal('destroy');
+        done();
+      });
+    });
+  });
+
+  describe('#stop', function() {
+    it('will close mempool levelup', function(done) {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.mempoolIndex = {};
+      am.mempoolIndex.close = sinon.stub().callsArg(0);
+      am.stop(function() {
+        am.mempoolIndex.close.callCount.should.equal(1);
+        done();
+      });
+    });
+  });
+
+  describe('#_setMempoolIndexPath', function() {
+    it('should set the database path', function() {
+      var testnode = {
+        network: Networks.livenet,
+        datadir: process.env.HOME + '/.bitcoin',
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        }
+      };
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      am._setMempoolIndexPath();
+      am.mempoolIndexPath.should.equal(process.env.HOME + '/.bitcoin/bitcore-addressmempool.db');
+    });
+    it('should load the db for testnet', function() {
+      var testnode = {
+        network: Networks.testnet,
+        datadir: process.env.HOME + '/.bitcoin',
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        }
+      };
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      am._setMempoolIndexPath();
+      am.mempoolIndexPath.should.equal(process.env.HOME + '/.bitcoin/testnet3/bitcore-addressmempool.db');
+    });
+    it('error with unknown network', function() {
+      var testnode = {
+        network: 'unknown',
+        datadir: process.env.HOME + '/.bitcoin',
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        }
+      };
+      (function() {
+        var am = new AddressService({
+          mempoolMemoryIndex: true,
+          node: testnode
+        });
+      }).should.throw('Unknown network');
+    });
+    it('should load the db with regtest', function() {
+      // Switch to use regtest
+      // Networks.remove(Networks.testnet);
+      Networks.add({
+        name: 'regtest',
+        alias: 'regtest',
+        pubkeyhash: 0x6f,
+        privatekey: 0xef,
+        scripthash: 0xc4,
+        xpubkey: 0x043587cf,
+        xprivkey: 0x04358394,
+        networkMagic: 0xfabfb5da,
+        port: 18444,
+        dnsSeeds: [ ]
+      });
+      var regtest = Networks.get('regtest');
+      var testnode = {
+        network: regtest,
+        datadir: process.env.HOME + '/.bitcoin',
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        }
+      };
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      am.mempoolIndexPath.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcore-addressmempool.db');
+      Networks.remove(regtest);
+    });
+  });
+
   describe('#getAPIMethods', function() {
     it('should return the correct methods', function() {
       var am = new AddressService({
@@ -791,6 +1045,50 @@ describe('Address Service', function() {
     });
   });
 
+  describe('#_getSpentMempool', function() {
+    it('will decode data from the database', function() {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.mempoolIndex = {};
+      var mempoolValue = Buffer.concat([
+        new Buffer('85630d684f1f414264f88a31bddfc79dd0c00659330dcdc393b321c121f4078b', 'hex'),
+        new Buffer('00000003', 'hex')
+      ]);
+      am.mempoolIndex.get = sinon.stub().callsArgWith(1, null, mempoolValue);
+      var prevTxIdBuffer = new Buffer('e7888264d286be2da26b0a4dbd2fc5c9ece82b3e40e6791b137e4155b6da8981', 'hex');
+      var outputIndex = 1;
+      var outputIndexBuffer = new Buffer('00000001', 'hex');
+      var expectedKey = Buffer.concat([
+        new Buffer('03', 'hex'),
+        prevTxIdBuffer,
+        outputIndexBuffer
+      ]).toString('hex');
+      am._getSpentMempool(prevTxIdBuffer, outputIndex, function(err, value) {
+        if (err) {
+          throw err;
+        }
+        am.mempoolIndex.get.args[0][0].toString('hex').should.equal(expectedKey);
+        value.inputTxId.should.equal('85630d684f1f414264f88a31bddfc79dd0c00659330dcdc393b321c121f4078b');
+        value.inputIndex.should.equal(3);
+      });
+    });
+    it('handle error from levelup', function() {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.mempoolIndex = {};
+      am.mempoolIndex.get = sinon.stub().callsArgWith(1, new Error('test'));
+      var prevTxIdBuffer = new Buffer('e7888264d286be2da26b0a4dbd2fc5c9ece82b3e40e6791b137e4155b6da8981', 'hex');
+      var outputIndex = 1;
+      am._getSpentMempool(prevTxIdBuffer, outputIndex, function(err) {
+        err.message.should.equal('test');
+      });
+    });
+  });
+
   describe('#getOutputs', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
@@ -931,6 +1229,93 @@ describe('Address Service', function() {
       readStream2.emit('error', new Error('readstreamerror'));
       setImmediate(function() {
         readStream2.emit('close');
+      });
+    });
+  });
+
+  describe('#_getOutputsMempool', function() {
+    var am;
+    var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+    var hashBuffer = bitcore.Address(address).hashBuffer;
+    var db = {
+      tip: {
+        __height: 1
+      }
+    };
+    var testnode = {
+      network: Networks.testnet,
+      datadir: 'testdir',
+      services: {
+        db: db,
+        bitcoind: {
+          on: sinon.stub()
+        }
+      }
+    };
+    before(function() {
+      am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+    });
+    it('it will handle error', function(done) {
+      var testStream = new EventEmitter();
+      am.mempoolIndex = {};
+      am.mempoolIndex.createReadStream = sinon.stub().returns(testStream);
+      am._getOutputsMempool(address, hashBuffer, function(err, outputs) {
+        should.exist(err);
+        err.message.should.equal('readstreamerror');
+        done();
+      });
+      testStream.emit('error', new Error('readstreamerror'));
+      setImmediate(function() {
+        testStream.emit('close');
+      });
+    });
+    it('it will parse data', function(done) {
+      var testStream = new EventEmitter();
+      am.mempoolIndex = {};
+      am.mempoolIndex.createReadStream = sinon.stub().returns(testStream);
+
+      am._getOutputsMempool(address, hashBuffer, function(err, outputs) {
+        if (err) {
+          throw err;
+        }
+        outputs.length.should.equal(1);
+        outputs[0].address.should.equal(address);
+        outputs[0].txid.should.equal(txid);
+        outputs[0].outputIndex.should.equal(outputIndex);
+        outputs[0].height.should.equal(-1);
+        outputs[0].satoshis.should.equal(3);
+        outputs[0].script.should.equal('ac');
+        outputs[0].confirmations.should.equal(0);
+        done();
+      });
+
+      var txid = '5d32f0fff6871c377e00c16f48ebb5e89c723d0b9dd25f68fdda70c3392bee61';
+      var txidBuffer = new Buffer(txid, 'hex');
+      var outputIndex = 3;
+      var outputIndexBuffer = new Buffer(4);
+      outputIndexBuffer.writeUInt32BE(outputIndex);
+      var keyData = Buffer.concat([
+        new Buffer('01', 'hex'),
+        hashBuffer,
+        txidBuffer,
+        outputIndexBuffer
+      ]);
+
+      var valueData = Buffer.concat([
+        new Buffer('4008000000000000', 'hex'),
+        new Buffer('ac', 'hex')
+      ]);
+
+      // Note: key is not used currently
+      testStream.emit('data', {
+        key: keyData,
+        value: valueData
+      });
+      setImmediate(function() {
+        testStream.emit('close');
       });
     });
   });
