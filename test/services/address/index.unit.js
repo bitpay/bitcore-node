@@ -7,6 +7,8 @@ var bitcorenode = require('../../../');
 var AddressService = bitcorenode.services.Address;
 var blockData = require('../../data/livenet-345003.json');
 var bitcore = require('bitcore-lib');
+var memdown = require('memdown');
+var leveldown = require('leveldown');
 var Script = bitcore.Script;
 var Address = bitcore.Address;
 var Networks = bitcore.Networks;
@@ -19,6 +21,8 @@ var mockdb = {
 };
 
 var mocknode = {
+  network: Networks.testnet,
+  datadir: 'testdir',
   db: mockdb,
   services: {
     bitcoind: {
@@ -29,9 +33,264 @@ var mocknode = {
 
 describe('Address Service', function() {
   var txBuf = new Buffer(txData[0], 'hex');
+
+  describe('@constructor', function() {
+    it('config to use memdown for mempool index', function() {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.levelupStore.should.equal(memdown);
+    });
+    it('config to use leveldown for mempool index', function() {
+      var am = new AddressService({
+        node: mocknode
+      });
+      am.levelupStore.should.equal(leveldown);
+    });
+  });
+
+  describe('#start', function() {
+    it('will flush existing mempool', function(done) {
+      var leveldownmock = {
+        destroy: sinon.stub().callsArgWith(1, null)
+      };
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(true)
+        },
+        'leveldown': leveldownmock,
+        'levelup': sinon.stub().callsArgWith(2, null),
+        'mkdirp': sinon.stub().callsArgWith(1, null)
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function() {
+        leveldownmock.destroy.callCount.should.equal(1);
+        leveldownmock.destroy.args[0][0].should.equal('testdir/testnet3/bitcore-addressmempool.db');
+        done();
+      });
+    });
+    it('will mkdirp if directory does not exist', function(done) {
+      var leveldownmock = {
+        destroy: sinon.stub().callsArgWith(1, null)
+      };
+      var mkdirpmock = sinon.stub().callsArgWith(1, null);
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(false)
+        },
+        'leveldown': leveldownmock,
+        'levelup': sinon.stub().callsArgWith(2, null),
+        'mkdirp': mkdirpmock
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function() {
+        mkdirpmock.callCount.should.equal(1);
+        mkdirpmock.args[0][0].should.equal('testdir/testnet3/bitcore-addressmempool.db');
+        done();
+      });
+    });
+    it('start levelup db for mempool index', function(done) {
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(true)
+        },
+        'leveldown': {
+          destroy: sinon.stub().callsArgWith(1, null)
+        },
+        'levelup': function(dbPath, options, callback) {
+          dbPath.should.equal('testdir/testnet3/bitcore-addressmempool.db');
+          options.db.should.equal(memdown);
+          options.keyEncoding.should.equal('binary');
+          options.valueEncoding.should.equal('binary');
+          options.fillCache.should.equal(false);
+          setImmediate(callback);
+        },
+        'mkdirp': sinon.stub().callsArgWith(1, null)
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function() {
+        done();
+      });
+    });
+    it('handle error from mkdirp', function(done) {
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(false)
+        },
+        'leveldown': {
+          destroy: sinon.stub().callsArgWith(1, null)
+        },
+        'levelup': sinon.stub().callsArgWith(2, null),
+        'mkdirp': sinon.stub().callsArgWith(1, new Error('testerror'))
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function(err) {
+        err.message.should.equal('testerror');
+        done();
+      });
+    });
+    it('handle error from levelup', function(done) {
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(false)
+        },
+        'leveldown': {
+          destroy: sinon.stub().callsArgWith(1, null)
+        },
+        'levelup': sinon.stub().callsArgWith(2, new Error('leveltesterror')),
+        'mkdirp': sinon.stub().callsArgWith(1, null)
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function(err) {
+        err.message.should.equal('leveltesterror');
+        done();
+      });
+    });
+    it('handle error from leveldown.destroy', function(done) {
+      var TestAddressService = proxyquire('../../../lib/services/address', {
+        'fs': {
+          existsSync: sinon.stub().returns(true)
+        },
+        'leveldown': {
+          destroy: sinon.stub().callsArgWith(1, new Error('destroy'))
+        },
+        'levelup': sinon.stub().callsArgWith(2, null),
+        'mkdirp': sinon.stub().callsArgWith(1, null)
+      });
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.start(function(err) {
+        err.message.should.equal('destroy');
+        done();
+      });
+    });
+  });
+
+  describe('#stop', function() {
+    it('will close mempool levelup', function(done) {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.mempoolIndex = {};
+      am.mempoolIndex.close = sinon.stub().callsArg(0);
+      am.stop(function() {
+        am.mempoolIndex.close.callCount.should.equal(1);
+        done();
+      });
+    });
+  });
+
+  describe('#_setMempoolIndexPath', function() {
+    it('should set the database path', function() {
+      var testnode = {
+        network: Networks.livenet,
+        datadir: process.env.HOME + '/.bitcoin',
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        }
+      };
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      am._setMempoolIndexPath();
+      am.mempoolIndexPath.should.equal(process.env.HOME + '/.bitcoin/bitcore-addressmempool.db');
+    });
+    it('should load the db for testnet', function() {
+      var testnode = {
+        network: Networks.testnet,
+        datadir: process.env.HOME + '/.bitcoin',
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        }
+      };
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      am._setMempoolIndexPath();
+      am.mempoolIndexPath.should.equal(process.env.HOME + '/.bitcoin/testnet3/bitcore-addressmempool.db');
+    });
+    it('error with unknown network', function() {
+      var testnode = {
+        network: 'unknown',
+        datadir: process.env.HOME + '/.bitcoin',
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        }
+      };
+      (function() {
+        var am = new AddressService({
+          mempoolMemoryIndex: true,
+          node: testnode
+        });
+      }).should.throw('Unknown network');
+    });
+    it('should load the db with regtest', function() {
+      // Switch to use regtest
+      // Networks.remove(Networks.testnet);
+      Networks.add({
+        name: 'regtest',
+        alias: 'regtest',
+        pubkeyhash: 0x6f,
+        privatekey: 0xef,
+        scripthash: 0xc4,
+        xpubkey: 0x043587cf,
+        xprivkey: 0x04358394,
+        networkMagic: 0xfabfb5da,
+        port: 18444,
+        dnsSeeds: [ ]
+      });
+      var regtest = Networks.get('regtest');
+      var testnode = {
+        network: regtest,
+        datadir: process.env.HOME + '/.bitcoin',
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        }
+      };
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      am.mempoolIndexPath.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcore-addressmempool.db');
+      Networks.remove(regtest);
+    });
+  });
+
   describe('#getAPIMethods', function() {
     it('should return the correct methods', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var methods = am.getAPIMethods();
       methods.length.should.equal(7);
     });
@@ -39,7 +298,10 @@ describe('Address Service', function() {
 
   describe('#getPublishEvents', function() {
     it('will return an array of publish event objects', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       am.subscribe = sinon.spy();
       am.unsubscribe = sinon.spy();
       var events = am.getPublishEvents();
@@ -75,7 +337,10 @@ describe('Address Service', function() {
     it('create a message for an address', function() {
       var txBuf = new Buffer('01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000', 'hex');
       var tx = bitcore.Transaction().fromBuffer(txBuf);
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       am.node.network = Networks.livenet;
       var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
       var hashHex = bitcore.Address(address).hashBuffer.toString('hex');
@@ -92,28 +357,40 @@ describe('Address Service', function() {
   });
 
   describe('#transactionHandler', function() {
-    it('will pass outputs to transactionOutputHandler and call transactionEventHandler and balanceEventHandler', function() {
+    it('will pass outputs to transactionOutputHandler and call transactionEventHandler and balanceEventHandler', function(done) {
       var txBuf = new Buffer('01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0704ffff001d0104ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac00000000', 'hex');
-      var am = new AddressService({node: mocknode});
+      var am1 = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
       var message = {};
-      am.transactionOutputHandler = function(messages) {
+      am1.transactionOutputHandler = function(messages) {
         messages[address] = message;
       };
-      am.transactionEventHandler = sinon.spy();
-      am.balanceEventHandler = sinon.spy();
-      am.transactionHandler({
+      am1.transactionEventHandler = sinon.stub();
+      am1.balanceEventHandler = sinon.stub();
+      am1.transactionHandler({
         buffer: txBuf
+      }, function(err) {
+        if (err) {
+          throw err;
+        }
+        am1.transactionEventHandler.callCount.should.equal(1);
+        am1.balanceEventHandler.callCount.should.equal(1);
+        done();
       });
-      am.transactionEventHandler.callCount.should.equal(1);
-      am.balanceEventHandler.callCount.should.equal(1);
+
     });
   });
 
   describe('#_extractAddressInfoFromScript', function() {
     var am;
     before(function() {
-      am = new AddressService({node: mocknode});
+      am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       am.node.network = Networks.livenet;
     });
     it('pay-to-publickey', function() {
@@ -149,7 +426,10 @@ describe('Address Service', function() {
     var testBlock = bitcore.Block.fromString(blockData);
 
     before(function() {
-      am = new AddressService({node: mocknode});
+      am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       am.node.network = Networks.livenet;
     });
 
@@ -204,7 +484,10 @@ describe('Address Service', function() {
       });
     });
     it('should continue if output script is null', function(done) {
-      var am = new AddressService({node: mocknode, network: 'livenet'});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode,
+      });
 
       var block = {
         __height: 345003,
@@ -236,6 +519,7 @@ describe('Address Service', function() {
       var testBlock = bitcore.Block.fromString(blockData);
       var db = {};
       var testnode = {
+        datadir: 'testdir',
         db: db,
         services: {
           bitcoind: {
@@ -243,7 +527,10 @@ describe('Address Service', function() {
           }
         }
       };
-      var am = new AddressService({node: testnode, network: 'livenet'});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
       am.transactionEventHandler = sinon.spy();
       am.balanceEventHandler = sinon.spy();
 
@@ -269,15 +556,46 @@ describe('Address Service', function() {
     });
   });
 
+  describe('#_encodeSpentIndexSyncKey', function() {
+    it('will encode to 36 bytes (string)', function() {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      var txidBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
+      var key = am._encodeSpentIndexSyncKey(txidBuffer, 12);
+      key.length.should.equal(36);
+    });
+    it('will be able to decode encoded value', function() {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      var txid = '3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7';
+      var txidBuffer = new Buffer(txid, 'hex');
+      var key = am._encodeSpentIndexSyncKey(txidBuffer, 12);
+      var keyBuffer = new Buffer(key, 'binary');
+      keyBuffer.slice(0, 32).toString('hex').should.equal(txid);
+      var outputIndex = keyBuffer.readUInt32BE(32);
+      outputIndex.should.equal(12);
+    });
+  });
+
   describe('#_encodeInputKeyMap/#_decodeInputKeyMap roundtrip', function() {
     var encoded;
     var outputTxIdBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
     it('encode key', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       encoded = am._encodeInputKeyMap(outputTxIdBuffer, 13);
     });
     it('decode key', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var key = am._decodeInputKeyMap(encoded);
       key.outputTxId.toString('hex').should.equal(outputTxIdBuffer.toString('hex'));
       key.outputIndex.should.equal(13);
@@ -288,11 +606,17 @@ describe('Address Service', function() {
     var encoded;
     var inputTxIdBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
     it('encode key', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       encoded = am._encodeInputValueMap(inputTxIdBuffer, 7);
     });
     it('decode key', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var key = am._decodeInputValueMap(encoded);
       key.inputTxId.toString('hex').should.equal(inputTxIdBuffer.toString('hex'));
       key.inputIndex.should.equal(7);
@@ -301,7 +625,10 @@ describe('Address Service', function() {
 
   describe('#transactionEventHandler', function() {
     it('will emit a transaction if there is a subscriber', function(done) {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var emitter = new EventEmitter();
       var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
       am.subscriptions['address/transaction'] = {};
@@ -335,7 +662,10 @@ describe('Address Service', function() {
 
   describe('#balanceEventHandler', function() {
     it('will emit a balance if there is a subscriber', function(done) {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var emitter = new EventEmitter();
       var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
       am.subscriptions['address/balance'][address.hashBuffer.toString('hex')] = [emitter];
@@ -358,7 +688,10 @@ describe('Address Service', function() {
 
   describe('#subscribe', function() {
     it('will add emitters to the subscribers array (transaction)', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var emitter = new EventEmitter();
 
       var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
@@ -378,7 +711,10 @@ describe('Address Service', function() {
         .should.deep.equal([emitter, emitter2]);
     });
     it('will add an emitter to the subscribers array (balance)', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var emitter = new EventEmitter();
       var name = 'address/balance';
       var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
@@ -400,7 +736,10 @@ describe('Address Service', function() {
 
   describe('#unsubscribe', function() {
     it('will remove emitter from subscribers array (transaction)', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
       var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
@@ -411,7 +750,10 @@ describe('Address Service', function() {
         .should.deep.equal([emitter2]);
     });
     it('will remove emitter from subscribers array (balance)', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
       var address = bitcore.Address('1DzjESe6SLmAKVPLFMj6Sx1sWki3qt5i8N');
@@ -422,7 +764,10 @@ describe('Address Service', function() {
         .should.deep.equal([emitter2]);
     });
     it('should unsubscribe from all addresses if no addresses are specified', function() {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var emitter = new EventEmitter();
       var emitter2 = new EventEmitter();
       var address1 = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W');
@@ -439,7 +784,10 @@ describe('Address Service', function() {
 
   describe('#getBalance', function() {
     it('should sum up the unspent outputs', function(done) {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       var outputs = [
         {satoshis: 1000}, {satoshis: 2000}, {satoshis: 3000}
       ];
@@ -452,7 +800,10 @@ describe('Address Service', function() {
     });
 
     it('will handle error from unspent outputs', function(done) {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       am.getUnspentOutputs = sinon.stub().callsArgWith(2, new Error('error'));
       am.getBalance('someaddress', false, function(err) {
         should.exist(err);
@@ -473,6 +824,8 @@ describe('Address Service', function() {
       }
     };
     var testnode = {
+      network: Networks.testnet,
+      datadir: 'testdir',
       services: {
         db: db,
         bitcoind: {
@@ -481,7 +834,10 @@ describe('Address Service', function() {
       }
     };
     before(function() {
-      am = new AddressService({node: testnode});
+      am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
     });
 
     it('will add mempool inputs on close', function(done) {
@@ -492,6 +848,8 @@ describe('Address Service', function() {
         }
       };
       var testnode = {
+        network: Networks.testnet,
+        datadir: 'testdir',
         services: {
           db: db,
           bitcoind: {
@@ -499,19 +857,20 @@ describe('Address Service', function() {
           }
         }
       };
-      var am = new AddressService({node: testnode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
       var args = {
         start: 15,
         end: 12,
         queryMempool: true
       };
-      am.mempoolInputIndex[address] = [
-        {
-          address: address,
-          height: -1,
-          confirmations: 0
-        }
-      ];
+      am._getInputsMempool = sinon.stub().callsArgWith(2, null, {
+        address: address,
+        height: -1,
+        confirmations: 0
+      });
       am.getInputs(address, args, function(err, inputs) {
         should.not.exist(err);
         inputs.length.should.equal(1);
@@ -542,6 +901,7 @@ describe('Address Service', function() {
       am.node.services.bitcoind = {
         getMempoolInputs: sinon.stub().returns([])
       };
+      am._getInputsMempool = sinon.stub().callsArgWith(2, null, []);
       am.getInputs(address, args, function(err, inputs) {
         should.not.exist(err);
         inputs.length.should.equal(1);
@@ -615,6 +975,126 @@ describe('Address Service', function() {
 
   });
 
+  describe('#_getInputsMempool', function() {
+    var am;
+    var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+    var hashBuffer = bitcore.Address(address).hashBuffer;
+    var db = {
+      tip: {
+        __height: 1
+      }
+    };
+    var testnode = {
+      network: Networks.testnet,
+      datadir: 'testdir',
+      services: {
+        db: db,
+        bitcoind: {
+          on: sinon.stub()
+        }
+      }
+    };
+    before(function() {
+      am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+    });
+    it('it will handle error', function(done) {
+      var testStream = new EventEmitter();
+      am.mempoolIndex = {};
+      am.mempoolIndex.createReadStream = sinon.stub().returns(testStream);
+
+      am._getInputsMempool(address, hashBuffer, function(err, outputs) {
+        should.exist(err);
+        err.message.should.equal('readstreamerror');
+        done();
+      });
+
+      testStream.emit('error', new Error('readstreamerror'));
+      setImmediate(function() {
+        testStream.emit('close');
+      });
+    });
+    it('it will parse data', function(done) {
+      var testStream = new EventEmitter();
+      am.mempoolIndex = {};
+      am.mempoolIndex.createReadStream = sinon.stub().returns(testStream);
+
+      am._getInputsMempool(address, hashBuffer, function(err, outputs) {
+        should.not.exist(err);
+        outputs.length.should.equal(1);
+        outputs[0].address.should.equal(address);
+        outputs[0].txid.should.equal(txid);
+        outputs[0].inputIndex.should.equal(5);
+        outputs[0].height.should.equal(-1);
+        outputs[0].confirmations.should.equal(0);
+        done();
+      });
+
+      var txid = '5d32f0fff6871c377e00c16f48ebb5e89c723d0b9dd25f68fdda70c3392bee61';
+      var inputIndex = 5;
+      var inputIndexBuffer = new Buffer(4);
+      inputIndexBuffer.writeUInt32BE(inputIndex);
+      var valueData = Buffer.concat([
+        new Buffer(txid, 'hex'),
+        inputIndexBuffer
+      ]);
+
+      // Note: key is not used currently
+      testStream.emit('data', {
+        value: valueData
+      });
+      setImmediate(function() {
+        testStream.emit('close');
+      });
+    });
+  });
+
+  describe('#_getSpentMempool', function() {
+    it('will decode data from the database', function() {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.mempoolIndex = {};
+      var mempoolValue = Buffer.concat([
+        new Buffer('85630d684f1f414264f88a31bddfc79dd0c00659330dcdc393b321c121f4078b', 'hex'),
+        new Buffer('00000003', 'hex')
+      ]);
+      am.mempoolIndex.get = sinon.stub().callsArgWith(1, null, mempoolValue);
+      var prevTxIdBuffer = new Buffer('e7888264d286be2da26b0a4dbd2fc5c9ece82b3e40e6791b137e4155b6da8981', 'hex');
+      var outputIndex = 1;
+      var outputIndexBuffer = new Buffer('00000001', 'hex');
+      var expectedKey = Buffer.concat([
+        new Buffer('03', 'hex'),
+        prevTxIdBuffer,
+        outputIndexBuffer
+      ]).toString('hex');
+      am._getSpentMempool(prevTxIdBuffer, outputIndex, function(err, value) {
+        if (err) {
+          throw err;
+        }
+        am.mempoolIndex.get.args[0][0].toString('hex').should.equal(expectedKey);
+        value.inputTxId.should.equal('85630d684f1f414264f88a31bddfc79dd0c00659330dcdc393b321c121f4078b');
+        value.inputIndex.should.equal(3);
+      });
+    });
+    it('handle error from levelup', function() {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
+      am.mempoolIndex = {};
+      am.mempoolIndex.get = sinon.stub().callsArgWith(1, new Error('test'));
+      var prevTxIdBuffer = new Buffer('e7888264d286be2da26b0a4dbd2fc5c9ece82b3e40e6791b137e4155b6da8981', 'hex');
+      var outputIndex = 1;
+      am._getSpentMempool(prevTxIdBuffer, outputIndex, function(err) {
+        err.message.should.equal('test');
+      });
+    });
+  });
+
   describe('#getOutputs', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
@@ -625,6 +1105,8 @@ describe('Address Service', function() {
       }
     };
     var testnode = {
+      network: Networks.testnet,
+      datadir: 'testdir',
       services: {
         db: db,
         bitcoind: {
@@ -637,7 +1119,10 @@ describe('Address Service', function() {
     };
 
     before(function() {
-      am = new AddressService({node: testnode});
+      am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
     });
 
     it('will get outputs for an address and timestamp', function(done) {
@@ -658,6 +1143,7 @@ describe('Address Service', function() {
           return testStream;
         }
       };
+      am._getOutputsMempool = sinon.stub().callsArgWith(2, null, []);
       am.getOutputs(address, args, function(err, outputs) {
         should.not.exist(err);
         outputs.length.should.equal(1);
@@ -684,16 +1170,17 @@ describe('Address Service', function() {
         createReadStream: sinon.stub().returns(readStream1)
       };
 
-      am.mempoolOutputIndex = {};
-
-      am.mempoolOutputIndex[address] = [
+      am._getOutputsMempool = sinon.stub().callsArgWith(2, null, [
         {
+          address: address,
+          height: -1,
+          confirmations: 0,
           txid: 'aa2db23f670596e96ed94c405fd11848c8f236d266ee96da37ecd919e53b4371',
           satoshis: 307627737,
           script: '76a914f6db95c81dea3d10f0ff8d890927751bf7b203c188ac',
           outputIndex: 0
         }
-      ];
+      ]);
 
       am.getOutputs(address, options, function(err, outputs) {
         should.not.exist(err);
@@ -752,6 +1239,93 @@ describe('Address Service', function() {
     });
   });
 
+  describe('#_getOutputsMempool', function() {
+    var am;
+    var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+    var hashBuffer = bitcore.Address(address).hashBuffer;
+    var db = {
+      tip: {
+        __height: 1
+      }
+    };
+    var testnode = {
+      network: Networks.testnet,
+      datadir: 'testdir',
+      services: {
+        db: db,
+        bitcoind: {
+          on: sinon.stub()
+        }
+      }
+    };
+    before(function() {
+      am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+    });
+    it('it will handle error', function(done) {
+      var testStream = new EventEmitter();
+      am.mempoolIndex = {};
+      am.mempoolIndex.createReadStream = sinon.stub().returns(testStream);
+      am._getOutputsMempool(address, hashBuffer, function(err, outputs) {
+        should.exist(err);
+        err.message.should.equal('readstreamerror');
+        done();
+      });
+      testStream.emit('error', new Error('readstreamerror'));
+      setImmediate(function() {
+        testStream.emit('close');
+      });
+    });
+    it('it will parse data', function(done) {
+      var testStream = new EventEmitter();
+      am.mempoolIndex = {};
+      am.mempoolIndex.createReadStream = sinon.stub().returns(testStream);
+
+      am._getOutputsMempool(address, hashBuffer, function(err, outputs) {
+        if (err) {
+          throw err;
+        }
+        outputs.length.should.equal(1);
+        outputs[0].address.should.equal(address);
+        outputs[0].txid.should.equal(txid);
+        outputs[0].outputIndex.should.equal(outputIndex);
+        outputs[0].height.should.equal(-1);
+        outputs[0].satoshis.should.equal(3);
+        outputs[0].script.should.equal('ac');
+        outputs[0].confirmations.should.equal(0);
+        done();
+      });
+
+      var txid = '5d32f0fff6871c377e00c16f48ebb5e89c723d0b9dd25f68fdda70c3392bee61';
+      var txidBuffer = new Buffer(txid, 'hex');
+      var outputIndex = 3;
+      var outputIndexBuffer = new Buffer(4);
+      outputIndexBuffer.writeUInt32BE(outputIndex);
+      var keyData = Buffer.concat([
+        new Buffer('01', 'hex'),
+        hashBuffer,
+        txidBuffer,
+        outputIndexBuffer
+      ]);
+
+      var valueData = Buffer.concat([
+        new Buffer('4008000000000000', 'hex'),
+        new Buffer('ac', 'hex')
+      ]);
+
+      // Note: key is not used currently
+      testStream.emit('data', {
+        key: keyData,
+        value: valueData
+      });
+      setImmediate(function() {
+        testStream.emit('close');
+      });
+    });
+  });
+
   describe('#getUnspentOutputs', function() {
     it('should concatenate utxos for multiple addresses, even those with none found', function(done) {
       var addresses = {
@@ -762,6 +1336,8 @@ describe('Address Service', function() {
 
       var db = {};
       var testnode = {
+        network: Networks.testnet,
+        datadir: 'testdir',
         services: {
           db: db,
           bitcoind: {
@@ -769,7 +1345,10 @@ describe('Address Service', function() {
           }
         }
       };
-      var am = new AddressService({node: testnode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
       am.getUnspentOutputsForAddress = function(address, queryMempool, callback) {
         var result = addresses[address];
         if(result instanceof Error) {
@@ -794,6 +1373,8 @@ describe('Address Service', function() {
 
       var db = {};
       var testnode = {
+        network: Networks.testnet,
+        datadir: 'testdir',
         db: db,
         services: {
           bitcoind: {
@@ -801,7 +1382,10 @@ describe('Address Service', function() {
           }
         }
       };
-      var am = new AddressService({node: testnode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
       am.getUnspentOutputsForAddress = function(address, queryMempool, callback) {
         var result = addresses[address];
         if(result instanceof Error) {
@@ -827,6 +1411,8 @@ describe('Address Service', function() {
 
       var db = {};
       var testnode = {
+        network: Networks.testnet,
+        datadir: 'testdir',
         db: db,
         services: {
           bitcoind: {
@@ -834,7 +1420,10 @@ describe('Address Service', function() {
           }
         }
       };
-      var am = new AddressService({node: testnode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
       am.getUnspentOutputsForAddress = function(address, queryMempool, callback) {
         var result = addresses[address];
         if(result instanceof Error) {
@@ -870,7 +1459,10 @@ describe('Address Service', function() {
       ];
       var i = 0;
 
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       am.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
       am.isUnspent = function(output, options, callback) {
         callback(!outputs[i].spent);
@@ -886,7 +1478,10 @@ describe('Address Service', function() {
       });
     });
     it('should handle an error from getOutputs', function(done) {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       am.getOutputs = sinon.stub().callsArgWith(2, new Error('error'));
       am.getUnspentOutputsForAddress('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
         should.exist(err);
@@ -895,7 +1490,10 @@ describe('Address Service', function() {
       });
     });
     it('should handle when there are no outputs', function(done) {
-      var am = new AddressService({node: mocknode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       am.getOutputs = sinon.stub().callsArgWith(2, null, []);
       am.getUnspentOutputsForAddress('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W', false, function(err, outputs) {
         should.exist(err);
@@ -910,7 +1508,10 @@ describe('Address Service', function() {
     var am;
 
     before(function() {
-      am = new AddressService({node: mocknode});
+      am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
     });
 
     it('should give true when isSpent() gives false', function(done) {
@@ -941,6 +1542,8 @@ describe('Address Service', function() {
   describe('#isSpent', function() {
     var db = {};
     var testnode = {
+      network: Networks.testnet,
+      datadir: 'testdir',
       db: db,
       services: {
         bitcoind: {
@@ -948,19 +1551,56 @@ describe('Address Service', function() {
         }
       }
     };
-    it('should give true if bitcoind.isSpent gives true', function(done) {
-      var am = new AddressService({node: testnode});
+    it('should give true if bitcoind.isSpent gives true (with output info)', function(done) {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var isSpent = sinon.stub().returns(true);
       am.node.services.bitcoind = {
-        isSpent: sinon.stub().returns(true),
+        isSpent: isSpent,
         on: sinon.stub()
       };
-      am.isSpent({}, {}, function(spent) {
+      var output = {
+        txid: '4228d3f41051f914f71a1dcbbe4098e29a07cc2672fdadab0763d88ffd6ffa57',
+        outputIndex: 3
+      };
+      am.isSpent(output, {}, function(spent) {
+        isSpent.callCount.should.equal(1);
+        isSpent.args[0][0].should.equal(output.txid);
+        isSpent.args[0][1].should.equal(output.outputIndex);
+        spent.should.equal(true);
+        done();
+      });
+    });
+    it('should give true if bitcoind.isSpent gives true (with input)', function(done) {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var isSpent = sinon.stub().returns(true);
+      am.node.services.bitcoind = {
+        isSpent: isSpent,
+        on: sinon.stub()
+      };
+      var txid = '4228d3f41051f914f71a1dcbbe4098e29a07cc2672fdadab0763d88ffd6ffa57';
+      var output = {
+        prevTxId: new Buffer(txid, 'hex'),
+        outputIndex: 4
+      };
+      am.isSpent(output, {}, function(spent) {
+        isSpent.callCount.should.equal(1);
+        isSpent.args[0][0].should.equal(txid);
+        isSpent.args[0][1].should.equal(output.outputIndex);
         spent.should.equal(true);
         done();
       });
     });
     it('should give true if bitcoind.isSpent is false and mempoolSpentIndex is true', function(done) {
-      var am = new AddressService({node: testnode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
       am.node.services.bitcoind = {
         isSpent: sinon.stub().returns(false),
         on: sinon.stub()
@@ -971,15 +1611,23 @@ describe('Address Service', function() {
         prevTxId: new Buffer(txid, 'hex'),
         outputIndex: outputIndex
       };
-      var spentKey = [txid, outputIndex].join('-');
-      am.mempoolSpentIndex[spentKey] = new Buffer(5);
+      var outputIndexBuffer = new Buffer(4);
+      outputIndexBuffer.writeUInt32BE(outputIndex);
+      var spentKey = Buffer.concat([
+        new Buffer(txid, 'hex'),
+        outputIndexBuffer
+      ]).toString('binary');
+      am.mempoolSpentIndex[spentKey] = true;
       am.isSpent(output, {queryMempool: true}, function(spent) {
         spent.should.equal(true);
         done();
       });
     });
     it('should give false if spent in mempool with queryMempool set to false', function(done) {
-      var am = new AddressService({node: testnode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
       am.node.services.bitcoind = {
         isSpent: sinon.stub().returns(false),
         on: sinon.stub()
@@ -998,19 +1646,27 @@ describe('Address Service', function() {
       });
     });
     it('default to querying the mempool', function(done) {
-      var am = new AddressService({node: testnode});
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
       am.node.services.bitcoind = {
         isSpent: sinon.stub().returns(false),
         on: sinon.stub()
       };
-      var txid = '3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7';
+      var txidBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
       var outputIndex = 0;
       var output = {
-        prevTxId: new Buffer(txid, 'hex'),
+        prevTxId: txidBuffer,
         outputIndex: outputIndex
       };
-      var spentKey = [txid, outputIndex].join('-');
-      am.mempoolSpentIndex[spentKey] = new Buffer(5);
+      var outputIndexBuffer = new Buffer(4);
+      outputIndexBuffer.writeUInt32BE(outputIndex);
+      var spentKey = Buffer.concat([
+        txidBuffer,
+        outputIndexBuffer
+      ]).toString('binary');
+      am.mempoolSpentIndex[spentKey] = true;
       am.isSpent(output, {}, function(spent) {
         spent.should.equal(true);
         done();
@@ -1029,58 +1685,70 @@ describe('Address Service', function() {
       var TestAddressService = proxyquire('../../../lib/services/address', {
         './history': TestAddressHistory
       });
-      var am = new TestAddressService({node: mocknode});
+      var am = new TestAddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
       am.getAddressHistory([], {}, function(err, history) {
         TestAddressHistory.prototype.get.callCount.should.equal(1);
         done();
       });
     });
   });
-  describe('#updateMempoolIndex', function() {
+  describe('#updateMempoolIndex/#removeMempoolIndex', function() {
     var am;
-    var db = {};
     var tx = Transaction().fromBuffer(txBuf);
 
     before(function() {
-      am = new AddressService({node: mocknode});
+      am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: mocknode
+      });
     });
 
     it('will update the input and output indexes', function() {
-      am.updateMempoolIndex(tx);
-      am.mempoolInputIndex['18Z29uNgWyUDtNyTKE1PaurbSR131EfANc'][0].txid.should.equal('45202ffdeb8344af4dec07cddf0478485dc65cc7d08303e45959630c89b51ea2');
-      am.mempoolOutputIndex['12w93weN8oti3P1e5VYEuygqyujhADF7J5'][0].txid.should.equal('45202ffdeb8344af4dec07cddf0478485dc65cc7d08303e45959630c89b51ea2');
-      am.mempoolInputIndex['1JT7KDYwT9JY9o2vyqcKNSJgTWeKfV3ui8'].length.should.equal(12);
-      am.mempoolOutputIndex['12w93weN8oti3P1e5VYEuygqyujhADF7J5'].length.should.equal(1);
-    });
+      am.mempoolIndex = {};
+      am.mempoolIndex.batch = function(operations, callback) {
+        callback.should.be.a('function');
+        Object.keys(am.mempoolSpentIndex).length.should.equal(14);
+        for (var i = 0; i < operations.length; i++) {
+          operations[i].type.should.equal('put');
+        }
+        var expectedValue = '45202ffdeb8344af4dec07cddf0478485dc65cc7d08303e45959630c89b51ea200000002';
+        operations[7].value.toString('hex').should.equal(expectedValue);
+        var matches = 0;
+        for (var j = 0; j < operations.length; j++) {
+          var match = Buffer.concat([
+            AddressService.MEMPREFIXES.SPENTS,
+            bitcore.Address('1JT7KDYwT9JY9o2vyqcKNSJgTWeKfV3ui8').hashBuffer
+          ]).toString('hex');
 
-  });
-  describe('#resetMempoolIndex', function() {
-    var am;
-    var db = {};
-
-    before(function() {
-      var testnode = {
-        db: db,
-        services: {
-          bitcoind: {
-            getMempoolTransactions: sinon.stub().returns([txBuf]),
-            on: sinon.stub()
+          if (operations[j].key.slice(0, 21).toString('hex') === match) {
+            matches++;
           }
         }
+        matches.should.equal(12);
       };
-      am = new AddressService({node: testnode});
-      am.updateMempoolIndex = sinon.stub();
+      am.updateMempoolIndex(tx, true);
+    });
 
+    it('will remove the input and output indexes', function() {
+      am.mempoolIndex = {};
+      am.mempoolIndex.batch = function(operations, callback) {
+        callback.should.be.a('function');
+        Object.keys(am.mempoolSpentIndex).length.should.equal(0);
+        for (var i = 0; i < operations.length; i++) {
+          operations[i].type.should.equal('del');
+        }
+      };
+      am.updateMempoolIndex(tx, false);
     });
-    it('will reset the input and output indexes', function(done) {
-      am.resetMempoolIndex(function() {
-        am.updateMempoolIndex.callCount.should.equal(1);
-        done();
-      });
-    });
+
   });
   describe('#getAddressSummary', function() {
     var node = {
+      datadir: 'testdir',
+      network: Networks.testnet,
       services: {
         bitcoind: {
           isSpent: sinon.stub().returns(false),
@@ -1117,13 +1785,18 @@ describe('Address Service', function() {
       }
     ];
 
-    var as = new AddressService({node: node});
+    var as = new AddressService({
+      mempoolMemoryIndex: true,
+      node: node
+    });
     as.getInputs = sinon.stub().callsArgWith(2, null, inputs);
     as.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
-    as.mempoolSpentIndex = {
-      '689e9f543fa4aa5b2daa3b5bb65f9a00ad5aa1a2e9e1fc4e11061d85f2aa9bc5-0': true
-    };
-
+    var key = Buffer.concat([
+      new Buffer('689e9f543fa4aa5b2daa3b5bb65f9a00ad5aa1a2e9e1fc4e11061d85f2aa9bc5', 'hex'),
+      new Buffer(Array(4))
+    ]).toString('binary');
+    as.mempoolSpentIndex = {};
+    as.mempoolSpentIndex[key] = true;
     it('should handle unconfirmed and confirmed outputs and inputs', function(done) {
       as.getAddressSummary('mpkDdnLq26djg17s6cYknjnysAm3QwRzu2', {}, function(err, summary) {
         should.not.exist(err);

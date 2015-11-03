@@ -367,14 +367,27 @@ index f94771a..72ee00e 100644
 
 
 diff --git a/src/net.h b/src/net.h
-index 17502b9..e181d68 100644
+index 17502b9..c9ae1b2 100644
 --- a/src/net.h
 +++ b/src/net.h
-@@ -99,6 +99,7 @@ struct CNodeSignals
+@@ -99,6 +99,8 @@ struct CNodeSignals
  {
      boost::signals2::signal<int ()> GetHeight;
      boost::signals2::signal<bool (CNode*), CombinerAll> ProcessMessages;
 +    boost::signals2::signal<bool (const CTransaction&)> TxToMemPool;
++    boost::signals2::signal<bool (const CTransaction&)> TxLeaveMemPool;
      boost::signals2::signal<bool (CNode*, bool), CombinerAll> SendMessages;
      boost::signals2::signal<void (NodeId, const CNode*)> InitializeNode;
      boost::signals2::signal<void (NodeId)> FinalizeNode;
+diff --git a/src/txmempool.cpp b/src/txmempool.cpp
+index c3d1b60..03e265d 100644
+--- a/src/txmempool.cpp
++++ b/src/txmempool.cpp
+@@ -133,6 +133,7 @@ void CTxMemPool::remove(const CTransaction &origTx, std::list<CTransaction>& rem
+             if (!mapTx.count(hash))
+                 continue;
+             const CTransaction& tx = mapTx[hash].GetTx();
++            GetNodeSignals().TxLeaveMemPool(tx);
+             if (fRecursive) {
+                 for (unsigned int i = 0; i < tx.vout.size(); i++) {
+                     std::map<COutPoint, CInPoint>::iterator it = mapNextTx.find(COutPoint(hash, i));

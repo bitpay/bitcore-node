@@ -839,7 +839,6 @@ describe('DB Service', function() {
       var blockBuffer = new Buffer(blockData, 'hex');
       var block = Block.fromBuffer(blockBuffer);
       db.node.services = {};
-      db.runAllMempoolIndexes = sinon.stub().callsArg(0);
       db.node.services.bitcoind = {
         getBlock: sinon.stub().callsArgWith(1, null, blockBuffer),
         isSynced: sinon.stub().returns(true),
@@ -858,7 +857,6 @@ describe('DB Service', function() {
         callback();
       };
       db.node.once('synced', function() {
-        db.runAllMempoolIndexes.callCount.should.equal(1);
         done();
       });
       db.sync();

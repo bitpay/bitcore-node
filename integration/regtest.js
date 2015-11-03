@@ -360,6 +360,30 @@ describe('Daemon Binding Functionality', function() {
     });
   });
 
+  describe('transactions leaving the mempool', function() {
+    it('receive event when transaction leaves', function(done) {
+
+      // add transaction to build a new block
+      var tx = bitcore.Transaction();
+      tx.from(utxos[4]);
+      tx.change(privateKey.toAddress());
+      tx.to(destKey.toAddress(), utxos[4].amount * 1e8 - 1000);
+      tx.sign(bitcore.PrivateKey.fromWIF(utxos[4].privateKeyWIF));
+      bitcoind.sendTransaction(tx.serialize());
+
+      bitcoind.once('txleave', function(txInfo) {
+        txInfo.hash.should.equal(tx.hash);
+        done();
+      });
+
+      client.generate(1, function(err, response) {
+        if (err) {
+          throw err;
+        }
+      });
+    });
+  });
+
   describe('mempool functionality', function() {
 
     var fromAddress = 'mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1';

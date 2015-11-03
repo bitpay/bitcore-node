@@ -40,6 +40,9 @@ static void
 tx_notifier(uv_async_t *handle);
 
 static void
+txleave_notifier(uv_async_t *handle);
+
+static void
 async_tip_update(uv_work_t *req);
 
 static void
@@ -90,6 +93,9 @@ async_get_tx_and_info_after(uv_work_t *req);
 static bool
 queueTx(const CTransaction&);
 
+static bool
+queueTxLeave(const CTransaction&);
+
 extern "C" void
 init(Handle<Object>);
 
@@ -98,9 +104,13 @@ init(Handle<Object>);
  * Used only by bitcoind functions.
  */
 static std::vector<CTransaction> txQueue;
+static std::vector<CTransaction> txQueueLeave;
 static uv_async_t txmon_async;
+static uv_async_t txmonleave_async;
 static Eternal<Function> txmon_callback;
+static Eternal<Function> txmonleave_callback;
 static bool txmon_callback_available;
+static bool txmonleave_callback_available;
 
 static volatile bool shutdown_complete = false;
 static char *g_data_dir = NULL;
@@ -259,6 +269,21 @@ NAN_METHOD(StartTxMon) {
   info.GetReturnValue().Set(Null());
 };
 
+NAN_METHOD(StartTxMonLeave) {
+  Isolate* isolate = info.GetIsolate();
+  Local<Function> callback = Local<Function>::Cast(info[0]);
+  Eternal<Function> cb(isolate, callback);
+  txmonleave_callback = cb;
+  txmonleave_callback_available = true;
+
+  CNodeSignals& nodeSignals = GetNodeSignals();
+  nodeSignals.TxLeaveMemPool.connect(&queueTxLeave);
+
+  uv_async_init(uv_default_loop(), &txmonleave_async, txleave_notifier);
+
+  info.GetReturnValue().Set(Null());
+};
+
 static void
 tx_notifier(uv_async_t *handle) {
   Isolate* isolate = Isolate::GetCurrent();
@@ -304,6 +329,53 @@ queueTx(const CTransaction& tx) {
   LOCK(cs_main);
   txQueue.push_back(tx);
   uv_async_send(&txmon_async);
+  return true;
+}
+
+static void
+txleave_notifier(uv_async_t *handle) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  Local<Array> results = Array::New(isolate);
+  int arrayIndex = 0;
+
+  LOCK(cs_main);
+  BOOST_FOREACH(const CTransaction& tx, txQueueLeave) {
+
+    CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+    ssTx << tx;
+    std::string stx = ssTx.str();
+    Nan::MaybeLocal<v8::Object> txBuffer = Nan::CopyBuffer((char *)stx.c_str(), stx.size());
+
+    uint256 hash = tx.GetHash();
+
+    Local<Object> obj = New<Object>();
+
+    Nan::Set(obj, New("buffer").ToLocalChecked(), txBuffer.ToLocalChecked());
+    Nan::Set(obj, New("hash").ToLocalChecked(), New(hash.GetHex()).ToLocalChecked());
+
+    results->Set(arrayIndex, obj);
+    arrayIndex++;
+  }
+
+  const unsigned argc = 1;
+  Local<Value> argv[argc] = {
+    Local<Value>::New(isolate, results)
+  };
+
+  Local<Function> cb = txmonleave_callback.Get(isolate);
+
+  cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
+
+  txQueueLeave.clear();
+
+}
+static bool
+queueTxLeave(const CTransaction& tx) {
+  LOCK(cs_main);
+  txQueueLeave.push_back(tx);
+  uv_async_send(&txmonleave_async);
   return true;
 }
 
@@ -1527,6 +1599,7 @@ NAN_MODULE_INIT(init) {
   Nan::Set(target, New("sendTransaction").ToLocalChecked(), GetFunction(New<FunctionTemplate>(SendTransaction)).ToLocalChecked());
   Nan::Set(target, New("estimateFee").ToLocalChecked(), GetFunction(New<FunctionTemplate>(EstimateFee)).ToLocalChecked());
   Nan::Set(target, New("startTxMon").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartTxMon)).ToLocalChecked());
+  Nan::Set(target, New("startTxMonLeave").ToLocalChecked(), GetFunction(New<FunctionTemplate>(StartTxMonLeave)).ToLocalChecked());
   Nan::Set(target, New("syncPercentage").ToLocalChecked(), GetFunction(New<FunctionTemplate>(SyncPercentage)).ToLocalChecked());
   Nan::Set(target, New("isSynced").ToLocalChecked(), GetFunction(New<FunctionTemplate>(IsSynced)).ToLocalChecked());
   Nan::Set(target, New("getBestBlockHash").ToLocalChecked(), GetFunction(New<FunctionTemplate>(GetBestBlockHash)).ToLocalChecked());
