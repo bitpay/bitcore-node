@@ -103,6 +103,10 @@ describe('WebService', function() {
 
       web.setupAllRoutes();
       node.services.one.setupRoutes.callCount.should.equal(1);
+      should.exist(node.services.one.setupRoutes.args[0][0].engine);
+      should.exist(node.services.one.setupRoutes.args[0][0].get);
+      should.exist(node.services.one.setupRoutes.args[0][0].post);
+      should.exist(node.services.one.setupRoutes.args[0][0].set);
       node.services.two.setupRoutes.callCount.should.equal(1);
     });
   });
