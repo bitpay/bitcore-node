@@ -1545,16 +1545,47 @@ describe('Address Service', function() {
         }
       }
     };
-    it('should give true if bitcoind.isSpent gives true', function(done) {
+    it('should give true if bitcoind.isSpent gives true (with output info)', function(done) {
       var am = new AddressService({
         mempoolMemoryIndex: true,
         node: testnode
       });
+      var isSpent = sinon.stub().returns(true);
       am.node.services.bitcoind = {
-        isSpent: sinon.stub().returns(true),
+        isSpent: isSpent,
         on: sinon.stub()
       };
-      am.isSpent({}, {}, function(spent) {
+      var output = {
+        txid: '4228d3f41051f914f71a1dcbbe4098e29a07cc2672fdadab0763d88ffd6ffa57',
+        outputIndex: 3
+      };
+      am.isSpent(output, {}, function(spent) {
+        isSpent.callCount.should.equal(1);
+        isSpent.args[0][0].should.equal(output.txid);
+        isSpent.args[0][1].should.equal(output.outputIndex);
+        spent.should.equal(true);
+        done();
+      });
+    });
+    it('should give true if bitcoind.isSpent gives true (with input)', function(done) {
+      var am = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var isSpent = sinon.stub().returns(true);
+      am.node.services.bitcoind = {
+        isSpent: isSpent,
+        on: sinon.stub()
+      };
+      var txid = '4228d3f41051f914f71a1dcbbe4098e29a07cc2672fdadab0763d88ffd6ffa57';
+      var output = {
+        prevTxId: new Buffer(txid, 'hex'),
+        outputIndex: 4
+      };
+      am.isSpent(output, {}, function(spent) {
+        isSpent.callCount.should.equal(1);
+        isSpent.args[0][0].should.equal(txid);
+        isSpent.args[0][1].should.equal(output.outputIndex);
         spent.should.equal(true);
         done();
       });
