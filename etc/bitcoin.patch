@@ -297,7 +297,7 @@ index cce687a..0f162ff 100644
  }
 +#endif
 diff --git a/src/init.cpp b/src/init.cpp
-index e352d58..e1179a3 100644
+index cb7eff4..4ea576e 100644
 --- a/src/init.cpp
 +++ b/src/init.cpp
 @@ -638,21 +638,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
@@ -339,10 +339,10 @@ index dcb2b29..5ce68ba 100644
  bool ShutdownRequested();
  void Shutdown();
 diff --git a/src/main.cpp b/src/main.cpp
-index f6deaa2..4251721 100644
+index e496303..e974c0f 100644
 --- a/src/main.cpp
 +++ b/src/main.cpp
-@@ -1081,6 +1081,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+@@ -1152,6 +1152,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
 
          // Store transaction in memory
          pool.addUnchecked(hash, entry, !IsInitialBlockDownload());
@@ -351,7 +351,7 @@ index f6deaa2..4251721 100644
 
      SyncWithWallets(tx, NULL);
 diff --git a/src/net.cpp b/src/net.cpp
-index f94771a..72ee00e 100644
+index ef10061..08f7c72 100644
 --- a/src/net.cpp
 +++ b/src/net.cpp
 @@ -432,8 +432,10 @@ void CNode::PushVersion()
@@ -359,7 +359,7 @@ index f94771a..72ee00e 100644
      else
          LogPrint("net", "send version message: version %d, blocks=%d, us=%s, peer=%d\n", PROTOCOL_VERSION, nBestHeight, addrMe.ToString(), id);
 +    std::vector<std::string> bitcore;
-+    bitcore.push_back("bitcore"); //the dash character is removed from the comments section
++    bitcore.push_back("bitcorebip101"); //the dash character is removed from the comments section
      PushMessage("version", PROTOCOL_VERSION, nLocalServices, nTime, addrYou, addrMe,
 -                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>()), nBestHeight, true);
 +                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, bitcore), nBestHeight, true);
@@ -367,12 +367,12 @@ index f94771a..72ee00e 100644
 
 
 diff --git a/src/net.h b/src/net.h
-index 17502b9..c9ae1b2 100644
+index 97b9700..f3af197 100644
 --- a/src/net.h
 +++ b/src/net.h
-@@ -99,6 +99,8 @@ struct CNodeSignals
- {
-     boost::signals2::signal<int ()> GetHeight;
+@@ -102,6 +102,8 @@ struct CNodeSignals
+     // used to prevent DoS attacks using over-size messages).
+     boost::signals2::signal<bool (CNode*, const CNetMessage&), CombinerAll> SanityCheckMessages;
      boost::signals2::signal<bool (CNode*), CombinerAll> ProcessMessages;
 +    boost::signals2::signal<bool (const CTransaction&)> TxToMemPool;
 +    boost::signals2::signal<bool (const CTransaction&)> TxLeaveMemPool;
