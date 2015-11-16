@@ -6,7 +6,7 @@ index 0000000..19e9a1b
 @@ -0,0 +1 @@
 +./configure --enable-tests=no --enable-daemonlib --with-gui=no --without-qt --without-miniupnpc --without-bdb --enable-debug --disable-wallet --without-utils
 diff --git a/configure.ac b/configure.ac
-index fd74aef..9c79637 100644
+index 5debd21..3bfc59e 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -119,6 +119,12 @@ AC_ARG_ENABLE([reduce-exports],
@@ -163,7 +163,7 @@ index e7aa48d..df0f7ae 100644
  endef
 
 diff --git a/src/Makefile.am b/src/Makefile.am
-index 8de216c..2db76bf 100644
+index 2461f82..7be6d6e 100644
 --- a/src/Makefile.am
 +++ b/src/Makefile.am
 @@ -1,6 +1,12 @@
@@ -269,7 +269,7 @@ index 8de216c..2db76bf 100644
  # bitcoin-cli binary #
  bitcoin_cli_SOURCES = bitcoin-cli.cpp
 diff --git a/src/bitcoind.cpp b/src/bitcoind.cpp
-index cce687a..0f162ff 100644
+index 6e2758a..0352a9d 100644
 --- a/src/bitcoind.cpp
 +++ b/src/bitcoind.cpp
 @@ -33,6 +33,10 @@
@@ -297,7 +297,7 @@ index cce687a..0f162ff 100644
  }
 +#endif
 diff --git a/src/init.cpp b/src/init.cpp
-index e352d58..e1179a3 100644
+index a04e4e0..33d0bc7 100644
 --- a/src/init.cpp
 +++ b/src/init.cpp
 @@ -638,21 +638,6 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
@@ -339,10 +339,10 @@ index dcb2b29..5ce68ba 100644
  bool ShutdownRequested();
  void Shutdown();
 diff --git a/src/main.cpp b/src/main.cpp
-index f6deaa2..4251721 100644
+index fe072ec..9f677cf 100644
 --- a/src/main.cpp
 +++ b/src/main.cpp
-@@ -1081,6 +1081,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
+@@ -1105,6 +1105,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
 
          // Store transaction in memory
          pool.addUnchecked(hash, entry, !IsInitialBlockDownload());
@@ -351,7 +351,7 @@ index f6deaa2..4251721 100644
 
      SyncWithWallets(tx, NULL);
 diff --git a/src/net.cpp b/src/net.cpp
-index f94771a..72ee00e 100644
+index e4b22f9..33fe6f9 100644
 --- a/src/net.cpp
 +++ b/src/net.cpp
 @@ -432,8 +432,10 @@ void CNode::PushVersion()
