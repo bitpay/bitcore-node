@@ -688,7 +688,7 @@ describe('DB Service', function() {
       db.node = {};
       db.node.services = {};
       var methods = db.getAPIMethods();
-      methods.length.should.equal(6);
+      methods.length.should.equal(8);
     });
   });
 
