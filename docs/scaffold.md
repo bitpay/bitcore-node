@@ -11,7 +11,7 @@ This function will load a configuration file `bitcore-node.json` and instantiate
 This function will recursively find a configuration `bitcore-node.json` file in parent directories and return the result.
 
 ## Default Config
-This function will return a default configuration with the default services based on environment variables, and will default to using the standard `~/.bitcoin` data directory.
+This function will return a default configuration with the default services based on environment variables, and will default to using the standard `/home/user/.bitcoin` data directory.
 
 ## Uninstall
 This function will remove a service from a node by uninstalling the necessary dependencies and modifying the `bitcore-node.json` configuration.

@@ -43,7 +43,7 @@ var DB = bitcore.services.DB;
 var Web = bitcore.services.Web;
 
 var myNode = new bitcore.Node({
-  datadir: '~/.bitcore',
+  datadir: '/home/user/.bitcore',
   network: {
     name: 'livenet'
   },

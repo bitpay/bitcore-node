@@ -19,7 +19,7 @@ var Bitcoin = index.services.Bitcoin;
 var Node = index.Node;
 
 var configuration = {
-  datadir: '~/.bitcoin',
+  datadir: '/home/user/.bitcoin',
   network: 'testnet',
   services: [
     {
