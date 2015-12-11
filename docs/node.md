@@ -32,6 +32,10 @@ var configuration = {
 
 var node = new Node(configuration);
 
+node.start(function() {
+  //start the node so the node.on('ready') is actually called. 
+});
+
 node.on('ready', function() {
   console.log('Bitcoin Node Ready');
 });
