@@ -1828,5 +1828,76 @@ describe('Address Service', function() {
         done();
       });
     });
+    describe('change transactions', function() {
+      var isSpentStub = sinon.stub();
+      // https://github.com/sinonjs/sinon/issues/176
+      isSpentStub.withArgs('c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff', 1).returns(true);
+      isSpentStub.withArgs('187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04', 0).returns(false);
+      var changeNode = {
+        datadir: 'testdir',
+        network: Networks.testnet,
+        services: {
+          bitcoind: {
+            // c0d txid is spent, 187 is not
+            isSpent: isSpentStub,
+            on: sinon.spy()
+          }
+        }
+      };
+      var inputs = [
+        {
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04",
+          "inputIndex": 0,
+          "height": 310818,
+          "confirmations": 315943
+        }
+      ];
+
+      var outputs = [
+        {
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff",
+          "outputIndex": 1,
+          "height": 310280,
+          "satoshis": 80000000,
+          "script": "a914c695365fc599b2960d92cfd720c04e054c4cb2f987",
+          "confirmations": 316481
+        },
+        {
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04",
+          "outputIndex": 0,
+          "height": 310818,
+          "satoshis": 59990000,
+          "script": "a914c695365fc599b2960d92cfd720c04e054c4cb2f987",
+          "confirmations": 315943
+        }
+      ];
+      var changeAS = new AddressService({
+        node: changeNode
+      });
+      changeAS.getInputs = sinon.stub().callsArgWith(2, null, inputs);
+      changeAS.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
+      it('should not count toward totalReceived or totalSpent', function(done) {
+        changeAS.getAddressSummary('2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2', {}, function(err, summary) {
+          should.not.exist(err);
+          summary.totalReceived.should.equal(80000000);
+          summary.totalSpent.should.equal(20010000);
+          summary.balance.should.equal(59990000);
+          summary.unconfirmedBalance.should.equal(0);
+          summary.appearances.should.equal(2);
+          summary.unconfirmedAppearances.should.equal(0);
+          summary.txids.should.deep.equal(
+            [
+              'c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff',
+              '187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04'
+            ]
+          );
+          done();
+        });
+
+      })
+    });
   });
 });
