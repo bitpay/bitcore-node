@@ -1899,5 +1899,73 @@ describe('Address Service', function() {
 
       })
     });
+
+    describe('multiple utxos', function() {
+      var changeNode = {
+        datadir: 'testdir',
+        network: Networks.testnet,
+        services: {
+          bitcoind: {
+            // c0d txid is spent, 187 is not
+            isSpent: sinon.stub().returns(false),
+            on: sinon.spy()
+          }
+        }
+      };
+      var inputs = [];
+
+      var outputs = [
+        {
+          "address": "2NBMEXL8JwUrLxgdBKtFauiKivvHH8agdpK",
+          "txid": "4a14b9c1734b91681a22653ca890fe81429b49ffb4dac3e3f7bb8bee26c4b4a9",
+          "outputIndex": 1,
+          "height": 410826,
+          "satoshis": 110000000,
+          "script": "a914c69534eb2ce851c19dc0ff96e80b7a1c6298da4587",
+          "confirmations": 215952
+        },
+        {
+          "address": "2NBMEXL8JwUrLxgdBKtFauiKivvHH8agdpK",
+          "txid": "29daa591706b156e3b50e29b7586188f520d55b98db2806c3b243dd9620a7124",
+          "outputIndex": 0,
+          "height": 417750,
+          "satoshis": 141302,
+          "script": "a914c69534eb2ce851c19dc0ff96e80b7a1c6298da4587",
+          "confirmations": 209028
+        },
+        {
+          "address": "2NBMEXL8JwUrLxgdBKtFauiKivvHH8agdpK",
+          "txid": "29daa591706b156e3b50e29b7586188f520d55b98db2806c3b243dd9620a7124",
+          "outputIndex": 1,
+          "height": 417750,
+          "satoshis": 838698,
+          "script": "a914c69534eb2ce851c19dc0ff96e80b7a1c6298da4587",
+          "confirmations": 209028
+        }
+      ];
+      var changeAS = new AddressService({
+        node: changeNode
+      });
+      changeAS.getInputs = sinon.stub().callsArgWith(2, null, inputs);
+      changeAS.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
+      it('should not create negative totalSpent due to multiple utxos in single tx', function(done) {
+        changeAS.getAddressSummary('2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2', {}, function(err, summary) {
+          should.not.exist(err);
+          summary.totalReceived.should.equal(110980000);
+          summary.totalSpent.should.equal(0);
+          summary.balance.should.equal(110980000);
+          summary.unconfirmedBalance.should.equal(0);
+          summary.appearances.should.equal(2);
+          summary.unconfirmedAppearances.should.equal(0);
+          summary.txids.should.deep.equal(
+            [
+              '4a14b9c1734b91681a22653ca890fe81429b49ffb4dac3e3f7bb8bee26c4b4a9',
+              '29daa591706b156e3b50e29b7586188f520d55b98db2806c3b243dd9620a7124'
+            ]
+          );
+          done();
+        });
+      })
+    });
   });
 });
