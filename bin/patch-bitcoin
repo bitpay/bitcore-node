@@ -23,6 +23,13 @@ git checkout -b "libbitcoind-$(date '+%Y.%m.%d')" || exit 1
 patch -p1 < "$patch_file" || exit 1
 
 git add --all || exit 1
+
+[ -n "$( git config user.name )" ] \
+    || git config user.name 'Bitcore Build'
+
+[ -n "$( git config user.email )" ] \
+    || git config user.email "$( id -n -u )@$( hostname -f )"
+
 git commit -a -m 'allow compiling of libbitcoind.so.' || exit 1
 
 echo 'Patch completed successfully.'

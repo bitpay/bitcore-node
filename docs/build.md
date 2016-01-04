@@ -6,8 +6,6 @@ If git is not already installed, it can be installed by running:
 
 ```bash
 sudo apt-get install git
-git config --global user.email "you@example.com"
-git config --global user.name "Your Name"
 ```
 
 If Node.js v0.12 isn't installed, it can be installed using "nvm", it can be done by following the installation script at [https://github.com/creationix/nvm#install-script](https://github.com/creationix/nvm#install-script) and then install version v0.12
