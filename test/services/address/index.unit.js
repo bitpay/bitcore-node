@@ -100,7 +100,7 @@ describe('Address Service', function() {
         done();
       });
     });
-    it('start levelup db for mempool and summary index', function(done) {
+    it('start levelup db for mempool', function(done) {
       var levelupStub = sinon.stub().callsArg(2);
       var TestAddressService = proxyquire('../../../lib/services/address', {
         'fs': {
@@ -117,7 +117,7 @@ describe('Address Service', function() {
         node: mocknode
       });
       am.start(function() {
-        levelupStub.callCount.should.equal(2);
+        levelupStub.callCount.should.equal(1);
         var dbPath1 = levelupStub.args[0][0];
         dbPath1.should.equal('testdir/testnet3/bitcore-addressmempool.db');
         var options = levelupStub.args[0][1];
@@ -125,8 +125,6 @@ describe('Address Service', function() {
         options.keyEncoding.should.equal('binary');
         options.valueEncoding.should.equal('binary');
         options.fillCache.should.equal(false);
-        var dbPath2 = levelupStub.args[1][0];
-        dbPath2.should.equal('testdir/testnet3/bitcore-addresssummary.db');
         done();
       });
     });
@@ -2115,457 +2113,14 @@ describe('Address Service', function() {
       addressService._getAddressMempoolSummary = sinon.stub().callsArgWith(3, null, cache);
       addressService._transformAddressSummaryFromCache = sinon.stub().returns(summary);
       addressService.getAddressSummary(address, options, function() {
-        log.warn.callCount.should.equal(2);
+        log.warn.callCount.should.equal(1);
         done();
       });
       clock.tick(6000);
     });
   });
 
-  describe('#_getAddressConfirmedSummary', function() {
-    it('handle error from _getAddressConfirmedSummaryCache', function(done) {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub()
-          },
-          db: {
-            tip: {
-              __height: 10
-            }
-          }
-        },
-        datadir: 'testdir'
-      };
-      var addressService = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
-      var options = {};
-      addressService._getAddressConfirmedSummaryCache = sinon.stub().callsArgWith(2, new Error('test'));
-      addressService._getAddressConfirmedSummary(address, options, function(err) {
-        should.exist(err);
-        err.message.should.equal('test');
-        done();
-      });
-    });
-
-    it('will NOT update cache if matches current tip', function(done) {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub()
-          },
-          db: {
-            tip: {
-              __height: 10
-            }
-          }
-        },
-        datadir: 'testdir'
-      };
-      var addressService = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
-      var options = {};
-      var cache = {
-        height: 10
-      };
-      addressService._updateAddressConfirmedSummaryCache = sinon.stub();
-      addressService._getAddressConfirmedSummaryCache = sinon.stub().callsArgWith(2, null, cache);
-      addressService._getAddressConfirmedSummary(address, options, function(err, cache) {
-        if (err) {
-          return done(err);
-        }
-        should.exist(cache);
-        addressService._updateAddressConfirmedSummaryCache.callCount.should.equal(0);
-        done();
-      });
-    });
-
-    it('will call _updateAddressConfirmedSummaryCache with correct arguments', function(done) {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub()
-          },
-          db: {
-            tip: {
-              __height: 11
-            }
-          }
-        },
-        datadir: 'testdir'
-      };
-      var addressService = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
-      var options = {};
-      var cache = {
-        height: 10
-      };
-      addressService._updateAddressConfirmedSummaryCache = sinon.stub().callsArgWith(4, null, cache);
-      addressService._getAddressConfirmedSummaryCache = sinon.stub().callsArgWith(2, null, cache);
-      addressService._getAddressConfirmedSummary(address, options, function(err, cache) {
-        if (err) {
-          return done(err);
-        }
-        should.exist(cache);
-        addressService._updateAddressConfirmedSummaryCache.callCount.should.equal(1);
-        var args = addressService._updateAddressConfirmedSummaryCache.args[0];
-        args[0].should.equal(address);
-        args[1].should.equal(options);
-        args[2].should.equal(cache);
-        args[3].should.equal(11);
-        done();
-      });
-    });
-  });
-
-  describe('#_getAddressConfirmedSummaryCache', function() {
-    function shouldExistBasecache(cache) {
-      should.exist(cache);
-      should.not.exist(cache.height);
-      should.exist(cache.result);
-      cache.result.appearanceIds.should.deep.equal({});
-      cache.result.totalReceived.should.equal(0);
-      cache.result.balance.should.equal(0);
-      cache.result.unconfirmedAppearanceIds.should.deep.equal({});
-      cache.result.unconfirmedBalance.should.equal(0);
-    }
-    it('give base cache if "start" or "end" options are used (e.g. >= 0)', function(done) {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub(),
-          }
-        },
-        datadir: 'testdir'
-      };
-      var addressService = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var options = {
-        start: 0,
-        end: 0
-      };
-      addressService._getAddressConfirmedSummaryCache(address, options, function(err, cache) {
-        if (err) {
-          return done(err);
-        }
-        shouldExistBasecache(cache);
-        done();
-      });
-    });
-    it('give base cache if "start" or "end" options are used (e.g. 10, 9)', function(done) {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub(),
-          }
-        },
-        datadir: 'testdir'
-      };
-      var addressService = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var options = {
-        start: 10,
-        end: 9
-      };
-      addressService._getAddressConfirmedSummaryCache(address, options, function(err, cache) {
-        if (err) {
-          return done(err);
-        }
-        shouldExistBasecache(cache);
-        done();
-      });
-    });
-
-    it('give base cache if cache does NOT exist', function(done) {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub(),
-          }
-        },
-        datadir: 'testdir'
-      };
-      var addressService = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var options = {};
-      addressService.summaryCache = {};
-      addressService.summaryCache.get = sinon.stub().callsArgWith(2, new levelup.errors.NotFoundError());
-      addressService._getAddressConfirmedSummaryCache(address, options, function(err, cache) {
-        if (err) {
-          return done(err);
-        }
-        shouldExistBasecache(cache);
-        done();
-      });
-    });
-
-    it('give base cache if cached tip hash differs (e.g. reorg)', function(done) {
-      var hash = '000000002c05cc2e78923c34df87fd108b22221ac6076c18f3ade378a4d915e9';
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub(),
-            getBlockIndex: sinon.stub().returns({
-              hash: '00000000700e92a916b46b8b91a14d1303d5d91ef0b09eecc3151fb958fd9a2e'
-            })
-          },
-          db: {
-            tip: {
-              hash: hash
-            }
-          }
-        },
-        datadir: 'testdir'
-      };
-      var addressService = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var txid = '5464b1c3f25160f0183fad68a406838d2d1ac0aee05990072ece49326c26c22e';
-      var options = {};
-      var cache = {
-        height: 10,
-        hash: hash,
-        result: {
-          totalReceived: 100,
-          balance: 10,
-          txids: [txid],
-          appearanceIds: {
-            '5464b1c3f25160f0183fad68a406838d2d1ac0aee05990072ece49326c26c22e': 9
-          }
-        }
-      };
-      var cacheBuffer = encoding.encodeSummaryCacheValue(cache, 10, hash);
-      addressService.summaryCache = {};
-      addressService.summaryCache.get = sinon.stub().callsArgWith(2, null, cacheBuffer);
-      addressService._getAddressConfirmedSummaryCache(address, options, function(err, cache) {
-        if (err) {
-          return done(err);
-        }
-        shouldExistBasecache(cache);
-        done();
-      });
-    });
-
-    it('handle error from levelup', function(done) {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub(),
-          }
-        },
-        datadir: 'testdir'
-      };
-      var addressService = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var options = {};
-      addressService.summaryCache = {};
-      addressService.summaryCache.get = sinon.stub().callsArgWith(2, new Error('test'));
-      addressService._getAddressConfirmedSummaryCache(address, options, function(err) {
-        should.exist(err);
-        err.message.should.equal('test');
-        done();
-      });
-    });
-
-    it('call encode and decode with args and result', function(done) {
-      var hash = '000000002c05cc2e78923c34df87fd108b22221ac6076c18f3ade378a4d915e9';
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub(),
-            getBlockIndex: sinon.stub().returns({
-              hash: hash
-            })
-          },
-          db: {
-            tip: {
-              hash: hash
-            }
-          }
-        },
-        datadir: 'testdir'
-      };
-      var addressService = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var txid = '5464b1c3f25160f0183fad68a406838d2d1ac0aee05990072ece49326c26c22e';
-      var options = {};
-      var cache = {
-        height: 10,
-        hash: hash,
-        result: {
-          totalReceived: 100,
-          balance: 10,
-          txids: [txid],
-          appearanceIds: {
-            '5464b1c3f25160f0183fad68a406838d2d1ac0aee05990072ece49326c26c22e': 9
-          }
-        }
-      };
-      var cacheBuffer = encoding.encodeSummaryCacheValue(cache, 10, hash);
-      addressService.summaryCache = {};
-      addressService.summaryCache.get = sinon.stub().callsArgWith(2, null, cacheBuffer);
-      addressService._getAddressConfirmedSummaryCache(address, options, function(err, cache) {
-        if (err) {
-          return done(err);
-        }
-        should.exist(cache);
-        cache.height.should.equal(10);
-        cache.hash.should.equal(hash);
-        should.exist(cache.result);
-        cache.result.totalReceived.should.equal(100);
-        cache.result.balance.should.equal(10);
-        cache.result.txids.should.deep.equal([txid]);
-        cache.result.appearanceIds.should.deep.equal({
-          '5464b1c3f25160f0183fad68a406838d2d1ac0aee05990072ece49326c26c22e': 9
-        });
-        done();
-      });
-    });
-  });
-
-  describe('#_updateAddressConfirmedSummaryCache', function() {
-    it('will pass partial options to input/output summary query', function(done) {
-      var tipHeight = 12;
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub()
-          }
-        },
-        datadir: 'testdir'
-      };
-      var as = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var options = {};
-      var cache = {
-        height: 10,
-        result: {
-          txids: []
-        }
-      };
-      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, cache);
-      as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, null, cache);
-      as._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, null, cache);
-      as._saveAddressConfirmedSummaryCache = sinon.stub().callsArg(3, null, cache);
-      as._updateAddressConfirmedSummaryCache(address, options, cache, tipHeight, function(err, cache) {
-        if (err) {
-          return done(err);
-        }
-        as._getAddressConfirmedInputsSummary.callCount.should.equal(1);
-        as._getAddressConfirmedOutputsSummary.callCount.should.equal(1);
-
-        as._getAddressConfirmedInputsSummary.args[0][2].start.should.equal(12);
-        as._getAddressConfirmedInputsSummary.args[0][2].end.should.equal(11);
-
-        as._getAddressConfirmedOutputsSummary.args[0][2].start.should.equal(12);
-        as._getAddressConfirmedOutputsSummary.args[0][2].end.should.equal(11);
-        done();
-      });
-    });
-
-    it('will save cache if exceeds threshold and is NOT height query', function(done) {
-      var tipHeight = 12;
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub()
-          }
-        },
-        datadir: 'testdir'
-      };
-      var as = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var options = {};
-      var cache = {
-        height: 10,
-        result: {
-          txids: [
-            '9a816264c50910cbf57aa4637dde5f7fec03df642b822661e8bc9710475986b6',
-            '05c6b9ccf3fc4026391bf8f8a64b4784a95b930851359b8f85a4be7bb6bf6f1e'
-          ]
-        }
-      };
-      as.summaryCacheThreshold = 1;
-      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, cache);
-      as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, null, cache);
-      as._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, null, cache);
-      as._saveAddressConfirmedSummaryCache = sinon.stub().callsArg(3, null, cache);
-      as._updateAddressConfirmedSummaryCache(address, options, cache, tipHeight, function(err) {
-        if (err) {
-          return done(err);
-        }
-        as._saveAddressConfirmedSummaryCache.callCount.should.equal(1);
-        done();
-      });
-    });
-
-    it('will NOT save cache if exceeds threshold and IS height query', function(done) {
-      var tipHeight = 12;
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub()
-          }
-        },
-        datadir: 'testdir'
-      };
-      var as = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var options = {};
-      var cache = {
-        result: {
-          txids: []
-        }
-      };
-      as.summaryCacheThreshold = 1;
-      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, cache);
-      as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, null, cache);
-      as._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, null, cache);
-      as._saveAddressConfirmedSummaryCache = sinon.stub().callsArg(3, null, cache);
-      as._updateAddressConfirmedSummaryCache(address, options, cache, tipHeight, function(err) {
-        if (err) {
-          return done(err);
-        }
-        as._saveAddressConfirmedSummaryCache.callCount.should.equal(0);
-        done();
-      });
-    });
-
+  describe.skip('#_getAddressConfirmedSummary', function() {
   });
 
   describe('#_getAddressConfirmedInputsSummary', function() {
@@ -2584,21 +2139,18 @@ describe('Address Service', function() {
         mempoolMemoryIndex: true,
         node: testnode
       });
-      var cache = {
-        height: 10,
-        result: {
-          appearanceIds: {}
-        }
+      var result = {
+        appearanceIds: {}
       };
       var options = {};
       var txid = 'f2cfc19d13f0c12199f70e420d84e2b3b1d4e499702aa9d737f8c24559c9ec47';
       var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
       as.createInputsStream = sinon.stub().returns(streamStub);
-      as._getAddressConfirmedInputsSummary(address, cache, options, function(err, cache) {
+      as._getAddressConfirmedInputsSummary(address, result, options, function(err, result) {
         if (err) {
           return done(err);
         }
-        cache.result.appearanceIds[txid].should.equal(10);
+        result.appearanceIds[txid].should.equal(10);
         done();
       });
 
@@ -2655,16 +2207,14 @@ describe('Address Service', function() {
         mempoolMemoryIndex: true,
         node: testnode
       });
-      var cache = {
-        height: 10,
-        result: {
-          appearanceIds: {},
-          unconfirmedAppearanceIds: {},
-          balance: 0,
-          totalReceived: 0,
-          unconfirmedBalance: 0
-        }
+      var result = {
+        appearanceIds: {},
+        unconfirmedAppearanceIds: {},
+        balance: 0,
+        totalReceived: 0,
+        unconfirmedBalance: 0
       };
+
       var options = {
         queryMempool: true
       };
@@ -2676,14 +2226,14 @@ describe('Address Service', function() {
       var spentIndexSyncKey = encoding.encodeSpentIndexSyncKey(new Buffer(txid, 'hex'), 2);
       as.mempoolSpentIndex[spentIndexSyncKey] = true;
 
-      as._getAddressConfirmedOutputsSummary(address, cache, options, function(err, cache) {
+      as._getAddressConfirmedOutputsSummary(address, result, options, function(err, cache) {
         if (err) {
           return done(err);
         }
-        cache.result.appearanceIds[txid].should.equal(10);
-        cache.result.balance.should.equal(1000);
-        cache.result.totalReceived.should.equal(1000);
-        cache.result.unconfirmedBalance.should.equal(-1000);
+        result.appearanceIds[txid].should.equal(10);
+        result.balance.should.equal(1000);
+        result.totalReceived.should.equal(1000);
+        result.unconfirmedBalance.should.equal(-1000);
         done();
       });
 
@@ -2710,20 +2260,18 @@ describe('Address Service', function() {
         mempoolMemoryIndex: true,
         node: testnode
       });
-      var cache = {
-        height: 10,
-        result: {
-          appearanceIds: {},
-          unconfirmedAppearanceIds: {},
-          balance: 0,
-          totalReceived: 0,
-          unconfirmedBalance: 0
-        }
+      var result = {
+        appearanceIds: {},
+        unconfirmedAppearanceIds: {},
+        balance: 0,
+        totalReceived: 0,
+        unconfirmedBalance: 0
       };
+
       var options = {};
       var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
       as.createOutputsStream = sinon.stub().returns(streamStub);
-      as._getAddressConfirmedOutputsSummary(address, cache, options, function(err, cache) {
+      as._getAddressConfirmedOutputsSummary(address, result, options, function(err, cache) {
         should.exist(err);
         err.message.should.equal('test');
         done();
@@ -2735,9 +2283,6 @@ describe('Address Service', function() {
   });
 
   describe.skip('#_setAndSortTxidsFromAppearanceIds', function() {
-  });
-
-  describe.skip('#_saveAddressConfirmedSummaryCache', function() {
   });
 
   describe.skip('#_getAddressMempoolSummary', function() {
