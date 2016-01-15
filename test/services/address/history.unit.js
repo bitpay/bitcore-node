@@ -35,220 +35,65 @@ describe('Address Service History', function() {
     });
   });
 
-  describe('#get', function() {
-    it('will complete the async each limit series', function(done) {
-      var addresses = [address];
-      var summary = {
-        txids: []
-      };
-      var history = new AddressHistory({
-        node: {
-          services: {
-            address: {
-              getAddressSummary: sinon.stub().callsArgWith(2, null, summary)
-            }
+  describe('#_mergeAndSortTxids', function() {
+    it('will merge and sort multiple summaries', function() {
+      var summaries = [
+        {
+          totalReceived: 10000000,
+          totalSpent: 0,
+          balance: 10000000,
+          appearances: 2,
+          unconfirmedBalance: 20000000,
+          unconfirmedAppearances: 2,
+          appearanceIds: {
+            '56fafeb01961831b926558d040c246b97709fd700adcaa916541270583e8e579': 154,
+            'e9dcf22807db77ac0276b03cc2d3a8b03c4837db8ac6650501ef45af1c807cce': 120
+          },
+          unconfirmedAppearanceIds: {
+            'ec94d845c603f292a93b7c829811ac624b76e52b351617ca5a758e9d61a11681': 1452898347406,
+            'ed11a08e3102f9610bda44c80c46781d97936a4290691d87244b1b345b39a693': 1452898331964
           }
         },
-        options: {},
-        addresses: addresses
-      });
-      var expected = [{}];
-      history.detailedArray = expected;
-      history.getDetailedInfo = sinon.stub().callsArg(1);
-      history.get(function(err, results) {
-        if (err) {
-          throw err;
+        {
+          totalReceived: 59990000,
+          totalSpent: 0,
+          balance: 49990000,
+          appearances: 3,
+          unconfirmedBalance: 1000000,
+          unconfirmedAppearances: 3,
+          appearanceIds: {
+            'bc992ad772eb02864db07ef248d31fb3c6826d25f1153ebf8c79df9b7f70fcf2': 156,
+            'f3c1ba3ef86a0420d6102e40e2cfc8682632ab95d09d86a27f5d466b9fa9da47': 152,
+            'f637384e9f81f18767ea50e00bce58fc9848b6588a1130529eebba22a410155f': 151
+          },
+          unconfirmedAppearanceIds: {
+            'f71bccef3a8f5609c7f016154922adbfe0194a96fb17a798c24077c18d0a9345': 1452897902377,
+            'edc080f2084eed362aa488ccc873a24c378dc0979aa29b05767517b70569414a': 1452897971363,
+            'f35e7e2a2334e845946f3eaca76890d9a68f4393ccc9fe37a0c2fb035f66d2e9': 1452897923107
+          }
         }
-        history.getDetailedInfo.callCount.should.equal(1);
-        history.combineTransactionInfo.callCount.should.equal(1);
-        results.should.deep.equal({
-          totalCount: 1,
-          items: expected
-        });
-        done();
-      });
-    });
-    it('handle an error from getDetailedInfo', function(done) {
+      ];
+      var node = {};
+      var options = {};
       var addresses = [address];
       var history = new AddressHistory({
-        node: {},
-        options: {},
+        node: node,
+        options: options,
         addresses: addresses
       });
-      var expected = [{}];
-      history.sortedArray = expected;
-      history.transactionInfo = [{}];
-      history.getDetailedInfo = sinon.stub().callsArgWith(1, new Error('test'));
-      history.get(function(err) {
-        err.message.should.equal('test');
-        done();
-      });
-    });
-  });
-
-  describe('#_mergeAndSortTxids', function() {
-    it('will sort latest to oldest using height', function() {
-      var transactionInfo = [
-        {
-          height: 276328
-        },
-        {
-          height: 273845,
-        },
-        {
-          height: 555655
-        },
-        {
-          height: 325496
-        },
-        {
-          height: 329186
-        },
-        {
-          height: 534195
-        }
-      ];
-      transactionInfo.sort(AddressHistory.sortByHeight);
-      transactionInfo[0].height.should.equal(555655);
-      transactionInfo[1].height.should.equal(534195);
-      transactionInfo[2].height.should.equal(329186);
-      transactionInfo[3].height.should.equal(325496);
-      transactionInfo[4].height.should.equal(276328);
-      transactionInfo[5].height.should.equal(273845);
-    });
-    it('mempool and tip with time in the future', function() {
-      var transactionInfo = [
-        {
-          timestamp: 1442050425439,
-          height: 14,
-        },
-        {
-          timestamp: 1442050424328,
-          height: -1
-        },
-        {
-          timestamp: 1442050424429,
-          height: -1
-        },
-        {
-          timestamp: 1442050425439,
-          height: 15
-        }
-      ];
-      transactionInfo.sort(AddressHistory.sortByHeight);
-      transactionInfo[0].height.should.equal(-1);
-      transactionInfo[0].timestamp.should.equal(1442050424429);
-      transactionInfo[1].height.should.equal(-1);
-      transactionInfo[1].timestamp.should.equal(1442050424328);
-      transactionInfo[2].height.should.equal(15);
-      transactionInfo[3].height.should.equal(14);
-    });
-    it('tip with time in the future and mempool', function() {
-      var transactionInfo = [
-        {
-          timestamp: 1442050425439,
-          height: 14,
-        },
-        {
-          timestamp: 1442050424328,
-          height: -1
-        }
-      ];
-      transactionInfo.sort(AddressHistory.sortByHeight);
-      transactionInfo[0].height.should.equal(-1);
-      transactionInfo[1].height.should.equal(14);
-    });
-    it('many transactions in the mempool', function() {
-      var transactionInfo = [
-        {
-          timestamp: 1442259670462,
-          height: -1
-        },
-        {
-          timestamp: 1442259785114,
-          height: -1
-        },
-        {
-          timestamp: 1442259759896,
-          height: -1
-        },
-        {
-          timestamp: 1442259692601,
-          height: -1
-        },
-        {
-          timestamp: 1442259692601,
-          height: 100
-        },
-        {
-          timestamp: 1442259749463,
-          height: -1
-        },
-        {
-          timestamp: 1442259737719,
-          height: -1
-        },
-        {
-          timestamp: 1442259773138,
-          height: -1,
-        }
-      ];
-      transactionInfo.sort(AddressHistory.sortByHeight);
-      transactionInfo[0].timestamp.should.equal(1442259785114);
-      transactionInfo[1].timestamp.should.equal(1442259773138);
-      transactionInfo[2].timestamp.should.equal(1442259759896);
-      transactionInfo[3].timestamp.should.equal(1442259749463);
-      transactionInfo[4].timestamp.should.equal(1442259737719);
-      transactionInfo[5].timestamp.should.equal(1442259692601);
-      transactionInfo[6].timestamp.should.equal(1442259670462);
-      transactionInfo[7].height.should.equal(100);
-    });
-    it('mempool and mempool', function() {
-      var transactionInfo = [
-        {
-          timestamp: 1442050424328,
-          height: -1
-        },
-        {
-          timestamp: 1442050425439,
-          height: -1,
-        }
-      ];
-      transactionInfo.sort(AddressHistory.sortByHeight);
-      transactionInfo[0].timestamp.should.equal(1442050425439);
-      transactionInfo[1].timestamp.should.equal(1442050424328);
-    });
-    it('mempool and mempool with the same timestamp', function() {
-      var transactionInfo = [
-        {
-          timestamp: 1442050425439,
-          height: -1,
-          txid: '1',
-        },
-        {
-          timestamp: 1442050425439,
-          height: -1,
-          txid: '2'
-        }
-      ];
-      transactionInfo.sort(AddressHistory.sortByHeight);
-      transactionInfo[0].txid.should.equal('1');
-      transactionInfo[1].txid.should.equal('2');
-    });
-    it('matching block heights', function() {
-      var transactionInfo = [
-        {
-          height: 325496,
-          txid: '1',
-        },
-        {
-          height: 325496,
-          txid: '2'
-        }
-      ];
-      transactionInfo.sort(AddressHistory.sortByHeight);
-      transactionInfo[0].txid.should.equal('1');
-      transactionInfo[1].txid.should.equal('2');
+      var txids = history._mergeAndSortTxids(summaries);
+      txids.should.deep.equal([
+        'e9dcf22807db77ac0276b03cc2d3a8b03c4837db8ac6650501ef45af1c807cce',
+        'f637384e9f81f18767ea50e00bce58fc9848b6588a1130529eebba22a410155f',
+        'f3c1ba3ef86a0420d6102e40e2cfc8682632ab95d09d86a27f5d466b9fa9da47',
+        '56fafeb01961831b926558d040c246b97709fd700adcaa916541270583e8e579',
+        'bc992ad772eb02864db07ef248d31fb3c6826d25f1153ebf8c79df9b7f70fcf2',
+        'f71bccef3a8f5609c7f016154922adbfe0194a96fb17a798c24077c18d0a9345',
+        'f35e7e2a2334e845946f3eaca76890d9a68f4393ccc9fe37a0c2fb035f66d2e9',
+        'edc080f2084eed362aa488ccc873a24c378dc0979aa29b05767517b70569414a',
+        'ed11a08e3102f9610bda44c80c46781d97936a4290691d87244b1b345b39a693',
+        'ec94d845c603f292a93b7c829811ac624b76e52b351617ca5a758e9d61a11681'
+      ]);
     });
   });
 

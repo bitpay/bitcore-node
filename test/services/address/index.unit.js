@@ -2080,13 +2080,13 @@ describe('Address Service', function() {
       var summary = {};
       addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, null, cache);
       addressService._getAddressMempoolSummary = sinon.stub().callsArgWith(3, null, cache);
-      addressService._transformAddressSummaryFromCache = sinon.stub().returns(summary);
+      addressService._transformAddressSummaryFromResult = sinon.stub().returns(summary);
       addressService.getAddressSummary(address, options, function(err, sum) {
         addressService._getAddressConfirmedSummary.callCount.should.equal(1);
         addressService._getAddressMempoolSummary.callCount.should.equal(1);
         addressService._getAddressMempoolSummary.args[0][2].should.equal(cache);
-        addressService._transformAddressSummaryFromCache.callCount.should.equal(1);
-        addressService._transformAddressSummaryFromCache.args[0][0].should.equal(cache);
+        addressService._transformAddressSummaryFromResult.callCount.should.equal(1);
+        addressService._transformAddressSummaryFromResult.args[0][0].should.equal(cache);
         sum.should.equal(summary);
         done();
       });
@@ -2111,7 +2111,7 @@ describe('Address Service', function() {
       addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, null, cache);
       addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, null, cache);
       addressService._getAddressMempoolSummary = sinon.stub().callsArgWith(3, null, cache);
-      addressService._transformAddressSummaryFromCache = sinon.stub().returns(summary);
+      addressService._transformAddressSummaryFromResult = sinon.stub().returns(summary);
       addressService.getAddressSummary(address, options, function() {
         log.warn.callCount.should.equal(1);
         done();
@@ -2120,7 +2120,119 @@ describe('Address Service', function() {
     });
   });
 
-  describe.skip('#_getAddressConfirmedSummary', function() {
+  describe('#_getAddressConfirmedSummary', function() {
+    it('will pass arguments correctly', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {};
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {};
+      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, result);
+      as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, null, result);
+      as._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, null, result);
+      as._getAddressConfirmedSummary(address, options, function(err) {
+        if (err) {
+          return done(err);
+        }
+        var expectedResult = {
+          appearanceIds: {},
+          totalReceived: 0,
+          balance: 0,
+          unconfirmedAppearanceIds: {},
+          unconfirmedBalance: 0
+        };
+        as._getAddressConfirmedInputsSummary.args[0][0].should.equal(address);
+        as._getAddressConfirmedInputsSummary.args[0][1].should.deep.equal(expectedResult);
+        as._getAddressConfirmedInputsSummary.args[0][2].should.deep.equal(options);
+        as._getAddressConfirmedOutputsSummary.args[0][0].should.equal(address);
+        as._getAddressConfirmedOutputsSummary.args[0][1].should.deep.equal(result);
+        as._getAddressConfirmedOutputsSummary.args[0][2].should.equal(options);
+        as._setAndSortTxidsFromAppearanceIds.args[0][0].should.equal(result);
+        done();
+      });
+    });
+    it('will pass error correctly (inputs)', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {};
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {};
+      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, new Error('test'));
+      as._getAddressConfirmedSummary(address, options, function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('will pass error correctly (outputs)', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {};
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {};
+      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, result);
+      as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, new Error('test'));
+      as._getAddressConfirmedSummary(address, options, function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('will pass error correctly (sort)', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {};
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {};
+      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, result);
+      as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, null, result);
+      as._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, new Error('test'));
+      as._getAddressConfirmedSummary(address, options, function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
   });
 
   describe('#_getAddressConfirmedInputsSummary', function() {
@@ -2282,13 +2394,212 @@ describe('Address Service', function() {
     });
   });
 
-  describe.skip('#_setAndSortTxidsFromAppearanceIds', function() {
+  describe('#_setAndSortTxidsFromAppearanceIds', function() {
+    it('will sort correctly', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {
+        appearanceIds: {
+          '22488dbb99aed86e7081ac480e3459fa40ccab7ee18bef98b84b3cdce6bf05be': 200,
+          '1c413601acbd608240fc635b95886c3c1f76ec8589c3392a58b5715ceb618e93': 100,
+          '206d3834c010d46a2cf478cb1c5fe252be41f683c8a738e3ebe27f1aae67f505': 101
+        }
+      };
+      as._setAndSortTxidsFromAppearanceIds(result, function(err, result) {
+        if (err) {
+          return done(err);
+        }
+        should.exist(result.txids);
+        result.txids[0].should.equal('1c413601acbd608240fc635b95886c3c1f76ec8589c3392a58b5715ceb618e93');
+        result.txids[1].should.equal('206d3834c010d46a2cf478cb1c5fe252be41f683c8a738e3ebe27f1aae67f505');
+        result.txids[2].should.equal('22488dbb99aed86e7081ac480e3459fa40ccab7ee18bef98b84b3cdce6bf05be');
+        done();
+      });
+    });
   });
 
-  describe.skip('#_getAddressMempoolSummary', function() {
+  describe('#_getAddressMempoolSummary', function() {
+    it('skip if options not enabled', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var resultBase = {
+        unconfirmedAppearanceIds: {},
+        unconfirmedBalance: 0
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {};
+      as._getAddressMempoolSummary(address, options, resultBase, function(err, result) {
+        if (err) {
+          return done(err);
+        }
+        Object.keys(result.unconfirmedAppearanceIds).length.should.equal(0);
+        result.unconfirmedBalance.should.equal(0);
+        done();
+      });
+    });
+    it('include all txids and balance from inputs and outputs', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var resultBase = {
+        unconfirmedAppearanceIds: {},
+        unconfirmedBalance: 0
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {
+        queryMempool: true
+      };
+      var mempoolInputs = [
+        {
+          address: '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj',
+          hashType: 'scripthash',
+          txid: '70d9d441d7409aace8e0ffe24ff0190407b2fcb405799a266e0327017288d1f8',
+          inputIndex: 0,
+          timestamp: 1452874536321,
+          height: -1,
+          confirmations: 0
+        }
+      ];
+      var mempoolOutputs = [
+        {
+          address: '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj',
+          hashType: 'scripthash',
+          txid: '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d',
+          outputIndex: 0,
+          height: -1,
+          timestamp: 1452874521466,
+          satoshis: 131368318,
+          script: '76a9148c66db6e9f74b1db9c400eaa2aed3743417f38e688ac',
+          confirmations: 0
+        },
+        {
+          address: '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj',
+          hashType: 'scripthash',
+          txid: '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247',
+          outputIndex: 0,
+          height: -1,
+          timestamp: 1452874521466,
+          satoshis: 131368318,
+          script: '76a9148c66db6e9f74b1db9c400eaa2aed3743417f38e688ac',
+          confirmations: 0
+        }
+      ];
+      var spentIndexSyncKey = encoding.encodeSpentIndexSyncKey(
+        new Buffer(mempoolOutputs[1].txid, 'hex'),
+        0
+      );
+      as.mempoolSpentIndex[spentIndexSyncKey] = true;
+      as._getInputsMempool = sinon.stub().callsArgWith(3, null, mempoolInputs);
+      as._getOutputsMempool = sinon.stub().callsArgWith(3, null, mempoolOutputs);
+      as._getAddressMempoolSummary(address, options, resultBase, function(err, result) {
+        if (err) {
+          return done(err);
+        }
+        var txid1 = '70d9d441d7409aace8e0ffe24ff0190407b2fcb405799a266e0327017288d1f8';
+        var txid2 = '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d';
+        var txid3 = '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247';
+        result.unconfirmedAppearanceIds[txid1].should.equal(1452874536321);
+        result.unconfirmedAppearanceIds[txid2].should.equal(1452874521466);
+        result.unconfirmedAppearanceIds[txid3].should.equal(1452874521466);
+        result.unconfirmedBalance.should.equal(131368318);
+        done();
+      });
+    });
   });
 
-  describe.skip('#_transformAddressSummaryFromCache', function() {
+  describe('#_transformAddressSummaryFromResult', function() {
+    var result = {
+      totalReceived: 1000000,
+      balance: 500000,
+      txids: [
+        '70d9d441d7409aace8e0ffe24ff0190407b2fcb405799a266e0327017288d1f8',
+        'b1bfa8dbbde790cb46b9763ef3407c1a21c8264b67bfe224f462ec0e1f569e92'
+      ],
+      appearanceIds: {
+        'b1bfa8dbbde790cb46b9763ef3407c1a21c8264b67bfe224f462ec0e1f569e92': 100000,
+        '70d9d441d7409aace8e0ffe24ff0190407b2fcb405799a266e0327017288d1f8': 200000
+      },
+      unconfirmedAppearanceIds: {
+        '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d': 1452874536321,
+        '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247': 1452874521466
+      },
+      unconfirmedBalance: 500000
+    };
+    var testnode = {
+      services: {
+        bitcoind: {
+          on: sinon.stub()
+        }
+      },
+      datadir: 'testdir'
+    };
+    it('will transform result into summary', function() {
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {};
+      var summary = as._transformAddressSummaryFromResult(result, options);
+      summary.totalReceived.should.equal(1000000);
+      summary.totalSpent.should.equal(500000);
+      summary.balance.should.equal(500000);
+      summary.appearances.should.equal(2);
+      summary.unconfirmedAppearances.should.equal(2);
+      summary.unconfirmedBalance.should.equal(500000);
+      summary.txids.length.should.equal(4);
+    });
+    it('will omit txlist', function() {
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {
+        noTxList: true
+      };
+      var summary = as._transformAddressSummaryFromResult(result, options);
+      should.not.exist(summary.txids);
+    });
+    it('will include full appearance ids', function() {
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {
+        fullTxList: true
+      };
+      var summary = as._transformAddressSummaryFromResult(result, options);
+      should.exist(summary.appearanceIds);
+      should.exist(summary.unconfirmedAppearanceIds);
+    });
   });
 
 });
