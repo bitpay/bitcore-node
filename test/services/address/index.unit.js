@@ -2092,11 +2092,14 @@ describe('Address Service', function() {
       var summary = {};
       addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, null, cache);
       addressService._getAddressMempoolSummary = sinon.stub().callsArgWith(3, null, cache);
+      addressService._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, null, cache);
       addressService._transformAddressSummaryFromResult = sinon.stub().returns(summary);
       addressService.getAddressSummary(address, options, function(err, sum) {
         addressService._getAddressConfirmedSummary.callCount.should.equal(1);
         addressService._getAddressMempoolSummary.callCount.should.equal(1);
         addressService._getAddressMempoolSummary.args[0][2].should.equal(cache);
+        addressService._setAndSortTxidsFromAppearanceIds.callCount.should.equal(1);
+        addressService._setAndSortTxidsFromAppearanceIds.args[0][0].should.equal(cache);
         addressService._transformAddressSummaryFromResult.callCount.should.equal(1);
         addressService._transformAddressSummaryFromResult.args[0][0].should.equal(cache);
         sum.should.equal(summary);
@@ -2123,6 +2126,7 @@ describe('Address Service', function() {
       addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, null, cache);
       addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, null, cache);
       addressService._getAddressMempoolSummary = sinon.stub().callsArgWith(3, null, cache);
+      addressService._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, null, cache);
       addressService._transformAddressSummaryFromResult = sinon.stub().returns(summary);
       addressService.getAddressSummary(address, options, function() {
         log.warn.callCount.should.equal(1);
@@ -2151,7 +2155,6 @@ describe('Address Service', function() {
       var result = {};
       as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, result);
       as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, null, result);
-      as._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, null, result);
       as._getAddressConfirmedSummary(address, options, function(err) {
         if (err) {
           return done(err);
@@ -2169,7 +2172,6 @@ describe('Address Service', function() {
         as._getAddressConfirmedOutputsSummary.args[0][0].should.equal(address);
         as._getAddressConfirmedOutputsSummary.args[0][1].should.deep.equal(result);
         as._getAddressConfirmedOutputsSummary.args[0][2].should.equal(options);
-        as._setAndSortTxidsFromAppearanceIds.args[0][0].should.equal(result);
         done();
       });
     });
@@ -2214,31 +2216,6 @@ describe('Address Service', function() {
       var result = {};
       as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, result);
       as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, new Error('test'));
-      as._getAddressConfirmedSummary(address, options, function(err) {
-        should.exist(err);
-        err.message.should.equal('test');
-        done();
-      });
-    });
-    it('will pass error correctly (sort)', function(done) {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub()
-          }
-        },
-        datadir: 'testdir'
-      };
-      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
-      var options = {};
-      var as = new AddressService({
-        mempoolMemoryIndex: true,
-        node: testnode
-      });
-      var result = {};
-      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, result);
-      as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, null, result);
-      as._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, new Error('test'));
       as._getAddressConfirmedSummary(address, options, function(err) {
         should.exist(err);
         err.message.should.equal('test');
