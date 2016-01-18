@@ -35,6 +35,222 @@ describe('Address Service History', function() {
     });
   });
 
+  describe('#get', function() {
+    it('will give an error if length of addresses is too long', function(done) {
+      var node = {};
+      var options = {};
+      var addresses = [];
+      for (var i = 0; i < 101; i++) {
+        addresses.push(address);
+      }
+      var history = new AddressHistory({
+        node: node,
+        options: options,
+        addresses: addresses
+      });
+      history.get(function(err) {
+        should.exist(err);
+        err.message.match(/Maximum/);
+        done();
+      });
+    });
+    it('give error from getAddressSummary with one address', function(done) {
+      var node = {
+        services: {
+          address: {
+            getAddressSummary: sinon.stub().callsArgWith(2, new Error('test'))
+          }
+        }
+      };
+      var options = {};
+      var addresses = [address];
+      var history = new AddressHistory({
+        node: node,
+        options: options,
+        addresses: addresses
+      });
+      history.get(function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('give error from getAddressSummary with multiple addresses', function(done) {
+      var node = {
+        services: {
+          address: {
+            getAddressSummary: sinon.stub().callsArgWith(2, new Error('test2'))
+          }
+        }
+      };
+      var options = {};
+      var addresses = [address, address];
+      var history = new AddressHistory({
+        node: node,
+        options: options,
+        addresses: addresses
+      });
+      history.get(function(err) {
+        should.exist(err);
+        err.message.should.equal('test2');
+        done();
+      });
+    });
+    it('will query get address summary directly with one address', function(done) {
+      var txids = [];
+      var summary = {
+        txids: txids
+      };
+      var node = {
+        services: {
+          address: {
+            getAddressSummary: sinon.stub().callsArgWith(2, null, summary)
+          }
+        }
+      };
+      var options = {};
+      var addresses = [address];
+      var history = new AddressHistory({
+        node: node,
+        options: options,
+        addresses: addresses
+      });
+      history._mergeAndSortTxids = sinon.stub();
+      history._paginateWithDetails = sinon.stub().callsArg(1);
+      history.get(function() {
+        history.node.services.address.getAddressSummary.callCount.should.equal(1);
+        history.node.services.address.getAddressSummary.args[0][0].should.equal(address);
+        history.node.services.address.getAddressSummary.args[0][1].should.equal(options);
+        history._paginateWithDetails.callCount.should.equal(1);
+        history._paginateWithDetails.args[0][0].should.equal(txids);
+        history._mergeAndSortTxids.callCount.should.equal(0);
+        done();
+      });
+    });
+    it('will merge multiple summaries with multiple addresses', function(done) {
+      var txids = [];
+      var summary = {
+        txids: txids
+      };
+      var node = {
+        services: {
+          address: {
+            getAddressSummary: sinon.stub().callsArgWith(2, null, summary)
+          }
+        }
+      };
+      var options = {};
+      var addresses = [address, address];
+      var history = new AddressHistory({
+        node: node,
+        options: options,
+        addresses: addresses
+      });
+      history._mergeAndSortTxids = sinon.stub().returns(txids);
+      history._paginateWithDetails = sinon.stub().callsArg(1);
+      history.get(function() {
+        history.node.services.address.getAddressSummary.callCount.should.equal(2);
+        history.node.services.address.getAddressSummary.args[0][0].should.equal(address);
+        history.node.services.address.getAddressSummary.args[0][1].should.deep.equal({
+          fullTxList: true
+        });
+        history._paginateWithDetails.callCount.should.equal(1);
+        history._paginateWithDetails.args[0][0].should.equal(txids);
+        history._mergeAndSortTxids.callCount.should.equal(1);
+        done();
+      });
+    });
+  });
+
+  describe('#_paginateWithDetails', function() {
+    it('slice txids based on "from" and "to" (3 to 30)', function() {
+      var node = {};
+      var options = {
+        from: 3,
+        to: 30
+      };
+      var addresses = [address];
+      var history = new AddressHistory({
+        node: node,
+        options: options,
+        addresses: addresses
+      });
+      var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      sinon.stub(history, 'getDetailedInfo', function(txid, next) {
+        this.detailedArray.push(txid);
+        next();
+      });
+      history._paginateWithDetails(txids, function(err, result) {
+        result.totalCount.should.equal(11);
+        result.items.should.deep.equal([7, 6, 5, 4, 3, 2, 1, 0]);
+      });
+    });
+    it('slice txids based on "from" and "to" (0 to 3)', function() {
+      var node = {};
+      var options = {
+        from: 0,
+        to: 3
+      };
+      var addresses = [address];
+      var history = new AddressHistory({
+        node: node,
+        options: options,
+        addresses: addresses
+      });
+      var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      sinon.stub(history, 'getDetailedInfo', function(txid, next) {
+        this.detailedArray.push(txid);
+        next();
+      });
+      history._paginateWithDetails(txids, function(err, result) {
+        result.totalCount.should.equal(11);
+        result.items.should.deep.equal([10, 9, 8]);
+      });
+    });
+    it('will given an error if the full details is too long', function() {
+      var node = {};
+      var options = {
+        from: 0,
+        to: 3
+      };
+      var addresses = [address];
+      var history = new AddressHistory({
+        node: node,
+        options: options,
+        addresses: addresses
+      });
+      var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      sinon.stub(history, 'getDetailedInfo', function(txid, next) {
+        this.detailedArray.push(txid);
+        next();
+      });
+      history.maxHistoryQueryLength = 1;
+      history._paginateWithDetails(txids, function(err) {
+        should.exist(err);
+        err.message.match(/Maximum/);
+      });
+    });
+    it('will give full result without pagination options', function() {
+      var node = {};
+      var options = {};
+      var addresses = [address];
+      var history = new AddressHistory({
+        node: node,
+        options: options,
+        addresses: addresses
+      });
+      var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      sinon.stub(history, 'getDetailedInfo', function(txid, next) {
+        this.detailedArray.push(txid);
+        next();
+      });
+      history._paginateWithDetails(txids, function(err, result) {
+        result.totalCount.should.equal(11);
+        result.items.should.deep.equal([10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
+      });
+    });
+  });
+
   describe('#_mergeAndSortTxids', function() {
     it('will merge and sort multiple summaries', function() {
       var summaries = [
@@ -98,27 +314,42 @@ describe('Address Service History', function() {
   });
 
   describe('#getDetailedInfo', function() {
-    it('will add additional information to existing this.transactions', function() {
+    it('will add additional information to existing this.transactions', function(done) {
       var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
+      var tx = {
+        populateInputs: sinon.stub().callsArg(2),
+        __height: 20,
+        __timestamp: 1453134151,
+        isCoinbase: sinon.stub().returns(false),
+        getFee: sinon.stub().returns(1000)
+      };
       var history = new AddressHistory({
         node: {
           services: {
             db: {
-              getTransactionWithBlockInfo: sinon.stub()
+              getTransactionWithBlockInfo: sinon.stub().callsArgWith(2, null, tx),
+              tip: {
+                __height: 300
+              }
             }
           }
         },
         options: {},
         addresses: []
       });
+      history.getAddressDetailsForTransaction = sinon.stub().returns({
+        addresses: {},
+        satoshis: 1000,
+      });
       history.getDetailedInfo(txid, function(err) {
         if (err) {
           throw err;
         }
-        history.node.services.db.getTransactionsWithBlockInfo.callCount.should.equal(0);
+        history.node.services.db.getTransactionWithBlockInfo.callCount.should.equal(1);
+        done();
       });
     });
-    it('will handle error from getTransactionFromBlock', function() {
+    it('will handle error from getTransactionFromBlock', function(done) {
       var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
       var history = new AddressHistory({
         node: {
@@ -133,9 +364,10 @@ describe('Address Service History', function() {
       });
       history.getDetailedInfo(txid, function(err) {
         err.message.should.equal('test');
+        done();
       });
     });
-    it('will handle error from populateInputs', function() {
+    it('will handle error from populateInputs', function(done) {
       var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
       var history = new AddressHistory({
         node: {
@@ -152,9 +384,10 @@ describe('Address Service History', function() {
       });
       history.getDetailedInfo(txid, function(err) {
         err.message.should.equal('test');
+        done();
       });
     });
-    it('will set this.transactions with correct information', function() {
+    it('will set this.transactions with correct information', function(done) {
       // block #314159
       // txid 30169e8bf78bc27c4014a7aba3862c60e2e3cce19e52f1909c8255e4b7b3174e
       // outputIndex 1
@@ -215,11 +448,16 @@ describe('Address Service History', function() {
         info.timestamp.should.equal(1407292005);
         info.fees.should.equal(20000);
         info.tx.should.equal(transaction);
+        done();
       });
     });
   });
+
+  describe.skip('#getAddressDetailsForTransaction', function() {
+  });
+
   describe('#getConfirmationsDetail', function() {
-    it('the correct confirmations when included in the tip', function() {
+    it('the correct confirmations when included in the tip', function(done) {
       var history = new AddressHistory({
         node: {
           services: {
@@ -237,6 +475,7 @@ describe('Address Service History', function() {
         __height: 100
       };
       history.getConfirmationsDetail(transaction).should.equal(1);
+      done();
     });
   });
 });

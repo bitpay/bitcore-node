@@ -2534,6 +2534,8 @@ describe('Address Service', function() {
         done();
       });
     });
+    it.skip('will sort txids by timestamp', function(done) {
+    });
   });
 
   describe('#_transformAddressSummaryFromResult', function() {
