@@ -2425,6 +2425,13 @@ describe('Address Service', function() {
           '22488dbb99aed86e7081ac480e3459fa40ccab7ee18bef98b84b3cdce6bf05be': 200,
           '1c413601acbd608240fc635b95886c3c1f76ec8589c3392a58b5715ceb618e93': 100,
           '206d3834c010d46a2cf478cb1c5fe252be41f683c8a738e3ebe27f1aae67f505': 101
+        },
+        unconfirmedAppearanceIds: {
+          'ec94d845c603f292a93b7c829811ac624b76e52b351617ca5a758e9d61a11681': 1452898347406,
+          'ed11a08e3102f9610bda44c80c46781d97936a4290691d87244b1b345b39a693': 1452898331964,
+          'f71bccef3a8f5609c7f016154922adbfe0194a96fb17a798c24077c18d0a9345': 1452897902377,
+          'edc080f2084eed362aa488ccc873a24c378dc0979aa29b05767517b70569414a': 1452897971363,
+          'f35e7e2a2334e845946f3eaca76890d9a68f4393ccc9fe37a0c2fb035f66d2e9': 1452897923107
         }
       };
       as._setAndSortTxidsFromAppearanceIds(result, function(err, result) {
@@ -2435,6 +2442,11 @@ describe('Address Service', function() {
         result.txids[0].should.equal('1c413601acbd608240fc635b95886c3c1f76ec8589c3392a58b5715ceb618e93');
         result.txids[1].should.equal('206d3834c010d46a2cf478cb1c5fe252be41f683c8a738e3ebe27f1aae67f505');
         result.txids[2].should.equal('22488dbb99aed86e7081ac480e3459fa40ccab7ee18bef98b84b3cdce6bf05be');
+        result.unconfirmedTxids[0].should.equal('f71bccef3a8f5609c7f016154922adbfe0194a96fb17a798c24077c18d0a9345');
+        result.unconfirmedTxids[1].should.equal('f35e7e2a2334e845946f3eaca76890d9a68f4393ccc9fe37a0c2fb035f66d2e9');
+        result.unconfirmedTxids[2].should.equal('edc080f2084eed362aa488ccc873a24c378dc0979aa29b05767517b70569414a');
+        result.unconfirmedTxids[3].should.equal('ed11a08e3102f9610bda44c80c46781d97936a4290691d87244b1b345b39a693');
+        result.unconfirmedTxids[4].should.equal('ec94d845c603f292a93b7c829811ac624b76e52b351617ca5a758e9d61a11681');
         done();
       });
     });
@@ -2546,8 +2558,6 @@ describe('Address Service', function() {
         done();
       });
     });
-    it.skip('will sort txids by timestamp', function(done) {
-    });
   });
 
   describe('#_transformAddressSummaryFromResult', function() {
@@ -2566,6 +2576,10 @@ describe('Address Service', function() {
         '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d': 1452874536321,
         '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247': 1452874521466
       },
+      unconfirmedTxids: [
+        '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247',
+        '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d'
+      ],
       unconfirmedBalance: 500000
     };
     var testnode = {
