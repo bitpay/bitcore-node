@@ -192,14 +192,26 @@ describe('Address Service', function() {
 
   describe('#stop', function() {
     it('will close mempool levelup', function(done) {
+      var testnode = {
+        network: Networks.testnet,
+        datadir: 'testdir',
+        db: mockdb,
+        services: {
+          bitcoind: {
+            on: sinon.stub(),
+            removeListener: sinon.stub()
+          }
+        }
+      };
       var am = new AddressService({
         mempoolMemoryIndex: true,
-        node: mocknode
+        node: testnode
       });
       am.mempoolIndex = {};
       am.mempoolIndex.close = sinon.stub().callsArg(0);
       am.stop(function() {
         am.mempoolIndex.close.callCount.should.equal(1);
+        am.node.services.bitcoind.removeListener.callCount.should.equal(2);
         done();
       });
     });
