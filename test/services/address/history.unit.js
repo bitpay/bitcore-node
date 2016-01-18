@@ -2,6 +2,7 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
+var bitcore = require('bitcore-lib');
 var Transaction = require('../../../lib/transaction');
 var AddressHistory = require('../../../lib/services/address/history');
 
@@ -453,7 +454,65 @@ describe('Address Service History', function() {
     });
   });
 
-  describe.skip('#getAddressDetailsForTransaction', function() {
+  describe('#getAddressDetailsForTransaction', function() {
+    it('will calculate details for the transaction', function(done) {
+      /* jshint sub:true */
+      var tx = bitcore.Transaction({
+        'hash': 'b12b3ae8489c5a566b629a3c62ce4c51c3870af550fb5dc77d715b669a91343c',
+        'version': 1,
+        'inputs': [
+          {
+            'prevTxId': 'a2b7ea824a92f4a4944686e67ec1001bc8785348b8c111c226f782084077b543',
+            'outputIndex': 0,
+            'sequenceNumber': 4294967295,
+            'script': '47304402201b81c933297241960a57ae1b2952863b965ac8c9ec7466ff0b715712d27548d50220576e115b63864f003889443525f47c7cf0bc1e2b5108398da085b221f267ba2301210229766f1afa25ca499a51f8e01c292b0255a21a41bb6685564a1607a811ffe924',
+            'scriptString': '71 0x304402201b81c933297241960a57ae1b2952863b965ac8c9ec7466ff0b715712d27548d50220576e115b63864f003889443525f47c7cf0bc1e2b5108398da085b221f267ba2301 33 0x0229766f1afa25ca499a51f8e01c292b0255a21a41bb6685564a1607a811ffe924',
+            'output': {
+              'satoshis': 1000000000,
+              'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+            }
+          }
+        ],
+        'outputs': [
+          {
+            'satoshis': 100000000,
+            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+          },
+          {
+            'satoshis': 200000000,
+            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+          },
+          {
+            'satoshis': 50000000,
+            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+          },
+          {
+            'satoshis': 300000000,
+            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+          },
+          {
+            'satoshis': 349990000,
+            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+          }
+        ],
+        'nLockTime': 0
+      });
+      var history = new AddressHistory({
+        node: {
+          network: bitcore.Networks.testnet
+        },
+        options: {},
+        addresses: ['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW']
+      });
+      var details = history.getAddressDetailsForTransaction(tx);
+      should.exist(details.addresses['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW']);
+      details.addresses['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'].inputIndexes.should.deep.equal([0]);
+      details.addresses['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'].outputIndexes.should.deep.equal([
+        0, 1, 2, 3, 4
+      ]);
+      details.satoshis.should.equal(-10000);
+      done();
+    });
   });
 
   describe('#getConfirmationsDetail', function() {
