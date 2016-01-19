@@ -1908,7 +1908,8 @@ describe('Address Service', function() {
         summary.totalReceived.should.equal(3487110);
         summary.totalSpent.should.equal(0);
         summary.balance.should.equal(3487110);
-        summary.unconfirmedBalance.should.equal(0);
+        summary.unconfirmedReceived.should.equal(0);
+        summary.unconfirmedSpent.should.equal(3487110);
         summary.appearances.should.equal(1);
         summary.unconfirmedAppearances.should.equal(1);
         summary.txids.should.deep.equal(
@@ -1926,12 +1927,298 @@ describe('Address Service', function() {
         summary.totalReceived.should.equal(3487110);
         summary.totalSpent.should.equal(0);
         summary.balance.should.equal(3487110);
-        summary.unconfirmedBalance.should.equal(0);
+        summary.unconfirmedReceived.should.equal(0);
+        summary.unconfirmedSpent.should.equal(3487110);
         summary.appearances.should.equal(1);
         summary.unconfirmedAppearances.should.equal(1);
         should.not.exist(summary.txids);
         done();
       });
+    });
+
+    describe('unconfirmed (mempool) transactions', function() {
+      var node = {
+        datadir: 'testdir',
+        network: Networks.testnet,
+        services: {
+          bitcoind: {
+            isSpent: sinon.stub().returns(false),
+            on: sinon.spy()
+          }
+        }
+      };
+      // Technically this was a change tx, but for this test we're removing the input
+      // so we can just test a mempool tx to some other addr
+      var inputs = [];
+
+      var outputs = [
+        { // not spent
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff",
+          "outputIndex": 1,
+          "height": 310280,
+          "satoshis": 80000000,
+          "script": "a914c695365fc599b2960d92cfd720c04e054c4cb2f987",
+          "confirmations": 316481
+        },
+        { // spent
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04",
+          "outputIndex": 0,
+          "height": 310818,
+          "satoshis": 59990000,
+          "script": "a914c695365fc599b2960d92cfd720c04e054c4cb2f987",
+          "confirmations": 315943
+        }
+      ];
+      var mempoolAS = new AddressService({
+        node: node
+      });
+      mempoolAS.getInputs = sinon.stub().callsArgWith(2, null, inputs);
+      mempoolAS.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
+      // Add to spent mempool
+      var spentIndexSyncKey = mempoolAS._encodeSpentIndexSyncKey(new Buffer(outputs[1].txid, 'hex'), 0);
+      mempoolAS.mempoolSpentIndex[spentIndexSyncKey] = true;
+
+      it('should add to unconfirmedSpent and not deduct from balance until conf', function(done) {
+        mempoolAS.getAddressSummary('2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2', {}, function(err, summary) {
+          should.not.exist(err);
+          summary.totalReceived.should.equal(139990000);
+          summary.totalSpent.should.equal(0);
+          summary.balance.should.equal(139990000);
+          summary.unconfirmedReceived.should.equal(0);
+          summary.unconfirmedSpent.should.equal(59990000);
+          summary.appearances.should.equal(2);
+          summary.unconfirmedAppearances.should.equal(0);
+          summary.txids.should.deep.equal(
+            [
+              'c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff',
+              '187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04'
+            ]
+          );
+          done();
+        });
+      })
+    });
+
+    // In this test, we've received 0.8 BTC.
+    // We've then spent that output to send 0.2001 elsewhere and 0.5999 back to ourselves.
+    // The 0.5999 is unspent, so we sould have a balance of 0.5999 with 0.2001 spent.
+    // Previously, this would count again as received funds which is not like any other explorer.
+    describe('change transactions', function() {
+      var isSpentStub = sinon.stub();
+      // https://github.com/sinonjs/sinon/issues/176
+      isSpentStub.withArgs('c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff', 1).returns(true);
+      isSpentStub.withArgs('187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04', 0).returns(false);
+      var changeNode = {
+        datadir: 'testdir',
+        network: Networks.testnet,
+        services: {
+          bitcoind: {
+            // c0d txid is spent, 187 is not
+            isSpent: isSpentStub,
+            on: sinon.spy()
+          }
+        }
+      };
+      var inputs = [
+        {
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04",
+          "inputIndex": 0,
+          "height": 310818,
+          "confirmations": 315943
+        }
+      ];
+
+      var outputs = [
+        {
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff",
+          "outputIndex": 1,
+          "height": 310280,
+          "satoshis": 80000000,
+          "script": "a914c695365fc599b2960d92cfd720c04e054c4cb2f987",
+          "confirmations": 316481
+        },
+        {
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04",
+          "outputIndex": 0,
+          "height": 310818,
+          "satoshis": 59990000,
+          "script": "a914c695365fc599b2960d92cfd720c04e054c4cb2f987",
+          "confirmations": 315943
+        }
+      ];
+      var changeAS = new AddressService({
+        node: changeNode
+      });
+      changeAS.getInputs = sinon.stub().callsArgWith(2, null, inputs);
+      changeAS.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
+      it('should not count toward totalReceived or totalSpent', function(done) {
+        changeAS.getAddressSummary('2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2', {}, function(err, summary) {
+          should.not.exist(err);
+          summary.totalReceived.should.equal(80000000);
+          summary.totalSpent.should.equal(20010000);
+          summary.balance.should.equal(59990000);
+          summary.unconfirmedReceived.should.equal(0);
+          summary.unconfirmedSpent.should.equal(0);
+          summary.appearances.should.equal(2);
+          summary.unconfirmedAppearances.should.equal(0);
+          summary.txids.should.deep.equal(
+            [
+              'c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff',
+              '187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04'
+            ]
+          );
+          done();
+        });
+      })
+    });
+
+    // In this test, we have:
+    // * One confirmed output of 0.8 BTC sent to our address
+    // * One unconfirmed (mempool) output of 0.5999 BTC sent to our address,
+    //   but this is a change tx.
+    // So none of the txs are spent in the db, but the 0.8 one is spent in the mempool.
+    // Most block explorers show this as a balance of 0.8 with 0.2001 unconfirmed spent.
+    describe('change transactions with mempool', function() {
+      var changeNode = {
+        datadir: 'testdir',
+        network: Networks.testnet,
+        services: {
+          bitcoind: {
+            isSpent: sinon.stub().returns(false),
+            on: sinon.spy()
+          }
+        }
+      };
+      var inputs = [
+        {
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04",
+          "inputIndex": 0,
+          "height": 626761,
+          "confirmations": 0
+        }
+      ];
+
+      var outputs = [
+        {
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff",
+          "outputIndex": 1,
+          "height": 310280,
+          "satoshis": 80000000,
+          "script": "a914c695365fc599b2960d92cfd720c04e054c4cb2f987",
+          "confirmations": 316481
+        },
+        {
+          "address": "2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2",
+          "txid": "187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04",
+          "outputIndex": 0,
+          "height": 626761,
+          "satoshis": 59990000,
+          "script": "a914c695365fc599b2960d92cfd720c04e054c4cb2f987",
+          "confirmations": 0
+        }
+      ];
+      var changeAS = new AddressService({
+        node: changeNode
+      });
+      changeAS.getInputs = sinon.stub().callsArgWith(2, null, inputs);
+      changeAS.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
+      var spentIndexSyncKey = changeAS._encodeSpentIndexSyncKey(new Buffer(outputs[0].txid, 'hex'), 1);
+      changeAS.mempoolSpentIndex[spentIndexSyncKey] = true;
+      it('should not deduct from totalReceived or add to totalSpent, and should add to unconfirmedSpent', function(done) {
+        changeAS.getAddressSummary('2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2', {}, function(err, summary) {
+          should.not.exist(err);
+          summary.totalReceived.should.equal(80000000);
+          summary.totalSpent.should.equal(0);
+          summary.balance.should.equal(80000000);
+          summary.unconfirmedReceived.should.equal(0);
+          summary.unconfirmedSpent.should.equal(20010000);
+          summary.appearances.should.equal(1);
+          summary.unconfirmedAppearances.should.equal(1);
+          summary.txids.should.deep.equal(
+            [
+              'c0dfe181d45094c5c4e99b56be0699c4a6423b9e0086f6f8096ea8a5bfa57cff',
+              '187ec93c565522f17605a8591a51c602eb1463f42df4b169c855a591ec952a04'
+            ]
+          );
+          done();
+        });
+      })
+    });
+
+    describe('multiple utxos', function() {
+      var changeNode = {
+        datadir: 'testdir',
+        network: Networks.testnet,
+        services: {
+          bitcoind: {
+            // c0d txid is spent, 187 is not
+            isSpent: sinon.stub().returns(false),
+            on: sinon.spy()
+          }
+        }
+      };
+      var inputs = [];
+
+      var outputs = [
+        {
+          "address": "2NBMEXL8JwUrLxgdBKtFauiKivvHH8agdpK",
+          "txid": "4a14b9c1734b91681a22653ca890fe81429b49ffb4dac3e3f7bb8bee26c4b4a9",
+          "outputIndex": 1,
+          "height": 410826,
+          "satoshis": 110000000,
+          "script": "a914c69534eb2ce851c19dc0ff96e80b7a1c6298da4587",
+          "confirmations": 215952
+        },
+        {
+          "address": "2NBMEXL8JwUrLxgdBKtFauiKivvHH8agdpK",
+          "txid": "29daa591706b156e3b50e29b7586188f520d55b98db2806c3b243dd9620a7124",
+          "outputIndex": 0,
+          "height": 417750,
+          "satoshis": 141302,
+          "script": "a914c69534eb2ce851c19dc0ff96e80b7a1c6298da4587",
+          "confirmations": 209028
+        },
+        {
+          "address": "2NBMEXL8JwUrLxgdBKtFauiKivvHH8agdpK",
+          "txid": "29daa591706b156e3b50e29b7586188f520d55b98db2806c3b243dd9620a7124",
+          "outputIndex": 1,
+          "height": 417750,
+          "satoshis": 838698,
+          "script": "a914c69534eb2ce851c19dc0ff96e80b7a1c6298da4587",
+          "confirmations": 209028
+        }
+      ];
+      var changeAS = new AddressService({
+        node: changeNode
+      });
+      changeAS.getInputs = sinon.stub().callsArgWith(2, null, inputs);
+      changeAS.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
+      it('should not create negative totalSpent due to multiple utxos in single tx', function(done) {
+        changeAS.getAddressSummary('2NBMEXj3BM7C2k4HCjfqn1Q4mwezNUzmrs2', {}, function(err, summary) {
+          should.not.exist(err);
+          summary.totalReceived.should.equal(110980000);
+          summary.totalSpent.should.equal(0);
+          summary.balance.should.equal(110980000);
+          summary.unconfirmedReceived.should.equal(0);
+          summary.unconfirmedSpent.should.equal(0);
+          summary.appearances.should.equal(2);
+          summary.unconfirmedAppearances.should.equal(0);
+          summary.txids.should.deep.equal(
+            [
+              '4a14b9c1734b91681a22653ca890fe81429b49ffb4dac3e3f7bb8bee26c4b4a9',
+              '29daa591706b156e3b50e29b7586188f520d55b98db2806c3b243dd9620a7124'
+            ]
+          );
+          done();
+        });
+      })
     });
   });
 });

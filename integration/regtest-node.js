@@ -577,8 +577,9 @@ describe('Node Functionality', function() {
           if (err) {
             throw err;
           }
-          results.totalReceived.should.equal(2000000000);
-          results.totalSpent.should.equal(1999990000);
+          // This address receives 10 BTC (from a 50 btc input split 10BTC/39.99999045) then sends it around
+          results.totalReceived.should.equal(1000000000);
+          results.totalSpent.should.equal(999990000);
           results.balance.should.equal(10000);
           results.unconfirmedBalance.should.equal(0);
           results.appearances.should.equal(6);
