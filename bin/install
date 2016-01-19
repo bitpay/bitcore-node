@@ -10,20 +10,10 @@ binary_url="https://${bucket_name}.s3.amazonaws.com/${tarball_name}"
 
 echo "Downloading binary: ${binary_url}"
 
-is_curl=true
-if hash curl 2>/dev/null; then
-  curl --fail -I $binary_url >/dev/null 2>&1
-else
-  is_curl=false
-  wget --server-response --spider $binary_url >/dev/null 2>&1
-fi
+wget --server-response --spider $binary_url >/dev/null 2>&1
 
 if test $? -eq 0; then
-  if [ "${is_curl}" = true ]; then
-    curl $binary_url > $tarball_name
-  else
-    wget $binary_url
-  fi
+  wget $binary_url
   if test -e "${tarball_name}"; then
     echo "Unpacking binary distribution"
     tar -xvzf $tarball_name
