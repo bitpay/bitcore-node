@@ -6,7 +6,7 @@
   "lastBuild": "1.0.1",
   "main": "./index.js",
   "repository": "git://github.com/bitpay/bitcore-node.git",
-  "homepage": "https://github.com/bitpay/bitcore-node.js",
+  "homepage": "https://github.com/bitpay/bitcore-node",
   "bugs": {
     "url": "https://github.com/bitpay/bitcore-node/issues"
   },
