@@ -31,3 +31,4 @@ libbitcoind*
 libbitcoind.includes
 *.log
 .DS_Store
+.idea
