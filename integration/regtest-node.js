@@ -307,7 +307,7 @@ describe('Node Functionality', function() {
         results.totalReceived.should.equal(1000000000);
         results.totalSpent.should.equal(0);
         results.balance.should.equal(1000000000);
-        results.unconfirmedBalance.should.equal(0);
+        results.unconfirmedBalance.should.equal(1000000000);
         results.appearances.should.equal(1);
         results.unconfirmedAppearances.should.equal(0);
         results.txids.length.should.equal(1);
@@ -580,7 +580,7 @@ describe('Node Functionality', function() {
           results.totalReceived.should.equal(2000000000);
           results.totalSpent.should.equal(1999990000);
           results.balance.should.equal(10000);
-          results.unconfirmedBalance.should.equal(0);
+          results.unconfirmedBalance.should.equal(10000);
           results.appearances.should.equal(6);
           results.unconfirmedAppearances.should.equal(0);
           results.txids.length.should.equal(6);
