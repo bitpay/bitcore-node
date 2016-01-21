@@ -726,8 +726,9 @@ describe('Node Functionality', function() {
         node.services.bitcoind.sendTransaction(tx.serialize());
 
         setImmediate(function() {
-          var hashBuffer = bitcore.Address(address).hashBuffer;
-          node.services.address._getOutputsMempool(address, hashBuffer, function(err, outs) {
+          var addrObj = node.services.address._getAddressInfo(address);
+          node.services.address._getOutputsMempool(address, addrObj.hashBuffer,
+                                                   addrObj.hashTypeBuffer, function(err, outs) {
             if (err) {
               throw err;
             }
