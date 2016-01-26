@@ -49,6 +49,7 @@ describe('Address Service History', function() {
         options: options,
         addresses: addresses
       });
+      history.maxAddressesQuery = 100;
       history.get(function(err) {
         should.exist(err);
         err.message.match(/Maximum/);
