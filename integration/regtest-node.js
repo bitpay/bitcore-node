@@ -28,6 +28,7 @@ var Transaction = index.Transaction;
 var BitcoreNode = index.Node;
 var AddressService = index.services.Address;
 var BitcoinService = index.services.Bitcoin;
+var encoding = require('../lib/services/address/encoding');
 var DBService = index.services.DB;
 var testWIF = 'cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG';
 var testKey;
@@ -42,22 +43,6 @@ describe('Node Functionality', function() {
 
   before(function(done) {
     this.timeout(30000);
-
-    // Add the regtest network
-    bitcore.Networks.remove(bitcore.Networks.testnet);
-    bitcore.Networks.add({
-      name: 'regtest',
-      alias: 'regtest',
-      pubkeyhash: 0x6f,
-      privatekey: 0xef,
-      scripthash: 0xc4,
-      xpubkey: 0x043587cf,
-      xprivkey: 0x04358394,
-      networkMagic: 0xfabfb5da,
-      port: 18444,
-      dnsSeeds: [ ]
-    });
-    regtest = bitcore.Networks.get('regtest');
 
     var datadir = __dirname + '/data';
 
@@ -92,6 +77,9 @@ describe('Node Functionality', function() {
       };
 
       node = new BitcoreNode(configuration);
+
+      regtest = bitcore.Networks.get('regtest');
+      should.exist(regtest);
 
       node.on('error', function(err) {
         log.error(err);
@@ -208,7 +196,7 @@ describe('Node Functionality', function() {
 
       // We need to add a transaction to the mempool so that the next block will
       // have a different hash as the hash has been invalidated.
-      client.sendToAddress(testKey.toAddress().toString(), 10, function(err) {
+      client.sendToAddress(testKey.toAddress(regtest).toString(), 10, function(err) {
         if (err) {
           throw err;
         }
@@ -250,7 +238,7 @@ describe('Node Functionality', function() {
     var address;
     var unspentOutput;
     before(function() {
-      address = testKey.toAddress().toString();
+      address = testKey.toAddress(regtest).toString();
     });
     it('should be able to get the balance of the test address', function(done) {
       node.services.address.getBalance(address, false, function(err, balance) {
@@ -333,19 +321,19 @@ describe('Node Functionality', function() {
         /* jshint maxstatements: 50 */
 
         testKey2 = bitcore.PrivateKey.fromWIF('cNfF4jXiLHQnFRsxaJyr2YSGcmtNYvxQYSakNhuDGxpkSzAwn95x');
-        address2 = testKey2.toAddress().toString();
+        address2 = testKey2.toAddress(regtest).toString();
 
         testKey3 = bitcore.PrivateKey.fromWIF('cVTYQbaFNetiZcvxzXcVMin89uMLC43pEBMy2etgZHbPPxH5obYt');
-        address3 = testKey3.toAddress().toString();
+        address3 = testKey3.toAddress(regtest).toString();
 
         testKey4 = bitcore.PrivateKey.fromWIF('cPNQmfE31H2oCUFqaHpfSqjDibkt7XoT2vydLJLDHNTvcddCesGw');
-        address4 = testKey4.toAddress().toString();
+        address4 = testKey4.toAddress(regtest).toString();
 
         testKey5 = bitcore.PrivateKey.fromWIF('cVrzm9gCmnzwEVMGeCxY6xLVPdG3XWW97kwkFH3H3v722nb99QBF');
-        address5 = testKey5.toAddress().toString();
+        address5 = testKey5.toAddress(regtest).toString();
 
         testKey6 = bitcore.PrivateKey.fromWIF('cPfMesNR2gsQEK69a6xe7qE44CZEZavgMUak5hQ74XDgsRmmGBYF');
-        address6 = testKey6.toAddress().toString();
+        address6 = testKey6.toAddress(regtest).toString();
 
         var tx = new Transaction();
         tx.from(unspentOutput);
@@ -726,7 +714,7 @@ describe('Node Functionality', function() {
         node.services.bitcoind.sendTransaction(tx.serialize());
 
         setImmediate(function() {
-          var addrObj = node.services.address._getAddressInfo(address);
+          var addrObj = encoding.getAddressInfo(address);
           node.services.address._getOutputsMempool(address, addrObj.hashBuffer,
                                                    addrObj.hashTypeBuffer, function(err, outs) {
             if (err) {

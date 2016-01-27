@@ -2,6 +2,8 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
+var stream = require('stream');
+var levelup = require('levelup');
 var proxyquire = require('proxyquire');
 var bitcorenode = require('../../../');
 var AddressService = bitcorenode.services.Address;
@@ -9,13 +11,15 @@ var blockData = require('../../data/livenet-345003.json');
 var bitcore = require('bitcore-lib');
 var memdown = require('memdown');
 var leveldown = require('leveldown');
-var Script = bitcore.Script;
-var Address = bitcore.Address;
 var Networks = bitcore.Networks;
 var EventEmitter = require('events').EventEmitter;
 var errors = bitcorenode.errors;
 var Transaction = require('../../../lib/transaction');
 var txData = require('../../data/transaction.json');
+var index = require('../../../lib');
+var log = index.log;
+var constants = require('../../../lib/services/address/constants');
+var encoding = require('../../../lib/services/address/encoding');
 
 var mockdb = {
 };
@@ -96,7 +100,8 @@ describe('Address Service', function() {
         done();
       });
     });
-    it('start levelup db for mempool index', function(done) {
+    it('start levelup db for mempool', function(done) {
+      var levelupStub = sinon.stub().callsArg(2);
       var TestAddressService = proxyquire('../../../lib/services/address', {
         'fs': {
           existsSync: sinon.stub().returns(true)
@@ -104,14 +109,7 @@ describe('Address Service', function() {
         'leveldown': {
           destroy: sinon.stub().callsArgWith(1, null)
         },
-        'levelup': function(dbPath, options, callback) {
-          dbPath.should.equal('testdir/testnet3/bitcore-addressmempool.db');
-          options.db.should.equal(memdown);
-          options.keyEncoding.should.equal('binary');
-          options.valueEncoding.should.equal('binary');
-          options.fillCache.should.equal(false);
-          setImmediate(callback);
-        },
+        'levelup': levelupStub,
         'mkdirp': sinon.stub().callsArgWith(1, null)
       });
       var am = new TestAddressService({
@@ -119,6 +117,14 @@ describe('Address Service', function() {
         node: mocknode
       });
       am.start(function() {
+        levelupStub.callCount.should.equal(1);
+        var dbPath1 = levelupStub.args[0][0];
+        dbPath1.should.equal('testdir/testnet3/bitcore-addressmempool.db');
+        var options = levelupStub.args[0][1];
+        options.db.should.equal(memdown);
+        options.keyEncoding.should.equal('binary');
+        options.valueEncoding.should.equal('binary');
+        options.fillCache.should.equal(false);
         done();
       });
     });
@@ -186,14 +192,26 @@ describe('Address Service', function() {
 
   describe('#stop', function() {
     it('will close mempool levelup', function(done) {
+      var testnode = {
+        network: Networks.testnet,
+        datadir: 'testdir',
+        db: mockdb,
+        services: {
+          bitcoind: {
+            on: sinon.stub(),
+            removeListener: sinon.stub()
+          }
+        }
+      };
       var am = new AddressService({
         mempoolMemoryIndex: true,
-        node: mocknode
+        node: testnode
       });
       am.mempoolIndex = {};
       am.mempoolIndex.close = sinon.stub().callsArg(0);
       am.stop(function() {
         am.mempoolIndex.close.callCount.should.equal(1);
+        am.node.services.bitcoind.removeListener.callCount.should.equal(2);
         done();
       });
     });
@@ -253,7 +271,7 @@ describe('Address Service', function() {
     });
     it('should load the db with regtest', function() {
       // Switch to use regtest
-      // Networks.remove(Networks.testnet);
+      Networks.remove(Networks.testnet);
       Networks.add({
         name: 'regtest',
         alias: 'regtest',
@@ -387,43 +405,6 @@ describe('Address Service', function() {
     });
   });
 
-  describe('#_extractAddressInfoFromScript', function() {
-    var am;
-    before(function() {
-      am = new AddressService({
-        mempoolMemoryIndex: true,
-        node: mocknode
-      });
-      am.node.network = Networks.livenet;
-    });
-    it('pay-to-publickey', function() {
-      var pubkey = new bitcore.PublicKey('022df8750480ad5b26950b25c7ba79d3e37d75f640f8e5d9bcd5b150a0f85014da');
-      var script = Script.buildPublicKeyOut(pubkey);
-      var info = am._extractAddressInfoFromScript(script);
-      info.addressType.should.equal(Address.PayToPublicKeyHash);
-      info.hashBuffer.toString('hex').should.equal('9674af7395592ec5d91573aa8d6557de55f60147');
-    });
-    it('pay-to-publickeyhash', function() {
-      var script = Script('OP_DUP OP_HASH160 20 0x0000000000000000000000000000000000000000 OP_EQUALVERIFY OP_CHECKSIG');
-      var info = am._extractAddressInfoFromScript(script);
-      info.addressType.should.equal(Address.PayToPublicKeyHash);
-      info.hashBuffer.toString('hex').should.equal('0000000000000000000000000000000000000000');
-    });
-    it('pay-to-scripthash', function() {
-      var script = Script('OP_HASH160 20 0x0000000000000000000000000000000000000000 OP_EQUAL');
-      var info = am._extractAddressInfoFromScript(script);
-      info.addressType.should.equal(Address.PayToScriptHash);
-      info.hashBuffer.toString('hex').should.equal('0000000000000000000000000000000000000000');
-    });
-    it('non-address script type', function() {
-      var buf = new Buffer(40);
-      buf.fill(0);
-      var script = Script('OP_RETURN 40 0x' + buf.toString('hex'));
-      var info = am._extractAddressInfoFromScript(script);
-      info.should.equal(false);
-    });
-  });
-
   describe('#blockHandler', function() {
     var am;
     var testBlock = bitcore.Block.fromString(blockData);
@@ -524,6 +505,7 @@ describe('Address Service', function() {
       var testnode = {
         datadir: 'testdir',
         db: db,
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -556,73 +538,6 @@ describe('Address Service', function() {
           am.balanceEventHandler.callCount.should.equal(11);
         }
       );
-    });
-  });
-
-  describe('#_encodeSpentIndexSyncKey', function() {
-    it('will encode to 36 bytes (string)', function() {
-      var am = new AddressService({
-        mempoolMemoryIndex: true,
-        node: mocknode
-      });
-      var txidBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
-      var key = am._encodeSpentIndexSyncKey(txidBuffer, 12);
-      key.length.should.equal(36);
-    });
-    it('will be able to decode encoded value', function() {
-      var am = new AddressService({
-        mempoolMemoryIndex: true,
-        node: mocknode
-      });
-      var txid = '3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7';
-      var txidBuffer = new Buffer(txid, 'hex');
-      var key = am._encodeSpentIndexSyncKey(txidBuffer, 12);
-      var keyBuffer = new Buffer(key, 'binary');
-      keyBuffer.slice(0, 32).toString('hex').should.equal(txid);
-      var outputIndex = keyBuffer.readUInt32BE(32);
-      outputIndex.should.equal(12);
-    });
-  });
-
-  describe('#_encodeInputKeyMap/#_decodeInputKeyMap roundtrip', function() {
-    var encoded;
-    var outputTxIdBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
-    it('encode key', function() {
-      var am = new AddressService({
-        mempoolMemoryIndex: true,
-        node: mocknode
-      });
-      encoded = am._encodeInputKeyMap(outputTxIdBuffer, 13);
-    });
-    it('decode key', function() {
-      var am = new AddressService({
-        mempoolMemoryIndex: true,
-        node: mocknode
-      });
-      var key = am._decodeInputKeyMap(encoded);
-      key.outputTxId.toString('hex').should.equal(outputTxIdBuffer.toString('hex'));
-      key.outputIndex.should.equal(13);
-    });
-  });
-
-  describe('#_encodeInputValueMap/#_decodeInputValueMap roundtrip', function() {
-    var encoded;
-    var inputTxIdBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
-    it('encode key', function() {
-      var am = new AddressService({
-        mempoolMemoryIndex: true,
-        node: mocknode
-      });
-      encoded = am._encodeInputValueMap(inputTxIdBuffer, 7);
-    });
-    it('decode key', function() {
-      var am = new AddressService({
-        mempoolMemoryIndex: true,
-        node: mocknode
-      });
-      var key = am._decodeInputValueMap(encoded);
-      key.inputTxId.toString('hex').should.equal(inputTxIdBuffer.toString('hex'));
-      key.inputIndex.should.equal(7);
     });
   });
 
@@ -817,18 +732,127 @@ describe('Address Service', function() {
 
   });
 
+  describe('#createInputsStream', function() {
+    it('transform stream from buffer into object', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          },
+          db: {
+            tip: {
+              __height: 157
+            }
+          }
+        },
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var streamStub = new stream.Readable();
+      streamStub._read = function() { /* do nothing */ };
+      addressService.createInputsDBStream = sinon.stub().returns(streamStub);
+      var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var testStream = addressService.createInputsStream(address, {});
+      testStream.once('data', function(data) {
+        data.address.should.equal('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W');
+        data.hashType.should.equal('pubkeyhash');
+        data.txid.should.equal('7b94e3c39386845ea383b8e726b20b5172ccd3ef9be008bbb133e3b63f07df72');
+        data.inputIndex.should.equal(1);
+        data.height.should.equal(157);
+        data.confirmations.should.equal(1);
+        done();
+      });
+      streamStub.emit('data', {
+        key: new Buffer('030b2f0a0c31bfe0406b0ccc1381fdbe311946dadc01000000009d786cfeae288d74aaf9f51f215f9882e7bd7bc18af7a550683c4d7c6962f6372900000004', 'hex'),
+        value: new Buffer('7b94e3c39386845ea383b8e726b20b5172ccd3ef9be008bbb133e3b63f07df7200000001', 'hex')
+      });
+      streamStub.emit('end');
+    });
+  });
+
+  describe('#createInputsDBStream', function() {
+    it('will stream all keys', function() {
+      var streamStub = sinon.stub().returns({});
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          },
+          db: {
+            store: {
+              createReadStream: streamStub
+            }
+          }
+        },
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {};
+      var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var testStream = addressService.createInputsDBStream(address, options);
+      should.exist(testStream);
+      streamStub.callCount.should.equal(1);
+      var expectedGt = '03038a213afdfc551fc658e9a2a58a86e98d69b687010000000000';
+      // The expected "lt" value should be one value above the start value, due
+      // to the keys having additional data following it and can't be "equal".
+      var expectedLt = '03038a213afdfc551fc658e9a2a58a86e98d69b68701ffffffffff';
+      streamStub.args[0][0].gt.toString('hex').should.equal(expectedGt);
+      streamStub.args[0][0].lt.toString('hex').should.equal(expectedLt);
+    });
+    it('will stream keys based on a range of block heights', function() {
+      var streamStub = sinon.stub().returns({});
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          },
+          db: {
+            store: {
+              createReadStream: streamStub
+            }
+          }
+        },
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {
+        start: 1,
+        end: 0
+      };
+      var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var testStream = addressService.createInputsDBStream(address, options);
+      should.exist(testStream);
+      streamStub.callCount.should.equal(1);
+      var expectedGt = '03038a213afdfc551fc658e9a2a58a86e98d69b687010000000000';
+      // The expected "lt" value should be one value above the start value, due
+      // to the keys having additional data following it and can't be "equal".
+      var expectedLt = '03038a213afdfc551fc658e9a2a58a86e98d69b687010000000002';
+      streamStub.args[0][0].gt.toString('hex').should.equal(expectedGt);
+      streamStub.args[0][0].lt.toString('hex').should.equal(expectedLt);
+    });
+  });
+
   describe('#getInputs', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
     var hashBuffer = bitcore.Address(address).hashBuffer;
-    var hashTypeBuffer = AddressService.HASH_TYPES.PUBKEY;
+    var hashTypeBuffer = constants.HASH_TYPES.PUBKEY;
     var db = {
       tip: {
         __height: 1
       }
     };
     var testnode = {
-      network: Networks.testnet,
+      network: Networks.livenet,
       datadir: 'testdir',
       services: {
         db: db,
@@ -845,14 +869,18 @@ describe('Address Service', function() {
     });
 
     it('will add mempool inputs on close', function(done) {
-      var testStream = new EventEmitter();
+      var testStream = new stream.Readable();
+      testStream._read = function() { /* do nothing */ };
       var db = {
         store: {
           createReadStream: sinon.stub().returns(testStream)
+        },
+        tip: {
+          __height: 10
         }
       };
       var testnode = {
-        network: Networks.testnet,
+        network: Networks.livenet,
         datadir: 'testdir',
         services: {
           db: db,
@@ -883,10 +911,11 @@ describe('Address Service', function() {
         inputs[0].height.should.equal(-1);
         done();
       });
-      testStream.emit('close');
+      testStream.push(null);
     });
     it('will get inputs for an address and timestamp', function(done) {
-      var testStream = new EventEmitter();
+      var testStream = new stream.Readable();
+      testStream._read = function() { /* do nothing */ };
       var args = {
         start: 15,
         end: 12,
@@ -895,12 +924,12 @@ describe('Address Service', function() {
       var createReadStreamCallCount = 0;
       am.node.services.db.store = {
         createReadStream: function(ops) {
-          var gte = Buffer.concat([AddressService.PREFIXES.SPENTS, hashBuffer,
+          var gt = Buffer.concat([constants.PREFIXES.SPENTS, hashBuffer,
                                    hashTypeBuffer, new Buffer('000000000c', 'hex')]);
-          ops.gte.toString('hex').should.equal(gte.toString('hex'));
-          var lte = Buffer.concat([AddressService.PREFIXES.SPENTS, hashBuffer,
+          ops.gt.toString('hex').should.equal(gt.toString('hex'));
+          var lt = Buffer.concat([constants.PREFIXES.SPENTS, hashBuffer,
                                    hashTypeBuffer, new Buffer('0000000010', 'hex')]);
-          ops.lte.toString('hex').should.equal(lte.toString('hex'));
+          ops.lt.toString('hex').should.equal(lt.toString('hex'));
           createReadStreamCallCount++;
           return testStream;
         }
@@ -924,20 +953,21 @@ describe('Address Service', function() {
         value: new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae700000000', 'hex')
       };
       testStream.emit('data', data);
-      testStream.emit('close');
+      testStream.push(null);
     });
     it('should get inputs for address', function(done) {
-      var testStream = new EventEmitter();
+      var testStream = new stream.Readable();
+      testStream._read = function() { /* do nothing */ };
       var args = {
         queryMempool: true
       };
       var createReadStreamCallCount = 0;
       am.node.services.db.store = {
         createReadStream: function(ops) {
-          var gte = Buffer.concat([AddressService.PREFIXES.SPENTS, hashBuffer, hashTypeBuffer, new Buffer('00', 'hex')]);
-          ops.gte.toString('hex').should.equal(gte.toString('hex'));
-          var lte = Buffer.concat([AddressService.PREFIXES.SPENTS, hashBuffer, hashTypeBuffer, new Buffer('ff', 'hex')]);
-          ops.lte.toString('hex').should.equal(lte.toString('hex'));
+          var gt = Buffer.concat([constants.PREFIXES.SPENTS, hashBuffer, hashTypeBuffer, new Buffer('0000000000', 'hex')]);
+          ops.gt.toString('hex').should.equal(gt.toString('hex'));
+          var lt = Buffer.concat([constants.PREFIXES.SPENTS, hashBuffer, hashTypeBuffer, new Buffer('ffffffffff', 'hex')]);
+          ops.lt.toString('hex').should.equal(lt.toString('hex'));
           createReadStreamCallCount++;
           return testStream;
         }
@@ -960,15 +990,16 @@ describe('Address Service', function() {
         value: new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae700000000', 'hex')
       };
       testStream.emit('data', data);
-      testStream.emit('close');
+      testStream.push(null);
     });
     it('should give an error if the readstream has an error', function(done) {
-      var testStream = new EventEmitter();
+      var testStream = new stream.Readable();
+      testStream._read = function() { /* do nothing */ };
       am.node.services.db.store = {
         createReadStream: sinon.stub().returns(testStream)
       };
 
-      am.getOutputs(address, {}, function(err, outputs) {
+      am.getInputs(address, {}, function(err, outputs) {
         should.exist(err);
         err.message.should.equal('readstreamerror');
         done();
@@ -976,7 +1007,7 @@ describe('Address Service', function() {
 
       testStream.emit('error', new Error('readstreamerror'));
       setImmediate(function() {
-        testStream.emit('close');
+        testStream.push(null);
       });
     });
 
@@ -986,7 +1017,7 @@ describe('Address Service', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
     var hashBuffer = bitcore.Address(address).hashBuffer;
-    var hashTypeBuffer = AddressService.HASH_TYPES.PUBKEY;
+    var hashTypeBuffer = constants.HASH_TYPES.PUBKEY;
     var db = {
       tip: {
         __height: 1
@@ -1025,39 +1056,44 @@ describe('Address Service', function() {
       });
     });
     it('it will parse data', function(done) {
-      var testStream = new EventEmitter();
+      var testStream = new stream.Readable();
+      testStream._read = function() { /* do nothing */ };
       am.mempoolIndex = {};
       am.mempoolIndex.createReadStream = sinon.stub().returns(testStream);
 
-      am._getInputsMempool(address, hashBuffer, hashTypeBuffer, function(err, outputs) {
+      var nowTime = new Date().getTime();
+
+      am._getInputsMempool(address, hashBuffer, hashTypeBuffer, function(err, inputs) {
         should.not.exist(err);
-        outputs.length.should.equal(1);
-        outputs[0].address.should.equal(address);
-        outputs[0].txid.should.equal(txid);
-        outputs[0].hashType.should.equal('pubkeyhash');
-        outputs[0].hashType.should.equal(AddressService.HASH_TYPES_READABLE[hashTypeBuffer.toString('hex')]);
-        outputs[0].inputIndex.should.equal(5);
-        outputs[0].height.should.equal(-1);
-        outputs[0].confirmations.should.equal(0);
+        inputs.length.should.equal(1);
+        var input = inputs[0];
+        input.address.should.equal(address);
+        input.txid.should.equal(txid);
+        input.hashType.should.equal('pubkeyhash');
+        input.hashType.should.equal(constants.HASH_TYPES_READABLE[hashTypeBuffer.toString('hex')]);
+        input.inputIndex.should.equal(5);
+        input.height.should.equal(-1);
+        input.confirmations.should.equal(0);
+        input.timestamp.should.equal(nowTime);
         done();
       });
 
       var txid = '5d32f0fff6871c377e00c16f48ebb5e89c723d0b9dd25f68fdda70c3392bee61';
       var inputIndex = 5;
       var inputIndexBuffer = new Buffer(4);
+      var timestampBuffer = new Buffer(new Array(8));
+      timestampBuffer.writeDoubleBE(nowTime);
       inputIndexBuffer.writeUInt32BE(inputIndex);
       var valueData = Buffer.concat([
         new Buffer(txid, 'hex'),
-        inputIndexBuffer
+        inputIndexBuffer,
+        timestampBuffer
       ]);
-
       // Note: key is not used currently
       testStream.emit('data', {
         value: valueData
       });
-      setImmediate(function() {
-        testStream.emit('close');
-      });
+      testStream.emit('close');
     });
   });
 
@@ -1105,18 +1141,129 @@ describe('Address Service', function() {
     });
   });
 
+  describe('#createOutputsStream', function() {
+    it('transform stream from buffer into object', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          },
+          db: {
+            tip: {
+              __height: 157
+            }
+          }
+        },
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var streamStub = new stream.Readable();
+      streamStub._read = function() { /* do nothing */ };
+      addressService.createOutputsDBStream = sinon.stub().returns(streamStub);
+      var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var testStream = addressService.createOutputsStream(address, {});
+      testStream.once('data', function(data) {
+        data.address.should.equal('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W');
+        data.hashType.should.equal('pubkeyhash');
+        data.txid.should.equal('4078b72b09391f5146e2c564f5847d49b179f9946b253f780f65b140d46ef6f9');
+        data.outputIndex.should.equal(2);
+        data.height.should.equal(157);
+        data.satoshis.should.equal(10000);
+        data.script.toString('hex').should.equal('76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac');
+        data.confirmations.should.equal(1);
+        done();
+      });
+      streamStub.emit('data', {
+        key: new Buffer('020b2f0a0c31bfe0406b0ccc1381fdbe311946dadc01000000009d4078b72b09391f5146e2c564f5847d49b179f9946b253f780f65b140d46ef6f900000002', 'hex'),
+        value: new Buffer('40c388000000000076a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac', 'hex')
+      });
+      streamStub.emit('end');
+    });
+  });
+
+  describe('#createOutputsDBStream', function() {
+    it('will stream all keys', function() {
+      var streamStub = sinon.stub().returns({});
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          },
+          db: {
+            store: {
+              createReadStream: streamStub
+            }
+          }
+        },
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {};
+      var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var testStream = addressService.createOutputsDBStream(address, options);
+      should.exist(testStream);
+      streamStub.callCount.should.equal(1);
+      var expectedGt = '02038a213afdfc551fc658e9a2a58a86e98d69b687010000000000';
+      // The expected "lt" value should be one value above the start value, due
+      // to the keys having additional data following it and can't be "equal".
+      var expectedLt = '02038a213afdfc551fc658e9a2a58a86e98d69b68701ffffffffff';
+      streamStub.args[0][0].gt.toString('hex').should.equal(expectedGt);
+      streamStub.args[0][0].lt.toString('hex').should.equal(expectedLt);
+    });
+    it('will stream keys based on a range of block heights', function() {
+      var streamStub = sinon.stub().returns({});
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          },
+          db: {
+            store: {
+              createReadStream: streamStub
+            }
+          }
+        },
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {
+        start: 1,
+        end: 0
+      };
+      var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
+      var testStream = addressService.createOutputsDBStream(address, options);
+      should.exist(testStream);
+      streamStub.callCount.should.equal(1);
+      var expectedGt = '02038a213afdfc551fc658e9a2a58a86e98d69b687010000000000';
+      // The expected "lt" value should be one value above the start value, due
+      // to the keys having additional data following it and can't be "equal".
+      var expectedLt = '02038a213afdfc551fc658e9a2a58a86e98d69b687010000000002';
+      streamStub.args[0][0].gt.toString('hex').should.equal(expectedGt);
+      streamStub.args[0][0].lt.toString('hex').should.equal(expectedLt);
+    });
+  });
+
   describe('#getOutputs', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
     var hashBuffer = bitcore.Address('1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W').hashBuffer;
-    var hashTypeBuffer = AddressService.HASH_TYPES.PUBKEY;
+    var hashTypeBuffer = constants.HASH_TYPES.PUBKEY;
     var db = {
       tip: {
         __height: 1
       }
     };
     var testnode = {
-      network: Networks.testnet,
+      network: Networks.livenet,
       datadir: 'testdir',
       services: {
         db: db,
@@ -1137,7 +1284,8 @@ describe('Address Service', function() {
     });
 
     it('will get outputs for an address and timestamp', function(done) {
-      var testStream = new EventEmitter();
+      var testStream = new stream.Readable();
+      testStream._read = function() { /* do nothing */ };
       var args = {
         start: 15,
         end: 12,
@@ -1146,10 +1294,10 @@ describe('Address Service', function() {
       var createReadStreamCallCount = 0;
       am.node.services.db.store = {
         createReadStream: function(ops) {
-          var gte = Buffer.concat([AddressService.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('000000000c', 'hex')]);
-          ops.gte.toString('hex').should.equal(gte.toString('hex'));
-          var lte = Buffer.concat([AddressService.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('0000000010', 'hex')]);
-          ops.lte.toString('hex').should.equal(lte.toString('hex'));
+          var gt = Buffer.concat([constants.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('000000000c', 'hex')]);
+          ops.gt.toString('hex').should.equal(gt.toString('hex'));
+          var lt = Buffer.concat([constants.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('0000000010', 'hex')]);
+          ops.lt.toString('hex').should.equal(lt.toString('hex'));
           createReadStreamCallCount++;
           return testStream;
         }
@@ -1161,7 +1309,7 @@ describe('Address Service', function() {
         outputs[0].address.should.equal(address);
         outputs[0].txid.should.equal('125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf87');
         outputs[0].hashType.should.equal('pubkeyhash');
-        outputs[0].hashType.should.equal(AddressService.HASH_TYPES_READABLE[hashTypeBuffer.toString('hex')]);
+        outputs[0].hashType.should.equal(constants.HASH_TYPES_READABLE[hashTypeBuffer.toString('hex')]);
         outputs[0].outputIndex.should.equal(1);
         outputs[0].satoshis.should.equal(4527773864);
         outputs[0].script.should.equal('76a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac');
@@ -1174,11 +1322,12 @@ describe('Address Service', function() {
         value: new Buffer('41f0de058a80000076a914038a213afdfc551fc658e9a2a58a86e98d69b68788ac', 'hex')
       };
       testStream.emit('data', data);
-      testStream.emit('close');
+      testStream.push(null);
     });
 
     it('should get outputs for an address', function(done) {
-      var readStream1 = new EventEmitter();
+      var readStream1 = new stream.Readable();
+      readStream1._read = function() { /* do nothing */ };
       am.node.services.db.store = {
         createReadStream: sinon.stub().returns(readStream1)
       };
@@ -1234,11 +1383,12 @@ describe('Address Service', function() {
 
       readStream1.emit('data', data1);
       readStream1.emit('data', data2);
-      readStream1.emit('close');
+      readStream1.push(null);
     });
 
     it('should give an error if the readstream has an error', function(done) {
-      var readStream2 = new EventEmitter();
+      var readStream2 = new stream.Readable();
+      readStream2._read = function() { /* do nothing */ };
       am.node.services.db.store = {
         createReadStream: sinon.stub().returns(readStream2)
       };
@@ -1251,7 +1401,7 @@ describe('Address Service', function() {
 
       readStream2.emit('error', new Error('readstreamerror'));
       setImmediate(function() {
-        readStream2.emit('close');
+        readStream2.push(null);
       });
     });
 
@@ -1261,8 +1411,9 @@ describe('Address Service', function() {
       // See https://github.com/bitpay/bitcore-node/issues/377
       var address = '321jRYeWBrLBWr2j1KYnAFGico3GUdd5q7';
       var hashBuffer = bitcore.Address(address).hashBuffer;
-      var hashTypeBuffer = AddressService.HASH_TYPES.REDEEMSCRIPT;
-      var testStream = new EventEmitter();
+      var hashTypeBuffer = constants.HASH_TYPES.REDEEMSCRIPT;
+      var testStream = new stream.Readable();
+      testStream._read = function() { /* do nothing */ };
       var args = {
         start: 15,
         end: 12,
@@ -1271,10 +1422,10 @@ describe('Address Service', function() {
       var createReadStreamCallCount = 0;
       am.node.services.db.store = {
         createReadStream: function(ops) {
-          var gte = Buffer.concat([AddressService.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('000000000c', 'hex')]);
-          ops.gte.toString('hex').should.equal(gte.toString('hex'));
-          var lte = Buffer.concat([AddressService.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('0000000010', 'hex')]);
-          ops.lte.toString('hex').should.equal(lte.toString('hex'));
+          var gt = Buffer.concat([constants.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('000000000c', 'hex')]);
+          ops.gt.toString('hex').should.equal(gt.toString('hex'));
+          var lt = Buffer.concat([constants.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('0000000010', 'hex')]);
+          ops.lt.toString('hex').should.equal(lt.toString('hex'));
           createReadStreamCallCount++;
           return testStream;
         }
@@ -1286,7 +1437,7 @@ describe('Address Service', function() {
         outputs[0].address.should.equal(address);
         outputs[0].txid.should.equal('125dd0e50fc732d67c37b6c56be7f9dc00b6859cebf982ee2cc83ed2d604bf87');
         outputs[0].hashType.should.equal('scripthash');
-        outputs[0].hashType.should.equal(AddressService.HASH_TYPES_READABLE[hashTypeBuffer.toString('hex')]);
+        outputs[0].hashType.should.equal(constants.HASH_TYPES_READABLE[hashTypeBuffer.toString('hex')]);
         outputs[0].outputIndex.should.equal(1);
         outputs[0].satoshis.should.equal(4527773864);
         outputs[0].script.should.equal('a914038a213afdfc551fc658e9a2a58a86e98d69b68787');
@@ -1301,7 +1452,7 @@ describe('Address Service', function() {
         value: new Buffer('41f0de058a800000a914038a213afdfc551fc658e9a2a58a86e98d69b68787', 'hex')
       };
       testStream.emit('data', data);
-      testStream.emit('close');
+      testStream.push(null);
     });
 
     it('should not print outputs for a p2pkh address, if the output was sent to a p2sh redeemScript', function(done) {
@@ -1310,8 +1461,9 @@ describe('Address Service', function() {
       // See https://github.com/bitpay/bitcore-node/issues/377
       var address = '321jRYeWBrLBWr2j1KYnAFGico3GUdd5q7';
       var hashBuffer = bitcore.Address(address).hashBuffer;
-      var hashTypeBuffer = AddressService.HASH_TYPES.REDEEMSCRIPT;
-      var testStream = new EventEmitter();
+      var hashTypeBuffer = constants.HASH_TYPES.REDEEMSCRIPT;
+      var testStream = new stream.Readable();
+      testStream._read = function() { /* do nothing */ };
       var args = {
         start: 15,
         end: 12,
@@ -1322,10 +1474,10 @@ describe('Address Service', function() {
       // Verifying that the db query is looking for a redeemScript, *not* a p2pkh
       am.node.services.db.store = {
         createReadStream: function(ops) {
-          var gte = Buffer.concat([AddressService.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('000000000c', 'hex')]);
-          ops.gte.toString('hex').should.equal(gte.toString('hex'));
-          var lte = Buffer.concat([AddressService.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('0000000010', 'hex')]);
-          ops.lte.toString('hex').should.equal(lte.toString('hex'));
+          var gt = Buffer.concat([constants.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('000000000c', 'hex')]);
+          ops.gt.toString('hex').should.equal(gt.toString('hex'));
+          var lt = Buffer.concat([constants.PREFIXES.OUTPUTS, hashBuffer, hashTypeBuffer, new Buffer('0000000010', 'hex')]);
+          ops.lt.toString('hex').should.equal(lt.toString('hex'));
           createReadStreamCallCount++;
           return testStream;
         }
@@ -1337,7 +1489,7 @@ describe('Address Service', function() {
         done();
       });
       createReadStreamCallCount.should.equal(1);
-      testStream.emit('close');
+      testStream.push(null);
     });
   });
 
@@ -1345,7 +1497,7 @@ describe('Address Service', function() {
     var am;
     var address = '1KiW1A4dx1oRgLHtDtBjcunUGkYtFgZ1W';
     var hashBuffer = bitcore.Address(address).hashBuffer;
-    var hashTypeBuffer = AddressService.HASH_TYPES.PUBKEY;
+    var hashTypeBuffer = constants.HASH_TYPES.PUBKEY;
     var db = {
       tip: {
         __height: 1
@@ -1391,14 +1543,16 @@ describe('Address Service', function() {
           throw err;
         }
         outputs.length.should.equal(1);
-        outputs[0].address.should.equal(address);
-        outputs[0].hashType.should.equal('pubkeyhash');
-        outputs[0].txid.should.equal(txid);
-        outputs[0].outputIndex.should.equal(outputIndex);
-        outputs[0].height.should.equal(-1);
-        outputs[0].satoshis.should.equal(3);
-        outputs[0].script.should.equal('ac');
-        outputs[0].confirmations.should.equal(0);
+        var output = outputs[0];
+        output.address.should.equal(address);
+        output.hashType.should.equal('pubkeyhash');
+        output.txid.should.equal(txid);
+        output.outputIndex.should.equal(outputIndex);
+        output.height.should.equal(-1);
+        output.satoshis.should.equal(3);
+        output.script.should.equal('ac');
+        output.timestamp.should.equal(1452696715750);
+        output.confirmations.should.equal(0);
         done();
       });
 
@@ -1408,7 +1562,7 @@ describe('Address Service', function() {
       var outputIndexBuffer = new Buffer(4);
       outputIndexBuffer.writeUInt32BE(outputIndex);
       var keyData = Buffer.concat([
-        AddressService.MEMPREFIXES.OUTPUTS,
+        constants.MEMPREFIXES.OUTPUTS,
         hashBuffer,
         hashTypeBuffer,
         txidBuffer,
@@ -1417,6 +1571,7 @@ describe('Address Service', function() {
 
       var valueData = Buffer.concat([
         new Buffer('4008000000000000', 'hex'),
+        new Buffer('427523b78c1e6000', 'hex'),
         new Buffer('ac', 'hex')
       ]);
 
@@ -1803,12 +1958,18 @@ describe('Address Service', function() {
   describe('#updateMempoolIndex/#removeMempoolIndex', function() {
     var am;
     var tx = Transaction().fromBuffer(txBuf);
+    var clock;
 
-    before(function() {
+    beforeEach(function() {
       am = new AddressService({
         mempoolMemoryIndex: true,
         node: mocknode
       });
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(function() {
+      clock.restore();
     });
 
     it('will update the input and output indexes', function() {
@@ -1819,12 +1980,18 @@ describe('Address Service', function() {
         for (var i = 0; i < operations.length; i++) {
           operations[i].type.should.equal('put');
         }
-        var expectedValue = '45202ffdeb8344af4dec07cddf0478485dc65cc7d08303e45959630c89b51ea200000002';
+        var nowTime = new Date().getTime();
+        var nowTimeBuffer = new Buffer(8);
+        nowTimeBuffer.writeDoubleBE(nowTime);
+        var expectedValue = '45202ffdeb8344af4dec07cddf0478485dc65cc7d08303e45959630c89b51ea200000002' +
+          nowTimeBuffer.toString('hex');
         operations[7].value.toString('hex').should.equal(expectedValue);
         var matches = 0;
+
+
         for (var j = 0; j < operations.length; j++) {
           var match = Buffer.concat([
-            AddressService.MEMPREFIXES.SPENTS,
+            constants.MEMPREFIXES.SPENTS,
             bitcore.Address('1JT7KDYwT9JY9o2vyqcKNSJgTWeKfV3ui8').hashBuffer
           ]).toString('hex');
 
@@ -1850,88 +2017,594 @@ describe('Address Service', function() {
     });
 
   });
+
   describe('#getAddressSummary', function() {
-    var node = {
-      datadir: 'testdir',
-      network: Networks.testnet,
-      services: {
-        bitcoind: {
-          isSpent: sinon.stub().returns(false),
-          on: sinon.spy()
-        }
-      }
-    };
-    var inputs = [
-      {
-        'txid': '9f183412de12a6c1943fc86c390174c1cde38d709217fdb59dcf540230fa58a6',
-        'height': -1,
-        'confirmations': 0,
-        'addresses': {
-          'mpkDdnLq26djg17s6cYknjnysAm3QwRzu2': {
-            'outputIndexes': [],
-            'inputIndexes': [
-              3
-            ]
+    var clock;
+    beforeEach(function() {
+      clock = sinon.useFakeTimers();
+      sinon.stub(log, 'warn');
+    });
+    afterEach(function() {
+      clock.restore();
+      log.warn.restore();
+    });
+    it('will handle error from _getAddressConfirmedSummary', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
           }
         },
-        'address': 'mpkDdnLq26djg17s6cYknjnysAm3QwRzu2'
-      }
-    ];
-
-    var outputs = [
-      {
-        'address': 'mpkDdnLq26djg17s6cYknjnysAm3QwRzu2',
-        'txid': '689e9f543fa4aa5b2daa3b5bb65f9a00ad5aa1a2e9e1fc4e11061d85f2aa9bc5',
-        'outputIndex': 0,
-        'height': 556351,
-        'satoshis': 3487110,
-        'script': '76a914653b58493c2208481e0902a8ffb97b8112b13fe188ac',
-        'confirmations': 13190
-      }
-    ];
-
-    var as = new AddressService({
-      mempoolMemoryIndex: true,
-      node: node
-    });
-    as.getInputs = sinon.stub().callsArgWith(2, null, inputs);
-    as.getOutputs = sinon.stub().callsArgWith(2, null, outputs);
-    var key = Buffer.concat([
-      new Buffer('689e9f543fa4aa5b2daa3b5bb65f9a00ad5aa1a2e9e1fc4e11061d85f2aa9bc5', 'hex'),
-      new Buffer(Array(4))
-    ]).toString('binary');
-    as.mempoolSpentIndex = {};
-    as.mempoolSpentIndex[key] = true;
-    it('should handle unconfirmed and confirmed outputs and inputs', function(done) {
-      as.getAddressSummary('mpkDdnLq26djg17s6cYknjnysAm3QwRzu2', {}, function(err, summary) {
-        should.not.exist(err);
-        summary.totalReceived.should.equal(3487110);
-        summary.totalSpent.should.equal(0);
-        summary.balance.should.equal(3487110);
-        summary.unconfirmedBalance.should.equal(0);
-        summary.appearances.should.equal(1);
-        summary.unconfirmedAppearances.should.equal(1);
-        summary.txids.should.deep.equal(
-          [
-            '9f183412de12a6c1943fc86c390174c1cde38d709217fdb59dcf540230fa58a6',
-            '689e9f543fa4aa5b2daa3b5bb65f9a00ad5aa1a2e9e1fc4e11061d85f2aa9bc5'
-          ]
-        );
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
+      var options = {};
+      addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, new Error('test'));
+      addressService.getAddressSummary(address, options, function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
         done();
       });
     });
-    it('noTxList should not include txids array', function(done) {
-      as.getAddressSummary('mpkDdnLq26djg17s6cYknjnysAm3QwRzu2', {noTxList: true}, function(err, summary) {
-        should.not.exist(err);
-        summary.totalReceived.should.equal(3487110);
-        summary.totalSpent.should.equal(0);
-        summary.balance.should.equal(3487110);
-        summary.unconfirmedBalance.should.equal(0);
-        summary.appearances.should.equal(1);
-        summary.unconfirmedAppearances.should.equal(1);
-        should.not.exist(summary.txids);
+    it('will handle error from _getAddressMempoolSummary', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
+      var options = {};
+      addressService._getAddressConfirmedSummary = sinon.stub().callsArg(2);
+      addressService._getAddressMempoolSummary = sinon.stub().callsArgWith(2, new Error('test2'));
+      addressService.getAddressSummary(address, options, function(err) {
+        should.exist(err);
+        err.message.should.equal('test2');
+        done();
+      });
+    });
+    it('will pass cache and summary between functions correctly', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
+      var options = {};
+      var cache = {};
+      var summary = {};
+      addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, null, cache);
+      addressService._getAddressMempoolSummary = sinon.stub().callsArgWith(3, null, cache);
+      addressService._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, null, cache);
+      addressService._transformAddressSummaryFromResult = sinon.stub().returns(summary);
+      addressService.getAddressSummary(address, options, function(err, sum) {
+        addressService._getAddressConfirmedSummary.callCount.should.equal(1);
+        addressService._getAddressMempoolSummary.callCount.should.equal(1);
+        addressService._getAddressMempoolSummary.args[0][2].should.equal(cache);
+        addressService._setAndSortTxidsFromAppearanceIds.callCount.should.equal(1);
+        addressService._setAndSortTxidsFromAppearanceIds.args[0][0].should.equal(cache);
+        addressService._transformAddressSummaryFromResult.callCount.should.equal(1);
+        addressService._transformAddressSummaryFromResult.args[0][0].should.equal(cache);
+        sum.should.equal(summary);
+        done();
+      });
+    });
+    it('will log if there is a slow query', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var addressService = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
+      var options = {};
+      var cache = {};
+      var summary = {};
+      addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, null, cache);
+      addressService._getAddressConfirmedSummary = sinon.stub().callsArgWith(2, null, cache);
+      addressService._getAddressMempoolSummary = sinon.stub().callsArgWith(3, null, cache);
+      addressService._setAndSortTxidsFromAppearanceIds = sinon.stub().callsArgWith(1, null, cache);
+      addressService._transformAddressSummaryFromResult = sinon.stub().returns(summary);
+      addressService.getAddressSummary(address, options, function() {
+        log.warn.callCount.should.equal(1);
+        done();
+      });
+      clock.tick(6000);
+    });
+  });
+
+  describe('#_getAddressConfirmedSummary', function() {
+    it('will pass arguments correctly', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {};
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {};
+      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, result);
+      as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, null, result);
+      as._getAddressConfirmedSummary(address, options, function(err) {
+        if (err) {
+          return done(err);
+        }
+        var expectedResult = {
+          appearanceIds: {},
+          totalReceived: 0,
+          balance: 0,
+          unconfirmedAppearanceIds: {},
+          unconfirmedBalance: 0
+        };
+        as._getAddressConfirmedInputsSummary.args[0][0].should.equal(address);
+        as._getAddressConfirmedInputsSummary.args[0][1].should.deep.equal(expectedResult);
+        as._getAddressConfirmedInputsSummary.args[0][2].should.deep.equal(options);
+        as._getAddressConfirmedOutputsSummary.args[0][0].should.equal(address);
+        as._getAddressConfirmedOutputsSummary.args[0][1].should.deep.equal(result);
+        as._getAddressConfirmedOutputsSummary.args[0][2].should.equal(options);
+        done();
+      });
+    });
+    it('will pass error correctly (inputs)', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {};
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {};
+      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, new Error('test'));
+      as._getAddressConfirmedSummary(address, options, function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('will pass error correctly (outputs)', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {};
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {};
+      as._getAddressConfirmedInputsSummary = sinon.stub().callsArgWith(3, null, result);
+      as._getAddressConfirmedOutputsSummary = sinon.stub().callsArgWith(3, new Error('test'));
+      as._getAddressConfirmedSummary(address, options, function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
         done();
       });
     });
   });
+
+  describe('#_getAddressConfirmedInputsSummary', function() {
+    it('will stream inputs and collect txids', function(done) {
+      var streamStub = new stream.Readable();
+      streamStub._read = function() { /* do nothing */ };
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {
+        appearanceIds: {}
+      };
+      var options = {};
+      var txid = 'f2cfc19d13f0c12199f70e420d84e2b3b1d4e499702aa9d737f8c24559c9ec47';
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      as.createInputsStream = sinon.stub().returns(streamStub);
+      as._getAddressConfirmedInputsSummary(address, result, options, function(err, result) {
+        if (err) {
+          return done(err);
+        }
+        result.appearanceIds[txid].should.equal(10);
+        done();
+      });
+
+      streamStub.emit('data', {
+        txid: txid,
+        height: 10
+      });
+      streamStub.push(null);
+    });
+    it('handle stream error', function(done) {
+      var streamStub = new stream.Readable();
+      streamStub._read = function() { /* do nothing */ };
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var cache = {};
+      var options = {};
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      as.createInputsStream = sinon.stub().returns(streamStub);
+      as._getAddressConfirmedInputsSummary(address, cache, options, function(err, cache) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+
+      streamStub.emit('error', new Error('test'));
+      streamStub.push(null);
+    });
+  });
+
+  describe('#_getAddressConfirmedOutputsSummary', function() {
+    it('will stream inputs and collect txids', function(done) {
+      var streamStub = new stream.Readable();
+      streamStub._read = function() { /* do nothing */ };
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub(),
+            isSpent: sinon.stub().returns(false)
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {
+        appearanceIds: {},
+        unconfirmedAppearanceIds: {},
+        balance: 0,
+        totalReceived: 0,
+        unconfirmedBalance: 0
+      };
+
+      var options = {
+        queryMempool: true
+      };
+      var txid = 'f2cfc19d13f0c12199f70e420d84e2b3b1d4e499702aa9d737f8c24559c9ec47';
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+
+      as.createOutputsStream = sinon.stub().returns(streamStub);
+
+      var spentIndexSyncKey = encoding.encodeSpentIndexSyncKey(new Buffer(txid, 'hex'), 2);
+      as.mempoolSpentIndex[spentIndexSyncKey] = true;
+
+      as._getAddressConfirmedOutputsSummary(address, result, options, function(err, cache) {
+        if (err) {
+          return done(err);
+        }
+        result.appearanceIds[txid].should.equal(10);
+        result.balance.should.equal(1000);
+        result.totalReceived.should.equal(1000);
+        result.unconfirmedBalance.should.equal(-1000);
+        done();
+      });
+
+      streamStub.emit('data', {
+        txid: txid,
+        height: 10,
+        outputIndex: 2,
+        satoshis: 1000
+      });
+      streamStub.push(null);
+    });
+    it('handle stream error', function(done) {
+      var streamStub = new stream.Readable();
+      streamStub._read = function() { /* do nothing */ };
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {
+        appearanceIds: {},
+        unconfirmedAppearanceIds: {},
+        balance: 0,
+        totalReceived: 0,
+        unconfirmedBalance: 0
+      };
+
+      var options = {};
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      as.createOutputsStream = sinon.stub().returns(streamStub);
+      as._getAddressConfirmedOutputsSummary(address, result, options, function(err, cache) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+
+      streamStub.emit('error', new Error('test'));
+      streamStub.push(null);
+    });
+  });
+
+  describe('#_setAndSortTxidsFromAppearanceIds', function() {
+    it('will sort correctly', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var result = {
+        appearanceIds: {
+          '22488dbb99aed86e7081ac480e3459fa40ccab7ee18bef98b84b3cdce6bf05be': 200,
+          '1c413601acbd608240fc635b95886c3c1f76ec8589c3392a58b5715ceb618e93': 100,
+          '206d3834c010d46a2cf478cb1c5fe252be41f683c8a738e3ebe27f1aae67f505': 101
+        },
+        unconfirmedAppearanceIds: {
+          'ec94d845c603f292a93b7c829811ac624b76e52b351617ca5a758e9d61a11681': 1452898347406,
+          'ed11a08e3102f9610bda44c80c46781d97936a4290691d87244b1b345b39a693': 1452898331964,
+          'f71bccef3a8f5609c7f016154922adbfe0194a96fb17a798c24077c18d0a9345': 1452897902377,
+          'edc080f2084eed362aa488ccc873a24c378dc0979aa29b05767517b70569414a': 1452897971363,
+          'f35e7e2a2334e845946f3eaca76890d9a68f4393ccc9fe37a0c2fb035f66d2e9': 1452897923107
+        }
+      };
+      as._setAndSortTxidsFromAppearanceIds(result, function(err, result) {
+        if (err) {
+          return done(err);
+        }
+        should.exist(result.txids);
+        result.txids[0].should.equal('1c413601acbd608240fc635b95886c3c1f76ec8589c3392a58b5715ceb618e93');
+        result.txids[1].should.equal('206d3834c010d46a2cf478cb1c5fe252be41f683c8a738e3ebe27f1aae67f505');
+        result.txids[2].should.equal('22488dbb99aed86e7081ac480e3459fa40ccab7ee18bef98b84b3cdce6bf05be');
+        result.unconfirmedTxids[0].should.equal('f71bccef3a8f5609c7f016154922adbfe0194a96fb17a798c24077c18d0a9345');
+        result.unconfirmedTxids[1].should.equal('f35e7e2a2334e845946f3eaca76890d9a68f4393ccc9fe37a0c2fb035f66d2e9');
+        result.unconfirmedTxids[2].should.equal('edc080f2084eed362aa488ccc873a24c378dc0979aa29b05767517b70569414a');
+        result.unconfirmedTxids[3].should.equal('ed11a08e3102f9610bda44c80c46781d97936a4290691d87244b1b345b39a693');
+        result.unconfirmedTxids[4].should.equal('ec94d845c603f292a93b7c829811ac624b76e52b351617ca5a758e9d61a11681');
+        done();
+      });
+    });
+  });
+
+  describe('#_getAddressMempoolSummary', function() {
+    it('skip if options not enabled', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var resultBase = {
+        unconfirmedAppearanceIds: {},
+        unconfirmedBalance: 0
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {};
+      as._getAddressMempoolSummary(address, options, resultBase, function(err, result) {
+        if (err) {
+          return done(err);
+        }
+        Object.keys(result.unconfirmedAppearanceIds).length.should.equal(0);
+        result.unconfirmedBalance.should.equal(0);
+        done();
+      });
+    });
+    it('include all txids and balance from inputs and outputs', function(done) {
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var resultBase = {
+        unconfirmedAppearanceIds: {},
+        unconfirmedBalance: 0
+      };
+      var address = new bitcore.Address('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX');
+      var options = {
+        queryMempool: true
+      };
+      var mempoolInputs = [
+        {
+          address: '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj',
+          hashType: 'scripthash',
+          txid: '70d9d441d7409aace8e0ffe24ff0190407b2fcb405799a266e0327017288d1f8',
+          inputIndex: 0,
+          timestamp: 1452874536321,
+          height: -1,
+          confirmations: 0
+        }
+      ];
+      var mempoolOutputs = [
+        {
+          address: '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj',
+          hashType: 'scripthash',
+          txid: '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d',
+          outputIndex: 0,
+          height: -1,
+          timestamp: 1452874521466,
+          satoshis: 131368318,
+          script: '76a9148c66db6e9f74b1db9c400eaa2aed3743417f38e688ac',
+          confirmations: 0
+        },
+        {
+          address: '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj',
+          hashType: 'scripthash',
+          txid: '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247',
+          outputIndex: 0,
+          height: -1,
+          timestamp: 1452874521466,
+          satoshis: 131368318,
+          script: '76a9148c66db6e9f74b1db9c400eaa2aed3743417f38e688ac',
+          confirmations: 0
+        }
+      ];
+      var spentIndexSyncKey = encoding.encodeSpentIndexSyncKey(
+        new Buffer(mempoolOutputs[1].txid, 'hex'),
+        0
+      );
+      as.mempoolSpentIndex[spentIndexSyncKey] = true;
+      as._getInputsMempool = sinon.stub().callsArgWith(3, null, mempoolInputs);
+      as._getOutputsMempool = sinon.stub().callsArgWith(3, null, mempoolOutputs);
+      as._getAddressMempoolSummary(address, options, resultBase, function(err, result) {
+        if (err) {
+          return done(err);
+        }
+        var txid1 = '70d9d441d7409aace8e0ffe24ff0190407b2fcb405799a266e0327017288d1f8';
+        var txid2 = '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d';
+        var txid3 = '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247';
+        result.unconfirmedAppearanceIds[txid1].should.equal(1452874536321);
+        result.unconfirmedAppearanceIds[txid2].should.equal(1452874521466);
+        result.unconfirmedAppearanceIds[txid3].should.equal(1452874521466);
+        result.unconfirmedBalance.should.equal(131368318);
+        done();
+      });
+    });
+  });
+
+  describe('#_transformAddressSummaryFromResult', function() {
+    var result = {
+      totalReceived: 1000000,
+      balance: 500000,
+      txids: [
+        '70d9d441d7409aace8e0ffe24ff0190407b2fcb405799a266e0327017288d1f8',
+        'b1bfa8dbbde790cb46b9763ef3407c1a21c8264b67bfe224f462ec0e1f569e92'
+      ],
+      appearanceIds: {
+        'b1bfa8dbbde790cb46b9763ef3407c1a21c8264b67bfe224f462ec0e1f569e92': 100000,
+        '70d9d441d7409aace8e0ffe24ff0190407b2fcb405799a266e0327017288d1f8': 200000
+      },
+      unconfirmedAppearanceIds: {
+        '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d': 1452874536321,
+        '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247': 1452874521466
+      },
+      unconfirmedTxids: [
+        '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247',
+        '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d'
+      ],
+      unconfirmedBalance: 500000
+    };
+    var testnode = {
+      services: {
+        bitcoind: {
+          on: sinon.stub()
+        }
+      },
+      datadir: 'testdir'
+    };
+    it('will transform result into summary', function() {
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {};
+      var summary = as._transformAddressSummaryFromResult(result, options);
+      summary.totalReceived.should.equal(1000000);
+      summary.totalSpent.should.equal(500000);
+      summary.balance.should.equal(500000);
+      summary.appearances.should.equal(2);
+      summary.unconfirmedAppearances.should.equal(2);
+      summary.unconfirmedBalance.should.equal(500000);
+      summary.txids.length.should.equal(4);
+    });
+    it('will omit txlist', function() {
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {
+        noTxList: true
+      };
+      var summary = as._transformAddressSummaryFromResult(result, options);
+      should.not.exist(summary.txids);
+    });
+    it('will include full appearance ids', function() {
+      var as = new AddressService({
+        mempoolMemoryIndex: true,
+        node: testnode
+      });
+      var options = {
+        fullTxList: true
+      };
+      var summary = as._transformAddressSummaryFromResult(result, options);
+      should.exist(summary.appearanceIds);
+      should.exist(summary.unconfirmedAppearanceIds);
+    });
+  });
+
 });
