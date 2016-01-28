@@ -104,6 +104,135 @@ describe('DB Service', function() {
     });
   });
 
+  describe('#_checkVersion', function() {
+    var config = {
+      node: {
+        network: Networks.get('testnet'),
+        datadir: 'testdir'
+      },
+      store: memdown
+    };
+    it('will handle an error while retrieving the tip', function() {
+      var db = new DB(config);
+      db.store = {};
+      db.store.get = sinon.stub().callsArgWith(2, new Error('test'));
+      db._checkVersion(function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+      });
+    });
+    it('will handle an error while retrieving the version', function() {
+      var db = new DB(config);
+      db.store = {};
+      db.store.get = function() {};
+      var callCount = 0;
+      sinon.stub(db.store, 'get', function(key, options, callback) {
+        if (callCount === 1) {
+          return callback(new Error('test'));
+        }
+        callCount++;
+        setImmediate(callback);
+      });
+      db._checkVersion(function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+      });
+    });
+    it('will NOT check the version if a tip is not found', function(done) {
+      var db = new DB(config);
+      db.store = {};
+      db.store.get = sinon.stub().callsArgWith(2, new levelup.errors.NotFoundError());
+      db._checkVersion(done);
+    });
+    it('will NOT give an error if the versions match', function(done) {
+      var db = new DB(config);
+      db.store = {};
+      db.store.get = function() {};
+      var callCount = 0;
+      sinon.stub(db.store, 'get', function(key, options, callback) {
+        if (callCount === 1) {
+          var versionBuffer = new Buffer(new Array(4));
+          versionBuffer.writeUInt32BE(2);
+          return callback(null, versionBuffer);
+        }
+        callCount++;
+        setImmediate(callback);
+      });
+      db.version = 2;
+      db._checkVersion(done);
+    });
+    it('will give an error if the versions do NOT match', function(done) {
+      var db = new DB(config);
+      db.store = {};
+      db.store.get = function() {};
+      var callCount = 0;
+      sinon.stub(db.store, 'get', function(key, options, callback) {
+        if (callCount === 1) {
+          var versionBuffer = new Buffer(new Array(4));
+          versionBuffer.writeUInt32BE(2);
+          return callback(null, versionBuffer);
+        }
+        callCount++;
+        setImmediate(callback);
+      });
+      db.version = 3;
+      db._checkVersion(function(err) {
+        should.exist(err);
+        err.message.should.match(/^The version of the database/);
+        done();
+      });
+    });
+    it('will default to version 1 if the version is NOT found', function(done) {
+      var db = new DB(config);
+      db.store = {};
+      db.store.get = function() {};
+      var callCount = 0;
+      sinon.stub(db.store, 'get', function(key, options, callback) {
+        if (callCount === 1) {
+          return callback(new levelup.errors.NotFoundError());
+        }
+        callCount++;
+        setImmediate(callback);
+      });
+      db.version = 1;
+      db._checkVersion(done);
+    });
+  });
+
+  describe('#_setVersion', function() {
+    var config = {
+      node: {
+        network: Networks.get('testnet'),
+        datadir: 'testdir'
+      },
+      store: memdown
+    };
+    it('will give an error from the store', function(done) {
+      var db = new DB(config);
+      db.store = {};
+      db.store.put = sinon.stub().callsArgWith(2, new Error('test'));
+      db._setVersion(function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('will set the version', function(done) {
+      var db = new DB(config);
+      db.store = {};
+      db.store.put = sinon.stub().callsArgWith(2, null);
+      db.version = 5;
+      db._setVersion(function(err) {
+        if (err) {
+          return done(err);
+        }
+        db.store.put.args[0][0].should.deep.equal(new Buffer('ff', 'hex'));
+        db.store.put.args[0][1].should.deep.equal(new Buffer('00000005', 'hex'));
+        done();
+      });
+    });
+  });
+
   describe('#start', function() {
     var TestDB;
 
@@ -126,6 +255,8 @@ describe('DB Service', function() {
       };
       db.loadTip = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
+      db._checkVersion = sinon.stub().callsArg(0);
+      db._setVersion = sinon.stub().callsArg(0);
       db.sync = sinon.stub();
       var readyFired = false;
       db.on('ready', function() {
@@ -144,6 +275,8 @@ describe('DB Service', function() {
       db.node.services.bitcoind.genesisBuffer = genesisBuffer;
       db.loadTip = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
+      db._checkVersion = sinon.stub().callsArg(0);
+      db._setVersion = sinon.stub().callsArg(0);
       db.sync = sinon.stub();
       db.start(function() {
         db.sync = function() {
@@ -161,6 +294,8 @@ describe('DB Service', function() {
       db.node.services.bitcoind.genesisBuffer = genesisBuffer;
       db.loadTip = sinon.stub().callsArg(0);
       db.connectBlock = sinon.stub().callsArg(1);
+      db._checkVersion = sinon.stub().callsArg(0);
+      db._setVersion = sinon.stub().callsArg(0);
       db.node.stopping = true;
       db.sync = sinon.stub();
       db.start(function() {
