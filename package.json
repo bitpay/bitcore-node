@@ -85,7 +85,8 @@
     "linux"
   ],
   "cpu": [
-    "x64"
+    "x64",
+    "arm"
   ],
   "license": "MIT"
 }

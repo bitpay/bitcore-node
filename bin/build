@@ -5,6 +5,7 @@ depends_dir=$($root_dir/bin/variables.sh depends_dir)
 host=$(${root_dir}/bin/variables.sh host)
 btc_dir="${root_dir}/libbitcoind"
 patch_sha=$($root_dir/bin/variables.sh patch_sha)
+config_lib_dir=$($root_dir/bin/variables.sh config_lib_dir)
 export CPPFLAGS="-I${depends_dir}/${host}/include/boost -I${depends_dir}/${host}/include -L${depends_dir}/${host}/lib"
 echo "Using BTC directory: ${btc_dir}"
 
@@ -153,9 +154,7 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   echo './autogen.sh'
   ./autogen.sh || exit -1
 
-  boost_libdir="--with-boost-libdir=${depends_dir}/${host}/lib"
-
-  full_options="${options} ${boost_libdir}"
+  full_options="${options} ${config_lib_dir}"
   echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
   ${full_options}
 

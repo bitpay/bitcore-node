@@ -1,14 +1,25 @@
 #!/bin/bash
 
 exec 2> /dev/null
-
-root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
+root_dir="$(cd "$(dirname $0)" && pwd)/.."
+if [ "${root_dir}" == "" ]; then
+  root_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/.."
+fi
 bitcoin_dir="${root_dir}"/libbitcoind
 cache_dir="${root_dir}"/cache
 
-platform=`uname -a | awk '{print tolower($1)}'`
-arch=`uname -m`
-host="${arch}"-"${platform}"
+host=
+compute_host () {
+  platform=`uname -a | awk '{print tolower($1)}'`
+  arch=`uname -m`
+  if [ "${arch:0:3}" == "arm" ]; then
+    host="arm-linux-gnueabihf"
+  else
+    host="${arch}"-"${platform}"
+  fi
+}
+
+compute_host
 
 mac_response=
 check_mac_build_system () {
@@ -34,6 +45,13 @@ memenv="${cache_dir}"/src/leveldb/libmemenv.a
 libsecp256k1="${cache_dir}"/src/secp256k1/.libs/libsecp256k1.a
 ssl="${cache_dir}"/depends/"${host}"/lib/libssl.a
 crypto="${cache_dir}"/depends/"${host}"/lib/libcrypto.a
+
+config_lib_dir=
+if [ "${platform}" == "darwin" ]; then
+  config_lib_dir="--with-boost-libdir=${depends_dir}/${host}/lib"
+else
+  config_lib_dir="--prefix=${depends_dir}/${host}"
+fi
 
 if test x"$1" = x'anl'; then
   if [ "${platform}" != "darwin" ]; then
@@ -128,4 +146,8 @@ fi
 
 if test -z "$1" -o x"$1" = x'bitcoind'; then
   echo -n "${cache_dir}"/src/.libs/libbitcoind.a
+fi
+
+if test -z "$1" -o x"$1" = x'config_lib_dir'; then
+  echo -n "${config_lib_dir}"
 fi
