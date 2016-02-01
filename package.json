@@ -2,7 +2,7 @@
   "name": "bitcore-node",
   "description": "Full node with extended capabilities using Bitcore and Bitcoin Core",
   "author": "BitPay <dev@bitpay.com>",
-  "version": "2.0.0-dev",
+  "version": "2.0.1",
   "lastBuild": "2.0.0",
   "main": "./index.js",
   "repository": "git://github.com/bitpay/bitcore-node.git",
