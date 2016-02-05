@@ -477,6 +477,7 @@ describe('Daemon Binding Functionality', function() {
   describe('#getInfo', function() {
     it('will get information', function() {
       var info = bitcoind.getInfo();
+      info.network.should.equal('regtest');
       should.exist(info);
       should.exist(info.version);
       should.exist(info.blocks);

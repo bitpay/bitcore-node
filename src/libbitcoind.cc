@@ -1418,6 +1418,7 @@ NAN_METHOD(GetInfo) {
   Nan::Set(obj, New("connections").ToLocalChecked(), New<Number>((int)vNodes.size())->ToInt32());
   Nan::Set(obj, New("difficulty").ToLocalChecked(), New<Number>((double)GetDifficulty()));
   Nan::Set(obj, New("testnet").ToLocalChecked(), New<Boolean>(Params().NetworkIDString() == "test"));
+  Nan::Set(obj, New("network").ToLocalChecked(), New<String>(Params().NetworkIDString()).ToLocalChecked());
   Nan::Set(obj, New("relayfee").ToLocalChecked(), New<Number>(::minRelayTxFee.GetFeePerK())); // double
   Nan::Set(obj, New("errors").ToLocalChecked(), New(GetWarnings("statusbar")).ToLocalChecked());
 
