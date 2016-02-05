@@ -48,7 +48,7 @@
   "dependencies": {
     "async": "^1.3.0",
     "bindings": "^1.2.1",
-    "bitcore-lib": "bitpay/bitcore-lib#9702105ad9e78977f52df6ce231d87c47742f9be",
+    "bitcore-lib": "^0.13.13",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
     "commander": "^2.8.1",
