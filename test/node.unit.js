@@ -21,29 +21,9 @@ describe('Bitcore Node', function() {
     Node.prototype._loadConfiguration = sinon.spy();
     Node.prototype._initialize = sinon.spy();
   });
+
   after(function() {
-    var regtest = Networks.get('regtest');
-    if (regtest) {
-      Networks.remove(regtest);
-    }
-    // restore testnet
-    Networks.add({
-      name: 'testnet',
-      alias: 'testnet',
-      pubkeyhash: 0x6f,
-      privatekey: 0xef,
-      scripthash: 0xc4,
-      xpubkey: 0x043587cf,
-      xprivkey: 0x04358394,
-      networkMagic: 0x0b110907,
-      port: 18333,
-      dnsSeeds: [
-        'testnet-seed.bitcoin.petertodd.org',
-        'testnet-seed.bluematt.me',
-        'testnet-seed.alexykot.me',
-        'testnet-seed.bitcoin.schildbach.de'
-      ],
-    });
+    Networks.disableRegtest();
   });
 
   describe('@constructor', function() {

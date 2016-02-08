@@ -77,19 +77,7 @@ describe('DB Service', function() {
     });
     it('should load the db with regtest', function() {
       // Switch to use regtest
-      // Networks.remove(Networks.testnet);
-      Networks.add({
-        name: 'regtest',
-        alias: 'regtest',
-        pubkeyhash: 0x6f,
-        privatekey: 0xef,
-        scripthash: 0xc4,
-        xpubkey: 0x043587cf,
-        xprivkey: 0x04358394,
-        networkMagic: 0xfabfb5da,
-        port: 18444,
-        dnsSeeds: [ ]
-      });
+      Networks.enableRegtest();
       var regtest = Networks.get('regtest');
       var config = {
         node: {
@@ -100,7 +88,7 @@ describe('DB Service', function() {
       };
       var db = new DB(config);
       db.dataPath.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcore-node.db');
-      Networks.remove(regtest);
+      Networks.disableRegtest();
     });
   });
 

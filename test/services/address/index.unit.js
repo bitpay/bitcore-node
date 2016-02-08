@@ -271,19 +271,7 @@ describe('Address Service', function() {
     });
     it('should load the db with regtest', function() {
       // Switch to use regtest
-      Networks.remove(Networks.testnet);
-      Networks.add({
-        name: 'regtest',
-        alias: 'regtest',
-        pubkeyhash: 0x6f,
-        privatekey: 0xef,
-        scripthash: 0xc4,
-        xpubkey: 0x043587cf,
-        xprivkey: 0x04358394,
-        networkMagic: 0xfabfb5da,
-        port: 18444,
-        dnsSeeds: [ ]
-      });
+      Networks.enableRegtest();
       var regtest = Networks.get('regtest');
       var testnode = {
         network: regtest,
@@ -299,7 +287,7 @@ describe('Address Service', function() {
         node: testnode
       });
       am.mempoolIndexPath.should.equal(process.env.HOME + '/.bitcoin/regtest/bitcore-addressmempool.db');
-      Networks.remove(regtest);
+      Networks.disableRegtest();
     });
   });
 
@@ -735,6 +723,7 @@ describe('Address Service', function() {
   describe('#createInputsStream', function() {
     it('transform stream from buffer into object', function(done) {
       var testnode = {
+        network: Networks.livenet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -777,6 +766,7 @@ describe('Address Service', function() {
     it('will stream all keys', function() {
       var streamStub = sinon.stub().returns({});
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -808,6 +798,7 @@ describe('Address Service', function() {
     it('will stream keys based on a range of block heights', function() {
       var streamStub = sinon.stub().returns({});
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -1144,6 +1135,7 @@ describe('Address Service', function() {
   describe('#createOutputsStream', function() {
     it('transform stream from buffer into object', function(done) {
       var testnode = {
+        network: Networks.livenet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -1188,6 +1180,7 @@ describe('Address Service', function() {
     it('will stream all keys', function() {
       var streamStub = sinon.stub().returns({});
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -1219,6 +1212,7 @@ describe('Address Service', function() {
     it('will stream keys based on a range of block heights', function() {
       var streamStub = sinon.stub().returns({});
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2030,6 +2024,7 @@ describe('Address Service', function() {
     });
     it('will handle error from _getAddressConfirmedSummary', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2052,6 +2047,7 @@ describe('Address Service', function() {
     });
     it('will handle error from _getAddressMempoolSummary', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2075,6 +2071,7 @@ describe('Address Service', function() {
     });
     it('will pass cache and summary between functions correctly', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2108,6 +2105,7 @@ describe('Address Service', function() {
     });
     it('will log if there is a slow query', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2139,6 +2137,7 @@ describe('Address Service', function() {
   describe('#_getAddressConfirmedSummary', function() {
     it('will pass arguments correctly', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2177,6 +2176,7 @@ describe('Address Service', function() {
     });
     it('will pass error correctly (inputs)', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2200,6 +2200,7 @@ describe('Address Service', function() {
     });
     it('will pass error correctly (outputs)', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2229,6 +2230,7 @@ describe('Address Service', function() {
       var streamStub = new stream.Readable();
       streamStub._read = function() { /* do nothing */ };
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2265,6 +2267,7 @@ describe('Address Service', function() {
       var streamStub = new stream.Readable();
       streamStub._read = function() { /* do nothing */ };
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2296,6 +2299,7 @@ describe('Address Service', function() {
       var streamStub = new stream.Readable();
       streamStub._read = function() { /* do nothing */ };
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub(),
@@ -2350,6 +2354,7 @@ describe('Address Service', function() {
       var streamStub = new stream.Readable();
       streamStub._read = function() { /* do nothing */ };
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2386,6 +2391,7 @@ describe('Address Service', function() {
   describe('#_setAndSortTxidsFromAppearanceIds', function() {
     it('will sort correctly', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2432,6 +2438,7 @@ describe('Address Service', function() {
   describe('#_getAddressMempoolSummary', function() {
     it('skip if options not enabled', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2460,6 +2467,7 @@ describe('Address Service', function() {
     });
     it('include all txids and balance from inputs and outputs', function(done) {
       var testnode = {
+        network: Networks.testnet,
         services: {
           bitcoind: {
             on: sinon.stub()
@@ -2560,6 +2568,7 @@ describe('Address Service', function() {
       unconfirmedBalance: 500000
     };
     var testnode = {
+      network: Networks.testnet,
       services: {
         bitcoind: {
           on: sinon.stub()
