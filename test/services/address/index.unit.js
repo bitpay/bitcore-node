@@ -2519,6 +2519,10 @@ describe('Address Service', function() {
         0
       );
       as.mempoolSpentIndex[spentIndexSyncKey] = true;
+
+      var hashBufferHex = address.hashBuffer.toString('hex');
+      as.mempoolAddressIndex[hashBufferHex] = true;
+
       as._getInputsMempool = sinon.stub().callsArgWith(3, null, mempoolInputs);
       as._getOutputsMempool = sinon.stub().callsArgWith(3, null, mempoolOutputs);
       as._getAddressMempoolSummary(address, options, resultBase, function(err, result) {
