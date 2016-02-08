@@ -1977,6 +1977,7 @@ describe('Address Service', function() {
       am.mempoolIndex.batch = function(operations, callback) {
         callback.should.be.a('function');
         Object.keys(am.mempoolSpentIndex).length.should.equal(14);
+        Object.keys(am.mempoolAddressIndex).length.should.equal(5);
         for (var i = 0; i < operations.length; i++) {
           operations[i].type.should.equal('put');
         }
