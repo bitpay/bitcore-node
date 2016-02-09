@@ -8,18 +8,37 @@ fi
 bitcoin_dir="${root_dir}"/libbitcoind
 cache_dir="${root_dir}"/cache
 
-host=
-compute_host () {
+get_host_and_platform () {
   platform=`uname -a | awk '{print tolower($1)}'`
   arch=`uname -m`
   if [ "${arch:0:3}" == "arm" ]; then
-    host="arm-linux-gnueabihf"
-  else
-    host="${arch}"-"${platform}"
+    platform="linux-gnueabihf"
+    arch="arm"
+  fi
+  if [ -n "${CXX}" ] && [ -n "${CC}" ]; then
+    cc_target=$("${CC}" -v 2>&1 | awk '/Target:/ {print $2}')
+    cxx_target=$("${CXX}" -v 2>&1 | awk '/Target:/ {print $2}')
+    IFS='-' read -ra SYS <<< "${cc_target}"
+    if [ "${SYS[0]}" != "${arch}" ]; then
+      if [ -n "${SYS[1]}" ] && [ -n "${SYS[2]}" ] && hash "${CXX}" && hash "${CC}" && [ -n "${cc_target}" ] && [ -n "${cxx_target}" ]; then
+        #try and see if we've got a cross compiler, if not then auto detect
+        arch="${SYS[0]}"
+        platform="${SYS[1]}"-"${SYS[2]}"
+      else
+        error_message="You've specified a cross compiler, but we could not compute the host-platform-triplet for cross compilation. Please set CC and CXX environment variables with host-platform-triplet-*. Example: CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++"
+        return_error_message
+      fi
+    fi
   fi
 }
 
-compute_host
+return_error_message () {
+  echo "${error_message}"
+  exit -1
+}
+
+get_host_and_platform
+host="${arch}"-"${platform}"
 
 mac_response=
 check_mac_build_system () {
@@ -115,6 +134,10 @@ if test -z "$1" -o x"$1" = x'host'; then
   echo -n "${host}"
 fi
 
+if test -z "$1" -o x"$1" = x'arch'; then
+  echo -n "${arch}"
+fi
+
 if test -z "$1" -o x"$1" = x'bdb'; then
   if [ "${BITCORENODE_ENV}" == "test" ]; then
     echo -n "${cache_dir}"/depends/"${host}"/lib/libdb_cxx.a
@@ -141,6 +164,12 @@ fi
 if test -z "$1" -o x"$1" = x'wallet_enabled'; then
   if [ "${BITCORENODE_ENV}" == "test" ]; then
     echo -n "-DENABLE_WALLET"
+  fi
+fi
+
+if test -z "$1" -o x"$1" = x'sys'; then
+  if [ -n "${SYS}" ]; then
+    echo -n "--arch=${SYS[0]}"
   fi
 fi
 
