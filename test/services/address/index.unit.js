@@ -2521,8 +2521,9 @@ describe('Address Service', function() {
       );
       as.mempoolSpentIndex[spentIndexSyncKey] = true;
 
-      var hashBufferHex = address.hashBuffer.toString('hex');
-      as.mempoolAddressIndex[hashBufferHex] = true;
+      var hashTypeBuffer = constants.HASH_TYPES_MAP[address.type];
+      var addressIndex = encoding.encodeMempoolAddressIndexKey(address.hashBuffer, hashTypeBuffer);
+      as.mempoolAddressIndex[addressIndex] = true;
 
       as._getInputsMempool = sinon.stub().callsArgWith(3, null, mempoolInputs);
       as._getOutputsMempool = sinon.stub().callsArgWith(3, null, mempoolOutputs);
