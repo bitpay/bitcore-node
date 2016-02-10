@@ -9,6 +9,7 @@ var bitcorenode = require('../../../');
 var AddressService = bitcorenode.services.Address;
 var blockData = require('../../data/livenet-345003.json');
 var bitcore = require('bitcore-lib');
+var _ = bitcore.deps._;
 var memdown = require('memdown');
 var leveldown = require('leveldown');
 var Networks = bitcore.Networks;
@@ -1978,6 +1979,7 @@ describe('Address Service', function() {
         callback.should.be.a('function');
         Object.keys(am.mempoolSpentIndex).length.should.equal(14);
         Object.keys(am.mempoolAddressIndex).length.should.equal(5);
+        _.values(am.mempoolAddressIndex).should.deep.equal([1,1,12,1,1]);
         for (var i = 0; i < operations.length; i++) {
           operations[i].type.should.equal('put');
         }
@@ -2013,6 +2015,7 @@ describe('Address Service', function() {
         for (var i = 0; i < operations.length; i++) {
           operations[i].type.should.equal('del');
         }
+        Object.keys(am.mempoolAddressIndex).length.should.equal(0);
       };
       am.updateMempoolIndex(tx, false);
     });
@@ -2523,7 +2526,7 @@ describe('Address Service', function() {
 
       var hashTypeBuffer = constants.HASH_TYPES_MAP[address.type];
       var addressIndex = encoding.encodeMempoolAddressIndexKey(address.hashBuffer, hashTypeBuffer);
-      as.mempoolAddressIndex[addressIndex] = true;
+      as.mempoolAddressIndex[addressIndex] = 1;
 
       as._getInputsMempool = sinon.stub().callsArgWith(3, null, mempoolInputs);
       as._getOutputsMempool = sinon.stub().callsArgWith(3, null, mempoolOutputs);
