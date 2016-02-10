@@ -123,7 +123,7 @@ describe('Address Service History', function() {
         history.node.services.address.getAddressSummary.callCount.should.equal(1);
         history.node.services.address.getAddressSummary.args[0][0].should.equal(address);
         history.node.services.address.getAddressSummary.args[0][1].should.deep.equal({
-          noBalance: true,
+          noBalance: true
         });
         history._paginateWithDetails.callCount.should.equal(1);
         history._paginateWithDetails.args[0][0].should.equal(txids);
@@ -157,7 +157,7 @@ describe('Address Service History', function() {
         history.node.services.address.getAddressSummary.args[0][0].should.equal(address);
         history.node.services.address.getAddressSummary.args[0][1].should.deep.equal({
           fullTxList: true,
-          noBalance: true,
+          noBalance: true
         });
         history._paginateWithDetails.callCount.should.equal(1);
         history._paginateWithDetails.args[0][0].should.equal(txids);
