@@ -25,7 +25,7 @@ get_host_and_platform () {
         arch="${SYS[0]}"
         platform="${SYS[1]}"-"${SYS[2]}"
       else
-        error_message="You've specified a cross compiler, but we could not compute the host-platform-triplet for cross compilation. Please set CC and CXX environment variables with host-platform-triplet-*. Example: CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++"
+        error_message="You've specified a cross compiler, but we could not compute the host-platform-triplet for cross compilation. Please set CC and CXX environment variables with host-platform-triplet-*. Also ensure the cross compiler exists on your system and is available on your path. Example: CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++"
         return_error_message
       fi
     fi

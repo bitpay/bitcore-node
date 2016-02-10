@@ -80,6 +80,34 @@ And finally run the build which will take several minutes. A script in the "bin"
 npm install
 ```
 
+## Cross Compilation
+If you desire to cross compile to ARM or Windows from a system that has cross compilation tools available for use, please use the following directions:
+
+Using a Debian (Jessie) system as the host system (the system that will be doing the compiling):
+
+```bash
+echo -n "deb http://emdebian.org/tools/debian/ jessie main" | sudo tee -a /etc/apt/sources.list
+sudo dpkg --add-architecture armhf  #or whatever arch you are interested in compiling for
+sudo apt-get update #you will get GPG KEY warnings, you can decide if you would like to trust the key
+sudo apt-get install crossbuild-essential-armhf
+```
+
+Next is to use the cross compilation toolchain instead of the defaults:
+
+```bash
+CXX=arm-linux-gnueabihf-g++ CC=arm-linux-gnueabihf-gcc npm install
+```
+
+The only thing different is the setting of CC/CXX environment variables. Please make sure those compilers (arm-linux-gnueabihf-gcc) actually exist and are on your path.
+
+```bash
+arm-linux-gnueabihf-g++ -v
+arm-linux-gnueabihf-gcc -v
+```
+
+You should get output with the last line ending with something like this:
+gcc version 4.9.2 ( 4.9.2-10)
+
 Once everything is built, you can run bitcore-node via:
 
 ```bash
