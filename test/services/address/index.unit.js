@@ -2433,6 +2433,56 @@ describe('Address Service', function() {
     });
   });
 
+
+  describe.only('#_updateAddressIndex', function() {
+    var as;
+    beforeEach(function(){
+      var testnode = {
+        services: {
+          bitcoind: {
+            on: sinon.stub()
+          }
+        },
+        datadir: 'testdir'
+      };
+      as = new AddressService({
+          mempoolMemoryIndex: true,
+          node: testnode
+      });
+    });
+    it('should add using 2 keys', function() {
+      _.values(as.mempoolAddressIndex).should.deep.equal([]);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index2', true);
+      as._updateAddressIndex('index2', true);
+      as.mempoolAddressIndex.should.deep.equal({
+        "index1": 4,
+        "index2": 2
+      });
+    });
+    it('should add/remove using 2 keys', function() {
+      _.values(as.mempoolAddressIndex).should.deep.equal([]);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', false);
+
+      as._updateAddressIndex('index2', true);
+      as._updateAddressIndex('index2', true);
+      as._updateAddressIndex('index2', false);
+      as._updateAddressIndex('index2', false);
+      as._updateAddressIndex('index2', false);
+      as.mempoolAddressIndex.should.deep.equal({
+        "index1": 3
+      });
+    });
+  });
+ 
+
   describe('#_getAddressMempoolSummary', function() {
     it('skip if options not enabled', function(done) {
       var testnode = {
