@@ -2436,17 +2436,9 @@ describe('Address Service', function() {
 
   describe('#_updateAddressIndex', function() {
     it('should add using 2 keys', function() {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub()
-          }
-        },
-        datadir: 'testdir'
-      };
       var as = new AddressService({
           mempoolMemoryIndex: true,
-          node: testnode
+          node: mocknode
       });
 
       _.values(as.mempoolAddressIndex).should.deep.equal([]);
@@ -2463,17 +2455,9 @@ describe('Address Service', function() {
     });
 
     it('should add/remove using 2 keys', function() {
-      var testnode = {
-        services: {
-          bitcoind: {
-            on: sinon.stub()
-          }
-        },
-        datadir: 'testdir'
-      };
       var as = new AddressService({
           mempoolMemoryIndex: true,
-          node: testnode
+          node: mocknode
       });
       _.values(as.mempoolAddressIndex).should.deep.equal([]);
       as._updateAddressIndex('index1', true);
