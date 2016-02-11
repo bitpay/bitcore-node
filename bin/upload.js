@@ -3,7 +3,7 @@
 var fs = require('fs');
 var AWS = require('aws-sdk');
 var bindings = require('bindings');
-var index = require('../');
+var index = require('../lib');
 var log = index.log;
 
 var config = require(process.env.HOME + '/.bitcore-node-upload.json');

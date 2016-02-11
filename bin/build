@@ -1,9 +1,10 @@
 #!/bin/bash
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 options=`cat ${root_dir}/bin/config_options.sh`
+host=$(${root_dir}/bin/variables.sh host) || exit -1
 depends_dir=$($root_dir/bin/variables.sh depends_dir)
-host=$(${root_dir}/bin/variables.sh host)
 btc_dir="${root_dir}/libbitcoind"
+sys=$($root_dir/bin/variables.sh sys)
 patch_sha=$($root_dir/bin/variables.sh patch_sha)
 config_lib_dir=$($root_dir/bin/variables.sh config_lib_dir)
 export CPPFLAGS="-I${depends_dir}/${host}/include/boost -I${depends_dir}/${host}/include -L${depends_dir}/${host}/lib"
@@ -51,7 +52,7 @@ compare_patch () {
 cache_files () {
   cache_file="${root_dir}"/cache/cache.tar
   pushd "${btc_dir}" || exit -1
-  find . -type f \( -name "*.h" -or -name "*.hpp" -or -name \
+  find src depends/${host} -type f \( -name "*.h" -or -name "*.hpp" -or -name \
 "*.ipp" -or -name "*.a" \) | tar -cf "${cache_file}" -T -
   if test $? -ne 0; then
     echo "We were trying to copy over your cached artifacts, but there was an issue."
@@ -154,7 +155,8 @@ apply the current patch from "${root_dir}"/etc/bitcoin.patch? (y/N): "
   echo './autogen.sh'
   ./autogen.sh || exit -1
 
-  full_options="${options} ${config_lib_dir}"
+  config_host="--host ${host}"
+  full_options="${options} ${config_host} ${config_lib_dir}"
   echo "running the configure script with the following options:\n :::[\"${full_options}\"]:::"
   ${full_options}
 
@@ -181,4 +183,5 @@ if test x"$1" = x'debug'; then
   debug=--debug
 fi
 
-node-gyp ${debug} rebuild
+echo "running::: 'node-gyp ${sys} ${debug} rebuild'"
+node-gyp ${sys} ${debug} rebuild

@@ -2,7 +2,7 @@
 
 var exec = require('child_process').exec;
 var bindings = require('bindings');
-var index = require('../');
+var index = require('../lib');
 var log = index.log;
 
 var packageRoot = bindings.getRoot(bindings.getFileName());
