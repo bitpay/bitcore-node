@@ -2470,6 +2470,9 @@ describe('Address Service', function() {
       as._updateAddressIndex('index2', true);
       as._updateAddressIndex('index2', false);
       as._updateAddressIndex('index2', false);
+      as.mempoolAddressIndex.should.deep.equal({
+        "index1": 3
+      });
       as._updateAddressIndex('index2', false);
       as.mempoolAddressIndex.should.deep.equal({
         "index1": 3
