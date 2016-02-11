@@ -9,6 +9,7 @@ var bitcorenode = require('../../../');
 var AddressService = bitcorenode.services.Address;
 var blockData = require('../../data/livenet-345003.json');
 var bitcore = require('bitcore-lib');
+var _ = bitcore.deps._;
 var memdown = require('memdown');
 var leveldown = require('leveldown');
 var Networks = bitcore.Networks;
@@ -1971,6 +1972,8 @@ describe('Address Service', function() {
       am.mempoolIndex.batch = function(operations, callback) {
         callback.should.be.a('function');
         Object.keys(am.mempoolSpentIndex).length.should.equal(14);
+        Object.keys(am.mempoolAddressIndex).length.should.equal(5);
+        _.values(am.mempoolAddressIndex).should.deep.equal([1,1,12,1,1]);
         for (var i = 0; i < operations.length; i++) {
           operations[i].type.should.equal('put');
         }
@@ -2006,6 +2009,7 @@ describe('Address Service', function() {
         for (var i = 0; i < operations.length; i++) {
           operations[i].type.should.equal('del');
         }
+        Object.keys(am.mempoolAddressIndex).length.should.equal(0);
       };
       am.updateMempoolIndex(tx, false);
     });
@@ -2435,6 +2439,54 @@ describe('Address Service', function() {
     });
   });
 
+
+  describe('#_updateAddressIndex', function() {
+    it('should add using 2 keys', function() {
+      var as = new AddressService({
+          mempoolMemoryIndex: true,
+          node: mocknode
+      });
+
+      _.values(as.mempoolAddressIndex).should.deep.equal([]);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index2', true);
+      as._updateAddressIndex('index2', true);
+      as.mempoolAddressIndex.should.deep.equal({
+        "index1": 4,
+        "index2": 2
+      });
+    });
+
+    it('should add/remove using 2 keys', function() {
+      var as = new AddressService({
+          mempoolMemoryIndex: true,
+          node: mocknode
+      });
+      _.values(as.mempoolAddressIndex).should.deep.equal([]);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', true);
+      as._updateAddressIndex('index1', false);
+
+      as._updateAddressIndex('index2', true);
+      as._updateAddressIndex('index2', true);
+      as._updateAddressIndex('index2', false);
+      as._updateAddressIndex('index2', false);
+      as.mempoolAddressIndex.should.deep.equal({
+        "index1": 3
+      });
+      as._updateAddressIndex('index2', false);
+      as.mempoolAddressIndex.should.deep.equal({
+        "index1": 3
+      });
+    });
+  });
+ 
+
   describe('#_getAddressMempoolSummary', function() {
     it('skip if options not enabled', function(done) {
       var testnode = {
@@ -2527,6 +2579,11 @@ describe('Address Service', function() {
         0
       );
       as.mempoolSpentIndex[spentIndexSyncKey] = true;
+
+      var hashTypeBuffer = constants.HASH_TYPES_MAP[address.type];
+      var addressIndex = encoding.encodeMempoolAddressIndexKey(address.hashBuffer, hashTypeBuffer);
+      as.mempoolAddressIndex[addressIndex] = 1;
+
       as._getInputsMempool = sinon.stub().callsArgWith(3, null, mempoolInputs);
       as._getOutputsMempool = sinon.stub().callsArgWith(3, null, mempoolOutputs);
       as._getAddressMempoolSummary(address, options, resultBase, function(err, result) {
