@@ -13,7 +13,6 @@ nodeVersionCheck(process.versions.node, packageData.engines.node);
 module.exports = require('./lib');
 module.exports.nodeVersionCheck = nodeVersionCheck;
 module.exports.Node = require('./lib/node');
-module.exports.Transaction = require('./lib/transaction');
 module.exports.Service = require('./lib/service');
 module.exports.errors = require('./lib/errors');
 
