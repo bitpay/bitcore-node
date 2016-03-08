@@ -1230,7 +1230,11 @@ async_get_tx_and_info(uv_work_t *req) {
       data->height = -1;
     } else {
       blockIndex = mapBlockIndex[blockHash];
-      data->height = blockIndex->nHeight;
+      if (!chainActive.Contains(blockIndex)) {
+        data->height = -1;
+      } else {
+        data->height = blockIndex->nHeight;
+      }
     }
 
   }

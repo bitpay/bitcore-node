@@ -796,4 +796,66 @@ describe('Node Functionality', function() {
     });
 
   });
+
+  describe('Orphaned Transactions', function() {
+    var orphanedTransaction;
+
+    before(function(done) {
+      var count;
+      var invalidatedBlockHash;
+
+      async.series([
+        function(next) {
+          client.getBlockCount(function(err, response) {
+            if (err) {
+              return next(err);
+            }
+            count = response.result;
+            next();
+          });
+        },
+        function(next) {
+          client.getBlockHash(count, function(err, response) {
+            if (err) {
+              return next(err);
+            }
+            invalidatedBlockHash = response.result;
+            next();
+          });
+        },
+        function(next) {
+          client.getBlock(invalidatedBlockHash, function(err, response) {
+            if (err) {
+              return next(err);
+            }
+            orphanedTransaction = response.result.tx[1];
+            next();
+          });
+        },
+        function(next) {
+          client.invalidateBlock(invalidatedBlockHash, next);
+        }
+      ], function(err) {
+        if (err) {
+          throw err;
+        }
+        done();
+      });
+    });
+
+    it('will not show confirmation count for orphaned transaction', function(done) {
+      // This test verifies that in the situation that the transaction is not in the mempool and
+      // is included in an orphaned block transaction index that the confirmation count will be unconfirmed.
+      node.services.bitcoind.getTransactionWithBlockInfo(orphanedTransaction, false, function(err, data) {
+        if (err) {
+          return done(err);
+        }
+        should.exist(data.height);
+        data.height.should.equal(-1);
+        done();
+      });
+    });
+
+  });
+
 });
