@@ -144,10 +144,6 @@ if test -z "$1" -o x"$1" = x'bdb'; then
   fi
 fi
 
-if test -z "$1" -o x"$1" = x'patch_sha'; then
-  echo -n "${root_dir}"/cache/patch_sha.txt
-fi
-
 if test -z "$1" -o x"$1" = x'load_archive'; then
   if [ "${os}"  == "osx" ]; then
     echo -n "-Wl,-all_load -Wl,--no-undefined"
