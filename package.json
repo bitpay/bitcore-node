@@ -31,15 +31,8 @@
     "bitcore-node": "./bin/bitcore-node"
   },
   "scripts": {
-    "install": "./bin/install",
-    "build": "./bin/build",
-    "clean": "./bin/clean",
-    "package": "node bin/package.js",
-    "upload": "node bin/upload.js",
-    "start": "node bin/start.js",
     "test": "NODE_ENV=test mocha -R spec --recursive",
-    "coverage": "NODE_ENV=test istanbul cover _mocha -- --recursive",
-    "libbitcoind": "node bin/start-libbitcoind.js"
+    "coverage": "NODE_ENV=test istanbul cover _mocha -- --recursive"
   },
   "tags": [
     "bitcoin",
@@ -49,44 +42,28 @@
     "async": "^1.3.0",
     "bindings": "^1.2.1",
     "bitcore-lib": "^0.13.13",
+    "bitcoind-rpc": "^0.3.0",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
     "commander": "^2.8.1",
     "errno": "^0.1.4",
     "express": "^4.13.3",
-    "leveldown": "bitpay/leveldown#bitpay-1.4.4",
-    "levelup": "^1.3.1",
     "liftoff": "^2.2.0",
     "memdown": "^1.0.0",
     "mkdirp": "0.5.0",
-    "nan": "^2.0.9",
     "npm": "^2.14.1",
     "semver": "^5.0.1",
     "socket.io": "bitpay/socket.io#bitpay-1.3.7",
-    "socket.io-client": "bitpay/socket.io-client#bitpay-1.3.7"
+    "socket.io-client": "bitpay/socket.io-client#bitpay-1.3.7",
+    "zmq": "^2.14.0"
   },
   "devDependencies": {
-    "aws-sdk": "~2.0.0-rc.15",
     "benchmark": "1.0.0",
-    "bitcoin": "^2.3.2",
-    "bitcoind-rpc": "^0.3.0",
     "chai": "^3.0.0",
     "mocha": "~1.16.2",
     "proxyquire": "^1.3.1",
     "rimraf": "^2.4.2",
-    "sinon": "^1.15.4",
-    "bitcore-p2p": "~1.0.0"
+    "sinon": "^1.15.4"
   },
-  "engines": {
-    "node": "^0.12 || ^4.2"
-  },
-  "os": [
-    "darwin",
-    "linux"
-  ],
-  "cpu": [
-    "x64",
-    "arm"
-  ],
   "license": "MIT"
 }
