@@ -3,8 +3,9 @@
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 platform=`uname -a | awk '{print tolower($1)}'`
 arch=`uname -m`
-version="0.12.0-bitcore"
-url="https://github.com/"
+version="0.12.0"
+url="https://github.com/braydonf/bitcoin/releases/download"
+tag="v0.12.0-bitcore-beta1"
 
 cd "${root_dir}/bin"
 
@@ -21,7 +22,7 @@ else
     exit -1
 fi
 
-binary_url="${url}/${tarball_name}"
+binary_url="${url}/${tag}/${tarball_name}"
 
 echo "Downloading bitcoin: ${binary_url}"
 
@@ -35,7 +36,7 @@ fi
 
 if test $? -eq 0; then
     if [ "${is_curl}" = true ]; then
-        curl $binary_url > $tarball_name
+        curl -L $binary_url > $tarball_name
     else
         wget $binary_url
     fi
@@ -43,6 +44,7 @@ if test $? -eq 0; then
         echo "Unpacking bitcoin distribution"
         tar -xvzf $tarball_name
         if test $? -eq 0; then
+            ln -s "bitcoin-${version}/bin/bitcoind"
             exit 0
         fi
     fi
