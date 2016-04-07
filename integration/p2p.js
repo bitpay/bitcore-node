@@ -3,10 +3,6 @@
 var index = require('..');
 var log = index.log;
 
-if (process.env.BITCORENODE_ENV !== 'test') {
-  log.info('Please set the environment variable BITCORENODE_ENV=test and make sure bindings are compiled for testing');
-  process.exit();
-}
 var p2p = require('bitcore-p2p');
 var Peer = p2p.Peer;
 var Messages = p2p.Messages;
@@ -58,18 +54,20 @@ describe('P2P Functionality', function() {
     var regtestNetwork = bitcore.Networks.get('regtest');
     var datadir = __dirname + '/data';
 
-    rimraf(datadir + '/regtest', function(err) {;
-
+    rimraf(datadir + '/regtest', function(err) {
       if (err) {
         throw err;
       }
 
+      // enable regtest
+      bitcore.Networks.enableRegtest();
       bitcoind = require('../').services.Bitcoin({
-        node: {
+        spawn: {
           datadir: datadir,
-          network: {
-            name: 'regtest'
-          }
+          exec: 'bitcoind'
+        },
+        node: {
+          network: bitcore.Networks.testnet
         }
       });
 
@@ -79,13 +77,16 @@ describe('P2P Functionality', function() {
 
       log.info('Waiting for Bitcoin Core to initialize...');
 
-      bitcoind.start(function() {
+      bitcoind.start(function(err) {
+        if (err) {
+          throw err;
+        }
         log.info('Bitcoind started');
 
         client = new BitcoinRPC({
-          protocol: 'https',
+          protocol: 'http',
           host: '127.0.0.1',
-          port: 18332,
+          port: 30331,
           user: 'bitcoin',
           pass: 'local321',
           rejectUnauthorized: false
@@ -186,13 +187,11 @@ describe('P2P Functionality', function() {
 
     var usedTxs = {};
 
-    bitcoind.on('tx', function(result) {
-      var txFromResult = new Transaction().fromBuffer(result.buffer);
+    bitcoind.on('tx', function(buffer) {
+      var txFromResult = new Transaction().fromBuffer(buffer);
       var tx = usedTxs[txFromResult.id];
       should.exist(tx);
-      result.buffer.toString('hex').should.equal(tx.serialize());
-      result.hash.should.equal(tx.hash);
-      result.mempool.should.equal(true);
+      buffer.toString('hex').should.equal(tx.serialize());
       delete usedTxs[tx.id];
       if (Object.keys(usedTxs).length === 0) {
         done();
