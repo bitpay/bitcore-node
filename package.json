@@ -3,7 +3,6 @@
   "description": "Full node with extended capabilities using Bitcore and Bitcoin Core",
   "author": "BitPay <dev@bitpay.com>",
   "version": "2.1.1-dev",
-  "lastBuild": "2.1.1",
   "main": "./index.js",
   "repository": "git://github.com/bitpay/bitcore-node.git",
   "homepage": "https://github.com/bitpay/bitcore-node",
@@ -31,6 +30,7 @@
     "bitcore-node": "./bin/bitcore-node"
   },
   "scripts": {
+    "install": "./scripts/install",
     "test": "NODE_ENV=test mocha -R spec --recursive",
     "coverage": "NODE_ENV=test istanbul cover _mocha -- --recursive"
   },
