@@ -1,5 +1,6 @@
 'use strict';
 
+var path = require('path');
 var index = require('..');
 var log = index.log;
 
@@ -64,7 +65,7 @@ describe('P2P Functionality', function() {
       bitcoind = require('../').services.Bitcoin({
         spawn: {
           datadir: datadir,
-          exec: 'bitcoind'
+          exec: path.resolve(__dirname, '../bin/bitcoind')
         },
         node: {
           network: bitcore.Networks.testnet

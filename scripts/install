@@ -44,7 +44,7 @@ if test $? -eq 0; then
         echo "Unpacking bitcoin distribution"
         tar -xvzf $tarball_name
         if test $? -eq 0; then
-            ln -s "bitcoin-${version}/bin/bitcoind"
+            ln -sf "bitcoin-${version}/bin/bitcoind"
             exit 0
         fi
     fi
