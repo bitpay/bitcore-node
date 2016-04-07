@@ -37,21 +37,8 @@ describe('P2P Functionality', function() {
   before(function(done) {
     this.timeout(100000);
 
-    // Add the regtest network
-    bitcore.Networks.remove(bitcore.Networks.testnet);
-    bitcore.Networks.add({
-      name: 'regtest',
-      alias: 'regtest',
-      pubkeyhash: 0x6f,
-      privatekey: 0xef,
-      scripthash: 0xc4,
-      xpubkey: 0x043587cf,
-      xprivkey: 0x04358394,
-      networkMagic: 0xfabfb5da,
-      port: 18444,
-      dnsSeeds: [ ]
-    });
-
+    // enable regtest
+    bitcore.Networks.enableRegtest();
     var regtestNetwork = bitcore.Networks.get('regtest');
     var datadir = __dirname + '/data';
 
@@ -60,8 +47,6 @@ describe('P2P Functionality', function() {
         throw err;
       }
 
-      // enable regtest
-      bitcore.Networks.enableRegtest();
       bitcoind = require('../').services.Bitcoin({
         spawn: {
           datadir: datadir,

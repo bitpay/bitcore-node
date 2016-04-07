@@ -5,13 +5,9 @@
 // functionality by including the wallet in the build.
 // To run the tests: $ mocha -R spec integration/regtest.js
 
+var path = require('path');
 var index = require('..');
 var log = index.log;
-
-if (process.env.BITCORENODE_ENV !== 'test') {
-  log.info('Please set the environment variable BITCORENODE_ENV=test and make sure bindings are compiled for testing');
-  process.exit();
-}
 
 var chai = require('chai');
 var bitcore = require('bitcore-lib');
@@ -39,19 +35,8 @@ describe('Daemon Binding Functionality', function() {
     this.timeout(30000);
 
     // Add the regtest network
-    bitcore.Networks.remove(bitcore.Networks.testnet);
-    bitcore.Networks.add({
-      name: 'regtest',
-      alias: 'regtest',
-      pubkeyhash: 0x6f,
-      privatekey: 0xef,
-      scripthash: 0xc4,
-      xpubkey: 0x043587cf,
-      xprivkey: 0x04358394,
-      networkMagic: 0xfabfb5da,
-      port: 18444,
-      dnsSeeds: [ ]
-    });
+    bitcore.Networks.enableRegtest();
+    var regtestNetwork = bitcore.Networks.get('regtest');
 
     var datadir = __dirname + '/data';
 
@@ -62,11 +47,12 @@ describe('Daemon Binding Functionality', function() {
       }
 
       bitcoind = require('../').services.Bitcoin({
-        node: {
+        spawn: {
           datadir: datadir,
-          network: {
-            name: 'regtest'
-          }
+          exec: path.resolve(__dirname, '../bin/bitcoind')
+        },
+        node: {
+          network: regtestNetwork
         }
       });
 
@@ -80,9 +66,9 @@ describe('Daemon Binding Functionality', function() {
         log.info('Bitcoind started');
 
         client = new BitcoinRPC({
-          protocol: 'https',
+          protocol: 'http',
           host: '127.0.0.1',
-          port: 18332,
+          port: 30331,
           user: 'bitcoin',
           pass: 'local321',
           rejectUnauthorized: false
@@ -154,12 +140,11 @@ describe('Daemon Binding Functionality', function() {
 
     [0,1,2,3,5,6,7,8,9].forEach(function(i) {
       it('generated block ' + i, function(done) {
-        bitcoind.getBlock(blockHashes[i], function(err, response) {
+        bitcoind.getBlock(blockHashes[i], function(err, block) {
           if (err) {
             throw err;
           }
-          should.exist(response);
-          var block = bitcore.Block.fromBuffer(response);
+          should.exist(block);
           block.hash.should.equal(blockHashes[i]);
           done();
         });
@@ -173,12 +158,11 @@ describe('Daemon Binding Functionality', function() {
       it('generated block ' + i, function(done) {
         // add the genesis block
         var height = i + 1;
-        bitcoind.getBlock(i + 1, function(err, response) {
+        bitcoind.getBlock(i + 1, function(err, block) {
           if (err) {
             throw err;
           }
-          should.exist(response);
-          var block = bitcore.Block.fromBuffer(response);
+          should.exist(block);
           block.hash.should.equal(blockHashes[i]);
           done();
         });
@@ -223,26 +207,45 @@ describe('Daemon Binding Functionality', function() {
 
   });
 
-  describe('get block index', function() {
+  describe('get block header', function() {
     var expectedWork = new BN(6);
     [1,2,3,4,5,6,7,8,9].forEach(function(i) {
-      it('generate block ' + i, function() {
-        var blockIndex = bitcoind.getBlockIndex(blockHashes[i]);
-        should.exist(blockIndex);
-        should.exist(blockIndex.chainWork);
-        var work = new BN(blockIndex.chainWork, 'hex');
-        work.cmp(expectedWork).should.equal(0);
-        expectedWork = expectedWork.add(new BN(2));
-        should.exist(blockIndex.prevHash);
-        blockIndex.hash.should.equal(blockHashes[i]);
-        blockIndex.prevHash.should.equal(blockHashes[i - 1]);
-        blockIndex.height.should.equal(i + 1);
+      it('generate block ' + i, function(done) {
+        bitcoind.getBlockHeader(blockHashes[i], function(err, blockIndex) {
+          if (err) {
+            return done(err);
+          }
+          should.exist(blockIndex);
+          should.exist(blockIndex.chainwork);
+          var work = new BN(blockIndex.chainwork, 'hex');
+          work.cmp(expectedWork).should.equal(0);
+          expectedWork = expectedWork.add(new BN(2));
+          should.exist(blockIndex.previousblockhash);
+          blockIndex.hash.should.equal(blockHashes[i]);
+          blockIndex.previousblockhash.should.equal(blockHashes[i - 1]);
+          blockIndex.height.should.equal(i + 1);
+          done();
+        });
       });
     });
-    it('will get null prevHash for the genesis block', function() {
-      var blockIndex = bitcoind.getBlockIndex(0);
-      should.exist(blockIndex);
-      should.equal(blockIndex.prevHash, null);
+    it('will get null prevHash for the genesis block', function(done) {
+      bitcoind.getBlockHeader(0, function(err, header) {
+        if (err) {
+          return done(err);
+        }
+        should.exist(header);
+        should.equal(header.previousblockhash, undefined);
+        done();
+      });
+    });
+    it('will get null for block not found', function(done) {
+      bitcoind.getBlockHeader('notahash', function(err, header) {
+        if(err) {
+          return done(err);
+        }
+        should.equal(header, null);
+        done();
+      });
     });
   });
 
@@ -250,36 +253,33 @@ describe('Daemon Binding Functionality', function() {
     var expectedWork = new BN(6);
     [2,3,4,5,6,7,8,9].forEach(function(i) {
       it('generate block ' + i, function() {
-        var blockIndex = bitcoind.getBlockIndex(i);
-        should.exist(blockIndex);
-        should.exist(blockIndex.chainWork);
-        var work = new BN(blockIndex.chainWork, 'hex');
-        work.cmp(expectedWork).should.equal(0);
-        expectedWork = expectedWork.add(new BN(2));
-        should.exist(blockIndex.prevHash);
-        blockIndex.hash.should.equal(blockHashes[i - 1]);
-        blockIndex.prevHash.should.equal(blockHashes[i - 2]);
-        blockIndex.height.should.equal(i);
+        bitcoind.getBlockHeader(i, function(err, header) {
+          should.exist(header);
+          should.exist(header.chainwork);
+          var work = new BN(header.chainwork, 'hex');
+          work.cmp(expectedWork).should.equal(0);
+          expectedWork = expectedWork.add(new BN(2));
+          should.exist(header.previousblockhash);
+          header.hash.should.equal(blockHashes[i - 1]);
+          header.previousblockhash.should.equal(blockHashes[i - 2]);
+          header.height.should.equal(i);
+        });
       });
     });
     it('will get null with number greater than tip', function(done) {
-      var index = bitcoind.getBlockIndex(100000);
-      should.equal(index, null);
-      done();
-    });
-  });
-
-  describe('isMainChain', function() {
-    [1,2,3,4,5,6,7,8,9].forEach(function(i) {
-      it('block ' + i + ' is on the main chain', function() {
-        bitcoind.isMainChain(blockHashes[i]).should.equal(true);
+      bitcoind.getBlockHeader(100000, function(err, header) {
+        if (err) {
+          return done(err);
+        }
+        should.equal(header, null);
+        done();
       });
     });
   });
 
   describe('send transaction functionality', function() {
 
-    it('will not error and return the transaction hash', function() {
+    it('will not error and return the transaction hash', function(done) {
 
       // create and sign the transaction
       var tx = bitcore.Transaction();
@@ -289,31 +289,40 @@ describe('Daemon Binding Functionality', function() {
       tx.sign(bitcore.PrivateKey.fromWIF(utxos[0].privateKeyWIF));
 
       // test sending the transaction
-      var hash = bitcoind.sendTransaction(tx.serialize());
-      hash.should.equal(tx.hash);
+      bitcoind.sendTransaction(tx.serialize(), function(err, hash) {
+        if (err) {
+          return done(err);
+        }
+        hash.should.equal(tx.hash);
+        done();
+      });
+
     });
 
-    it('will throw an error if an unsigned transaction is sent', function() {
-
+    it('will throw an error if an unsigned transaction is sent', function(done) {
       var tx = bitcore.Transaction();
       tx.from(utxos[1]);
       tx.change(privateKey.toAddress());
       tx.to(destKey.toAddress(), utxos[1].amount * 1e8 - 1000);
-      (function() {
-        bitcoind.sendTransaction(tx.uncheckedSerialize());
-      }).should.throw('\x10: mandatory-script-verify-flag-failed (Operation not valid with the current stack size)');
+      bitcoind.sendTransaction(tx.uncheckedSerialize(), function(err, hash) {
+        should.exist(err);
+        should.not.exist(hash);
+        done();
+      });
     });
 
-    it('will throw an error for unexpected types', function() {
+    it('will throw an error for unexpected types (tx decode failed)', function(done) {
       var garbage = new Buffer('abcdef', 'hex');
-      (function() {
-        bitcoind.sendTransaction(garbage);
-      }).should.throw('TX decode failed');
-
-      var num = 23;
-      (function() {
-        bitcoind.sendTransaction(num);
-      }).should.throw('TX decode failed');
+      bitcoind.sendTransaction(garbage, function(err, hash) {
+        should.exist(err);
+        should.not.exist(hash);
+        var num = 23;
+        bitcoind.sendTransaction(num, function(err, hash) {
+          should.exist(err);
+          should.not.exist(hash);
+          done();
+        });
+      });
     });
 
     it('will emit "tx" events', function(done) {
@@ -325,21 +334,29 @@ describe('Daemon Binding Functionality', function() {
 
       var serialized = tx.serialize();
 
-      bitcoind.once('tx', function(result) {
-        result.buffer.toString('hex').should.equal(serialized);
-        result.hash.should.equal(tx.hash);
-        result.mempool.should.equal(true);
+      bitcoind.once('tx', function(buffer) {
+        buffer.toString('hex').should.equal(serialized);
         done();
       });
-      bitcoind.sendTransaction(serialized);
+      bitcoind.sendTransaction(serialized, function(err, hash) {
+        if (err) {
+          return done(err);
+        }
+        should.exist(hash);
+      });
     });
 
   });
 
   describe('fee estimation', function() {
-    it('will estimate fees', function() {
-      var fees = bitcoind.estimateFee();
-      fees.should.equal(-1);
+    it('will estimate fees', function(done) {
+      bitcoind.estimateFee(1, function(err, fees) {
+        if (err) {
+          return done(err);
+        }
+        fees.should.equal(-1);
+        done();
+      });
     });
   });
 
@@ -347,8 +364,7 @@ describe('Daemon Binding Functionality', function() {
     it('will get an event when the tip is new', function(done) {
       this.timeout(4000);
       bitcoind.on('tip', function(height) {
-        if (height == 151) {
-          height.should.equal(151);
+        if (height === 151) {
           done();
         }
       });
@@ -360,133 +376,39 @@ describe('Daemon Binding Functionality', function() {
     });
   });
 
-  describe('transactions leaving the mempool', function() {
-    it('receive event when transaction leaves', function(done) {
-
-      // add transaction to build a new block
-      var tx = bitcore.Transaction();
-      tx.from(utxos[4]);
-      tx.change(privateKey.toAddress());
-      tx.to(destKey.toAddress(), utxos[4].amount * 1e8 - 1000);
-      tx.sign(bitcore.PrivateKey.fromWIF(utxos[4].privateKeyWIF));
-      bitcoind.sendTransaction(tx.serialize());
-
-      bitcoind.once('txleave', function(txInfo) {
-        txInfo.hash.should.equal(tx.hash);
-        done();
-      });
-
-      client.generate(1, function(err, response) {
-        if (err) {
-          throw err;
-        }
-      });
-    });
-  });
-
-  describe('mempool functionality', function() {
-
-    var fromAddress = 'mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1';
-    var utxo1 = {
-      address: fromAddress,
-      txId: 'a477af6b2667c29670467e4e0728b685ee07b240235771862318e29ddbe58458',
-      outputIndex: 0,
-      script: bitcore.Script.buildPublicKeyHashOut(fromAddress).toString(),
-      satoshis: 100000
-    };
-    var toAddress = 'mrU9pEmAx26HcbKVrABvgL7AwA5fjNFoDc';
-    var changeAddress = 'mgBCJAsvzgT2qNNeXsoECg2uPKrUsZ76up';
-    var changeAddressP2SH = '2N7T3TAetJrSCruQ39aNrJvYLhG1LJosujf';
-    var privateKey1 = 'cSBnVM4xvxarwGQuAfQFwqDg9k5tErHUHzgWsEfD4zdwUasvqRVY';
-    var private1 = '6ce7e97e317d2af16c33db0b9270ec047a91bff3eff8558afb5014afb2bb5976';
-    var private2 = 'c9b26b0f771a0d2dad88a44de90f05f416b3b385ff1d989343005546a0032890';
-    var tx = new bitcore.Transaction();
-    tx.from(utxo1);
-    tx.to(toAddress, 50000);
-    tx.change(changeAddress);
-    tx.sign(privateKey1);
-
-    var tx2;
-    var tx2Key;
-
-    before(function() {
-      tx2 = bitcore.Transaction();
-      tx2.from(utxos[3]);
-      tx2.change(privateKey.toAddress());
-      tx2.to(destKey.toAddress(), utxos[3].amount * 1e8 - 1000);
-      tx2Key = bitcore.PrivateKey.fromWIF(utxos[3].privateKeyWIF);
-      tx2.sign(tx2Key);
-    });
-
-    it('will add an unchecked transaction', function() {
-      var added = bitcoind.addMempoolUncheckedTransaction(tx.serialize());
-      added.should.equal(true);
-      bitcoind.getTransaction(tx.hash, true, function(err, txBuffer) {
-        if(err) {
-          throw err;
-        }
-        var expected = tx.toBuffer().toString('hex');
-        txBuffer.toString('hex').should.equal(expected);
-      });
-
-    });
-
-    it('get one transaction', function() {
-      var transactions = bitcoind.getMempoolTransactions();
-      transactions[0].toString('hex').should.equal(tx.serialize());
-    });
-
-    it('get multiple transactions', function() {
-      bitcoind.sendTransaction(tx2.serialize());
-      var transactions = bitcoind.getMempoolTransactions();
-      var expected = [tx.serialize(), tx2.serialize()];
-      expected.should.contain(transactions[0].toString('hex'));
-      expected.should.contain(transactions[1].toString('hex'));
-    });
-
-  });
-
   describe('get transaction with block info', function() {
     it('should include tx buffer, height and timestamp', function(done) {
-      bitcoind.getTransactionWithBlockInfo(utxos[0].txid, true, function(err, data) {
-        should.not.exist(err);
-        should.exist(data.height);
-        data.height.should.be.a('number');
-        should.exist(data.timestamp);
-        should.exist(data.buffer);
+      bitcoind.getTransactionWithBlockInfo(utxos[0].txid, true, function(err, tx) {
+        if (err) {
+          return done(err);
+        }
+        should.exist(tx.__height);
+        tx.__height.should.be.a('number');
+        should.exist(tx.__timestamp);
+        should.exist(tx.__blockHash);
         done();
       });
-    });
-  });
-
-  describe('get next block hash', function() {
-    it('will get next block hash', function() {
-      var nextBlockHash = bitcoind.getNextBlockHash(blockHashes[0]);
-      nextBlockHash.should.equal(blockHashes[1]);
-      var nextnextBlockHash = bitcoind.getNextBlockHash(nextBlockHash);
-      nextnextBlockHash.should.equal(blockHashes[2]);
-    });
-
-    it('will get a null response if the tip hash is provided', function() {
-      var bestBlockHash = bitcoind.getBestBlockHash();
-      var nextBlockHash = bitcoind.getNextBlockHash(bestBlockHash);
-      should.not.exist(nextBlockHash);
     });
   });
 
   describe('#getInfo', function() {
-    it('will get information', function() {
-      var info = bitcoind.getInfo();
-      info.network.should.equal('regtest');
-      should.exist(info);
-      should.exist(info.version);
-      should.exist(info.blocks);
-      should.exist(info.timeoffset);
-      should.exist(info.connections);
-      should.exist(info.difficulty);
-      should.exist(info.testnet);
-      should.exist(info.relayfee);
-      should.exist(info.errors);
+    it('will get information', function(done) {
+      bitcoind.getInfo(function(err, info) {
+        if (err) {
+          return done(err);
+        }
+        info.network.should.equal('regtest');
+        should.exist(info);
+        should.exist(info.version);
+        should.exist(info.blocks);
+        should.exist(info.timeoffset);
+        should.exist(info.connections);
+        should.exist(info.difficulty);
+        should.exist(info.testnet);
+        should.exist(info.relayfee);
+        should.exist(info.errors);
+        done();
+      });
     });
   });
 
