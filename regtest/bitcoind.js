@@ -49,7 +49,10 @@ describe('Bitcoind Functionality', function() {
           exec: path.resolve(__dirname, '../bin/bitcoind')
         },
         node: {
-          network: regtestNetwork
+          network: regtestNetwork,
+          getNetworkName: function() {
+            return 'regtest';
+          }
         }
       });
 
