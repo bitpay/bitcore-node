@@ -817,7 +817,7 @@ describe('Node Functionality', function() {
     it('will not show confirmation count for orphaned transaction', function(done) {
       // This test verifies that in the situation that the transaction is not in the mempool and
       // is included in an orphaned block transaction index that the confirmation count will be unconfirmed.
-      node.getTransactionWithBlockInfo(orphanedTransaction, false, function(err, data) {
+      node.getTransactionWithBlockInfo(orphanedTransaction, function(err, data) {
         if (err) {
           return done(err);
         }
