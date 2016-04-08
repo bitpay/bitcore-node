@@ -759,6 +759,7 @@ describe('Node Functionality', function() {
   });
 
   describe('Orphaned Transactions', function() {
+    this.timeout(8000);
     var orphanedTransaction;
 
     before(function(done) {
