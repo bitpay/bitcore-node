@@ -149,6 +149,19 @@ describe('Bitcoind Functionality', function() {
     });
   });
 
+  describe('get errors as error instances', function() {
+    it('will wrap an rpc into a javascript error', function(done) {
+      bitcoind.client.getBlock(1000000000, function(err, response) {
+        var error = bitcoind._wrapRPCError(err);
+        (error instanceof Error).should.equal(true);
+        error.message.should.equal(err.message);
+        error.code.should.equal(err.code);
+        should.exist(error.stack);
+        done();
+      });
+    });
+  });
+
   describe('get blocks by height', function() {
 
     [0,1,2,3,4,5,6,7,8,9].forEach(function(i) {
@@ -303,6 +316,7 @@ describe('Bitcoind Functionality', function() {
       tx.to(destKey.toAddress(), utxos[1].amount * 1e8 - 1000);
       bitcoind.sendTransaction(tx.uncheckedSerialize(), function(err, hash) {
         should.exist(err);
+        (err instanceof Error).should.equal(true);
         should.not.exist(hash);
         done();
       });
@@ -316,6 +330,7 @@ describe('Bitcoind Functionality', function() {
         var num = 23;
         bitcoind.sendTransaction(num, function(err, hash) {
           should.exist(err);
+          (err instanceof Error).should.equal(true);
           should.not.exist(hash);
           done();
         });
