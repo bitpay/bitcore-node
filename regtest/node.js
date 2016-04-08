@@ -2,15 +2,11 @@
 
 // To run the tests: $ mocha -R spec regtest/node.js
 
+var path = require('path');
 var index = require('..');
 var async = require('async');
 var log = index.log;
 log.debug = function() {};
-
-if (process.env.BITCORENODE_ENV !== 'test') {
-  log.info('Please set the environment variable BITCORENODE_ENV=test and make sure bindings are compiled for testing');
-  process.exit();
-}
 
 var chai = require('chai');
 var bitcore = require('bitcore-lib');
@@ -23,10 +19,7 @@ var BitcoinRPC = require('bitcoind-rpc');
 var index = require('..');
 var Transaction = index.Transaction;
 var BitcoreNode = index.Node;
-var AddressService = index.services.Address;
 var BitcoinService = index.services.Bitcoin;
-var encoding = require('../lib/services/address/encoding');
-var DBService = index.services.DB;
 var testWIF = 'cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG';
 var testKey;
 var client;
@@ -39,7 +32,7 @@ describe('Node Functionality', function() {
   var regtest;
 
   before(function(done) {
-    this.timeout(30000);
+    this.timeout(20000);
 
     var datadir = __dirname + '/data';
 
@@ -52,23 +45,17 @@ describe('Node Functionality', function() {
       }
 
       var configuration = {
-        datadir: datadir,
         network: 'regtest',
         services: [
           {
-            name: 'db',
-            module: DBService,
-            config: {}
-          },
-          {
             name: 'bitcoind',
             module: BitcoinService,
-            config: {}
-          },
-          {
-            name: 'address',
-            module: AddressService,
-            config: {}
+            config: {
+              spawn: {
+                datadir: datadir,
+                exec: path.resolve(__dirname, '../bin/bitcoind')
+              }
+            }
           }
         ]
       };
@@ -85,24 +72,24 @@ describe('Node Functionality', function() {
       node.on('ready', function() {
 
         client = new BitcoinRPC({
-          protocol: 'https',
+          protocol: 'http',
           host: '127.0.0.1',
-          port: 18332,
+          port: 30331,
           user: 'bitcoin',
           pass: 'local321',
           rejectUnauthorized: false
         });
 
         var syncedHandler = function() {
-          if (node.services.db.tip.__height === 150) {
-            node.removeListener('synced', syncedHandler);
+          if (node.services.bitcoind.height === 150) {
+            node.services.bitcoind.removeListener('synced', syncedHandler);
             done();
           }
         };
 
-        node.on('synced', syncedHandler);
+        node.services.bitcoind.on('synced', syncedHandler);
 
-        client.generate(150, function(err, response) {
+        client.generate(150, function(err) {
           if (err) {
             throw err;
           }
@@ -131,7 +118,7 @@ describe('Node Functionality', function() {
 
   var invalidatedBlockHash;
 
-  it('will handle a reorganization', function(done) {
+  it.skip('will handle a reorganization', function(done) {
 
     var count;
     var blockHash;
@@ -207,26 +194,31 @@ describe('Node Functionality', function() {
 
   });
 
-  it('isMainChain() will return false for stale/orphan block', function(done) {
-    node.services.bitcoind.isMainChain(invalidatedBlockHash).should.equal(false);
-    setImmediate(done);
-  });
-
   describe('Bus Functionality', function() {
     it('subscribes and unsubscribes to an event on the bus', function(done) {
       var bus = node.openBus();
-      var block;
-      bus.subscribe('db/block');
-      bus.on('db/block', function(data) {
-        bus.unsubscribe('db/block');
-        data.should.be.equal(block);
-        done();
+      var blockExpected;
+      var blockReceived;
+      bus.subscribe('bitcoind/block');
+      bus.on('bitcoind/block', function(data) {
+        bus.unsubscribe('bitcoind/block');
+        if (blockExpected) {
+          data.should.be.equal(blockExpected);
+          done();
+        } else {
+          blockReceived = data;
+        }
       });
       client.generate(1, function(err, response) {
         if (err) {
           throw err;
         }
-        block = response.result[0];
+        if (blockReceived) {
+          blockReceived.should.be.equal(response.result[0]);
+          done();
+        } else {
+          blockExpected = response.result[0];
+        }
       });
     });
   });
@@ -234,20 +226,36 @@ describe('Node Functionality', function() {
   describe('Address Functionality', function() {
     var address;
     var unspentOutput;
-    before(function() {
+    before(function(done) {
       address = testKey.toAddress(regtest).toString();
-    });
-    it('should be able to get the balance of the test address', function(done) {
-      node.services.address.getBalance(address, false, function(err, balance) {
+      var startHeight = node.services.bitcoind.height;
+      node.services.bitcoind.on('tip', function(height) {
+        if (height === startHeight + 3) {
+          done();
+        }
+      });
+      client.sendToAddress(testKey.toAddress(regtest).toString(), 10, function(err) {
         if (err) {
           throw err;
         }
-        balance.should.equal(10 * 1e8);
+        client.generate(3, function(err) {
+          if (err) {
+            throw err;
+          }
+        });
+      });
+    });
+    it('should be able to get the balance of the test address', function(done) {
+      node.getAddressBalance(address, false, function(err, data) {
+        if (err) {
+          throw err;
+        }
+        data.balance.should.equal(10 * 1e8);
         done();
       });
     });
     it('can get unspent outputs for address', function(done) {
-      node.services.address.getUnspentOutputs(address, false, function(err, results) {
+      node.getAddressUnspentOutputs(address, false, function(err, results) {
         if (err) {
           throw err;
         }
@@ -262,7 +270,7 @@ describe('Node Functionality', function() {
         to: 10,
         queryMempool: false
       };
-      node.services.address.getAddressHistory(address, options, function(err, results) {
+      node.getAddressHistory(address, options, function(err, results) {
         if (err) {
           throw err;
         }
@@ -276,7 +284,7 @@ describe('Node Functionality', function() {
         info.satoshis.should.equal(10 * 1e8);
         info.confirmations.should.equal(3);
         info.timestamp.should.be.a('number');
-        info.fees.should.be.within(950, 970);
+        info.fees.should.be.within(950, 4000);
         info.tx.should.be.an.instanceof(Transaction);
         done();
       });
@@ -285,16 +293,16 @@ describe('Node Functionality', function() {
       var options = {
         queryMempool: false
       };
-      node.services.address.getAddressSummary(address, options, function(err, results) {
+      node.getAddressSummary(address, options, function(err, results) {
         if (err) {
           throw err;
         }
         results.totalReceived.should.equal(1000000000);
         results.totalSpent.should.equal(0);
         results.balance.should.equal(1000000000);
-        results.unconfirmedBalance.should.equal(0);
+        should.not.exist(results.unconfirmedBalance);
         results.appearances.should.equal(1);
-        results.unconfirmedAppearances.should.equal(0);
+        should.not.exist(results.unconfirmedAppearances);
         results.txids.length.should.equal(1);
         done();
       });
@@ -316,6 +324,14 @@ describe('Node Functionality', function() {
 
       before(function(done) {
         /* jshint maxstatements: 50 */
+
+        // Finished once all blocks have been mined
+        var startHeight = node.services.bitcoind.height;
+        node.services.bitcoind.on('tip', function(height) {
+          if (height === startHeight + 5) {
+            done();
+          }
+        });
 
         testKey2 = bitcore.PrivateKey.fromWIF('cNfF4jXiLHQnFRsxaJyr2YSGcmtNYvxQYSakNhuDGxpkSzAwn95x');
         address2 = testKey2.toAddress(regtest).toString();
@@ -344,8 +360,6 @@ describe('Node Functionality', function() {
 
         unspentOutputSpentTxId = tx.id;
 
-        node.services.bitcoind.sendTransaction(tx.serialize());
-
         function mineBlock(next) {
           client.generate(1, function(err, response) {
             if (err) {
@@ -356,13 +370,18 @@ describe('Node Functionality', function() {
           });
         }
 
-        client.generate(1, function(err, response) {
+        node.sendTransaction(tx.serialize(), function(err, hash) {
           if (err) {
-            throw err;
+            return done(err);
           }
-          should.exist(response);
-          node.once('synced', function() {
-            node.services.address.getUnspentOutputs(address, false, function(err, results) {
+
+          client.generate(1, function(err, response) {
+            if (err) {
+              throw err;
+            }
+            should.exist(response);
+
+            node.getAddressUnspentOutputs(address, false, function(err, results) {
               /* jshint maxstatements: 50 */
               if (err) {
                 throw err;
@@ -376,24 +395,36 @@ describe('Node Functionality', function() {
                   tx2.to(address2, results[0].satoshis - 10000);
                   tx2.change(address);
                   tx2.sign(testKey);
-                  node.services.bitcoind.sendTransaction(tx2.serialize());
-                  mineBlock(next);
+                  node.sendTransaction(tx2.serialize(), function(err) {
+                    if (err) {
+                      return next(err);
+                    }
+                    mineBlock(next);
+                  });
                 }, function(next) {
                   var tx3 = new Transaction();
                   tx3.from(results[1]);
                   tx3.to(address3, results[1].satoshis - 10000);
                   tx3.change(address);
                   tx3.sign(testKey);
-                  node.services.bitcoind.sendTransaction(tx3.serialize());
-                  mineBlock(next);
+                  node.sendTransaction(tx3.serialize(), function(err) {
+                    if (err) {
+                      return next(err);
+                    }
+                    mineBlock(next);
+                  });
                 }, function(next) {
                   var tx4 = new Transaction();
                   tx4.from(results[2]);
                   tx4.to(address4, results[2].satoshis - 10000);
                   tx4.change(address);
                   tx4.sign(testKey);
-                  node.services.bitcoind.sendTransaction(tx4.serialize());
-                  mineBlock(next);
+                  node.sendTransaction(tx4.serialize(), function(err) {
+                    if (err) {
+                      return next(err);
+                    }
+                    mineBlock(next);
+                  });
                 }, function(next) {
                   var tx5 = new Transaction();
                   tx5.from(results[3]);
@@ -402,19 +433,22 @@ describe('Node Functionality', function() {
                   tx5.to(address6, results[4].satoshis - 10000);
                   tx5.change(address);
                   tx5.sign(testKey);
-                  node.services.bitcoind.sendTransaction(tx5.serialize());
-                  mineBlock(next);
+                  node.sendTransaction(tx5.serialize(), function(err) {
+                    if (err) {
+                      return next(err);
+                    }
+                    mineBlock(next);
+                  });
                 }
               ], function(err) {
                 if (err) {
                   throw err;
                 }
-                node.once('synced', function() {
-                  done();
-                });
               });
             });
+
           });
+
         });
 
       });
@@ -428,20 +462,20 @@ describe('Node Functionality', function() {
           address6
         ];
         var options = {};
-        node.services.address.getAddressHistory(addresses, options, function(err, results) {
+        node.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
           results.totalCount.should.equal(4);
           var history = results.items;
           history.length.should.equal(4);
-          history[0].height.should.equal(157);
+          history[0].height.should.equal(159);
           history[0].confirmations.should.equal(1);
-          history[1].height.should.equal(156);
+          history[1].height.should.equal(158);
           should.exist(history[1].addresses[address4]);
-          history[2].height.should.equal(155);
+          history[2].height.should.equal(157);
           should.exist(history[2].addresses[address3]);
-          history[3].height.should.equal(154);
+          history[3].height.should.equal(156);
           should.exist(history[3].addresses[address2]);
           history[3].satoshis.should.equal(99990000);
           history[3].confirmations.should.equal(4);
@@ -449,7 +483,7 @@ describe('Node Functionality', function() {
         });
       });
 
-      it('five addresses (limited by height)', function(done) {
+      it.skip('five addresses (limited by height)', function(done) {
         var addresses = [
           address2,
           address3,
@@ -461,7 +495,7 @@ describe('Node Functionality', function() {
           start: 157,
           end: 156
         };
-        node.services.address.getAddressHistory(addresses, options, function(err, results) {
+        node.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
@@ -476,7 +510,7 @@ describe('Node Functionality', function() {
         });
       });
 
-      it('five addresses (limited by height 155 to 154)', function(done) {
+      it.skip('five addresses (limited by height 155 to 154)', function(done) {
         var addresses = [
           address2,
           address3,
@@ -488,7 +522,7 @@ describe('Node Functionality', function() {
           start: 155,
           end: 154
         };
-        node.services.address.getAddressHistory(addresses, options, function(err, results) {
+        node.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
@@ -501,7 +535,7 @@ describe('Node Functionality', function() {
         });
       });
 
-      it('five addresses (paginated by index)', function(done) {
+      it.skip('five addresses (paginated by index)', function(done) {
         var addresses = [
           address2,
           address3,
@@ -513,7 +547,7 @@ describe('Node Functionality', function() {
           from: 0,
           to: 3
         };
-        node.services.address.getAddressHistory(addresses, options, function(err, results) {
+        node.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
@@ -533,32 +567,32 @@ describe('Node Functionality', function() {
           address
         ];
         var options = {};
-        node.services.address.getAddressHistory(addresses, options, function(err, results) {
+        node.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
           results.totalCount.should.equal(6);
           var history = results.items;
           history.length.should.equal(6);
-          history[0].height.should.equal(157);
+          history[0].height.should.equal(159);
           history[0].addresses[address].inputIndexes.should.deep.equal([0, 1]);
           history[0].addresses[address].outputIndexes.should.deep.equal([2]);
           history[0].confirmations.should.equal(1);
-          history[1].height.should.equal(156);
-          history[2].height.should.equal(155);
-          history[3].height.should.equal(154);
-          history[4].height.should.equal(153);
+          history[1].height.should.equal(158);
+          history[2].height.should.equal(157);
+          history[3].height.should.equal(156);
+          history[4].height.should.equal(155);
           history[4].satoshis.should.equal(-10000);
           history[4].addresses[address].outputIndexes.should.deep.equal([0, 1, 2, 3, 4]);
           history[4].addresses[address].inputIndexes.should.deep.equal([0]);
-          history[5].height.should.equal(150);
+          history[5].height.should.equal(152);
           history[5].satoshis.should.equal(10 * 1e8);
           done();
         });
       });
 
       it('summary for an address (sending and receiving)', function(done) {
-        node.services.address.getAddressSummary(address, {}, function(err, results) {
+        node.getAddressSummary(address, {}, function(err, results) {
           if (err) {
             throw err;
           }
@@ -579,7 +613,7 @@ describe('Node Functionality', function() {
           address
         ];
         var options = {};
-        node.services.address.getAddressHistory(addresses, options, function(err, results) {
+        node.getAddressHistory(addresses, options, function(err, results) {
           if (err) {
             throw err;
           }
@@ -588,13 +622,13 @@ describe('Node Functionality', function() {
         });
       });
 
-      describe('Pagination', function() {
+      describe.skip('Pagination', function() {
         it('from 0 to 1', function(done) {
           var options = {
             from: 0,
             to: 1
           };
-          node.services.address.getAddressHistory(address, options, function(err, results) {
+          node.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
@@ -609,7 +643,7 @@ describe('Node Functionality', function() {
             from: 1,
             to: 2
           };
-          node.services.address.getAddressHistory(address, options, function(err, results) {
+          node.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
@@ -624,7 +658,7 @@ describe('Node Functionality', function() {
             from: 2,
             to: 3
           };
-          node.services.address.getAddressHistory(address, options, function(err, results) {
+          node.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
@@ -639,7 +673,7 @@ describe('Node Functionality', function() {
             from: 3,
             to: 4
           };
-          node.services.address.getAddressHistory(address, options, function(err, results) {
+          node.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
@@ -654,7 +688,7 @@ describe('Node Functionality', function() {
             from: 4,
             to: 5
           };
-          node.services.address.getAddressHistory(address, options, function(err, results) {
+          node.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
@@ -672,7 +706,7 @@ describe('Node Functionality', function() {
             from: 5,
             to: 6
           };
-          node.services.address.getAddressHistory(address, options, function(err, results) {
+          node.getAddressHistory(address, options, function(err, results) {
             if (err) {
               throw err;
             }
@@ -690,7 +724,7 @@ describe('Node Functionality', function() {
     describe('Mempool Index', function() {
       var unspentOutput;
       before(function(done) {
-        node.services.address.getUnspentOutputs(address, false, function(err, results) {
+        node.getAddressUnspentOutputs(address, false, function(err, results) {
           if (err) {
             throw err;
           }
@@ -701,92 +735,22 @@ describe('Node Functionality', function() {
       });
 
       it('will update the mempool index after new tx', function(done) {
-
+        var memAddress = bitcore.PrivateKey().toAddress(node.network).toString();
         var tx = new Transaction();
         tx.from(unspentOutput);
-        tx.to(address, unspentOutput.satoshis - 1000);
+        tx.to(memAddress, unspentOutput.satoshis - 1000);
         tx.fee(1000);
         tx.sign(testKey);
 
-        node.services.bitcoind.sendTransaction(tx.serialize());
-
-        setImmediate(function() {
-          var addrObj = encoding.getAddressInfo(address);
-          node.services.address._getOutputsMempool(address, addrObj.hashBuffer,
-                                                   addrObj.hashTypeBuffer, function(err, outs) {
+        node.services.bitcoind.sendTransaction(tx.serialize(), function(err, hash) {
+          node.getAddressTxids(memAddress, {}, function(err, txids) {
             if (err) {
-              throw err;
+              return done(err);
             }
-            outs.length.should.equal(1);
+            txids.length.should.equal(1);
+            txids[0].should.equal(hash);
             done();
           });
-        });
-      });
-
-    });
-
-    describe('#getInputForOutput(db)', function() {
-      it('will get the input txid and input index', function(done) {
-        var txid = outputForIsSpentTest1.txid;
-        var outputIndex = outputForIsSpentTest1.outputIndex;
-        var options = {
-          queryMempool: true
-        };
-        node.services.address.getInputForOutput(txid, outputIndex, options, function(err, result) {
-          result.inputTxId.should.equal(unspentOutputSpentTxId);
-          result.inputIndex.should.equal(0);
-          done();
-        });
-      });
-    });
-
-    describe('#isSpent and #getInputForOutput(mempool)', function() {
-      var spentOutput;
-      var spentOutputInputTxId;
-      it('will return true if an input is spent in a confirmed transaction', function(done) {
-        var txid = outputForIsSpentTest1.txid;
-        var outputIndex = outputForIsSpentTest1.outputIndex;
-        var result = node.services.bitcoind.isSpent(txid, outputIndex);
-        result.should.equal(true);
-        done();
-      });
-      //CCoinsViewMemPool only checks for spent outputs that are not the mempool
-      it('will correctly return false for an input that is spent in an unconfirmed transaction', function(done) {
-        node.services.address.getUnspentOutputs(address, false, function(err, results) {
-          if (err) {
-            throw err;
-          }
-
-          var unspentOutput = results[0];
-
-          var tx = new Transaction();
-          tx.from(unspentOutput);
-          tx.to(address, unspentOutput.satoshis - 1000);
-          tx.fee(1000);
-          tx.sign(testKey);
-
-          node.services.bitcoind.sendTransaction(tx.serialize());
-          spentOutput = unspentOutput;
-          spentOutputInputTxId = tx.hash;
-
-          setImmediate(function() {
-            var result = node.services.bitcoind.isSpent(unspentOutput.txid, unspentOutput.outputIndex);
-            result.should.equal(false);
-            done();
-          });
-        });
-      });
-
-      it('will get the input txid and input index (mempool)', function(done) {
-        var txid = spentOutput.txid;
-        var outputIndex = spentOutput.outputIndex;
-        var options = {
-          queryMempool: true
-        };
-        node.services.address.getInputForOutput(txid, outputIndex, options, function(err, result) {
-          result.inputTxId.should.equal(spentOutputInputTxId);
-          result.inputIndex.should.equal(0);
-          done();
         });
       });
 
@@ -802,6 +766,14 @@ describe('Node Functionality', function() {
       var invalidatedBlockHash;
 
       async.series([
+        function(next) {
+          client.sendToAddress(testKey.toAddress(regtest).toString(), 10, function(err) {
+            if (err) {
+              return next(err);
+            }
+            client.generate(1, next);
+          });
+        },
         function(next) {
           client.getBlockCount(function(err, response) {
             if (err) {
@@ -826,6 +798,7 @@ describe('Node Functionality', function() {
               return next(err);
             }
             orphanedTransaction = response.result.tx[1];
+            should.exist(orphanedTransaction);
             next();
           });
         },
@@ -843,12 +816,13 @@ describe('Node Functionality', function() {
     it('will not show confirmation count for orphaned transaction', function(done) {
       // This test verifies that in the situation that the transaction is not in the mempool and
       // is included in an orphaned block transaction index that the confirmation count will be unconfirmed.
-      node.services.bitcoind.getTransactionWithBlockInfo(orphanedTransaction, false, function(err, data) {
+      node.getTransactionWithBlockInfo(orphanedTransaction, false, function(err, data) {
         if (err) {
           return done(err);
         }
-        should.exist(data.height);
-        data.height.should.equal(-1);
+        should.exist(data);
+        should.exist(data.__height);
+        data.__height.should.equal(-1);
         done();
       });
     });
