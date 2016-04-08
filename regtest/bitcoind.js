@@ -149,6 +149,21 @@ describe('Bitcoind Functionality', function() {
     });
   });
 
+  describe('get blocks as buffers', function() {
+    [0,1,2,3,5,6,7,8,9].forEach(function(i) {
+      it('generated block ' + i, function(done) {
+        bitcoind.getRawBlock(blockHashes[i], function(err, block) {
+          if (err) {
+            throw err;
+          }
+          should.exist(block);
+          (block instanceof Buffer).should.equal(true);
+          done();
+        });
+      });
+    });
+  });
+
   describe('get errors as error instances', function() {
     it('will wrap an rpc into a javascript error', function(done) {
       bitcoind.client.getBlock(1000000000, function(err, response) {
@@ -194,7 +209,7 @@ describe('Bitcoind Functionality', function() {
         var txhex = transactionData[i];
         var tx = new bitcore.Transaction();
         tx.fromString(txhex);
-        bitcoind.getTransaction(tx.hash, true, function(err, response) {
+        bitcoind.getTransaction(tx.hash, function(err, response) {
           if (err) {
             throw err;
           }
@@ -206,7 +221,7 @@ describe('Bitcoind Functionality', function() {
 
     it('will return null if the transaction does not exist', function(done) {
       var txid = '6226c407d0e9705bdd7158e60983e37d0f5d23529086d6672b07d9238d5aa618';
-      bitcoind.getTransaction(txid, true, function(err, response) {
+      bitcoind.getTransaction(txid, function(err, response) {
         if (err) {
           throw err;
         }
@@ -214,7 +229,34 @@ describe('Bitcoind Functionality', function() {
         done();
       });
     });
+  });
 
+  describe('get transactions as buffers', function() {
+    [0,1,2,3,4,5,6,7,8,9].forEach(function(i) {
+      it('for tx ' + i, function(done) {
+        var txhex = transactionData[i];
+        var tx = new bitcore.Transaction();
+        tx.fromString(txhex);
+        bitcoind.getRawTransaction(tx.hash, function(err, response) {
+          if (err) {
+            throw err;
+          }
+          assert(response.toString('hex') === txhex, 'incorrect tx data result');
+          done();
+        });
+      });
+    });
+
+    it('will return null if the transaction does not exist', function(done) {
+      var txid = '6226c407d0e9705bdd7158e60983e37d0f5d23529086d6672b07d9238d5aa618';
+      bitcoind.getRawTransaction(txid, function(err, response) {
+        if (err) {
+          throw err;
+        }
+        should.not.exist(response);
+        done();
+      });
+    });
   });
 
   describe('get block header', function() {
@@ -390,7 +432,7 @@ describe('Bitcoind Functionality', function() {
 
   describe('get transaction with block info', function() {
     it('should include tx buffer, height and timestamp', function(done) {
-      bitcoind.getTransactionWithBlockInfo(utxos[0].txid, true, function(err, tx) {
+      bitcoind.getTransactionWithBlockInfo(utxos[0].txid, function(err, tx) {
         if (err) {
           return done(err);
         }
