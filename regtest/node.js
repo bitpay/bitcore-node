@@ -1,9 +1,6 @@
 'use strict';
 
-// These tests require bitcore-node Bitcoin Core bindings to be compiled with
-// the environment variable BITCORENODE_ENV=test. This enables the use of regtest
-// functionality by including the wallet in the build.
-// To run the tests: $ mocha -R spec integration/regtest-node.js
+// To run the tests: $ mocha -R spec regtest/node.js
 
 var index = require('..');
 var async = require('async');

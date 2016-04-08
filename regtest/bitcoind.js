@@ -1,9 +1,6 @@
 'use strict';
 
-// These tests require bitcore-node Bitcoin Core bindings to be compiled with
-// the environment variable BITCORENODE_ENV=test. This enables the use of regtest
-// functionality by including the wallet in the build.
-// To run the tests: $ mocha -R spec integration/regtest.js
+// To run the tests: $ mocha -R spec regtest/bitcoind.js
 
 var path = require('path');
 var index = require('..');
@@ -29,7 +26,7 @@ var coinbasePrivateKey;
 var privateKey = bitcore.PrivateKey();
 var destKey = bitcore.PrivateKey();
 
-describe('Daemon Binding Functionality', function() {
+describe('Bitcoind Functionality', function() {
 
   before(function(done) {
     this.timeout(30000);

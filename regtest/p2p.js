@@ -1,5 +1,7 @@
 'use strict';
 
+// To run the tests: $ mocha -R spec regtest/p2p.js
+
 var path = require('path');
 var index = require('..');
 var log = index.log;
