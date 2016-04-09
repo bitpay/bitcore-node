@@ -23,3 +23,6 @@ coverage/*
 *.log
 .DS_Store
 bin/bitcoin*
+regtest/data/node1/regtest
+regtest/data/node2/regtest
+regtest/data/node3/regtest
