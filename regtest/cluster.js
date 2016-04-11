@@ -157,9 +157,7 @@ describe('Bitcoin Cluster', function() {
   it('step 2: receive block events', function(done) {
     this.timeout(10000);
     node.services.bitcoind.once('tip', function() {
-      setTimeout(function() {
-        done();
-      }, 1000);
+      done();
     });
     node.generateBlock(1, function(err, hashes) {
       if (err) {
