@@ -222,13 +222,10 @@ describe('Bitcoind Functionality', function() {
       });
     });
 
-    it('will return null if the transaction does not exist', function(done) {
+    it('will return error if the transaction does not exist', function(done) {
       var txid = '6226c407d0e9705bdd7158e60983e37d0f5d23529086d6672b07d9238d5aa618';
       bitcoind.getTransaction(txid, function(err, response) {
-        if (err) {
-          throw err;
-        }
-        should.not.exist(response);
+        should.exist(err);
         done();
       });
     });
@@ -250,13 +247,10 @@ describe('Bitcoind Functionality', function() {
       });
     });
 
-    it('will return null if the transaction does not exist', function(done) {
+    it('will return error if the transaction does not exist', function(done) {
       var txid = '6226c407d0e9705bdd7158e60983e37d0f5d23529086d6672b07d9238d5aa618';
       bitcoind.getRawTransaction(txid, function(err, response) {
-        if (err) {
-          throw err;
-        }
-        should.not.exist(response);
+        should.exist(err);
         done();
       });
     });
@@ -293,12 +287,9 @@ describe('Bitcoind Functionality', function() {
         done();
       });
     });
-    it('will get null for block not found', function(done) {
+    it('will get error for block not found', function(done) {
       bitcoind.getBlockHeader('notahash', function(err, header) {
-        if(err) {
-          return done(err);
-        }
-        should.equal(header, null);
+        should.exist(err);
         done();
       });
     });
@@ -321,12 +312,9 @@ describe('Bitcoind Functionality', function() {
         });
       });
     });
-    it('will get null with number greater than tip', function(done) {
+    it('will get error with number greater than tip', function(done) {
       bitcoind.getBlockHeader(100000, function(err, header) {
-        if (err) {
-          return done(err);
-        }
-        should.equal(header, null);
+        should.exist(err);
         done();
       });
     });
