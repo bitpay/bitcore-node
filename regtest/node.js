@@ -483,7 +483,34 @@ describe('Node Functionality', function() {
         });
       });
 
-      it.skip('five addresses (limited by height)', function(done) {
+      it('five addresses (limited by height)', function(done) {
+        var addresses = [
+          address2,
+          address3,
+          address4,
+          address5,
+          address6
+        ];
+        var options = {
+          start: 158,
+          end: 157
+        };
+        node.getAddressHistory(addresses, options, function(err, results) {
+          if (err) {
+            throw err;
+          }
+          results.totalCount.should.equal(2);
+          var history = results.items;
+          history.length.should.equal(2);
+          history[0].height.should.equal(158);
+          history[0].confirmations.should.equal(2);
+          history[1].height.should.equal(157);
+          should.exist(history[1].addresses[address3]);
+          done();
+        });
+      });
+
+      it('five addresses (limited by height 155 to 154)', function(done) {
         var addresses = [
           address2,
           address3,
@@ -503,39 +530,12 @@ describe('Node Functionality', function() {
           var history = results.items;
           history.length.should.equal(2);
           history[0].height.should.equal(157);
-          history[0].confirmations.should.equal(1);
           history[1].height.should.equal(156);
-          should.exist(history[1].addresses[address4]);
           done();
         });
       });
 
-      it.skip('five addresses (limited by height 155 to 154)', function(done) {
-        var addresses = [
-          address2,
-          address3,
-          address4,
-          address5,
-          address6
-        ];
-        var options = {
-          start: 155,
-          end: 154
-        };
-        node.getAddressHistory(addresses, options, function(err, results) {
-          if (err) {
-            throw err;
-          }
-          results.totalCount.should.equal(2);
-          var history = results.items;
-          history.length.should.equal(2);
-          history[0].height.should.equal(155);
-          history[1].height.should.equal(154);
-          done();
-        });
-      });
-
-      it.skip('five addresses (paginated by index)', function(done) {
+      it('five addresses (paginated by index)', function(done) {
         var addresses = [
           address2,
           address3,
@@ -554,9 +554,9 @@ describe('Node Functionality', function() {
           results.totalCount.should.equal(4);
           var history = results.items;
           history.length.should.equal(3);
-          history[0].height.should.equal(157);
+          history[0].height.should.equal(159);
           history[0].confirmations.should.equal(1);
-          history[1].height.should.equal(156);
+          history[1].height.should.equal(158);
           should.exist(history[1].addresses[address4]);
           done();
         });
