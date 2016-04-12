@@ -622,7 +622,7 @@ describe('Node Functionality', function() {
         });
       });
 
-      describe.skip('Pagination', function() {
+      describe('Pagination', function() {
         it('from 0 to 1', function(done) {
           var options = {
             from: 0,
@@ -634,7 +634,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(157);
+            history[0].height.should.equal(159);
             done();
           });
         });
@@ -649,7 +649,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(156);
+            history[0].height.should.equal(158);
             done();
           });
         });
@@ -664,7 +664,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(155);
+            history[0].height.should.equal(157);
             done();
           });
         });
@@ -679,7 +679,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(154);
+            history[0].height.should.equal(156);
             done();
           });
         });
@@ -694,7 +694,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(153);
+            history[0].height.should.equal(155);
             history[0].satoshis.should.equal(-10000);
             history[0].addresses[address].outputIndexes.should.deep.equal([0, 1, 2, 3, 4]);
             history[0].addresses[address].inputIndexes.should.deep.equal([0]);
@@ -712,7 +712,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(150);
+            history[0].height.should.equal(152);
             history[0].satoshis.should.equal(10 * 1e8);
             done();
           });
