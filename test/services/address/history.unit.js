@@ -50,7 +50,7 @@ describe('Address Service History', function() {
       history.combinedArray = [{}];
       history.getTransactionInfo = sinon.stub().callsArg(1);
       history.combineTransactionInfo = sinon.stub();
-      history.sortAndPaginateCombinedArray = sinon.stub();
+      history.sortAndPaginateDetailedArray = sinon.stub();
       history.getDetailedInfo = sinon.stub().callsArg(1);
       history.sortTransactionsIntoArray = sinon.stub();
       history.get(function(err, results) {
@@ -60,7 +60,7 @@ describe('Address Service History', function() {
         history.getTransactionInfo.callCount.should.equal(1);
         history.getDetailedInfo.callCount.should.equal(1);
         history.combineTransactionInfo.callCount.should.equal(1);
-        history.sortAndPaginateCombinedArray.callCount.should.equal(1);
+        history.sortAndPaginateDetailedArray.callCount.should.equal(1);
         results.should.deep.equal({
           totalCount: 1,
           items: expected
@@ -386,7 +386,7 @@ describe('Address Service History', function() {
     });
   });
 
-  describe('#sortAndPaginateCombinedArray', function() {
+  describe('#sortAndPaginateDetailedArray', function() {
     it('from 0 to 2', function() {
       var history = new AddressHistory({
         node: {},
@@ -396,7 +396,7 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.combinedArray = [
+      history.detailedArray = [
         {
           height: 13
         },
@@ -407,10 +407,10 @@ describe('Address Service History', function() {
           height: 12
         }
       ];
-      history.sortAndPaginateCombinedArray();
-      history.combinedArray.length.should.equal(2);
-      history.combinedArray[0].height.should.equal(14);
-      history.combinedArray[1].height.should.equal(13);
+      history.sortAndPaginateDetailedArray();
+      history.detailedArray.length.should.equal(2);
+      history.detailedArray[0].height.should.equal(14);
+      history.detailedArray[1].height.should.equal(13);
     });
     it('from 0 to 4 (exceeds length)', function() {
       var history = new AddressHistory({
@@ -421,7 +421,7 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.combinedArray = [
+      history.detailedArray = [
         {
           height: 13
         },
@@ -432,11 +432,11 @@ describe('Address Service History', function() {
           height: 12
         }
       ];
-      history.sortAndPaginateCombinedArray();
-      history.combinedArray.length.should.equal(3);
-      history.combinedArray[0].height.should.equal(14);
-      history.combinedArray[1].height.should.equal(13);
-      history.combinedArray[2].height.should.equal(12);
+      history.sortAndPaginateDetailedArray();
+      history.detailedArray.length.should.equal(3);
+      history.detailedArray[0].height.should.equal(14);
+      history.detailedArray[1].height.should.equal(13);
+      history.detailedArray[2].height.should.equal(12);
     });
     it('from 0 to 1', function() {
       var history = new AddressHistory({
@@ -447,7 +447,7 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.combinedArray = [
+      history.detailedArray = [
         {
           height: 13
         },
@@ -458,9 +458,9 @@ describe('Address Service History', function() {
           height: 12
         }
       ];
-      history.sortAndPaginateCombinedArray();
-      history.combinedArray.length.should.equal(1);
-      history.combinedArray[0].height.should.equal(14);
+      history.sortAndPaginateDetailedArray();
+      history.detailedArray.length.should.equal(1);
+      history.detailedArray[0].height.should.equal(14);
     });
     it('from 2 to 3', function() {
       var history = new AddressHistory({
@@ -471,7 +471,7 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.combinedArray = [
+      history.detailedArray = [
         {
           height: 13
         },
@@ -482,9 +482,9 @@ describe('Address Service History', function() {
           height: 12
         }
       ];
-      history.sortAndPaginateCombinedArray();
-      history.combinedArray.length.should.equal(1);
-      history.combinedArray[0].height.should.equal(12);
+      history.sortAndPaginateDetailedArray();
+      history.detailedArray.length.should.equal(1);
+      history.detailedArray[0].height.should.equal(12);
     });
     it('from 10 to 20 (out of range)', function() {
       var history = new AddressHistory({
@@ -495,7 +495,7 @@ describe('Address Service History', function() {
         },
         addresses: []
       });
-      history.combinedArray = [
+      history.detailedArray = [
         {
           height: 13
         },
@@ -506,8 +506,8 @@ describe('Address Service History', function() {
           height: 12
         }
       ];
-      history.sortAndPaginateCombinedArray();
-      history.combinedArray.length.should.equal(0);
+      history.sortAndPaginateDetailedArray();
+      history.detailedArray.length.should.equal(0);
     });
   });
 
