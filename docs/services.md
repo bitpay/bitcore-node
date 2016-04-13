@@ -65,7 +65,7 @@ var myNode = new bitcore.Node({
 Now that you've loaded your services you can access them via `myNode.services.<service-name>.<method-name>`. For example if you wanted to check the balance of an address, you could access the address service like so.
 
 ```js
-myNode.services.bitcoind.getBalance('1HB5XMLmzFVj8ALj6mfBsbifRoD4miY36v', false, function(err, total) {
+myNode.services.bitcoind.getAddressBalance('1HB5XMLmzFVj8ALj6mfBsbifRoD4miY36v', false, function(err, total) {
   console.log(total.balance); //Satoshi amount of this address
 });
 ```
