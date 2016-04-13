@@ -1,21 +1,29 @@
 'use strict';
 
+var path = require('path');
 var should = require('chai').should();
 var sinon = require('sinon');
 var proxyquire = require('proxyquire');
 
 describe('#defaultConfig', function() {
+  var expectedExecPath = path.resolve(__dirname, '../../bin/bitcoind');
+
   it('will return expected configuration', function() {
     var config = JSON.stringify({
-      datadir: process.env.HOME + '/.bitcore/data',
       network: 'livenet',
       port: 3001,
       services: [
         'bitcoind',
-        'db',
-        'address',
         'web'
-      ]
+      ],
+      servicesConfig: {
+        bitcoind: {
+          spawn: {
+            datadir: process.env.HOME + '/.bitcore/data',
+            exec: expectedExecPath
+          }
+        }
+      }
     }, null, 2);
     var defaultConfig = proxyquire('../../lib/scaffold/default-config', {
       fs: {
@@ -32,28 +40,35 @@ describe('#defaultConfig', function() {
         sync: sinon.stub()
       }
     });
-    var cwd = process.cwd();
     var home = process.env.HOME;
     var info = defaultConfig();
     info.path.should.equal(home + '/.bitcore');
-    info.config.datadir.should.equal(home + '/.bitcore/data');
     info.config.network.should.equal('livenet');
     info.config.port.should.equal(3001);
-    info.config.services.should.deep.equal(['bitcoind', 'db', 'address', 'web']);
+    info.config.services.should.deep.equal(['bitcoind', 'web']);
+    var bitcoind = info.config.servicesConfig.bitcoind;
+    should.exist(bitcoind);
+    bitcoind.spawn.datadir.should.equal(home + '/.bitcore/data');
+    bitcoind.spawn.exec.should.equal(expectedExecPath);
   });
   it('will include additional services', function() {
     var config = JSON.stringify({
-      datadir: process.env.HOME + '/.bitcore/data',
       network: 'livenet',
       port: 3001,
       services: [
         'bitcoind',
-        'db',
-        'address',
         'web',
         'insight-api',
         'insight-ui'
-      ]
+      ],
+      servicesConfig: {
+        bitcoind: {
+          spawn: {
+            datadir: process.env.HOME + '/.bitcore/data',
+            exec: expectedExecPath
+          }
+        }
+      }
     }, null, 2);
     var defaultConfig = proxyquire('../../lib/scaffold/default-config', {
       fs: {
@@ -75,16 +90,17 @@ describe('#defaultConfig', function() {
       additionalServices: ['insight-api', 'insight-ui']
     });
     info.path.should.equal(home + '/.bitcore');
-    info.config.datadir.should.equal(home + '/.bitcore/data');
     info.config.network.should.equal('livenet');
     info.config.port.should.equal(3001);
     info.config.services.should.deep.equal([
       'bitcoind',
-      'db',
-      'address',
       'web',
       'insight-api',
       'insight-ui'
     ]);
+    var bitcoind = info.config.servicesConfig.bitcoind;
+    should.exist(bitcoind);
+    bitcoind.spawn.datadir.should.equal(home + '/.bitcore/data');
+    bitcoind.spawn.exec.should.equal(expectedExecPath);
   });
 });

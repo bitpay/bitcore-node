@@ -32,6 +32,7 @@
   "scripts": {
     "install": "./scripts/install",
     "test": "NODE_ENV=test mocha -R spec --recursive",
+    "regtest": "./scripts/regtest",
     "coverage": "NODE_ENV=test istanbul cover _mocha -- --recursive"
   },
   "tags": [

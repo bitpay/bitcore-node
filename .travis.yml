@@ -14,9 +14,5 @@ node_js:
   - "v0.12.7"
   - "v4"
 script:
-  - _mocha -R spec regtest/p2p.js
-  - _mocha -R spec regtest/bitcoind.js
-  - _mocha -R spec regtest/cluster.js
-  - _mocha -R spec regtest/node.js
-  - _mocha -R spec --recursive
-
+  - npm run regtest
+  - npm run test
