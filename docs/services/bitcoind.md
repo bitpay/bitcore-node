@@ -297,20 +297,20 @@ node.services.bitcoind.on('block', function(blockHash) {
 ```
 
 For details on instantiating a bus for a node, see the [Bus Documentation](../bus.md).
-- Name: `bitcoind/transaction`, Arguments: `[address, address...]`
-- Name: `bitcoind/balance`, Arguments: `[address, address...]`
+- Name: `bitcoind/rawtransaction`
+- Name: `bitcoind/hashblock`
 
 **Examples:**
 
 ```js
-bus.subscribe('bitcoind/transaction', ['13FMwCYz3hUhwPcaWuD2M1U2KzfTtvLM89']);
-bus.subscribe('bitcoind/balance', ['13FMwCYz3hUhwPcaWuD2M1U2KzfTtvLM89']);
+bus.subscribe('bitcoind/rawtransaction');
+bus.subscribe('bitcoind/hashblock');
 
-bus.on('bitcoind/transaction', function(transaction) {
+bus.on('bitcoind/rawtransaction', function(transactionHex) {
   //...
 });
 
-bus.on('bitcoind/balance', function(balance) {
+bus.on('bitcoind/hashblock', function(blockhashHex) {
   //...
 });
 ```

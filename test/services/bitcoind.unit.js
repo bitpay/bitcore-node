@@ -73,8 +73,8 @@ describe('Bitcoin Service', function() {
     it('will set subscriptions', function() {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.subscriptions.should.deep.equal({
-        transaction: [],
-        block: []
+        rawtransaction: [],
+        hashblock: []
       });
     });
   });
@@ -100,11 +100,11 @@ describe('Bitcoin Service', function() {
       var events = bitcoind.getPublishEvents();
       should.exist(events);
       events.length.should.equal(2);
-      events[0].name.should.equal('bitcoind/transaction');
+      events[0].name.should.equal('bitcoind/rawtransaction');
       events[0].scope.should.equal(bitcoind);
       events[0].subscribe.should.be.a('function');
       events[0].unsubscribe.should.be.a('function');
-      events[1].name.should.equal('bitcoind/block');
+      events[1].name.should.equal('bitcoind/hashblock');
       events[1].scope.should.equal(bitcoind);
       events[1].subscribe.should.be.a('function');
       events[1].unsubscribe.should.be.a('function');
@@ -116,19 +116,19 @@ describe('Bitcoin Service', function() {
       var events = bitcoind.getPublishEvents();
 
       events[0].subscribe('test');
-      bitcoind.subscribe.args[0][0].should.equal('transaction');
+      bitcoind.subscribe.args[0][0].should.equal('rawtransaction');
       bitcoind.subscribe.args[0][1].should.equal('test');
 
       events[0].unsubscribe('test');
-      bitcoind.unsubscribe.args[0][0].should.equal('transaction');
+      bitcoind.unsubscribe.args[0][0].should.equal('rawtransaction');
       bitcoind.unsubscribe.args[0][1].should.equal('test');
 
       events[1].subscribe('test');
-      bitcoind.subscribe.args[1][0].should.equal('block');
+      bitcoind.subscribe.args[1][0].should.equal('hashblock');
       bitcoind.subscribe.args[1][1].should.equal('test');
 
       events[1].unsubscribe('test');
-      bitcoind.unsubscribe.args[1][0].should.equal('block');
+      bitcoind.unsubscribe.args[1][0].should.equal('hashblock');
       bitcoind.unsubscribe.args[1][1].should.equal('test');
     });
   });
@@ -137,12 +137,12 @@ describe('Bitcoin Service', function() {
     it('will push to subscriptions', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var emitter = {};
-      bitcoind.subscribe('block', emitter);
-      bitcoind.subscriptions.block[0].should.equal(emitter);
+      bitcoind.subscribe('hashblock', emitter);
+      bitcoind.subscriptions.hashblock[0].should.equal(emitter);
 
       var emitter2 = {};
-      bitcoind.subscribe('transaction', emitter2);
-      bitcoind.subscriptions.transaction[0].should.equal(emitter2);
+      bitcoind.subscribe('rawtransaction', emitter2);
+      bitcoind.subscriptions.rawtransaction[0].should.equal(emitter2);
     });
   });
 
@@ -154,19 +154,19 @@ describe('Bitcoin Service', function() {
       var emitter3 = {};
       var emitter4 = {};
       var emitter5 = {};
-      bitcoind.subscribe('block', emitter1);
-      bitcoind.subscribe('block', emitter2);
-      bitcoind.subscribe('block', emitter3);
-      bitcoind.subscribe('block', emitter4);
-      bitcoind.subscribe('block', emitter5);
-      bitcoind.subscriptions.block.length.should.equal(5);
+      bitcoind.subscribe('hashblock', emitter1);
+      bitcoind.subscribe('hashblock', emitter2);
+      bitcoind.subscribe('hashblock', emitter3);
+      bitcoind.subscribe('hashblock', emitter4);
+      bitcoind.subscribe('hashblock', emitter5);
+      bitcoind.subscriptions.hashblock.length.should.equal(5);
 
-      bitcoind.unsubscribe('block', emitter3);
-      bitcoind.subscriptions.block.length.should.equal(4);
-      bitcoind.subscriptions.block[0].should.equal(emitter1);
-      bitcoind.subscriptions.block[1].should.equal(emitter2);
-      bitcoind.subscriptions.block[2].should.equal(emitter4);
-      bitcoind.subscriptions.block[3].should.equal(emitter5);
+      bitcoind.unsubscribe('hashblock', emitter3);
+      bitcoind.subscriptions.hashblock.length.should.equal(4);
+      bitcoind.subscriptions.hashblock[0].should.equal(emitter1);
+      bitcoind.subscriptions.hashblock[1].should.equal(emitter2);
+      bitcoind.subscriptions.hashblock[2].should.equal(emitter4);
+      bitcoind.subscriptions.hashblock[3].should.equal(emitter5);
     });
   });
 
@@ -475,8 +475,8 @@ describe('Bitcoin Service', function() {
       var message = new Buffer('00000000002e08fc7ae9a9aa5380e95e2adcdc5752a4a66a7d3a22466bd4e6aa', 'hex');
       bitcoind._rapidProtectedUpdateTip = sinon.stub();
       var emitter = new EventEmitter();
-      bitcoind.subscriptions.block.push(emitter);
-      emitter.on('bitcoind/block', function(blockHash) {
+      bitcoind.subscriptions.hashblock.push(emitter);
+      emitter.on('bitcoind/hashblock', function(blockHash) {
         blockHash.should.equal(message.toString('hex'));
         done();
       });
@@ -625,8 +625,8 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var expectedBuffer = new Buffer('abcdef', 'hex');
       var emitter = new EventEmitter();
-      bitcoind.subscriptions.transaction.push(emitter);
-      emitter.on('bitcoind/transaction', function(hex) {
+      bitcoind.subscriptions.rawtransaction.push(emitter);
+      emitter.on('bitcoind/rawtransaction', function(hex) {
         hex.should.be.a('string');
         hex.should.equal(expectedBuffer.toString('hex'));
         done();
@@ -638,8 +638,8 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var expectedBuffer = new Buffer('abcdef', 'hex');
       var emitter = new EventEmitter();
-      bitcoind.subscriptions.transaction.push(emitter);
-      emitter.on('bitcoind/transaction', function() {
+      bitcoind.subscriptions.rawtransaction.push(emitter);
+      emitter.on('bitcoind/rawtransaction', function() {
         done();
       });
       var node = {};

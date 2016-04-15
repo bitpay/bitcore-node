@@ -199,9 +199,9 @@ describe('Node Functionality', function() {
       var bus = node.openBus();
       var blockExpected;
       var blockReceived;
-      bus.subscribe('bitcoind/block');
-      bus.on('bitcoind/block', function(data) {
-        bus.unsubscribe('bitcoind/block');
+      bus.subscribe('bitcoind/hashblock');
+      bus.on('bitcoind/hashblock', function(data) {
+        bus.unsubscribe('bitcoind/hashblock');
         if (blockExpected) {
           data.should.be.equal(blockExpected);
           done();
