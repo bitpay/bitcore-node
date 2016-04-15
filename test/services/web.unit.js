@@ -36,6 +36,19 @@ var WebService = proxyquire('../../lib/services/web', {http: httpStub, https: ht
 describe('WebService', function() {
   var defaultNode = new EventEmitter();
 
+  describe('@constructor', function() {
+    it('will set socket rpc settings', function() {
+      var web = new WebService({node: defaultNode, enableSocketRPC: false});
+      web.enableSocketRPC.should.equal(false);
+
+      var web2 = new WebService({node: defaultNode, enableSocketRPC: true});
+      web2.enableSocketRPC.should.equal(true);
+
+      var web3 = new WebService({node: defaultNode});
+      web3.enableSocketRPC.should.equal(WebService.DEFAULT_SOCKET_RPC);
+    });
+  });
+
   describe('#start', function() {
     beforeEach(function() {
       httpStub.createServer.reset();
@@ -233,6 +246,19 @@ describe('WebService', function() {
       };
       socket = new EventEmitter();
       web.socketHandler(socket);
+      socket.emit('message', 'data');
+    });
+
+    it('on message should NOT call socketMessageHandler if not enabled', function(done) {
+      web = new WebService({node: node, enableSocketRPC: false});
+      web.eventNames = web.getEventNames();
+      web.socketMessageHandler = sinon.stub();
+      socket = new EventEmitter();
+      web.socketHandler(socket);
+      socket.on('message', function() {
+        web.socketMessageHandler.callCount.should.equal(0);
+        done();
+      });
       socket.emit('message', 'data');
     });
 
