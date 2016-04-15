@@ -882,6 +882,43 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#getAddressBalance', function() {
+    it('will give rpc error', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.nodes.push({
+        client: {
+          getAddressBalance: sinon.stub().callsArgWith(1, {code: -1, message: 'Test error'})
+        }
+      });
+      var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
+      var options = {};
+      bitcoind.getAddressBalance(address, options, function(err) {
+        err.should.be.instanceof(Error);
+        done();
+      });
+    });
+    it('will give balance', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.nodes.push({
+        client: {
+          getAddressBalance: sinon.stub().callsArgWith(1, null, {
+            result: {
+              received: 100000,
+              balance: 10000
+            }
+          })
+        }
+      });
+      var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
+      var options = {};
+      bitcoind.getAddressBalance(address, options, function(err, data) {
+        if (err) {
+          return done(err);
+        }
+        data.balance.should.equal(10000);
+        data.received.should.equal(100000);
+        done();
+      });
+    });
   });
 
   describe('#getAddressUnspentOutputs', function() {
