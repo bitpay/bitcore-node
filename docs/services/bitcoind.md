@@ -292,7 +292,7 @@ node.services.bitcoind.on('tx', function(transactionBuffer) {
 });
 
 node.services.bitcoind.on('block', function(blockHash) {
-  // a new transaction has left the mempool
+  // a new block has been added
 });
 ```
 

@@ -47,7 +47,6 @@ There are several add-on services available to extend the functionality of Bitco
 - [Testing & Development](docs/testing.md) - Developer guide for testing
 - [Node](docs/node.md) - Details on the node constructor
 - [Bus](docs/bus.md) - Overview of the event bus constructor
-- [Errors](docs/errors.md) - Reference for error handling and types
 - [Release Process](docs/release.md) - Information about verifying a release and the release process.
 
 ## Contributing
