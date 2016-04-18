@@ -730,9 +730,9 @@ describe('Bitcoin Service', function() {
     });
     it('give error from client getblockchaininfo', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
-      bitcoind._reindexWait = 1;
       var node = {
         _reindex: true,
+        _reindexWait: 1,
         client: {
           getBlockchainInfo: sinon.stub().callsArgWith(0, {code: -1 , message: 'Test error'})
         }
@@ -745,10 +745,10 @@ describe('Bitcoin Service', function() {
     });
     it('will wait until sync is 100 percent', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
-      bitcoind._reindexWait = 1;
       var percent = 0.89;
       var node = {
         _reindex: true,
+        _reindexWait: 1,
         client: {
           getBlockchainInfo: function(callback) {
             percent += 0.01;
