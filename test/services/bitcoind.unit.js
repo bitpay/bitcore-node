@@ -1760,6 +1760,134 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#getBlock', function() {
+    var blockhex = '0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000';
+    it('will give an rpc error from client getblock', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlock = sinon.stub().callsArgWith(2, {code: -1, message: 'Test error'});
+      var getBlockHash = sinon.stub().callsArgWith(1, null, {});
+      bitcoind.nodes.push({
+        client: {
+          getBlock: getBlock,
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getBlock(0, function(err) {
+        err.should.be.instanceof(Error);
+        done();
+      });
+    });
+    it('will give an rpc error from client getblockhash', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHash = sinon.stub().callsArgWith(1, {code: -1, message: 'Test error'});
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getBlock(0, function(err) {
+        err.should.be.instanceof(Error);
+        done();
+      });
+    });
+    it('will getblock as bitcore object from height', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlock = sinon.stub().callsArgWith(2, null, {
+        result: blockhex
+      });
+      var getBlockHash = sinon.stub().callsArgWith(1, null, {
+        result: '00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b'
+      });
+      bitcoind.nodes.push({
+        client: {
+          getBlock: getBlock,
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getBlock(0, function(err, block) {
+        should.not.exist(err);
+        getBlock.args[0][0].should.equal('00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b');
+        getBlock.args[0][1].should.equal(false);
+        block.should.be.instanceof(bitcore.Block);
+        done();
+      });
+    });
+    it('will getblock as bitcore object', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlock = sinon.stub().callsArgWith(2, null, {
+        result: blockhex
+      });
+      var getBlockHash = sinon.stub();
+      bitcoind.nodes.push({
+        client: {
+          getBlock: getBlock,
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getBlock('00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b', function(err, block) {
+        should.not.exist(err);
+        getBlockHash.callCount.should.equal(0);
+        getBlock.callCount.should.equal(1);
+        getBlock.args[0][0].should.equal('00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b');
+        getBlock.args[0][1].should.equal(false);
+        block.should.be.instanceof(bitcore.Block);
+        done();
+      });
+    });
+    it('will get block from cache', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlock = sinon.stub().callsArgWith(2, null, {
+        result: blockhex
+      });
+      var getBlockHash = sinon.stub();
+      bitcoind.nodes.push({
+        client: {
+          getBlock: getBlock,
+          getBlockHash: getBlockHash
+        }
+      });
+      var hash = '00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b';
+      bitcoind.getBlock(hash, function(err, block) {
+        should.not.exist(err);
+        getBlockHash.callCount.should.equal(0);
+        getBlock.callCount.should.equal(1);
+        block.should.be.instanceof(bitcore.Block);
+        bitcoind.getBlock(hash, function(err, block) {
+          should.not.exist(err);
+          getBlockHash.callCount.should.equal(0);
+          getBlock.callCount.should.equal(1);
+          block.should.be.instanceof(bitcore.Block);
+          done();
+        });
+      });
+    });
+    it('will get block from cache with height (but not height)', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlock = sinon.stub().callsArgWith(2, null, {
+        result: blockhex
+      });
+      var getBlockHash = sinon.stub().callsArgWith(1, null, {
+        result: '00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b'
+      });
+      bitcoind.nodes.push({
+        client: {
+          getBlock: getBlock,
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getBlock(0, function(err, block) {
+        should.not.exist(err);
+        getBlockHash.callCount.should.equal(1);
+        getBlock.callCount.should.equal(1);
+        block.should.be.instanceof(bitcore.Block);
+        bitcoind.getBlock(0, function(err, block) {
+          should.not.exist(err);
+          getBlockHash.callCount.should.equal(2);
+          getBlock.callCount.should.equal(1);
+          block.should.be.instanceof(bitcore.Block);
+          done();
+        });
+      });
+    });
   });
 
   describe('#getBlockHashesByTimestamp', function() {
