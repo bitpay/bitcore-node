@@ -1926,6 +1926,73 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#getBlockHeader', function() {
+    var blockhash = '00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b';
+    it('it will give rpc error from client getblockheader', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHeader = sinon.stub().callsArgWith(1, {code: -1, message: 'Test error'});
+      bitcoind.nodes.push({
+        client: {
+          getBlockHeader: getBlockHeader
+        }
+      });
+      bitcoind.getBlockHeader(blockhash, function(err) {
+        err.should.be.instanceof(Error);
+      });
+    });
+    it('it will give rpc error from client getblockhash', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHeader = sinon.stub();
+      var getBlockHash = sinon.stub().callsArgWith(1, {code: -1, message: 'Test error'});
+      bitcoind.nodes.push({
+        client: {
+          getBlockHeader: getBlockHeader,
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getBlockHeader(0, function(err) {
+        err.should.be.instanceof(Error);
+      });
+    });
+    it('will give result from client getblockheader (from height)', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {};
+      var getBlockHeader = sinon.stub().callsArgWith(1, null, {
+        result: result
+      });
+      var getBlockHash = sinon.stub().callsArgWith(1, null, {
+        result: blockhash
+      });
+      bitcoind.nodes.push({
+        client: {
+          getBlockHeader: getBlockHeader,
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getBlockHeader(0, function(err, blockHeader) {
+        should.not.exist(err);
+        getBlockHeader.args[0][0].should.equal(blockhash);
+        blockHeader.should.equal(result);
+      });
+    });
+    it('will give result from client getblockheader (from hash)', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {};
+      var getBlockHeader = sinon.stub().callsArgWith(1, null, {
+        result: result
+      });
+      var getBlockHash = sinon.stub();
+      bitcoind.nodes.push({
+        client: {
+          getBlockHeader: getBlockHeader,
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getBlockHeader(blockhash, function(err, blockHeader) {
+        should.not.exist(err);
+        getBlockHash.callCount.should.equal(0);
+        blockHeader.should.equal(result);
+      });
+    });
   });
 
   describe('#estimateFee', function() {
