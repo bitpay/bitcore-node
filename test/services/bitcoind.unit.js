@@ -264,12 +264,12 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_checkConfigIndexes', function() {
-    var stub;
+    var sandbox = sinon.sandbox.create();
     beforeEach(function() {
-      stub = sinon.stub(log, 'warn');
+      sandbox.stub(log, 'warn');
     });
     after(function() {
-      stub.restore();
+      sandbox.restore();
     });
     it('should warn the user if reindex is set to 1 in the bitcoin.conf file', function() {
       var bitcoind = new BitcoinService(baseConfig);
@@ -764,12 +764,243 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_loadTipFromNode', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'warn');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
+    it('will give rpc from client getbestblockhash', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBestBlockHash = sinon.stub().callsArgWith(0, {code: -1, message: 'Test error'});
+      var node = {
+        client: {
+          getBestBlockHash: getBestBlockHash
+        }
+      };
+      bitcoind._loadTipFromNode(node, function(err) {
+        err.should.be.instanceof(Error);
+        log.warn.callCount.should.equal(0);
+        done();
+      });
+    });
+    it('will give rpc from client getblock', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBestBlockHash = sinon.stub().callsArgWith(0, null, {
+        result: '00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45'
+      });
+      var getBlock = sinon.stub().callsArgWith(1, new Error('Test error'));
+      var node = {
+        client: {
+          getBestBlockHash: getBestBlockHash,
+          getBlock: getBlock
+        }
+      };
+      bitcoind._loadTipFromNode(node, function(err) {
+        getBlock.args[0][0].should.equal('00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45');
+        err.should.be.instanceof(Error);
+        log.warn.callCount.should.equal(0);
+        done();
+      });
+    });
+    it('will log when error is RPC_IN_WARMUP', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBestBlockHash = sinon.stub().callsArgWith(0, {code: -28, message: 'Verifying blocks...'});
+      var node = {
+        client: {
+          getBestBlockHash: getBestBlockHash
+        }
+      };
+      bitcoind._loadTipFromNode(node, function(err) {
+        err.should.be.instanceof(Error);
+        log.warn.callCount.should.equal(1);
+        done();
+      });
+    });
+    it('will set height and emit tip', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBestBlockHash = sinon.stub().callsArgWith(0, null, {
+        result: '00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45'
+      });
+      var getBlock = sinon.stub().callsArgWith(1, null, {
+        result: {
+          height: 100
+        }
+      });
+      var node = {
+        client: {
+          getBestBlockHash: getBestBlockHash,
+          getBlock: getBlock
+        }
+      };
+      bitcoind.on('tip', function(height) {
+        height.should.equal(100);
+        bitcoind.height.should.equal(100);
+        done();
+      });
+      bitcoind._loadTipFromNode(node, function(err) {
+        if (err) {
+          return done(err);
+        }
+      });
+    });
   });
 
   describe('#_spawnChildProcess', function() {
+    it('will give error from spawn config', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._loadSpawnConfiguration = sinon.stub().throws(new Error('test'));
+      bitcoind._spawnChildProcess(function(err) {
+        err.should.be.instanceof(Error);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('will include network with spawn command and init zmq/rpc on node', function(done) {
+      var process = new EventEmitter();
+      var spawn = sinon.stub().returns(process);
+      var TestBitcoinService = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          readFileSync: readFileSync
+        },
+        child_process: {
+          spawn: spawn
+        }
+      });
+      var bitcoind = new TestBitcoinService(baseConfig);
+
+      bitcoind._loadSpawnConfiguration = sinon.stub();
+      bitcoind.spawn = {};
+      bitcoind.spawn.exec = 'testexec';
+      bitcoind.spawn.configPath = 'testdir/bitcoin.conf';
+      bitcoind.spawn.datadir = 'testdir';
+      bitcoind.spawn.config = {};
+      bitcoind.spawn.config.rpcport = 20001;
+      bitcoind.spawn.config.rpcuser = 'bitcoin';
+      bitcoind.spawn.config.rpcpassword = 'password';
+      bitcoind.spawn.config.zmqpubrawtx = 'tcp://127.0.0.1:30001';
+
+      bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, null);
+      bitcoind._initZmqSubSocket = sinon.stub();
+      bitcoind._subscribeZmqEvents = sinon.stub();
+      bitcoind._checkReindex = sinon.stub().callsArgWith(1, null);
+      bitcoind._spawnChildProcess(function(err, node) {
+        should.not.exist(err);
+        spawn.callCount.should.equal(1);
+        spawn.args[0][0].should.equal('testexec');
+        spawn.args[0][1].should.deep.equal([
+          '--conf=testdir/bitcoin.conf',
+          '--datadir=testdir',
+          '--testnet'
+        ]);
+        spawn.args[0][2].should.deep.equal({
+          stdio: 'inherit'
+        });
+        bitcoind._loadTipFromNode.callCount.should.equal(1);
+        bitcoind._initZmqSubSocket.callCount.should.equal(1);
+        should.exist(bitcoind._initZmqSubSocket.args[0][0].client);
+        bitcoind._initZmqSubSocket.args[0][1].should.equal('tcp://127.0.0.1:30001');
+        bitcoind._subscribeZmqEvents.callCount.should.equal(1);
+        should.exist(bitcoind._subscribeZmqEvents.args[0][0].client);
+        should.exist(node);
+        should.exist(node.client);
+        done();
+      });
+    });
+    it('will give error after 60 retries', function(done) {
+      var process = new EventEmitter();
+      var spawn = sinon.stub().returns(process);
+      var TestBitcoinService = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          readFileSync: readFileSync
+        },
+        child_process: {
+          spawn: spawn
+        }
+      });
+      var bitcoind = new TestBitcoinService(baseConfig);
+      bitcoind.startRetryInterval = 1;
+      bitcoind._loadSpawnConfiguration = sinon.stub();
+      bitcoind.spawn = {};
+      bitcoind.spawn.exec = 'testexec';
+      bitcoind.spawn.configPath = 'testdir/bitcoin.conf';
+      bitcoind.spawn.datadir = 'testdir';
+      bitcoind.spawn.config = {};
+      bitcoind.spawn.config.rpcport = 20001;
+      bitcoind.spawn.config.rpcuser = 'bitcoin';
+      bitcoind.spawn.config.rpcpassword = 'password';
+      bitcoind.spawn.config.zmqpubrawtx = 'tcp://127.0.0.1:30001';
+      bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, new Error('test'));
+      bitcoind._spawnChildProcess(function(err) {
+        err.should.be.instanceof(Error);
+        done();
+      });
+    });
+    it('will give error from check reindex', function(done) {
+      var process = new EventEmitter();
+      var spawn = sinon.stub().returns(process);
+      var TestBitcoinService = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          readFileSync: readFileSync
+        },
+        child_process: {
+          spawn: spawn
+        }
+      });
+      var bitcoind = new TestBitcoinService(baseConfig);
+
+      bitcoind._loadSpawnConfiguration = sinon.stub();
+      bitcoind.spawn = {};
+      bitcoind.spawn.exec = 'testexec';
+      bitcoind.spawn.configPath = 'testdir/bitcoin.conf';
+      bitcoind.spawn.datadir = 'testdir';
+      bitcoind.spawn.config = {};
+      bitcoind.spawn.config.rpcport = 20001;
+      bitcoind.spawn.config.rpcuser = 'bitcoin';
+      bitcoind.spawn.config.rpcpassword = 'password';
+      bitcoind.spawn.config.zmqpubrawtx = 'tcp://127.0.0.1:30001';
+
+      bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, null);
+      bitcoind._initZmqSubSocket = sinon.stub();
+      bitcoind._subscribeZmqEvents = sinon.stub();
+      bitcoind._checkReindex = sinon.stub().callsArgWith(1, new Error('test'));
+
+      bitcoind._spawnChildProcess(function(err) {
+        err.should.be.instanceof(Error);
+        done();
+      });
+    });
   });
 
   describe('#_connectProcess', function() {
+    it('will give error from loadTipFromNode after 60 retries', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, new Error('test'));
+      bitcoind.startRetryInterval = 1;
+      var config = {};
+      bitcoind._connectProcess(config, function(err) {
+        err.should.be.instanceof(Error);
+        bitcoind._loadTipFromNode.callCount.should.equal(60);
+        done();
+      });
+    });
+    it('will init zmq/rpc on node', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._initZmqSubSocket = sinon.stub();
+      bitcoind._subscribeZmqEvents = sinon.stub();
+      bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, null);
+      var config = {};
+      bitcoind._connectProcess(config, function(err, node) {
+        should.not.exist(err);
+        bitcoind._loadTipFromNode.callCount.should.equal(1);
+        bitcoind._initZmqSubSocket.callCount.should.equal(1);
+        bitcoind._loadTipFromNode.callCount.should.equal(1);
+        should.exist(node);
+        should.exist(node.client);
+        done();
+      });
+    });
   });
 
   describe('#start', function() {
