@@ -773,6 +773,73 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#start', function() {
+    it('will give error if "spawn" and "connect" are both not configured', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.options = {};
+      bitcoind.start(function(err) {
+        err.should.be.instanceof(Error);
+        err.message.should.match(/Bitcoin configuration options/);
+      });
+      done();
+    });
+    it('will give error from spawnChildProcess', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._spawnChildProcess = sinon.stub().callsArgWith(0, new Error('test'));
+      bitcoind.options = {
+        spawn: {}
+      };
+      bitcoind.start(function(err) {
+        err.should.be.instanceof(Error);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('will give error from connectProcess', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._connectProcess = sinon.stub().callsArgWith(1, new Error('test'));
+      bitcoind.options = {
+        connect: [
+          {}
+        ]
+      };
+      bitcoind.start(function(err) {
+        bitcoind._connectProcess.callCount.should.equal(1);
+        err.should.be.instanceof(Error);
+        err.message.should.equal('test');
+        done();
+      });
+    });
+    it('will push node from spawnChildProcess', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var node = {};
+      bitcoind._initChain = sinon.stub().callsArg(0);
+      bitcoind._spawnChildProcess = sinon.stub().callsArgWith(0, null, node);
+      bitcoind.options = {
+        spawn: {}
+      };
+      bitcoind.start(function(err) {
+        should.not.exist(err);
+        bitcoind.nodes.length.should.equal(1);
+        done();
+      });
+    });
+    it('will push node from connectProcess', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._initChain = sinon.stub().callsArg(0);
+      var nodes = [{}];
+      bitcoind._connectProcess = sinon.stub().callsArgWith(1, null, nodes);
+      bitcoind.options = {
+        connect: [
+          {}
+        ]
+      };
+      bitcoind.start(function(err) {
+        should.not.exist(err);
+        bitcoind._connectProcess.callCount.should.equal(1);
+        bitcoind.nodes.length.should.equal(1);
+        done();
+      });
+    });
   });
 
   describe('#isSynced', function() {
