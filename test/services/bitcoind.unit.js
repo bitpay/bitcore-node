@@ -1308,12 +1308,77 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_getBalanceFromMempool', function() {
+    it('will sum satoshis', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var deltas = [
+        {
+          satoshis: -1000,
+        },
+        {
+          satoshis: 2000,
+        },
+        {
+          satoshis: -10,
+        }
+      ];
+      var sum = bitcoind._getBalanceFromMempool(deltas);
+      sum.should.equal(990);
+    });
   });
 
   describe('#_getTxidsMempool', function() {
+    it('will filter to txids', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var deltas = [
+        {
+          txid: 'txid0',
+        },
+        {
+          txid: 'txid1',
+        },
+        {
+          txid: 'txid2',
+        }
+      ];
+      var txids = bitcoind._getTxidsFromMempool(deltas);
+      txids.length.should.equal(3);
+      txids[0].should.equal('txid0');
+      txids[1].should.equal('txid1');
+      txids[2].should.equal('txid2');
+    });
   });
 
   describe('#_getHeightRangeQuery', function() {
+    it('will detect range query', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var options = {
+        start: 20,
+        end: 0
+      };
+      var rangeQuery = bitcoind._getHeightRangeQuery(options);
+      rangeQuery.should.equal(true);
+    });
+    it('will get range properties', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var options = {
+        start: 20,
+        end: 0
+      };
+      var clone = {};
+      bitcoind._getHeightRangeQuery(options, clone);
+      clone.end.should.equal(20);
+      clone.start.should.equal(0);
+    });
+    it('will throw error with invalid range', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var options = {
+        start: 0,
+        end: 20
+      };
+      (function() {
+        bitcoind._getHeightRangeQuery(options);
+      }).should.throw('"end" is expected');
+    });
   });
 
   describe('#getAddressTxids', function() {
