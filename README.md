@@ -44,7 +44,7 @@ There are several add-on services available to extend the functionality of Bitco
 - [Services](docs/services.md)
   - [Bitcoind](docs/services/bitcoind.md) - Interface to Bitcoin Core
   - [Web](docs/services/web.md) - Creates an express application over which services can expose their web/API content
-- [Testing & Development](docs/testing.md) - Developer guide for testing
+- [Development Environment](docs/development.md) - Guide for setting up a development environment
 - [Node](docs/node.md) - Details on the node constructor
 - [Bus](docs/bus.md) - Overview of the event bus constructor
 - [Release Process](docs/release.md) - Information about verifying a release and the release process.
