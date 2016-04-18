@@ -41,6 +41,7 @@ There are several add-on services available to extend the functionality of Bitco
 
 ## Documentation
 
+- [Upgrade Notes](docs/upgrade.md)
 - [Services](docs/services.md)
   - [Bitcoind](docs/services/bitcoind.md) - Interface to Bitcoin Core
   - [Web](docs/services/web.md) - Creates an express application over which services can expose their web/API content
