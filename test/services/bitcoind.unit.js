@@ -1410,6 +1410,46 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_getAddressStrings', function() {
+    it('will get address strings from bitcore addresses', function() {
+      var addresses = [
+        bitcore.Address('1AGNa15ZQXAZUgFiqJ2i7Z2DPU2J6hW62i'),
+        bitcore.Address('3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou'),
+      ];
+      var bitcoind = new BitcoinService(baseConfig);
+      var strings = bitcoind._getAddressStrings(addresses);
+      strings[0].should.equal('1AGNa15ZQXAZUgFiqJ2i7Z2DPU2J6hW62i');
+      strings[1].should.equal('3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou');
+    });
+    it('will get address strings from strings', function() {
+      var addresses = [
+        '1AGNa15ZQXAZUgFiqJ2i7Z2DPU2J6hW62i',
+        '3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou',
+      ];
+      var bitcoind = new BitcoinService(baseConfig);
+      var strings = bitcoind._getAddressStrings(addresses);
+      strings[0].should.equal('1AGNa15ZQXAZUgFiqJ2i7Z2DPU2J6hW62i');
+      strings[1].should.equal('3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou');
+    });
+    it('will get address strings from mixture of types', function() {
+      var addresses = [
+        bitcore.Address('1AGNa15ZQXAZUgFiqJ2i7Z2DPU2J6hW62i'),
+        '3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou',
+      ];
+      var bitcoind = new BitcoinService(baseConfig);
+      var strings = bitcoind._getAddressStrings(addresses);
+      strings[0].should.equal('1AGNa15ZQXAZUgFiqJ2i7Z2DPU2J6hW62i');
+      strings[1].should.equal('3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou');
+    });
+    it('will give error with unknown', function() {
+      var addresses = [
+        bitcore.Address('1AGNa15ZQXAZUgFiqJ2i7Z2DPU2J6hW62i'),
+        0,
+      ];
+      var bitcoind = new BitcoinService(baseConfig);
+      (function() {
+        bitcoind._getAddressStrings(addresses);
+      }).should.throw(TypeError);
+    });
   });
 
   describe('#_paginateTxids', function() {
