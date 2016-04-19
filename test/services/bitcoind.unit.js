@@ -669,6 +669,47 @@ describe('Bitcoin Service', function() {
     });
   });
 
+  describe('#_checkSyncedAndSubscribeZmqEvents', function() {
+    var sandbox = sinon.sandbox.create();
+    before(function() {
+      sandbox.stub(log, 'error');
+    });
+    after(function() {
+      sandbox.restore();
+    });
+    it('log errors, update tip and subscribe to zmq events', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._updateTip = sinon.stub();
+      bitcoind._subscribeZmqEvents = sinon.stub();
+      var getBestBlockHash = sinon.stub().callsArgWith(0, null, {
+        result: '00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45'
+      });
+      getBestBlockHash.onCall(0).callsArgWith(0, {code: -1 , message: 'Test error'});
+      var getBlockchainInfo = sinon.stub().callsArgWith(0, null, {
+        result: {
+          verificationprogress: 0.99
+        }
+      });
+      getBlockchainInfo.onCall(0).callsArgWith(0, {code: -1, message: 'Test error'});
+      var node = {
+        _reindex: true,
+        _reindexWait: 1,
+        _tipUpdateInterval: 1,
+        client: {
+          getBestBlockHash: getBestBlockHash,
+          getBlockchainInfo: getBlockchainInfo
+        }
+      };
+      bitcoind._checkSyncedAndSubscribeZmqEvents(node);
+      setTimeout(function() {
+        log.error.callCount.should.equal(2);
+        bitcoind._updateTip.callCount.should.equal(2);
+        bitcoind._subscribeZmqEvents.callCount.should.equal(1);
+        done();
+      }, 10);
+    });
+  });
+
   describe('#_subscribeZmqEvents', function() {
     it('will call subscribe on zmq socket', function() {
       var bitcoind = new BitcoinService(baseConfig);
@@ -888,7 +929,7 @@ describe('Bitcoin Service', function() {
 
       bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, null);
       bitcoind._initZmqSubSocket = sinon.stub();
-      bitcoind._subscribeZmqEvents = sinon.stub();
+      bitcoind._checkSyncedAndSubscribeZmqEvents = sinon.stub();
       bitcoind._checkReindex = sinon.stub().callsArgWith(1, null);
       bitcoind._spawnChildProcess(function(err, node) {
         should.not.exist(err);
@@ -906,8 +947,8 @@ describe('Bitcoin Service', function() {
         bitcoind._initZmqSubSocket.callCount.should.equal(1);
         should.exist(bitcoind._initZmqSubSocket.args[0][0].client);
         bitcoind._initZmqSubSocket.args[0][1].should.equal('tcp://127.0.0.1:30001');
-        bitcoind._subscribeZmqEvents.callCount.should.equal(1);
-        should.exist(bitcoind._subscribeZmqEvents.args[0][0].client);
+        bitcoind._checkSyncedAndSubscribeZmqEvents.callCount.should.equal(1);
+        should.exist(bitcoind._checkSyncedAndSubscribeZmqEvents.args[0][0].client);
         should.exist(node);
         should.exist(node.client);
         done();
@@ -968,7 +1009,7 @@ describe('Bitcoin Service', function() {
 
       bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, null);
       bitcoind._initZmqSubSocket = sinon.stub();
-      bitcoind._subscribeZmqEvents = sinon.stub();
+      bitcoind._checkSyncedAndSubscribeZmqEvents = sinon.stub();
       bitcoind._checkReindex = sinon.stub().callsArgWith(1, new Error('test'));
 
       bitcoind._spawnChildProcess(function(err) {
@@ -993,7 +1034,7 @@ describe('Bitcoin Service', function() {
     it('will init zmq/rpc on node', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind._initZmqSubSocket = sinon.stub();
-      bitcoind._subscribeZmqEvents = sinon.stub();
+      bitcoind._checkSyncedAndSubscribeZmqEvents = sinon.stub();
       bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, null);
       var config = {};
       bitcoind._connectProcess(config, function(err, node) {
