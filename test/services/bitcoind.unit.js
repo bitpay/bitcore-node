@@ -1048,7 +1048,7 @@ describe('Bitcoin Service', function() {
     it('will init zmq/rpc on node', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind._initZmqSubSocket = sinon.stub();
-      bitcoind._checkSyncedAndSubscribeZmqEvents = sinon.stub();
+      bitcoind._subscribeZmqEvents = sinon.stub();
       bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, null);
       var config = {};
       bitcoind._connectProcess(config, function(err, node) {
