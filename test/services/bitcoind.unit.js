@@ -685,11 +685,20 @@ describe('Bitcoin Service', function() {
         result: '00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45'
       });
       getBestBlockHash.onCall(0).callsArgWith(0, {code: -1 , message: 'Test error'});
-      var getBlockchainInfo = sinon.stub().callsArgWith(0, null, {
-        result: {
-          verificationprogress: 0.99
+      var progress = 0.90;
+      function getProgress() {
+        progress = progress + 0.01;
+        return progress;
+      }
+      var info = {};
+      Object.defineProperty(info, 'result', {
+        get: function() {
+          return {
+            verificationprogress: getProgress()
+          };
         }
       });
+      var getBlockchainInfo = sinon.stub().callsArgWith(0, null, info);
       getBlockchainInfo.onCall(0).callsArgWith(0, {code: -1, message: 'Test error'});
       var node = {
         _reindex: true,
@@ -703,10 +712,10 @@ describe('Bitcoin Service', function() {
       bitcoind._checkSyncedAndSubscribeZmqEvents(node);
       setTimeout(function() {
         log.error.callCount.should.equal(2);
-        bitcoind._updateTip.callCount.should.equal(2);
+        bitcoind._updateTip.callCount.should.equal(10);
         bitcoind._subscribeZmqEvents.callCount.should.equal(1);
         done();
-      }, 10);
+      }, 20);
     });
   });
 
