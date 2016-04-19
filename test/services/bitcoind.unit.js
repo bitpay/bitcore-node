@@ -681,6 +681,10 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind._updateTip = sinon.stub();
       bitcoind._subscribeZmqEvents = sinon.stub();
+      var blockEvents = 0;
+      bitcoind.on('block', function() {
+        blockEvents++;
+      });
       var getBestBlockHash = sinon.stub().callsArgWith(0, null, {
         result: '00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45'
       });
@@ -712,6 +716,7 @@ describe('Bitcoin Service', function() {
       bitcoind._checkSyncedAndSubscribeZmqEvents(node);
       setTimeout(function() {
         log.error.callCount.should.equal(2);
+        blockEvents.should.equal(10);
         bitcoind._updateTip.callCount.should.equal(10);
         bitcoind._subscribeZmqEvents.callCount.should.equal(1);
         done();
