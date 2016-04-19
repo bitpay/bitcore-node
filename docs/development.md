@@ -28,11 +28,12 @@ git checkout <branchname>
 **Note**: See bitcoin documentation for building bitcoin on your platform.
 
 
-## Install ZeroMQ Development Dependency
+## Install Development Dependencies
 
 For Ubuntu:
 ```bash
-sudo apt-get install libzmq-dev
+sudo apt-get install libzmq3-dev
+sudo apt-get install build-essential
 ```
 
 For Mac OS X:
@@ -112,7 +113,8 @@ Edit `bitcore-node.json` with something similar to:
     "bitcoind",
     "web",
     "insight-api",
-    "insight-ui"
+    "insight-ui",
+    "<additional_service>"
   ],
   "servicesConfig": {
     "bitcoind": {
@@ -124,6 +126,8 @@ Edit `bitcore-node.json` with something similar to:
   }
 }
 ```
+
+**Note**: To install services [insight-api](https://github.com/bitpay/insight-api) and [insight-ui](https://github.com/bitpay/insight-ui) you'll need to clone the repositories locally.
 
 Setup symlinks for all of the services and dependencies:
 
