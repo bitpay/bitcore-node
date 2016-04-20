@@ -411,6 +411,100 @@ describe('Bitcoin Service', function() {
     });
   });
 
+  describe('#_getDefaultConf', function() {
+    afterEach(function() {
+      bitcore.Networks.disableRegtest();
+      baseConfig.node.network = bitcore.Networks.testnet;
+    });
+    it('will get default rpc port for livenet', function() {
+      var config = {
+        node: {
+          network: bitcore.Networks.livenet
+        },
+        spawn: {
+          datadir: 'testdir',
+          exec: 'testpath'
+        }
+      };
+      var bitcoind = new BitcoinService(config);
+      bitcoind._getDefaultConf().rpcport.should.equal(8332);
+    });
+    it('will get default rpc port for testnet', function() {
+      var config = {
+        node: {
+          network: bitcore.Networks.testnet
+        },
+        spawn: {
+          datadir: 'testdir',
+          exec: 'testpath'
+        }
+      };
+      var bitcoind = new BitcoinService(config);
+      bitcoind._getDefaultConf().rpcport.should.equal(18332);
+    });
+    it('will get default rpc port for regtest', function() {
+      bitcore.Networks.enableRegtest();
+      var config = {
+        node: {
+          network: bitcore.Networks.testnet
+        },
+        spawn: {
+          datadir: 'testdir',
+          exec: 'testpath'
+        }
+      };
+      var bitcoind = new BitcoinService(config);
+      bitcoind._getDefaultConf().rpcport.should.equal(18332);
+    });
+  });
+
+  describe('#_getNetworkConfigPath', function() {
+    afterEach(function() {
+      bitcore.Networks.disableRegtest();
+      baseConfig.node.network = bitcore.Networks.testnet;
+    });
+    it('will get default config path for livenet', function() {
+      var config = {
+        node: {
+          network: bitcore.Networks.livenet
+        },
+        spawn: {
+          datadir: 'testdir',
+          exec: 'testpath'
+        }
+      };
+      var bitcoind = new BitcoinService(config);
+      should.equal(bitcoind._getNetworkConfigPath(), undefined);
+    });
+    it('will get default rpc port for testnet', function() {
+      var config = {
+        node: {
+          network: bitcore.Networks.testnet
+        },
+        spawn: {
+          datadir: 'testdir',
+          exec: 'testpath'
+        }
+      };
+      var bitcoind = new BitcoinService(config);
+      bitcoind._getNetworkConfigPath().should.equal('testnet3/bitcoin.conf');
+    });
+    it('will get default rpc port for regtest', function() {
+      bitcore.Networks.enableRegtest();
+      var config = {
+        node: {
+          network: bitcore.Networks.testnet
+        },
+        spawn: {
+          datadir: 'testdir',
+          exec: 'testpath'
+        }
+      };
+      var bitcoind = new BitcoinService(config);
+      bitcoind._getNetworkConfigPath().should.equal('regtest/bitcoin.conf');
+    });
+  });
+
   describe('#_getNetworkOption', function() {
     afterEach(function() {
       bitcore.Networks.disableRegtest();
