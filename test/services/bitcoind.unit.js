@@ -814,7 +814,7 @@ describe('Bitcoin Service', function() {
         bitcoind._updateTip.callCount.should.equal(10);
         bitcoind._subscribeZmqEvents.callCount.should.equal(1);
         done();
-      }, 40);
+      }, 200);
     });
   });
 
