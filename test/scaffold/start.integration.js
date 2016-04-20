@@ -28,6 +28,8 @@ describe('#start', function() {
         '../node': TestNode
       });
 
+      starttest.registerExitHandlers = sinon.stub();
+
       node = starttest({
         path: __dirname,
         config: {
@@ -51,6 +53,8 @@ describe('#start', function() {
         '../node': TestNode
       });
       starttest.cleanShutdown = sinon.stub();
+      starttest.registerExitHandlers = sinon.stub();
+
       starttest({
         path: __dirname,
         config: {
@@ -83,6 +87,7 @@ describe('#start', function() {
       var starttest = proxyquire('../../lib/scaffold/start', {
         '../node': TestNode
       });
+      starttest.registerExitHandlers = sinon.stub();
 
       node = starttest({
         path: __dirname,
