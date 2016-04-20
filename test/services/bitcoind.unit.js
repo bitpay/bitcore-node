@@ -1992,8 +1992,14 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       (function() {
-        var paginated = bitcoind._paginateTxids(txids, 1, 0);
-      }).should.throw('"from" is expected to be less than "to"');
+        bitcoind._paginateTxids(txids, 1, 0);
+      }).should.throw('"from" (1) is expected to be less than "to"');
+    });
+    it('will handle string numbers', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      var paginated = bitcoind._paginateTxids(txids, '1', '3');
+      paginated.should.deep.equal([1, 2]);
     });
   });
 
