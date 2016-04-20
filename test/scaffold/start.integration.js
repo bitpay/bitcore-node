@@ -15,7 +15,11 @@ describe('#start', function() {
         options.services[0].should.deep.equal({
           name: 'bitcoind',
           module: BitcoinService,
-          config: {}
+          config: {
+            spawn: {
+              datadir: './data'
+            }
+          }
         });
       };
       TestNode.prototype.start = sinon.stub().callsArg(0);
@@ -36,7 +40,13 @@ describe('#start', function() {
           services: [
             'bitcoind'
           ],
-          datadir: './data'
+          servicesConfig: {
+            bitcoind: {
+              spawn: {
+                datadir: './data'
+              }
+            }
+          }
         }
       });
       node.should.be.instanceof(TestNode);
@@ -59,7 +69,7 @@ describe('#start', function() {
         path: __dirname,
         config: {
           services: [],
-          datadir: './testdir'
+          servicesConfig: {}
         }
       });
       setImmediate(function() {
@@ -74,7 +84,10 @@ describe('#start', function() {
           name: 'bitcoind',
           module: BitcoinService,
           config: {
-            param: 'test'
+            param: 'test',
+            spawn: {
+              datadir: './data'
+            }
           }
         });
       };
@@ -97,10 +110,13 @@ describe('#start', function() {
           ],
           servicesConfig: {
             'bitcoind': {
-              param: 'test'
+              param: 'test',
+              spawn: {
+                datadir: './data'
+              }
             }
           },
-          datadir: './data'
+
         }
       });
       node.should.be.instanceof(TestNode);
