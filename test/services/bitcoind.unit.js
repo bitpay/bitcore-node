@@ -3032,6 +3032,19 @@ describe('Bitcoin Service', function() {
       bitcoind.spawn.process.kill.args[0][0].should.equal('SIGINT');
       bitcoind.spawn.process.emit('exit', 1);
     });
+    it('will stop after timeout', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.shutdownTimeout = 300;
+      bitcoind.spawn = {};
+      bitcoind.spawn.process = new EventEmitter();
+      bitcoind.spawn.process.kill = sinon.stub();
+      bitcoind.stop(function(err) {
+        err.should.be.instanceof(Error);
+        done();
+      });
+      bitcoind.spawn.process.kill.callCount.should.equal(1);
+      bitcoind.spawn.process.kill.args[0][0].should.equal('SIGINT');
+    });
   });
 
 });
