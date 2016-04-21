@@ -243,6 +243,8 @@ describe('Node Functionality', function() {
       var address5;
       var testKey6;
       var address6;
+      var tx2Amount;
+      var tx2Hash;
 
       before(function(done) {
         /* jshint maxstatements: 50 */
@@ -313,10 +315,12 @@ describe('Node Functionality', function() {
               async.series([
                 function(next) {
                   var tx2 = new Transaction();
+                  tx2Amount = results[0].satoshis - 10000;
                   tx2.from(results[0]);
-                  tx2.to(address2, results[0].satoshis - 10000);
+                  tx2.to(address2, tx2Amount);
                   tx2.change(address);
                   tx2.sign(testKey);
+                  tx2Hash = tx2.hash;
                   node.sendTransaction(tx2.serialize(), function(err) {
                     if (err) {
                       return next(err);
@@ -399,7 +403,8 @@ describe('Node Functionality', function() {
           should.exist(history[2].addresses[address3]);
           history[3].height.should.equal(156);
           should.exist(history[3].addresses[address2]);
-          history[3].satoshis.should.equal(99990000);
+          history[3].satoshis.should.equal(tx2Amount);
+          history[3].tx.hash.should.equal(tx2Hash);
           history[3].confirmations.should.equal(4);
           done();
         });
