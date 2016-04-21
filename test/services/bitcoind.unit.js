@@ -1381,7 +1381,9 @@ describe('Bitcoin Service', function() {
           getAddressUtxos: sinon.stub().callsArgWith(1, {code: -1, message: 'Test error'})
         }
       });
-      var options = {};
+      var options = {
+        queryMempool: false
+      };
       var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
       bitcoind.getAddressUnspentOutputs(address, options, function(err) {
         should.exist(err);
@@ -1408,7 +1410,9 @@ describe('Bitcoin Service', function() {
           })
         }
       });
-      var options = {};
+      var options = {
+        queryMempool: false
+      };
       var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
       bitcoind.getAddressUnspentOutputs(address, options, function(err, utxos) {
         if (err) {
@@ -1439,7 +1443,9 @@ describe('Bitcoin Service', function() {
           getAddressUtxos: getAddressUtxos
         }
       });
-      var options = {};
+      var options = {
+        queryMempool: false
+      };
       var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
       bitcoind.getAddressUnspentOutputs(address, options, function(err, utxos) {
         if (err) {
