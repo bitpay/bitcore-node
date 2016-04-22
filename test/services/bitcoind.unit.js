@@ -2054,11 +2054,18 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_paginateTxids', function() {
+    it('slice txids based on "from" and "to" (3 to 13)', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      var paginated = bitcoind._paginateTxids(txids, 3, 13);
+      paginated.should.deep.equal([3, 4, 5, 6, 7, 8, 9, 10]);
+    });
     it('slice txids based on "from" and "to" (3 to 30)', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-      var paginated = bitcoind._paginateTxids(txids, 3, 30);
-      paginated.should.deep.equal([3, 4, 5, 6, 7, 8, 9, 10]);
+      (function() {
+        bitcoind._paginateTxids(txids, 3, 30);
+      }).should.throw(Error);
     });
     it('slice txids based on "from" and "to" (0 to 3)', function() {
       var bitcoind = new BitcoinService(baseConfig);
