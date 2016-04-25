@@ -85,6 +85,14 @@ verify_download() {
 download=1
 verify=0
 
+if [ "${SKIP_BITCOIN_DOWNLOAD}" = 1 ]; then
+    download=0;
+fi
+
+if [ "${VERIFY_BITCOIN_DOWNLOAD}" = 1 ]; then
+    verify=1;
+fi
+
 while [ -n "$1" ]; do
   param="$1"
   value="$2"
