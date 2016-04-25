@@ -30,7 +30,8 @@
     "bitcore-node": "./bin/bitcore-node"
   },
   "scripts": {
-    "install": "./scripts/install",
+    "preinstall": "./scripts/download",
+    "verify": "./scripts/download --skip-bitcoin-download --verify-bitcoin-download",
     "test": "NODE_ENV=test mocha -R spec --recursive",
     "regtest": "./scripts/regtest",
     "coverage": "NODE_ENV=test istanbul cover _mocha -- --recursive"
