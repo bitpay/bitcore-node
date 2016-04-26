@@ -163,6 +163,7 @@ describe('P2P Functionality', function() {
     this.timeout(20000);
     peer.on('disconnect', function() {
       log.info('Peer disconnected');
+      bitcoind.node.stopping = true;
       bitcoind.stop(function(err, result) {
         done();
       });

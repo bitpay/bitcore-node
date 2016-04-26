@@ -131,6 +131,7 @@ describe('Bitcoind Functionality', function() {
 
   after(function(done) {
     this.timeout(20000);
+    bitcoind.node.stopping = true;
     bitcoind.stop(function(err, result) {
       done();
     });

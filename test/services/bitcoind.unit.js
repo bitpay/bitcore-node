@@ -1001,6 +1001,66 @@ describe('Bitcoin Service', function() {
     });
   });
 
+  describe('#_stopSpawnedProcess', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'warn');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
+    it('it will kill process and resume', function(done) {
+      var readFile = sandbox.stub();
+      readFile.onCall(0).callsArgWith(2, null, '4321');
+      var error = new Error('Test error');
+      error.code = 'ENOENT';
+      readFile.onCall(1).callsArgWith(2, error);
+      var TestBitcoinService = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          readFile: readFile
+        }
+      });
+      var bitcoind = new TestBitcoinService(baseConfig);
+      bitcoind.spawnStopTime = 1;
+      bitcoind._process = {};
+      bitcoind._process.kill = sinon.stub();
+      bitcoind._stopSpawnedBitcoin(function(err) {
+        if (err) {
+          return done(err);
+        }
+        bitcoind._process.kill.callCount.should.equal(1);
+        log.warn.callCount.should.equal(1);
+        done();
+      });
+    });
+    it('it will attempt to kill process and resume', function(done) {
+      var readFile = sandbox.stub();
+      readFile.onCall(0).callsArgWith(2, null, '4321');
+      var error = new Error('Test error');
+      error.code = 'ENOENT';
+      readFile.onCall(1).callsArgWith(2, error);
+      var TestBitcoinService = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          readFile: readFile
+        }
+      });
+      var bitcoind = new TestBitcoinService(baseConfig);
+      bitcoind.spawnStopTime = 1;
+      bitcoind._process = {};
+      var error2 = new Error('Test error');
+      error2.code = 'ESRCH';
+      bitcoind._process.kill = sinon.stub().throws(error2);
+      bitcoind._stopSpawnedBitcoin(function(err) {
+        if (err) {
+          return done(err);
+        }
+        bitcoind._process.kill.callCount.should.equal(1);
+        log.warn.callCount.should.equal(2);
+        done();
+      });
+    });
+  });
+
   describe('#_spawnChildProcess', function() {
     it('will give error from spawn config', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
