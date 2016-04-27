@@ -17,3 +17,4 @@ node_js:
 script:
   - npm run regtest
   - npm run test
+  - npm run jshint
