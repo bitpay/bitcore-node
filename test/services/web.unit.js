@@ -22,14 +22,10 @@ var fakeSocket = new EventEmitter();
 
 fakeSocket.on('test/event1', function(data) {
   data.should.equal('testdata');
-  done();
 });
 
 fakeSocketListener.emit('connection', fakeSocket);
-
 fakeSocket.emit('subscribe', 'test/event1');
-
-
 
 var WebService = proxyquire('../../lib/services/web', {http: httpStub, https: httpsStub, fs: fsStub});
 
@@ -323,7 +319,7 @@ describe('WebService', function() {
       var message = {
         method: 'two',
         params: [1, 2]
-      }
+      };
       web.socketMessageHandler(message, function(response) {
         should.exist(response.error);
         response.error.message.should.equal('Method Not Found');

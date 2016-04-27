@@ -1,12 +1,13 @@
+'use strict';
+
 var Service = require('../lib/service');
 var BitcoreNode = require('../lib/node');
 var util = require('util');
-var EventEmitter = require('events').EventEmitter;
 var should = require('chai').should();
 
 var TestService = function(options) {
   this.node = options.node;
-}
+};
 util.inherits(TestService, Service);
 TestService.dependencies = [];
 
