@@ -96,34 +96,6 @@ describe('#start', function() {
       }).should.throw('Could not load service');
     });
   });
-  describe('#registerSyncHandlers', function() {
-    it('will log the sync status at an interval', function(done) {
-      var log = {
-        info: sinon.stub()
-      };
-      var registerSyncHandlers = proxyquire('../../lib/scaffold/start', {
-        '../': {
-          log: log
-        }
-      }).registerSyncHandlers;
-      var node = new EventEmitter();
-      node.services = {
-        db: new EventEmitter()
-      };
-      node.services.db.tip = {
-        hash: 'hash',
-        __height: 10
-      };
-      registerSyncHandlers(node, 10);
-      node.emit('ready');
-      node.services.db.emit('addblock');
-      setTimeout(function() {
-        node.emit('synced');
-        log.info.callCount.should.be.within(3, 4);
-        done();
-      }, 35);
-    });
-  });
   describe('#cleanShutdown', function() {
     it('will call node stop and process exit', function() {
       var log = {
