@@ -1059,6 +1059,44 @@ describe('Bitcoin Service', function() {
         done();
       });
     });
+    it('it will attempt to kill process with NaN', function(done) {
+      var readFile = sandbox.stub();
+      readFile.onCall(0).callsArgWith(2, null, '     ');
+      var TestBitcoinService = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          readFile: readFile
+        }
+      });
+      var bitcoind = new TestBitcoinService(baseConfig);
+      bitcoind.spawnStopTime = 1;
+      bitcoind._process = {};
+      bitcoind._process.kill = sinon.stub();
+      bitcoind._stopSpawnedBitcoin(function(err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+    });
+    it('it will attempt to kill process without pid', function(done) {
+      var readFile = sandbox.stub();
+      readFile.onCall(0).callsArgWith(2, null, '');
+      var TestBitcoinService = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          readFile: readFile
+        }
+      });
+      var bitcoind = new TestBitcoinService(baseConfig);
+      bitcoind.spawnStopTime = 1;
+      bitcoind._process = {};
+      bitcoind._process.kill = sinon.stub();
+      bitcoind._stopSpawnedBitcoin(function(err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+    });
   });
 
   describe('#_spawnChildProcess', function() {
