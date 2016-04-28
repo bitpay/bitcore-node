@@ -810,8 +810,8 @@ describe('Bitcoin Service', function() {
       bitcoind._checkSyncedAndSubscribeZmqEvents(node);
       setTimeout(function() {
         log.error.callCount.should.equal(2);
-        blockEvents.should.equal(10);
-        bitcoind._updateTip.callCount.should.equal(10);
+        blockEvents.should.equal(11);
+        bitcoind._updateTip.callCount.should.equal(11);
         bitcoind._subscribeZmqEvents.callCount.should.equal(1);
         done();
       }, 200);
