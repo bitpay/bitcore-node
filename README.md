@@ -15,7 +15,7 @@ Note: For your convenience, we distribute bitcoind binaries for x86_64 Linux and
 ## Prerequisites
 
 - Node.js v0.12 or v4.2
-- ~150GB of disk storage
+- ~200GB of disk storage
 - ~4GB of RAM
 
 ## Configuration
