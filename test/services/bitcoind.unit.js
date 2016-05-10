@@ -2190,7 +2190,7 @@ describe('Bitcoin Service', function() {
     var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
     it('will give error with "from" and "to" range that exceeds max size', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
-      bitcoind.getAddressHistory(address, {from: 0, to: 30}, function(err) {
+      bitcoind.getAddressHistory(address, {from: 0, to: 51}, function(err) {
         should.exist(err);
         err.message.match(/^\"from/);
         done();
