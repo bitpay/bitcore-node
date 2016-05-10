@@ -2158,13 +2158,6 @@ describe('Bitcoin Service', function() {
       var paginated = bitcoind._paginateTxids(txids, 3, 13);
       paginated.should.deep.equal([3, 4, 5, 6, 7, 8, 9, 10]);
     });
-    it('slice txids based on "from" and "to" (3 to 30)', function() {
-      var bitcoind = new BitcoinService(baseConfig);
-      var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-      (function() {
-        bitcoind._paginateTxids(txids, 3, 30);
-      }).should.throw(Error);
-    });
     it('slice txids based on "from" and "to" (0 to 3)', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var txids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -2194,6 +2187,14 @@ describe('Bitcoin Service', function() {
 
   describe('#getAddressHistory', function() {
     var address = '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX';
+    it('will give error with "from" and "to" range that exceeds max size', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.getAddressHistory(address, {from: 0, to: 30}, function(err) {
+        should.exist(err);
+        err.message.match(/^\"from/);
+        done();
+      });
+    });
     it('will give an error if length of addresses is too long', function(done) {
       var addresses = [];
       for (var i = 0; i < 101; i++) {
@@ -2241,7 +2242,6 @@ describe('Bitcoin Service', function() {
     var txid3 = '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247';
     var memtxid1 = 'b1bfa8dbbde790cb46b9763ef3407c1a21c8264b67bfe224f462ec0e1f569e92';
     var memtxid2 = 'e9dcf22807db77ac0276b03cc2d3a8b03c4837db8ac6650501ef45af1c807cce';
-
     it('will handle error from getAddressTxids', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.nodes.push({
@@ -2326,6 +2326,7 @@ describe('Bitcoin Service', function() {
           })
         }
       });
+      sinon.spy(bitcoind, '_paginateTxids');
       bitcoind.getAddressTxids = sinon.stub().callsArgWith(2, null, [txid1, txid2, txid3]);
       bitcoind.getAddressBalance = sinon.stub().callsArgWith(2, null, {
         received: 30 * 1e8,
@@ -2334,6 +2335,9 @@ describe('Bitcoin Service', function() {
       var address = '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj';
       var options = {};
       bitcoind.getAddressSummary(address, options, function(err, summary) {
+        bitcoind._paginateTxids.callCount.should.equal(1);
+        bitcoind._paginateTxids.args[0][1].should.equal(0);
+        bitcoind._paginateTxids.args[0][2].should.equal(1000);
         summary.appearances.should.equal(3);
         summary.totalReceived.should.equal(3000000000);
         summary.totalSpent.should.equal(1000000000);
@@ -2347,6 +2351,40 @@ describe('Bitcoin Service', function() {
           '35fafaf572341798b2ce2858755afa7c8800bb6b1e885d3e030b81255b5e172d',
           '57b7842afc97a2b46575b490839df46e9273524c6ea59ba62e1e86477cf25247'
         ]);
+        done();
+      });
+    });
+    it('will give error with "from" and "to" range that exceeds max size', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.nodes.push({
+        client: {
+          getAddressMempool: sinon.stub().callsArgWith(1, null, {
+            result: [
+              {
+                txid: memtxid1,
+                satoshis: -1000000
+              },
+              {
+                txid: memtxid2,
+                satoshis: 99999
+              }
+            ]
+          })
+        }
+      });
+      bitcoind.getAddressTxids = sinon.stub().callsArgWith(2, null, [txid1, txid2, txid3]);
+      bitcoind.getAddressBalance = sinon.stub().callsArgWith(2, null, {
+        received: 30 * 1e8,
+        balance: 20 * 1e8
+      });
+      var address = '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj';
+      var options = {
+        from: 0,
+        to: 1001
+      };
+      bitcoind.getAddressSummary(address, options, function(err) {
+        should.exist(err);
+        err.message.match(/^\"from/);
         done();
       });
     });
