@@ -29,7 +29,7 @@ var destKey = bitcore.PrivateKey();
 describe('Bitcoind Functionality', function() {
 
   before(function(done) {
-    this.timeout(30000);
+    this.timeout(60000);
 
     // Add the regtest network
     bitcore.Networks.enableRegtest();
@@ -130,7 +130,7 @@ describe('Bitcoind Functionality', function() {
   });
 
   after(function(done) {
-    this.timeout(20000);
+    this.timeout(60000);
     bitcoind.node.stopping = true;
     bitcoind.stop(function(err, result) {
       done();
