@@ -1185,6 +1185,7 @@ describe('Bitcoin Service', function() {
       bitcoind.spawn.config.zmqpubrawtx = 'tcp://127.0.0.1:30001';
       bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, new Error('test'));
       bitcoind._spawnChildProcess(function(err) {
+        bitcoind._loadTipFromNode.callCount.should.equal(60);
         err.should.be.instanceof(Error);
         done();
       });
