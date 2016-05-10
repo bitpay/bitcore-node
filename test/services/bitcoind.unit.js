@@ -3065,7 +3065,9 @@ describe('Bitcoin Service', function() {
       });
       var txid = '2d950d00494caf6bfc5fff2a3f839f0eb50f663ae85ce092bc5f9d45296ae91f';
       bitcoind.getTransactionWithBlockInfo(txid, function(err, tx) {
-        // TODO verify additional info
+        should.equal(tx.__blockHash, '00000000000ec715852ea2ecae4dc8563f62d603c820f81ac284cd5be0a944d6');
+        should.equal(tx.__height, 530482);
+        should.equal(tx.__timestamp, 1439559434000);
         should.exist(tx);
         done();
       });
