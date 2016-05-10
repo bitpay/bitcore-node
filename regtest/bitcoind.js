@@ -270,7 +270,7 @@ describe('Bitcoind Functionality', function() {
           should.exist(blockIndex);
           should.exist(blockIndex.chainwork);
           var work = new BN(blockIndex.chainwork, 'hex');
-          work.cmp(expectedWork).should.equal(0);
+          work.toString(16).should.equal(expectedWork.toString(16));
           expectedWork = expectedWork.add(new BN(2));
           should.exist(blockIndex.previousblockhash);
           blockIndex.hash.should.equal(blockHashes[i]);
@@ -306,7 +306,7 @@ describe('Bitcoind Functionality', function() {
           should.exist(header);
           should.exist(header.chainwork);
           var work = new BN(header.chainwork, 'hex');
-          work.cmp(expectedWork).should.equal(0);
+          work.toString(16).should.equal(expectedWork.toString(16));
           expectedWork = expectedWork.add(new BN(2));
           should.exist(header.previousblockhash);
           header.hash.should.equal(blockHashes[i - 1]);
