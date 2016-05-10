@@ -201,6 +201,7 @@ describe('Bitcoind Functionality', function() {
     it('will get error with number greater than tip', function(done) {
       bitcoind.getBlock(1000000000, function(err, response) {
         should.exist(err);
+        err.code.should.equal(-8);
         done();
       });
     });
@@ -242,6 +243,7 @@ describe('Bitcoind Functionality', function() {
           if (err) {
             throw err;
           }
+          response.should.be.instanceOf(Buffer);
           assert(response.toString('hex') === txhex, 'incorrect tx data result');
           done();
         });
@@ -423,7 +425,7 @@ describe('Bitcoind Functionality', function() {
   });
 
   describe('get transaction with block info', function() {
-    it('should include tx buffer, height and timestamp', function(done) {
+    it('should include tx with height and timestamp', function(done) {
       bitcoind.getTransactionWithBlockInfo(utxos[0].txid, function(err, tx) {
         if (err) {
           return done(err);
