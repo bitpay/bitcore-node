@@ -64,7 +64,7 @@ node.services.bitcoind.<methodName>
 **Getting Latest Blocks**
 
 ```js
-// gives the block hashes within a range of timestamps
+// gives the block hashes sorted from low to high within a range of timestamps
 var high = 1460393372; // Mon Apr 11 2016 12:49:25 GMT-0400 (EDT)
 var low = 1460306965; // Mon Apr 10 2016 12:49:25 GMT-0400 (EDT)
 node.services.bitcoind.getBlockHashesByTimestamp(high, low, function(err, blockHashes) {
