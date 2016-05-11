@@ -3184,7 +3184,18 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.node.getNetworkName = sinon.stub().returns('testnet');
       var getInfo = sinon.stub().callsArgWith(0, null, {
-        result: {}
+        result: {
+          version: 1,
+          protocolversion: 1,
+          blocks: 1,
+          timeoffset: 1,
+          connections: 1,
+          proxy: '',
+          difficulty: 1,
+          testnet: true,
+          relayfee: 10,
+          errors: ''
+        }
       });
       bitcoind.nodes.push({
         client: {
@@ -3196,7 +3207,16 @@ describe('Bitcoin Service', function() {
           return done(err);
         }
         should.exist(info);
-        should.exist(info.network);
+        should.equal(info.version, 1);
+        should.equal(info.protocolVersion, 1);
+        should.equal(info.blocks, 1);
+        should.equal(info.timeOffset, 1);
+        should.equal(info.connections, 1);
+        should.equal(info.proxy, '');
+        should.equal(info.difficulty, 1);
+        should.equal(info.testnet, true);
+        should.equal(info.relayFee, 10);
+        should.equal(info.errors, '');
         info.network.should.equal('testnet');
         done();
       });
