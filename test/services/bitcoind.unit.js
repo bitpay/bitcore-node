@@ -2746,9 +2746,37 @@ describe('Bitcoin Service', function() {
     });
     it('will give result from client getblockheader (from height)', function() {
       var bitcoind = new BitcoinService(baseConfig);
-      var result = {};
+      var result = {
+        hash: '0000000000000a817cd3a74aec2f2246b59eb2cbb1ad730213e6c4a1d68ec2f6',
+        version: 536870912,
+        confirmations: 5,
+        height: 828781,
+        chainWork: '00000000000000000000000000000000000000000000000ad467352c93bc6a3b',
+        prevHash: '0000000000000504235b2aff578a48470dbf6b94dafa9b3703bbf0ed554c9dd9',
+        nextHash: '00000000000000eedd967ec155f237f033686f0924d574b946caf1b0e89551b8',
+        merkleRoot: '124e0f3fb5aa268f102b0447002dd9700988fc570efcb3e0b5b396ac7db437a9',
+        time: 1462979126,
+        medianTime: 1462976771,
+        nonce: 2981820714,
+        bits: '1a13ca10',
+        difficulty: 847779.0710240941
+      };
       var getBlockHeader = sinon.stub().callsArgWith(1, null, {
-        result: result
+        result: {
+          hash: '0000000000000a817cd3a74aec2f2246b59eb2cbb1ad730213e6c4a1d68ec2f6',
+          version: 536870912,
+          confirmations: 5,
+          height: 828781,
+          chainwork: '00000000000000000000000000000000000000000000000ad467352c93bc6a3b',
+          previousblockhash: '0000000000000504235b2aff578a48470dbf6b94dafa9b3703bbf0ed554c9dd9',
+          nextblockhash: '00000000000000eedd967ec155f237f033686f0924d574b946caf1b0e89551b8',
+          merkleroot: '124e0f3fb5aa268f102b0447002dd9700988fc570efcb3e0b5b396ac7db437a9',
+          time: 1462979126,
+          mediantime: 1462976771,
+          nonce: 2981820714,
+          bits: '1a13ca10',
+          difficulty: 847779.0710240941
+        }
       });
       var getBlockHash = sinon.stub().callsArgWith(1, null, {
         result: blockhash
@@ -2762,14 +2790,42 @@ describe('Bitcoin Service', function() {
       bitcoind.getBlockHeader(0, function(err, blockHeader) {
         should.not.exist(err);
         getBlockHeader.args[0][0].should.equal(blockhash);
-        blockHeader.should.equal(result);
+        blockHeader.should.deep.equal(result);
       });
     });
     it('will give result from client getblockheader (from hash)', function() {
       var bitcoind = new BitcoinService(baseConfig);
-      var result = {};
+      var result = {
+        hash: '0000000000000a817cd3a74aec2f2246b59eb2cbb1ad730213e6c4a1d68ec2f6',
+        version: 536870912,
+        confirmations: 5,
+        height: 828781,
+        chainWork: '00000000000000000000000000000000000000000000000ad467352c93bc6a3b',
+        prevHash: '0000000000000504235b2aff578a48470dbf6b94dafa9b3703bbf0ed554c9dd9',
+        nextHash: '00000000000000eedd967ec155f237f033686f0924d574b946caf1b0e89551b8',
+        merkleRoot: '124e0f3fb5aa268f102b0447002dd9700988fc570efcb3e0b5b396ac7db437a9',
+        time: 1462979126,
+        medianTime: 1462976771,
+        nonce: 2981820714,
+        bits: '1a13ca10',
+        difficulty: 847779.0710240941
+      };
       var getBlockHeader = sinon.stub().callsArgWith(1, null, {
-        result: result
+        result: {
+          hash: '0000000000000a817cd3a74aec2f2246b59eb2cbb1ad730213e6c4a1d68ec2f6',
+          version: 536870912,
+          confirmations: 5,
+          height: 828781,
+          chainwork: '00000000000000000000000000000000000000000000000ad467352c93bc6a3b',
+          previousblockhash: '0000000000000504235b2aff578a48470dbf6b94dafa9b3703bbf0ed554c9dd9',
+          nextblockhash: '00000000000000eedd967ec155f237f033686f0924d574b946caf1b0e89551b8',
+          merkleroot: '124e0f3fb5aa268f102b0447002dd9700988fc570efcb3e0b5b396ac7db437a9',
+          time: 1462979126,
+          mediantime: 1462976771,
+          nonce: 2981820714,
+          bits: '1a13ca10',
+          difficulty: 847779.0710240941
+        }
       });
       var getBlockHash = sinon.stub();
       bitcoind.nodes.push({
@@ -2781,7 +2837,7 @@ describe('Bitcoin Service', function() {
       bitcoind.getBlockHeader(blockhash, function(err, blockHeader) {
         should.not.exist(err);
         getBlockHash.callCount.should.equal(0);
-        blockHeader.should.equal(result);
+        blockHeader.should.deep.equal(result);
       });
     });
   });

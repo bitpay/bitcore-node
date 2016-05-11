@@ -268,13 +268,13 @@ describe('Bitcoind Functionality', function() {
             return done(err);
           }
           should.exist(blockIndex);
-          should.exist(blockIndex.chainwork);
-          var work = new BN(blockIndex.chainwork, 'hex');
+          should.exist(blockIndex.chainWork);
+          var work = new BN(blockIndex.chainWork, 'hex');
           work.toString(16).should.equal(expectedWork.toString(16));
           expectedWork = expectedWork.add(new BN(2));
-          should.exist(blockIndex.previousblockhash);
+          should.exist(blockIndex.prevHash);
           blockIndex.hash.should.equal(blockHashes[i]);
-          blockIndex.previousblockhash.should.equal(blockHashes[i - 1]);
+          blockIndex.prevHash.should.equal(blockHashes[i - 1]);
           blockIndex.height.should.equal(i + 1);
           done();
         });
@@ -286,7 +286,7 @@ describe('Bitcoind Functionality', function() {
           return done(err);
         }
         should.exist(header);
-        should.equal(header.previousblockhash, undefined);
+        should.equal(header.prevHash, undefined);
         done();
       });
     });
@@ -304,13 +304,13 @@ describe('Bitcoind Functionality', function() {
       it('generate block ' + i, function() {
         bitcoind.getBlockHeader(i, function(err, header) {
           should.exist(header);
-          should.exist(header.chainwork);
-          var work = new BN(header.chainwork, 'hex');
+          should.exist(header.chainWork);
+          var work = new BN(header.chainWork, 'hex');
           work.toString(16).should.equal(expectedWork.toString(16));
           expectedWork = expectedWork.add(new BN(2));
-          should.exist(header.previousblockhash);
+          should.exist(header.prevHash);
           header.hash.should.equal(blockHashes[i - 1]);
-          header.previousblockhash.should.equal(blockHashes[i - 2]);
+          header.prevHash.should.equal(blockHashes[i - 2]);
           header.height.should.equal(i);
         });
       });
