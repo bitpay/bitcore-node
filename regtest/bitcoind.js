@@ -424,16 +424,38 @@ describe('Bitcoind Functionality', function() {
     });
   });
 
-  describe('get transaction with block info', function() {
-    it('should include tx with height and timestamp', function(done) {
-      bitcoind.getTransactionWithBlockInfo(utxos[0].txid, function(err, tx) {
+  describe('get detailed transaction', function() {
+    it('should include details for coinbase tx', function(done) {
+      bitcoind.getDetailedTransaction(utxos[0].txid, function(err, tx) {
         if (err) {
           return done(err);
         }
-        should.exist(tx.__height);
-        tx.__height.should.be.a('number');
-        should.exist(tx.__timestamp);
-        should.exist(tx.__blockHash);
+        should.exist(tx.height);
+        tx.height.should.be.a('number');
+        should.exist(tx.blockTimestamp);
+        should.exist(tx.blockHash);
+        tx.coinbase.should.equal(true);
+        tx.version.should.equal(1);
+        tx.hex.should.be.a('string');
+        tx.locktime.should.equal(0);
+        tx.feeSatoshis.should.equal(0);
+        tx.outputSatoshis.should.equal(50 * 1e8);
+        tx.inputSatoshis.should.equal(0);
+        tx.inputs.length.should.equal(1);
+        tx.outputs.length.should.equal(1);
+        should.equal(tx.inputs[0].prevTxId, null);
+        should.equal(tx.inputs[0].outputIndex, null);
+        tx.inputs[0].script.should.be.a('string');
+        should.equal(tx.inputs[0].scriptAsm, null);
+        should.equal(tx.inputs[0].address, null);
+        should.equal(tx.inputs[0].satoshis, null);
+        tx.outputs[0].satoshis.should.equal(50 * 1e8);
+        tx.outputs[0].script.should.be.a('string');
+        tx.outputs[0].scriptAsm.should.be.a('string');
+        tx.outputs[0].spentTxId.should.be.a('string');
+        tx.outputs[0].spentIndex.should.equal(0);
+        tx.outputs[0].spentHeight.should.be.a('number');
+        tx.outputs[0].address.should.be.a('string');
         done();
       });
     });

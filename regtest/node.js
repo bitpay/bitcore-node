@@ -205,9 +205,8 @@ describe('Node Functionality', function() {
         info.addresses[address].inputIndexes.should.deep.equal([]);
         info.satoshis.should.equal(10 * 1e8);
         info.confirmations.should.equal(3);
-        info.timestamp.should.be.a('number');
-        info.fees.should.be.within(950, 4000);
-        info.tx.should.be.an.instanceof(Transaction);
+        info.tx.blockTimestamp.should.be.a('number');
+        info.tx.feeSatoshis.should.be.within(950, 4000);
         done();
       });
     });
@@ -395,13 +394,13 @@ describe('Node Functionality', function() {
           results.totalCount.should.equal(4);
           var history = results.items;
           history.length.should.equal(4);
-          history[0].height.should.equal(159);
+          history[0].tx.height.should.equal(159);
           history[0].confirmations.should.equal(1);
-          history[1].height.should.equal(158);
+          history[1].tx.height.should.equal(158);
           should.exist(history[1].addresses[address4]);
-          history[2].height.should.equal(157);
+          history[2].tx.height.should.equal(157);
           should.exist(history[2].addresses[address3]);
-          history[3].height.should.equal(156);
+          history[3].tx.height.should.equal(156);
           should.exist(history[3].addresses[address2]);
           history[3].satoshis.should.equal(tx2Amount);
           history[3].tx.hash.should.equal(tx2Hash);
@@ -429,9 +428,9 @@ describe('Node Functionality', function() {
           results.totalCount.should.equal(2);
           var history = results.items;
           history.length.should.equal(2);
-          history[0].height.should.equal(158);
+          history[0].tx.height.should.equal(158);
           history[0].confirmations.should.equal(2);
-          history[1].height.should.equal(157);
+          history[1].tx.height.should.equal(157);
           should.exist(history[1].addresses[address3]);
           done();
         });
@@ -456,8 +455,8 @@ describe('Node Functionality', function() {
           results.totalCount.should.equal(2);
           var history = results.items;
           history.length.should.equal(2);
-          history[0].height.should.equal(157);
-          history[1].height.should.equal(156);
+          history[0].tx.height.should.equal(157);
+          history[1].tx.height.should.equal(156);
           done();
         });
       });
@@ -481,9 +480,9 @@ describe('Node Functionality', function() {
           results.totalCount.should.equal(4);
           var history = results.items;
           history.length.should.equal(3);
-          history[0].height.should.equal(159);
+          history[0].tx.height.should.equal(159);
           history[0].confirmations.should.equal(1);
-          history[1].height.should.equal(158);
+          history[1].tx.height.should.equal(158);
           should.exist(history[1].addresses[address4]);
           done();
         });
@@ -501,18 +500,18 @@ describe('Node Functionality', function() {
           results.totalCount.should.equal(6);
           var history = results.items;
           history.length.should.equal(6);
-          history[0].height.should.equal(159);
+          history[0].tx.height.should.equal(159);
           history[0].addresses[address].inputIndexes.should.deep.equal([0, 1]);
           history[0].addresses[address].outputIndexes.should.deep.equal([2]);
           history[0].confirmations.should.equal(1);
-          history[1].height.should.equal(158);
-          history[2].height.should.equal(157);
-          history[3].height.should.equal(156);
-          history[4].height.should.equal(155);
+          history[1].tx.height.should.equal(158);
+          history[2].tx.height.should.equal(157);
+          history[3].tx.height.should.equal(156);
+          history[4].tx.height.should.equal(155);
           history[4].satoshis.should.equal(-10000);
           history[4].addresses[address].outputIndexes.should.deep.equal([0, 1, 2, 3, 4]);
           history[4].addresses[address].inputIndexes.should.deep.equal([0]);
-          history[5].height.should.equal(152);
+          history[5].tx.height.should.equal(152);
           history[5].satoshis.should.equal(10 * 1e8);
           done();
         });
@@ -561,7 +560,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(159);
+            history[0].tx.height.should.equal(159);
             done();
           });
         });
@@ -576,7 +575,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(158);
+            history[0].tx.height.should.equal(158);
             done();
           });
         });
@@ -591,7 +590,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(157);
+            history[0].tx.height.should.equal(157);
             done();
           });
         });
@@ -606,7 +605,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(156);
+            history[0].tx.height.should.equal(156);
             done();
           });
         });
@@ -621,7 +620,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(155);
+            history[0].tx.height.should.equal(155);
             history[0].satoshis.should.equal(-10000);
             history[0].addresses[address].outputIndexes.should.deep.equal([0, 1, 2, 3, 4]);
             history[0].addresses[address].inputIndexes.should.deep.equal([0]);
@@ -639,7 +638,7 @@ describe('Node Functionality', function() {
             }
             var history = results.items;
             history.length.should.equal(1);
-            history[0].height.should.equal(152);
+            history[0].tx.height.should.equal(152);
             history[0].satoshis.should.equal(10 * 1e8);
             done();
           });
@@ -744,13 +743,13 @@ describe('Node Functionality', function() {
     it('will not show confirmation count for orphaned transaction', function(done) {
       // This test verifies that in the situation that the transaction is not in the mempool and
       // is included in an orphaned block transaction index that the confirmation count will be unconfirmed.
-      node.getTransactionWithBlockInfo(orphanedTransaction, function(err, data) {
+      node.getDetailedTransaction(orphanedTransaction, function(err, data) {
         if (err) {
           return done(err);
         }
         should.exist(data);
-        should.exist(data.__height);
-        data.__height.should.equal(-1);
+        should.exist(data.height);
+        data.height.should.equal(-1);
         done();
       });
     });

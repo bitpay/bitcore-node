@@ -5,6 +5,7 @@ var EventEmitter = require('events').EventEmitter;
 var should = require('chai').should();
 var crypto = require('crypto');
 var bitcore = require('bitcore-lib');
+var _ = bitcore.deps._;
 var sinon = require('sinon');
 var proxyquire = require('proxyquire');
 var fs = require('fs');
@@ -51,7 +52,7 @@ describe('Bitcoin Service', function() {
       should.exist(bitcoind.txidsCache);
       should.exist(bitcoind.balanceCache);
       should.exist(bitcoind.summaryCache);
-      should.exist(bitcoind.transactionInfoCache);
+      should.exist(bitcoind.transactionDetailedCache);
 
       should.exist(bitcoind.transactionCache);
       should.exist(bitcoind.rawTransactionCache);
@@ -90,7 +91,7 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var methods = bitcoind.getAPIMethods();
       should.exist(methods);
-      methods.length.should.equal(20);
+      methods.length.should.equal(21);
     });
   });
 
@@ -295,14 +296,14 @@ describe('Bitcoin Service', function() {
       var keys = [];
       for (var i = 0; i < 10; i++) {
         keys.push(crypto.randomBytes(32));
-        bitcoind.transactionInfoCache.set(keys[i], {});
+        bitcoind.transactionDetailedCache.set(keys[i], {});
         bitcoind.utxosCache.set(keys[i], {});
         bitcoind.txidsCache.set(keys[i], {});
         bitcoind.balanceCache.set(keys[i], {});
         bitcoind.summaryCache.set(keys[i], {});
       }
       bitcoind._resetCaches();
-      should.equal(bitcoind.transactionInfoCache.get(keys[0]), undefined);
+      should.equal(bitcoind.transactionDetailedCache.get(keys[0]), undefined);
       should.equal(bitcoind.utxosCache.get(keys[0]), undefined);
       should.equal(bitcoind.txidsCache.get(keys[0]), undefined);
       should.equal(bitcoind.balanceCache.get(keys[0]), undefined);
@@ -1919,7 +1920,7 @@ describe('Bitcoin Service', function() {
     });
     it('should get 1 confirmation', function() {
       var tx = new Transaction(txhex);
-      tx.__height = 10;
+      tx.height = 10;
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.height = 10;
       var confirmations = bitcoind._getConfirmationsDetail(tx);
@@ -1929,7 +1930,7 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var tx = new Transaction(txhex);
       bitcoind.height = 11;
-      tx.__height = 10;
+      tx.height = 10;
       var confirmations = bitcoind._getConfirmationsDetail(tx);
       confirmations.should.equal(2);
     });
@@ -1937,7 +1938,7 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var tx = new Transaction(txhex);
       bitcoind.height = 3;
-      tx.__height = 10;
+      tx.height = 10;
       var confirmations = bitcoind._getConfirmationsDetail(tx);
       log.warn.callCount.should.equal(1);
       confirmations.should.equal(0);
@@ -1946,7 +1947,7 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var tx = new Transaction(txhex);
       bitcoind.height = 1000;
-      tx.__height = 1;
+      tx.height = 1;
       var confirmations = bitcoind._getConfirmationsDetail(tx);
       confirmations.should.equal(1000);
     });
@@ -1955,46 +1956,37 @@ describe('Bitcoin Service', function() {
   describe('#_getAddressDetailsForTransaction', function() {
     it('will calculate details for the transaction', function(done) {
       /* jshint sub:true */
-      var tx = bitcore.Transaction({
-        'hash': 'b12b3ae8489c5a566b629a3c62ce4c51c3870af550fb5dc77d715b669a91343c',
-        'version': 1,
-        'inputs': [
+      var tx = {
+        inputs: [
           {
-            'prevTxId': 'a2b7ea824a92f4a4944686e67ec1001bc8785348b8c111c226f782084077b543',
-            'outputIndex': 0,
-            'sequenceNumber': 4294967295,
-            'script': '47304402201b81c933297241960a57ae1b2952863b965ac8c9ec7466ff0b715712d27548d50220576e115b63864f003889443525f47c7cf0bc1e2b5108398da085b221f267ba2301210229766f1afa25ca499a51f8e01c292b0255a21a41bb6685564a1607a811ffe924',
-            'scriptString': '71 0x304402201b81c933297241960a57ae1b2952863b965ac8c9ec7466ff0b715712d27548d50220576e115b63864f003889443525f47c7cf0bc1e2b5108398da085b221f267ba2301 33 0x0229766f1afa25ca499a51f8e01c292b0255a21a41bb6685564a1607a811ffe924',
-            'output': {
-              'satoshis': 1000000000,
-              'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
-            }
+            satoshis: 1000000000,
+            address: 'mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'
           }
         ],
-        'outputs': [
+        outputs: [
           {
-            'satoshis': 100000000,
-            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+            satoshis: 100000000,
+            address: 'mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'
           },
           {
-            'satoshis': 200000000,
-            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+            satoshis: 200000000,
+            address: 'mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'
           },
           {
-            'satoshis': 50000000,
-            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+            satoshis: 50000000,
+            address: 'mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'
           },
           {
-            'satoshis': 300000000,
-            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+            satoshis: 300000000,
+            address: 'mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'
           },
           {
-            'satoshis': 349990000,
-            'script': '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac'
+            satoshis: 349990000,
+            address: 'mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'
           }
         ],
-        'nLockTime': 0
-      });
+        locktime: 0
+      };
       var bitcoind = new BitcoinService(baseConfig);
       var addresses = ['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'];
       var details = bitcoind._getAddressDetailsForTransaction(tx, addresses);
@@ -2008,102 +2000,37 @@ describe('Bitcoin Service', function() {
     });
   });
 
-  describe('#_getDetailedTransaction', function() {
+  describe('#_getAddressDetailedTransaction', function() {
     it('will get detailed transaction info', function(done) {
       var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
       var tx = {
-        populateInputs: sinon.stub().callsArg(2),
-        __height: 20,
-        __timestamp: 1453134151,
-        isCoinbase: sinon.stub().returns(false),
-        getFee: sinon.stub().returns(1000)
+        height: 20,
       };
       var bitcoind = new BitcoinService(baseConfig);
-      bitcoind.getTransactionWithBlockInfo = sinon.stub().callsArgWith(1, null, tx);
+      bitcoind.getDetailedTransaction = sinon.stub().callsArgWith(1, null, tx);
       bitcoind.height = 300;
+      var addresses = {};
       bitcoind._getAddressDetailsForTransaction = sinon.stub().returns({
-        addresses: {},
+        addresses: addresses,
         satoshis: 1000,
       });
-      bitcoind._getDetailedTransaction(txid, {}, function(err) {
+      bitcoind._getAddressDetailedTransaction(txid, {}, function(err, details) {
         if (err) {
           return done(err);
         }
+        details.addresses.should.equal(addresses);
+        details.satoshis.should.equal(1000);
+        details.confirmations.should.equal(281);
+        details.tx.should.equal(tx);
         done();
       });
     });
-    it('give error from getTransactionWithBlockInfo', function(done) {
+    it('give error from getDetailedTransaction', function(done) {
       var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
       var bitcoind = new BitcoinService(baseConfig);
-      bitcoind.getTransactionWithBlockInfo = sinon.stub().callsArgWith(1, new Error('test'));
-      bitcoind._getDetailedTransaction(txid, {}, function(err) {
+      bitcoind.getDetailedTransaction = sinon.stub().callsArgWith(1, new Error('test'));
+      bitcoind._getAddressDetailedTransaction(txid, {}, function(err) {
         err.should.be.instanceof(Error);
-        done();
-      });
-    });
-    it('give error from populateInputs', function(done) {
-      var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
-      var tx = {
-        populateInputs: sinon.stub().callsArgWith(2, new Error('test')),
-      };
-      var bitcoind = new BitcoinService(baseConfig);
-      bitcoind.getTransactionWithBlockInfo = sinon.stub().callsArgWith(1, null, tx);
-      bitcoind._getDetailedTransaction(txid, {}, function(err) {
-        err.should.be.instanceof(Error);
-        done();
-      });
-    });
-
-    it('will correct detailed info', function(done) {
-      // block #314159
-      // txid 30169e8bf78bc27c4014a7aba3862c60e2e3cce19e52f1909c8255e4b7b3174e
-      // outputIndex 1
-      var txAddress = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
-      var txString = '0100000001a08ee59fcd5d86fa170abb6d925d62d5c5c476359681b70877c04f270c4ef246000000008a47304402203fb9b476bb0c37c9b9ed5784ebd67ae589492be11d4ae1612be29887e3e4ce750220741ef83781d1b3a5df8c66fa1957ad0398c733005310d7d9b1d8c2310ef4f74c0141046516ad02713e51ecf23ac9378f1069f9ae98e7de2f2edbf46b7836096e5dce95a05455cc87eaa1db64f39b0c63c0a23a3b8df1453dbd1c8317f967c65223cdf8ffffffff02b0a75fac000000001976a91484b45b9bf3add8f7a0f3daad305fdaf6b73441ea88ac20badc02000000001976a914809dc14496f99b6deb722cf46d89d22f4beb8efd88ac00000000';
-      var previousTxString = '010000000155532fad2869bb951b0bd646a546887f6ee668c4c0ee13bf3f1c4bce6d6e3ed9000000008c4930460221008540795f4ef79b1d2549c400c61155ca5abbf3089c84ad280e1ba6db2a31abce022100d7d162175483d51174d40bba722e721542c924202a0c2970b07e680b51f3a0670141046516ad02713e51ecf23ac9378f1069f9ae98e7de2f2edbf46b7836096e5dce95a05455cc87eaa1db64f39b0c63c0a23a3b8df1453dbd1c8317f967c65223cdf8ffffffff02f0af3caf000000001976a91484b45b9bf3add8f7a0f3daad305fdaf6b73441ea88ac80969800000000001976a91421277e65777760d1f3c7c982ba14ed8f934f005888ac00000000';
-      var transaction = new Transaction();
-      var previousTransaction = new Transaction();
-      previousTransaction.fromString(previousTxString);
-      var previousTransactionTxid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
-      transaction.fromString(txString);
-      var txid = transaction.hash;
-      transaction.__blockHash = '00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45';
-      transaction.__height = 314159;
-      transaction.__timestamp = 1407292005;
-      var bitcoind = new BitcoinService(baseConfig);
-      bitcoind.height = 314159;
-      bitcoind.getTransactionWithBlockInfo = sinon.stub().callsArgWith(1, null, transaction);
-      bitcoind.getTransaction = function(prevTxid, callback) {
-        prevTxid.should.equal(previousTransactionTxid);
-        setImmediate(function() {
-          callback(null, previousTransaction);
-        });
-      };
-      var transactionInfo = {
-        addresses: {},
-        txid: txid,
-        timestamp: 1407292005,
-        satoshis: 48020000,
-        address: txAddress
-      };
-      transactionInfo.addresses[txAddress] = {};
-      transactionInfo.addresses[txAddress].outputIndexes = [1];
-      transactionInfo.addresses[txAddress].inputIndexes = [];
-      bitcoind._getAddressDetailsForTransaction = sinon.stub().returns(transactionInfo);
-      bitcoind._getDetailedTransaction(txid, {}, function(err, info) {
-        if (err) {
-          return done(err);
-        }
-        info.addresses[txAddress].should.deep.equal({
-          outputIndexes: [1],
-          inputIndexes: []
-        });
-        info.satoshis.should.equal(48020000);
-        info.height.should.equal(314159);
-        info.confirmations.should.equal(1);
-        info.timestamp.should.equal(1407292005);
-        info.fees.should.equal(20000);
-        info.tx.should.equal(transaction);
         done();
       });
     });
@@ -2221,7 +2148,7 @@ describe('Bitcoin Service', function() {
     });
     it('will paginate', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
-      bitcoind._getDetailedTransaction = function(txid, options, callback) {
+      bitcoind._getAddressDetailedTransaction = function(txid, options, callback) {
         callback(null, txid);
       };
       var txids = ['one', 'two', 'three', 'four'];
@@ -3075,7 +3002,7 @@ describe('Bitcoin Service', function() {
     });
   });
 
-  describe('#getTransactionWithBlockInfo', function() {
+  describe('#getDetailedTransaction', function() {
     var txBuffer = new Buffer('01000000016f95980911e01c2c664b3e78299527a47933aac61a515930a8fe0213d1ac9abe01000000da0047304402200e71cda1f71e087c018759ba3427eb968a9ea0b1decd24147f91544629b17b4f0220555ee111ed0fc0f751ffebf097bdf40da0154466eb044e72b6b3dcd5f06807fa01483045022100c86d6c8b417bff6cc3bbf4854c16bba0aaca957e8f73e19f37216e2b06bb7bf802205a37be2f57a83a1b5a8cc511dc61466c11e9ba053c363302e7b99674be6a49fc0147522102632178d046673c9729d828cfee388e121f497707f810c131e0d3fc0fe0bd66d62103a0951ec7d3a9da9de171617026442fcd30f34d66100fab539853b43f508787d452aeffffffff0240420f000000000017a9148a31d53a448c18996e81ce67811e5fb7da21e4468738c9d6f90000000017a9148ce5408cfeaddb7ccb2545ded41ef478109454848700000000', 'hex');
     var info = {
       blockHash: '00000000000ec715852ea2ecae4dc8563f62d603c820f81ac284cd5be0a944d6',
@@ -3083,7 +3010,40 @@ describe('Bitcoin Service', function() {
       timestamp: 1439559434000,
       buffer: txBuffer
     };
-
+    var rpcRawTransaction = {
+      hex: txBuffer.toString('hex'),
+      blockhash: info.blockHash,
+      height: info.height,
+      version: 1,
+      locktime: 411451,
+      time: info.timestamp,
+      vin: [
+        {
+          valueSat: 110,
+          address: 'mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW',
+          txid: '3d003413c13eec3fa8ea1fe8bbff6f40718c66facffe2544d7516c9e2900cac2',
+          sequence: 0xFFFFFFFF,
+          vout: 0,
+          scriptSig: {
+            hex: 'scriptSigHex',
+            asm: 'scriptSigAsm'
+          }
+        }
+      ],
+      vout: [
+        {
+          spentTxId: '4316b98e7504073acd19308b4b8c9f4eeb5e811455c54c0ebfe276c0b1eb6315',
+          spentIndex: 2,
+          spentHeight: 100,
+          valueSat: 100,
+          scriptPubKey: {
+            hex: '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac',
+            asm: 'OP_DUP OP_HASH160 0b2f0a0c31bfe0406b0ccc1381fdbe311946dadc OP_EQUALVERIFY OP_CHECKSIG',
+            addresses: ['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW']
+          }
+        }
+      ]
+    };
     it('should give a transaction with height and timestamp', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.nodes.push({
@@ -3092,39 +3052,74 @@ describe('Bitcoin Service', function() {
         }
       });
       var txid = '2d950d00494caf6bfc5fff2a3f839f0eb50f663ae85ce092bc5f9d45296ae91f';
-      bitcoind.getTransactionWithBlockInfo(txid, function(err) {
+      bitcoind.getDetailedTransaction(txid, function(err) {
         should.exist(err);
         err.should.be.instanceof(errors.RPCError);
         done();
       });
     });
-    it('should give a transaction with height and timestamp', function(done) {
+    it('should give a transaction with all properties', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.nodes.push({
         client: {
           getRawTransaction: sinon.stub().callsArgWith(2, null, {
-            result: {
-              hex: txBuffer.toString('hex'),
-              blockhash: info.blockHash,
-              height: info.height,
-              time: info.timestamp,
-              vout: [
-                {
-                  spentTxId: 'txid',
-                  spentIndex: 2,
-                  spentHeight: 100
-                }
-              ]
-            }
+            result: rpcRawTransaction
           })
         }
       });
       var txid = '2d950d00494caf6bfc5fff2a3f839f0eb50f663ae85ce092bc5f9d45296ae91f';
-      bitcoind.getTransactionWithBlockInfo(txid, function(err, tx) {
-        should.equal(tx.__blockHash, '00000000000ec715852ea2ecae4dc8563f62d603c820f81ac284cd5be0a944d6');
-        should.equal(tx.__height, 530482);
-        should.equal(tx.__timestamp, 1439559434000);
+      bitcoind.getDetailedTransaction(txid, function(err, tx) {
         should.exist(tx);
+        should.not.exist(tx.coinbase);
+        should.equal(tx.hex, txBuffer.toString('hex'));
+        should.equal(tx.blockHash, '00000000000ec715852ea2ecae4dc8563f62d603c820f81ac284cd5be0a944d6');
+        should.equal(tx.height, 530482);
+        should.equal(tx.blockTimestamp, 1439559434000);
+        should.equal(tx.version, 1);
+        should.equal(tx.locktime, 411451);
+        should.equal(tx.feeSatoshis, 10);
+        should.equal(tx.inputSatoshis, 110);
+        should.equal(tx.outputSatoshis, 100);
+        should.equal(tx.hash, txid);
+        var input = tx.inputs[0];
+        should.equal(input.prevTxId, '3d003413c13eec3fa8ea1fe8bbff6f40718c66facffe2544d7516c9e2900cac2');
+        should.equal(input.outputIndex, 0);
+        should.equal(input.satoshis, 110);
+        should.equal(input.sequence, 0xFFFFFFFF);
+        should.equal(input.script, 'scriptSigHex');
+        should.equal(input.scriptAsm, 'scriptSigAsm');
+        should.equal(input.address, 'mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW');
+        var output = tx.outputs[0];
+        should.equal(output.satoshis, 100);
+        should.equal(output.script, '76a9140b2f0a0c31bfe0406b0ccc1381fdbe311946dadc88ac');
+        should.equal(output.scriptAsm, 'OP_DUP OP_HASH160 0b2f0a0c31bfe0406b0ccc1381fdbe311946dadc OP_EQUALVERIFY OP_CHECKSIG');
+        should.equal(output.address, 'mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW');
+        should.equal(output.spentTxId, '4316b98e7504073acd19308b4b8c9f4eeb5e811455c54c0ebfe276c0b1eb6315');
+        should.equal(output.spentIndex, 2);
+        should.equal(output.spentHeight, 100);
+        done();
+      });
+    });
+    it('should set coinbase to true', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var rawTransaction = _.clone(rpcRawTransaction);
+      delete rawTransaction.vin[0];
+      rawTransaction.vin = [
+        {
+          coinbase: 'abcdef'
+        }
+      ];
+      bitcoind.nodes.push({
+        client: {
+          getRawTransaction: sinon.stub().callsArgWith(2, null, {
+            result: rawTransaction
+          })
+        }
+      });
+      var txid = '2d950d00494caf6bfc5fff2a3f839f0eb50f663ae85ce092bc5f9d45296ae91f';
+      bitcoind.getDetailedTransaction(txid, function(err, tx) {
+        should.exist(tx);
+        should.equal(tx.coinbase, true);
         done();
       });
     });
