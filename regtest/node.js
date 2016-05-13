@@ -17,7 +17,7 @@ var should = chai.should();
 
 var BitcoinRPC = require('bitcoind-rpc');
 var index = require('..');
-var Transaction = index.Transaction;
+var Transaction = bitcore.Transaction;
 var BitcoreNode = index.Node;
 var BitcoinService = index.services.Bitcoin;
 var testWIF = 'cSdkPxkAjA4HDr5VHgsebAPDEh9Gyub4HK8UJr2DFGGqKKy4K5sG';

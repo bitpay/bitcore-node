@@ -2,7 +2,6 @@
 
 module.exports = require('./lib');
 module.exports.Node = require('./lib/node');
-module.exports.Transaction = require('./lib/transaction');
 module.exports.Service = require('./lib/service');
 module.exports.errors = require('./lib/errors');
 
