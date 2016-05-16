@@ -2769,6 +2769,140 @@ describe('Bitcoin Service', function() {
     });
   });
 
+  describe('#_maybeGetBlockHash', function() {
+    it('will get the block hash if argument is a number', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHash = sinon.stub().callsArgWith(1, null, {
+        result: 'blockhash'
+      });
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind._maybeGetBlockHash(10, function(err, hash) {
+        if (err) {
+          return done(err);
+        }
+        hash.should.equal('blockhash');
+        getBlockHash.callCount.should.equal(1);
+        done();
+      });
+    });
+    it('will try multiple nodes if one fails', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHash = sinon.stub().callsArgWith(1, null, {
+        result: 'blockhash'
+      });
+      getBlockHash.onCall(0).callsArgWith(1, {code: -1, message: 'test'});
+      bitcoind.tryAllInterval = 1;
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind._maybeGetBlockHash(10, function(err, hash) {
+        if (err) {
+          return done(err);
+        }
+        hash.should.equal('blockhash');
+        getBlockHash.callCount.should.equal(2);
+        done();
+      });
+    });
+    it('will give error from getBlockHash', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHash = sinon.stub().callsArgWith(1, {code: -1, message: 'test'});
+      bitcoind.tryAllInterval = 1;
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind._maybeGetBlockHash(10, function(err, hash) {
+        getBlockHash.callCount.should.equal(2);
+        err.should.be.instanceOf(Error);
+        err.message.should.equal('test');
+        err.code.should.equal(-1);
+        done();
+      });
+    });
+  });
+
+  describe('#getBlockOverview', function() {
+    var blockhash = '00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b';
+    it('will handle error from maybeGetBlockHash', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._maybeGetBlockHash = sinon.stub().callsArgWith(1, new Error('test'));
+      bitcoind.getBlockOverview(blockhash, function(err) {
+        err.should.be.instanceOf(Error);
+        done();
+      });
+    });
+    it('will give expected result', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var blockResult = {
+        hash: blockhash,
+        version: 536870912,
+        confirmations: 5,
+        height: 828781,
+        chainwork: '00000000000000000000000000000000000000000000000ad467352c93bc6a3b',
+        previousblockhash: '0000000000000504235b2aff578a48470dbf6b94dafa9b3703bbf0ed554c9dd9',
+        nextblockhash: '00000000000000eedd967ec155f237f033686f0924d574b946caf1b0e89551b8',
+        merkleroot: '124e0f3fb5aa268f102b0447002dd9700988fc570efcb3e0b5b396ac7db437a9',
+        time: 1462979126,
+        mediantime: 1462976771,
+        nonce: 2981820714,
+        bits: '1a13ca10',
+        difficulty: 847779.0710240941
+      };
+      var getBlock = sinon.stub().callsArgWith(2, null, {
+        result: blockResult
+      });
+      bitcoind.nodes.push({
+        client: {
+          getBlock: getBlock
+        }
+      });
+      function checkBlock(blockOverview) {
+        blockOverview.hash.should.equal('00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b');
+        blockOverview.version.should.equal(536870912);
+        blockOverview.confirmations.should.equal(5);
+        blockOverview.height.should.equal(828781);
+        blockOverview.chainWork.should.equal('00000000000000000000000000000000000000000000000ad467352c93bc6a3b');
+        blockOverview.prevHash.should.equal('0000000000000504235b2aff578a48470dbf6b94dafa9b3703bbf0ed554c9dd9');
+        blockOverview.nextHash.should.equal('00000000000000eedd967ec155f237f033686f0924d574b946caf1b0e89551b8');
+        blockOverview.merkleRoot.should.equal('124e0f3fb5aa268f102b0447002dd9700988fc570efcb3e0b5b396ac7db437a9');
+        blockOverview.time.should.equal(1462979126);
+        blockOverview.medianTime.should.equal(1462976771);
+        blockOverview.nonce.should.equal(2981820714);
+        blockOverview.bits.should.equal('1a13ca10');
+        blockOverview.difficulty.should.equal(847779.0710240941);
+      }
+      bitcoind.getBlockOverview(blockhash, function(err, blockOverview) {
+        if (err) {
+          return done(err);
+        }
+        checkBlock(blockOverview);
+        bitcoind.getBlockOverview(blockhash, function(err, blockOverview) {
+          checkBlock(blockOverview);
+          getBlock.callCount.should.equal(1);
+          done();
+        });
+      });
+    });
+  });
+
   describe('#estimateFee', function() {
     it('will give rpc error', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
