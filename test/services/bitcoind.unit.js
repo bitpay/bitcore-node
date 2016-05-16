@@ -2789,6 +2789,25 @@ describe('Bitcoin Service', function() {
         done();
       });
     });
+    it('will get the block hash if argument is a number (as string)', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHash = sinon.stub().callsArgWith(1, null, {
+        result: 'blockhash'
+      });
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind._maybeGetBlockHash('10', function(err, hash) {
+        if (err) {
+          return done(err);
+        }
+        hash.should.equal('blockhash');
+        getBlockHash.callCount.should.equal(1);
+        done();
+      });
+    });
     it('will try multiple nodes if one fails', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       var getBlockHash = sinon.stub().callsArgWith(1, null, {
