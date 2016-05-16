@@ -131,6 +131,11 @@ node.services.bitcoind.getBlock(blockHash, function(err, block) {
 node.services.bitcoind.getBlockHeader(blockHeight, function(err, blockHeader) {
   //...
 });
+
+// get the block with a list of txids
+node.services.bitcoind.getBlockOverview(blockHash, function(err, blockOverview) {
+  //...
+};
 ```
 
 **Retrieving and Sending Transactions**
@@ -151,11 +156,9 @@ node.services.bitcoind.getTransaction(txid, function(err, transaction) {
   //...
 });
 
-// also retrieve the block timestamp and height
-node.services.bitcoind.getTransactionWithBlockInfo(txid, function(err, transaction) {
-  console.log(transaction.__blockHash);
-  console.log(transaction.__height);
-  console.log(transaction.__timestamp); // in seconds
+// retrieve the transaction with input values, fees, spent and block info
+node.services.bitcoind.getDetailedTransaction(txid, function(err, transaction) {
+  //...
 });
 ```
 
@@ -240,11 +243,7 @@ The history format will be:
         }
       },
       satoshis: 1000000000,
-      height: 150, // the block height of the transaction
-      confirmations: 3,
-      timestamp: 1442948127, // in seconds
-      fees: 191,
-      tx: <Transaction> // the populated transaction
+      tx: <detailed_transaction> // the same format as getDetailedTransaction
     }
   ]
 }
