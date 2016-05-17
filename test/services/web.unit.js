@@ -212,6 +212,7 @@ describe('WebService', function() {
 
   describe('#socketHandler', function() {
     var bus = new EventEmitter();
+    bus.remoteAddress = '127.0.0.1';
 
     var Module1 = function() {};
     Module1.prototype.getPublishEvents = function() {
@@ -241,6 +242,8 @@ describe('WebService', function() {
         done();
       };
       socket = new EventEmitter();
+      socket.conn = {};
+      socket.conn.remoteAddress = '127.0.0.1';
       web.socketHandler(socket);
       socket.emit('message', 'data');
     });
@@ -250,6 +253,8 @@ describe('WebService', function() {
       web.eventNames = web.getEventNames();
       web.socketMessageHandler = sinon.stub();
       socket = new EventEmitter();
+      socket.conn = {};
+      socket.conn.remoteAddress = '127.0.0.1';
       web.socketHandler(socket);
       socket.on('message', function() {
         web.socketMessageHandler.callCount.should.equal(0);
