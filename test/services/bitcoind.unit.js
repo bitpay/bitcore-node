@@ -74,6 +74,7 @@ describe('Bitcoin Service', function() {
     it('will set subscriptions', function() {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.subscriptions.should.deep.equal({
+        address: {},
         rawtransaction: [],
         hashblock: []
       });
@@ -100,7 +101,7 @@ describe('Bitcoin Service', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var events = bitcoind.getPublishEvents();
       should.exist(events);
-      events.length.should.equal(2);
+      events.length.should.equal(3);
       events[0].name.should.equal('bitcoind/rawtransaction');
       events[0].scope.should.equal(bitcoind);
       events[0].subscribe.should.be.a('function');
@@ -109,6 +110,10 @@ describe('Bitcoin Service', function() {
       events[1].scope.should.equal(bitcoind);
       events[1].subscribe.should.be.a('function');
       events[1].unsubscribe.should.be.a('function');
+      events[2].name.should.equal('bitcoind/addresstxid');
+      events[2].scope.should.equal(bitcoind);
+      events[2].subscribe.should.be.a('function');
+      events[2].unsubscribe.should.be.a('function');
     });
     it('will call subscribe/unsubscribe with correct args', function() {
       var bitcoind = new BitcoinService(baseConfig);
@@ -718,7 +723,7 @@ describe('Bitcoin Service', function() {
   describe('#_zmqTransactionHandler', function() {
     it('will emit to subscribers', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
-      var expectedBuffer = new Buffer('abcdef', 'hex');
+      var expectedBuffer = new Buffer(txhex, 'hex');
       var emitter = new EventEmitter();
       bitcoind.subscriptions.rawtransaction.push(emitter);
       emitter.on('bitcoind/rawtransaction', function(hex) {
@@ -731,7 +736,7 @@ describe('Bitcoin Service', function() {
     });
     it('will NOT emit to subscribers more than once for the same tx', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
-      var expectedBuffer = new Buffer('abcdef', 'hex');
+      var expectedBuffer = new Buffer(txhex, 'hex');
       var emitter = new EventEmitter();
       bitcoind.subscriptions.rawtransaction.push(emitter);
       emitter.on('bitcoind/rawtransaction', function() {
@@ -743,7 +748,7 @@ describe('Bitcoin Service', function() {
     });
     it('will emit "tx" event', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
-      var expectedBuffer = new Buffer('abcdef', 'hex');
+      var expectedBuffer = new Buffer(txhex, 'hex');
       bitcoind.on('tx', function(buffer) {
         buffer.should.be.instanceof(Buffer);
         buffer.toString('hex').should.equal(expectedBuffer.toString('hex'));
@@ -754,7 +759,7 @@ describe('Bitcoin Service', function() {
     });
     it('will NOT emit "tx" event more than once for the same tx', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
-      var expectedBuffer = new Buffer('abcdef', 'hex');
+      var expectedBuffer = new Buffer(txhex, 'hex');
       bitcoind.on('tx', function() {
         done();
       });
