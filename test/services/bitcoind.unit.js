@@ -734,6 +734,105 @@ describe('Bitcoin Service', function() {
     });
   });
 
+  describe('#_getAddressesFromTransaction', function() {
+    it('will get results using bitcore.Transaction', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var wif = 'L2Gkw3kKJ6N24QcDuH4XDqt9cTqsKTVNDGz1CRZhk9cq4auDUbJy';
+      var privkey = bitcore.PrivateKey.fromWIF(wif);
+      var inputAddress = privkey.toAddress(bitcore.Networks.testnet);
+      var outputAddress = bitcore.Address('2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br');
+      var tx = bitcore.Transaction();
+      tx.from({
+        txid: '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b',
+        outputIndex: 0,
+        script: bitcore.Script(inputAddress),
+        address: inputAddress.toString(),
+        satoshis: 5000000000
+      });
+      tx.to(outputAddress, 5000000000);
+      tx.sign(privkey);
+      var addresses = bitcoind._getAddressesFromTransaction(tx);
+      addresses.length.should.equal(2);
+      addresses[0].should.equal(inputAddress.toString());
+      addresses[1].should.equal(outputAddress.toString());
+    });
+    it('will handle non-standard script types', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var tx = bitcore.Transaction();
+      tx.addInput(bitcore.Transaction.Input({
+        prevTxId: '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b',
+        script: bitcore.Script('OP_TRUE'),
+        outputIndex: 1,
+        output: {
+          script: bitcore.Script('OP_TRUE'),
+          satoshis: 5000000000
+        }
+      }));
+      tx.addOutput(bitcore.Transaction.Output({
+        script: bitcore.Script('OP_TRUE'),
+        satoshis: 5000000000
+      }));
+      var addresses = bitcoind._getAddressesFromTransaction(tx);
+      addresses.length.should.equal(0);
+    });
+    it('will handle unparsable script types or missing input script', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var tx = bitcore.Transaction();
+      tx.addOutput(bitcore.Transaction.Output({
+        script: new Buffer('4c', 'hex'),
+        satoshis: 5000000000
+      }));
+      var addresses = bitcoind._getAddressesFromTransaction(tx);
+      addresses.length.should.equal(0);
+    });
+    it('will return unique values', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var tx = bitcore.Transaction();
+      var address = bitcore.Address('2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br');
+      tx.addOutput(bitcore.Transaction.Output({
+        script: bitcore.Script(address),
+        satoshis: 5000000000
+      }));
+      tx.addOutput(bitcore.Transaction.Output({
+        script: bitcore.Script(address),
+        satoshis: 5000000000
+      }));
+      var addresses = bitcoind._getAddressesFromTransaction(tx);
+      addresses.length.should.equal(1);
+    });
+  });
+
+  describe('#_notifyAddressTxidSubscribers', function() {
+    it('will emit event if matching addresses', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
+      bitcoind._getAddressesFromTransaction = sinon.stub().returns([address]);
+      var emitter = new EventEmitter();
+      bitcoind.subscriptions.address[address] = [emitter];
+      var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
+      var transaction = {};
+      emitter.on('bitcoind/addresstxid', function(data) {
+        data.address.should.equal(address);
+        data.txid.should.equal(txid);
+        done();
+      });
+      sinon.spy(emitter, 'emit');
+      bitcoind._notifyAddressTxidSubscribers(txid, transaction);
+      emitter.emit.callCount.should.equal(1);
+    });
+    it('will NOT emit event without matching addresses', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
+      bitcoind._getAddressesFromTransaction = sinon.stub().returns([address]);
+      var emitter = new EventEmitter();
+      var txid = '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0';
+      var transaction = {};
+      emitter.emit = sinon.stub();
+      bitcoind._notifyAddressTxidSubscribers(txid, transaction);
+      emitter.emit.callCount.should.equal(0);
+    });
+  });
+
   describe('#_zmqTransactionHandler', function() {
     it('will emit to subscribers', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
