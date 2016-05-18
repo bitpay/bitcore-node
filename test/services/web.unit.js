@@ -210,6 +210,32 @@ describe('WebService', function() {
     });
   });
 
+  describe('#_getRemoteAddress', function() {
+    it('will get remote address from cloudflare header', function() {
+      var web = new WebService({node: defaultNode});
+      var socket = {};
+      socket.conn = {};
+      socket.client = {};
+      socket.client.request = {};
+      socket.client.request.headers = {
+        'cf-connecting-ip': '127.0.0.1'
+      };
+      var remoteAddress = web._getRemoteAddress(socket);
+      remoteAddress.should.equal('127.0.0.1');
+    });
+    it('will get remote address from connection', function() {
+      var web = new WebService({node: defaultNode});
+      var socket = {};
+      socket.conn = {};
+      socket.conn.remoteAddress = '127.0.0.1';
+      socket.client = {};
+      socket.client.request = {};
+      socket.client.request.headers = {};
+      var remoteAddress = web._getRemoteAddress(socket);
+      remoteAddress.should.equal('127.0.0.1');
+    });
+  });
+
   describe('#socketHandler', function() {
     var bus = new EventEmitter();
     bus.remoteAddress = '127.0.0.1';
@@ -244,6 +270,9 @@ describe('WebService', function() {
       socket = new EventEmitter();
       socket.conn = {};
       socket.conn.remoteAddress = '127.0.0.1';
+      socket.client = {};
+      socket.client.request = {};
+      socket.client.request.headers = {};
       web.socketHandler(socket);
       socket.emit('message', 'data');
     });
@@ -255,6 +284,9 @@ describe('WebService', function() {
       socket = new EventEmitter();
       socket.conn = {};
       socket.conn.remoteAddress = '127.0.0.1';
+      socket.client = {};
+      socket.client.request = {};
+      socket.client.request.headers = {};
       web.socketHandler(socket);
       socket.on('message', function() {
         web.socketMessageHandler.callCount.should.equal(0);
