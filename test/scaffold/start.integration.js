@@ -4,8 +4,18 @@ var should = require('chai').should();
 var sinon = require('sinon');
 var proxyquire = require('proxyquire');
 var BitcoinService = require('../../lib/services/bitcoind');
+var index = require('../../lib');
+var log = index.log;
 
 describe('#start', function() {
+
+  var sandbox = sinon.sandbox.create();
+  beforeEach(function() {
+    sandbox.stub(log, 'error');
+  });
+  afterEach(function() {
+    sandbox.restore();
+  });
 
   describe('will dynamically create a node from a configuration', function() {
 

@@ -7,6 +7,8 @@ var Networks = bitcore.Networks;
 var proxyquire = require('proxyquire');
 var util = require('util');
 var BaseService = require('../lib/service');
+var index = require('../lib');
+var log = index.log;
 
 describe('Bitcore Node', function() {
 
@@ -171,6 +173,13 @@ describe('Bitcore Node', function() {
   });
 
   describe('#_startService', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will instantiate an instance and load api methods', function() {
       var node = new Node(baseConfig);
       function TestService() {}
@@ -213,6 +222,13 @@ describe('Bitcore Node', function() {
   });
 
   describe('#start', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will call start for each service', function(done) {
       var node = new Node(baseConfig);
 
@@ -302,6 +318,13 @@ describe('Bitcore Node', function() {
   });
 
   describe('#stop', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will call stop for each service', function(done) {
       var node = new Node(baseConfig);
       function TestService() {}

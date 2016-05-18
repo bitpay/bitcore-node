@@ -140,6 +140,13 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#subscribe', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will push to subscriptions', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var emitter = {};
@@ -153,6 +160,13 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#unsubscribe', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will remove item from subscriptions', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var emitter1 = {};
@@ -1106,6 +1120,13 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_spawnChildProcess', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will give error from spawn config', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind._loadSpawnConfiguration = sinon.stub().throws(new Error('test'));
@@ -1263,6 +1284,13 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#start', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will give error if "spawn" and "connect" are both not configured', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.options = {};

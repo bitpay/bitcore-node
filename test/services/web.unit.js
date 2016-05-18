@@ -5,6 +5,9 @@ var sinon = require('sinon');
 var EventEmitter = require('events').EventEmitter;
 var proxyquire = require('proxyquire');
 
+var index = require('../../lib');
+var log = index.log;
+
 var httpStub = {
   createServer: sinon.spy()
 };
@@ -237,6 +240,14 @@ describe('WebService', function() {
   });
 
   describe('#socketHandler', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
+
     var bus = new EventEmitter();
     bus.remoteAddress = '127.0.0.1';
 
