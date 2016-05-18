@@ -69,7 +69,10 @@ describe('Node Functionality', function() {
         log.error(err);
       });
 
-      node.on('ready', function() {
+      node.start(function(err) {
+        if (err) {
+          return done(err);
+        }
 
         client = new BitcoinRPC({
           protocol: 'http',
@@ -94,12 +97,7 @@ describe('Node Functionality', function() {
             throw err;
           }
         });
-      });
 
-      node.start(function(err) {
-        if (err) {
-          throw err;
-        }
       });
 
 
