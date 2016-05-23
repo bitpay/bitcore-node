@@ -8,6 +8,35 @@ var proxyquire = require('proxyquire');
 var start = require('../../lib/scaffold/start');
 
 describe('#start', function() {
+  describe('#checkConfigVersion2', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(console, 'warn');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
+    it('will give true with "datadir" at root', function() {
+      var checkConfigVersion2 = proxyquire('../../lib/scaffold/start', {}).checkConfigVersion2;
+      var v2 = checkConfigVersion2({datadir: '/home/user/.bitcore/data', services: []});
+      v2.should.equal(true);
+    });
+    it('will give true with "address" service enabled', function() {
+      var checkConfigVersion2 = proxyquire('../../lib/scaffold/start', {}).checkConfigVersion2;
+      var v2 = checkConfigVersion2({services: ['address']});
+      v2.should.equal(true);
+    });
+    it('will give true with "db" service enabled', function() {
+      var checkConfigVersion2 = proxyquire('../../lib/scaffold/start', {}).checkConfigVersion2;
+      var v2 = checkConfigVersion2({services: ['db']});
+      v2.should.equal(true);
+    });
+    it('will give false without "datadir" at root and "address", "db" services disabled', function() {
+      var checkConfigVersion2 = proxyquire('../../lib/scaffold/start', {}).checkConfigVersion2;
+      var v2 = checkConfigVersion2({services: []});
+      v2.should.equal(false);
+    });
+  });
   describe('#setupServices', function() {
     var cwd = process.cwd();
     var setupServices = proxyquire('../../lib/scaffold/start', {}).setupServices;
