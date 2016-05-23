@@ -13,6 +13,8 @@ Indexes include *more information* and are now also *faster*. Because of this a 
 - `-timestampindex`
 - `-spentindex`
 
+To start reindexing add `reindex=1` during the **first startup only**.
+
 ### Configuration Options
 
 - The `bitcoin.conf` file in will need to be updated to include additional indexes *(see below)*.
