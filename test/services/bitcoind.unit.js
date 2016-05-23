@@ -1097,6 +1097,28 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_initZmqSubSocket', function() {
+    it('will setup zmq socket', function() {
+      var socket = new EventEmitter();
+      socket.monitor = sinon.stub();
+      socket.connect = sinon.stub();
+      var socketFunc = function() {
+        return socket;
+      };
+      var BitcoinService = proxyquire('../../lib/services/bitcoind', {
+        zmq: {
+          socket: socketFunc
+        }
+      });
+      var bitcoind = new BitcoinService(baseConfig);
+      var node = {};
+      bitcoind._initZmqSubSocket(node, 'url');
+      node.zmqSubSocket.should.equal(socket);
+      socket.connect.callCount.should.equal(1);
+      socket.connect.args[0][0].should.equal('url');
+      socket.monitor.callCount.should.equal(1);
+      socket.monitor.args[0][0].should.equal(500);
+      socket.monitor.args[0][1].should.equal(0);
+    });
   });
 
   describe('#_checkReindex', function() {
