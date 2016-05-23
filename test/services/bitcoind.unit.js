@@ -1376,6 +1376,7 @@ describe('Bitcoin Service', function() {
     var sandbox = sinon.sandbox.create();
     beforeEach(function() {
       sandbox.stub(log, 'info');
+      sandbox.stub(log, 'warn');
     });
     afterEach(function() {
       sandbox.restore();
@@ -1438,6 +1439,44 @@ describe('Bitcoin Service', function() {
         should.exist(node);
         should.exist(node.client);
         done();
+      });
+    });
+    it('will respawn bitcoind spawned process', function(done) {
+      var process = new EventEmitter();
+      var spawn = sinon.stub().returns(process);
+      var TestBitcoinService = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          readFileSync: readFileSync
+        },
+        child_process: {
+          spawn: spawn
+        }
+      });
+      var bitcoind = new TestBitcoinService(baseConfig);
+      bitcoind._loadSpawnConfiguration = sinon.stub();
+      bitcoind.spawn = {};
+      bitcoind.spawn.exec = 'bitcoind';
+      bitcoind.spawn.datadir = '/tmp/bitcoin';
+      bitcoind.spawn.configPath = '/tmp/bitcoin/bitcoin.conf';
+      bitcoind.spawn.config = {};
+      bitcoind.spawnRestartTime = 1;
+      bitcoind._loadTipFromNode = sinon.stub().callsArg(1);
+      bitcoind._initZmqSubSocket = sinon.stub();
+      bitcoind._checkReindex = sinon.stub().callsArg(1);
+      bitcoind._checkSyncedAndSubscribeZmqEvents = sinon.stub();
+      bitcoind._stopSpawnedBitcoin = sinon.stub().callsArg(0);
+      sinon.spy(bitcoind, '_spawnChildProcess');
+      bitcoind._spawnChildProcess(function(err) {
+        if (err) {
+          return done(err);
+        }
+        process.once('exit', function() {
+          setTimeout(function() {
+            bitcoind._spawnChildProcess.callCount.should.equal(2);
+            done();
+          }, 5);
+        });
+        process.emit('exit', 1);
       });
     });
     it('will give error after 60 retries', function(done) {
