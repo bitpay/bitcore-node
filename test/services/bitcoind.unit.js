@@ -1775,14 +1775,15 @@ describe('Bitcoin Service', function() {
     });
     it('will give balance', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
+      var getAddressBalance = sinon.stub().callsArgWith(1, null, {
+        result: {
+          received: 100000,
+          balance: 10000
+        }
+      }); 
       bitcoind.nodes.push({
         client: {
-          getAddressBalance: sinon.stub().callsArgWith(1, null, {
-            result: {
-              received: 100000,
-              balance: 10000
-            }
-          })
+          getAddressBalance: getAddressBalance
         }
       });
       var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
@@ -1793,7 +1794,15 @@ describe('Bitcoin Service', function() {
         }
         data.balance.should.equal(10000);
         data.received.should.equal(100000);
-        done();
+        bitcoind.getAddressBalance(address, options, function(err, data2) {
+          if (err) {
+            return done(err);
+          }
+          data2.balance.should.equal(10000);
+          data2.received.should.equal(100000);
+          getAddressBalance.callCount.should.equal(1);
+          done();
+        });
       });
     });
   });
@@ -3538,15 +3547,17 @@ describe('Bitcoin Service', function() {
     });
     it('should give a transaction with all properties', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
+      var getRawTransaction = sinon.stub().callsArgWith(2, null, {
+        result: rpcRawTransaction
+      });
       bitcoind.nodes.push({
         client: {
-          getRawTransaction: sinon.stub().callsArgWith(2, null, {
-            result: rpcRawTransaction
-          })
+          getRawTransaction: getRawTransaction
         }
       });
       var txid = '2d950d00494caf6bfc5fff2a3f839f0eb50f663ae85ce092bc5f9d45296ae91f';
-      bitcoind.getDetailedTransaction(txid, function(err, tx) {
+      function checkTx(tx) {
+        /* jshint maxstatements: 30 */
         should.exist(tx);
         should.not.exist(tx.coinbase);
         should.equal(tx.hex, txBuffer.toString('hex'));
@@ -3575,7 +3586,20 @@ describe('Bitcoin Service', function() {
         should.equal(output.spentTxId, '4316b98e7504073acd19308b4b8c9f4eeb5e811455c54c0ebfe276c0b1eb6315');
         should.equal(output.spentIndex, 2);
         should.equal(output.spentHeight, 100);
-        done();
+      }
+      bitcoind.getDetailedTransaction(txid, function(err, tx) {
+        if (err) {
+          return done(err);
+        }
+        checkTx(tx);
+        bitcoind.getDetailedTransaction(txid, function(err, tx) {
+          if (err) {
+            return done(err);
+          }
+          checkTx(tx);
+          getRawTransaction.callCount.should.equal(1);
+          done();
+        });
       });
     });
     it('should set coinbase to true', function(done) {
