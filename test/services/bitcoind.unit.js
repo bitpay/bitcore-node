@@ -1,5 +1,7 @@
 'use strict';
 
+/* jshint sub: true */
+
 var path = require('path');
 var EventEmitter = require('events').EventEmitter;
 var should = require('chai').should();
@@ -187,6 +189,115 @@ describe('Bitcoin Service', function() {
       bitcoind.subscriptions.hashblock[1].should.equal(emitter2);
       bitcoind.subscriptions.hashblock[2].should.equal(emitter4);
       bitcoind.subscriptions.hashblock[3].should.equal(emitter5);
+    });
+  });
+
+  describe('#subscribeAddress', function() {
+    it('will not an invalid address', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter = new EventEmitter();
+      bitcoind.subscribeAddress(emitter, ['invalidaddress']);
+      should.not.exist(bitcoind.subscriptions.address['invalidaddress']);
+    });
+    it('will add a valid address', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter = new EventEmitter();
+      bitcoind.subscribeAddress(emitter, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      should.exist(bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+    });
+    it('will handle multiple address subscribers', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      bitcoind.subscribeAddress(emitter1, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      bitcoind.subscribeAddress(emitter2, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      should.exist(bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'].length.should.equal(2);
+    });
+    it('will not add the same emitter twice', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = new EventEmitter();
+      bitcoind.subscribeAddress(emitter1, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      bitcoind.subscribeAddress(emitter1, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      should.exist(bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'].length.should.equal(1);
+    });
+  });
+
+  describe('#unsubscribeAddress', function() {
+    it('it will remove a subscription', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      bitcoind.subscribeAddress(emitter1, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      bitcoind.subscribeAddress(emitter2, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      should.exist(bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'].length.should.equal(2);
+      bitcoind.unsubscribeAddress(emitter1, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'].length.should.equal(1);
+    });
+    it('will unsubscribe subscriptions for an emitter', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'] = [emitter1, emitter2];
+      bitcoind.unsubscribeAddress(emitter1);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'].length.should.equal(1);
+    });
+    it('will NOT unsubscribe subscription with missing address', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'] = [emitter1, emitter2];
+      bitcoind.unsubscribeAddress(emitter1, ['1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo']);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'].length.should.equal(2);
+    });
+    it('will NOT unsubscribe subscription with missing emitter', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'] = [emitter2];
+      bitcoind.unsubscribeAddress(emitter1, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'].length.should.equal(1);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'][0].should.equal(emitter2);
+    });
+    it('will remove empty addresses', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'] = [emitter1, emitter2];
+      bitcoind.unsubscribeAddress(emitter1, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      bitcoind.unsubscribeAddress(emitter2, ['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+      should.not.exist(bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br']);
+    });
+    it('will unsubscribe emitter for all addresses', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'] = [emitter1, emitter2];
+      bitcoind.subscriptions.address['1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo'] = [emitter1, emitter2];
+      sinon.spy(bitcoind, 'unsubscribeAddressAll');
+      bitcoind.unsubscribeAddress(emitter1);
+      bitcoind.unsubscribeAddressAll.callCount.should.equal(1);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'].length.should.equal(1);
+      bitcoind.subscriptions.address['1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo'].length.should.equal(1);
+    });
+  });
+
+  describe('#unsubscribeAddressAll', function() {
+    it('will unsubscribe emitter for all addresses', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = new EventEmitter();
+      var emitter2 = new EventEmitter();
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'] = [emitter1, emitter2];
+      bitcoind.subscriptions.address['1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo'] = [emitter1, emitter2];
+      bitcoind.subscriptions.address['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'] = [emitter2];
+      bitcoind.subscriptions.address['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou'] = [emitter1];
+      bitcoind.unsubscribeAddress(emitter1);
+      bitcoind.subscriptions.address['2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br'].length.should.equal(1);
+      bitcoind.subscriptions.address['1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo'].length.should.equal(1);
+      bitcoind.subscriptions.address['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'].length.should.equal(1);
+      should.not.exist(bitcoind.subscriptions.address['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou']);
     });
   });
 
