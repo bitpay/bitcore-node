@@ -12,9 +12,7 @@ var log = index.log;
 
 describe('Bitcore Node', function() {
 
-  var baseConfig = {
-    datadir: 'testdir'
-  };
+  var baseConfig = {};
 
   var Node;
 
@@ -314,6 +312,30 @@ describe('Bitcore Node', function() {
         done();
       });
 
+    });
+  });
+
+  describe('#getNetworkName', function() {
+    afterEach(function() {
+      bitcore.Networks.disableRegtest();
+    });
+    it('it will return the network name for livenet', function() {
+      var node = new Node(baseConfig);
+      node.getNetworkName().should.equal('livenet');
+    });
+    it('it will return the network name for testnet', function() {
+      var baseConfig = {
+        network: 'testnet'
+      };
+      var node = new Node(baseConfig);
+      node.getNetworkName().should.equal('testnet');
+    });
+    it('it will return the network for regtest', function() {
+      var baseConfig = {
+        network: 'regtest'
+      };
+      var node = new Node(baseConfig);
+      node.getNetworkName().should.equal('regtest');
     });
   });
 
