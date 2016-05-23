@@ -193,6 +193,13 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#subscribeAddress', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will not an invalid address', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var emitter = new EventEmitter();
@@ -225,6 +232,13 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#unsubscribeAddress', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('it will remove a subscription', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var emitter1 = new EventEmitter();
@@ -285,6 +299,13 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#unsubscribeAddressAll', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will unsubscribe emitter for all addresses', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var emitter1 = new EventEmitter();
