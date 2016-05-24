@@ -1176,6 +1176,61 @@ describe('Bitcoin Service', function() {
         done();
       }, 200);
     });
+    it('it will clear interval if node is stopping', function(done) {
+      var config = {
+        node: {
+          network: bitcore.Networks.testnet
+        },
+        spawn: {
+          datadir: 'testdir',
+          exec: 'testpath'
+        }
+      };
+      var bitcoind = new BitcoinService(config);
+      var getBestBlockHash = sinon.stub().callsArgWith(0, {code: -1, message: 'error'});
+      var node = {
+        _tipUpdateInterval: 1,
+        client: {
+          getBestBlockHash: getBestBlockHash
+        }
+      };
+      bitcoind._checkSyncedAndSubscribeZmqEvents(node);
+      setTimeout(function() {
+        bitcoind.node.stopping = true;
+        var count = getBestBlockHash.callCount;
+        setTimeout(function() {
+          getBestBlockHash.callCount.should.equal(count);
+          done();
+        }, 100);
+      }, 100);
+    });
+    it('will not set interval if synced is true', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._updateTip = sinon.stub();
+      bitcoind._subscribeZmqEvents = sinon.stub();
+      var getBestBlockHash = sinon.stub().callsArgWith(0, null, {
+        result: '00000000000000001bb82a7f5973618cfd3185ba1ded04dd852a653f92a27c45'
+      });
+      var info = {
+        result: {
+          verificationprogress: 1.00
+        }
+      };
+      var getBlockchainInfo = sinon.stub().callsArgWith(0, null, info);
+      var node = {
+        _tipUpdateInterval: 1,
+        client: {
+          getBestBlockHash: getBestBlockHash,
+          getBlockchainInfo: getBlockchainInfo
+        }
+      };
+      bitcoind._checkSyncedAndSubscribeZmqEvents(node);
+      setTimeout(function() {
+        getBestBlockHash.callCount.should.equal(1);
+        getBlockchainInfo.callCount.should.equal(1);
+        done();
+      }, 200);
+    });
   });
 
   describe('#_subscribeZmqEvents', function() {
@@ -1221,6 +1276,24 @@ describe('Bitcoin Service', function() {
         done();
       });
       var topic = new Buffer('hashblock', 'utf8');
+      var message = new Buffer('abcdef', 'hex');
+      node.zmqSubSocket.emit('message', topic, message);
+    });
+    it('will ignore unknown topic types', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._zmqBlockHandler = sinon.stub();
+      bitcoind._zmqTransactionHandler = sinon.stub();
+      var node = {
+        zmqSubSocket: new EventEmitter()
+      };
+      node.zmqSubSocket.subscribe = sinon.stub();
+      bitcoind._subscribeZmqEvents(node);
+      node.zmqSubSocket.on('message', function() {
+        bitcoind._zmqBlockHandler.callCount.should.equal(0);
+        bitcoind._zmqTransactionHandler.callCount.should.equal(0);
+        done();
+      });
+      var topic = new Buffer('unknown', 'utf8');
       var message = new Buffer('abcdef', 'hex');
       node.zmqSubSocket.emit('message', topic, message);
     });
