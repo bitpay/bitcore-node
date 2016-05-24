@@ -36,7 +36,8 @@
     "test": "mocha -R spec --recursive",
     "regtest": "./scripts/regtest",
     "jshint": "jshint --reporter=node_modules/jshint-stylish ./lib",
-    "coverage": "istanbul cover _mocha -- --recursive"
+    "coverage": "istanbul cover _mocha -- --recursive",
+    "coveralls": "./node_modules/.bin/istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- --recursive -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
   },
   "tags": [
     "bitcoin",
@@ -69,6 +70,8 @@
     "benchmark": "1.0.0",
     "bitcore-p2p": "^1.1.0",
     "chai": "^3.5.0",
+    "coveralls": "^2.11.9",
+    "istanbul": "^0.4.3",
     "jshint": "^2.9.2",
     "jshint-stylish": "^2.1.0",
     "mocha": "^2.4.5",
