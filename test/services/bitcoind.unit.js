@@ -190,6 +190,15 @@ describe('Bitcoin Service', function() {
       bitcoind.subscriptions.hashblock[2].should.equal(emitter4);
       bitcoind.subscriptions.hashblock[3].should.equal(emitter5);
     });
+    it('will not remove item an already unsubscribed item', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var emitter1 = {};
+      var emitter3 = {};
+      bitcoind.subscriptions.hashblock= [emitter1];
+      bitcoind.unsubscribe('hashblock', emitter3);
+      bitcoind.subscriptions.hashblock.length.should.equal(1);
+      bitcoind.subscriptions.hashblock[0].should.equal(emitter1);
+    });
   });
 
   describe('#subscribeAddress', function() {
@@ -558,6 +567,77 @@ describe('Bitcoin Service', function() {
         bitcoind.getRawBlock.args[0][0].should.equal('genesishash');
         bitcoind.height.should.equal(5000);
         bitcoind.genesisBuffer.should.equal(genesisBuffer);
+        done();
+      });
+    });
+    it('it will handle error from getBestBlockHash', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBestBlockHash = sinon.stub().callsArgWith(0, {code: -1, message: 'error'});
+      bitcoind.nodes.push({
+        client: {
+          getBestBlockHash: getBestBlockHash
+        }
+      });
+      bitcoind._initChain(function(err) {
+        err.should.be.instanceOf(Error);
+        done();
+      });
+    });
+    it('it will handle error from getBlock', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBestBlockHash = sinon.stub().callsArgWith(0, null, {});
+      var getBlock = sinon.stub().callsArgWith(1, {code: -1, message: 'error'});
+      bitcoind.nodes.push({
+        client: {
+          getBestBlockHash: getBestBlockHash,
+          getBlock: getBlock
+        }
+      });
+      bitcoind._initChain(function(err) {
+        err.should.be.instanceOf(Error);
+        done();
+      });
+    });
+    it('it will handle error from getBlockHash', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBestBlockHash = sinon.stub().callsArgWith(0, null, {});
+      var getBlock = sinon.stub().callsArgWith(1, null, {
+        result: {
+          height: 10
+        }
+      });
+      var getBlockHash = sinon.stub().callsArgWith(1, {code: -1, message: 'error'});
+      bitcoind.nodes.push({
+        client: {
+          getBestBlockHash: getBestBlockHash,
+          getBlock: getBlock,
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind._initChain(function(err) {
+        err.should.be.instanceOf(Error);
+        done();
+      });
+    });
+    it('it will handle error from getRawBlock', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBestBlockHash = sinon.stub().callsArgWith(0, null, {});
+      var getBlock = sinon.stub().callsArgWith(1, null, {
+        result: {
+          height: 10
+        }
+      });
+      var getBlockHash = sinon.stub().callsArgWith(1, null, {});
+      bitcoind.nodes.push({
+        client: {
+          getBestBlockHash: getBestBlockHash,
+          getBlock: getBlock,
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getRawBlock = sinon.stub().callsArgWith(1, new Error('test'));
+      bitcoind._initChain(function(err) {
+        err.should.be.instanceOf(Error);
         done();
       });
     });
@@ -1780,7 +1860,7 @@ describe('Bitcoin Service', function() {
           received: 100000,
           balance: 10000
         }
-      }); 
+      });
       bitcoind.nodes.push({
         client: {
           getAddressBalance: getAddressBalance
