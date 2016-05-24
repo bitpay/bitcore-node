@@ -2978,6 +2978,25 @@ describe('Bitcoin Service', function() {
         done();
       });
     });
+    it('will give error with "from" and "to" order is reversed', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.getAddressTxids = sinon.stub().callsArgWith(2, null, []);
+      bitcoind.getAddressHistory(address, {from: 51, to: 0}, function(err) {
+        should.exist(err);
+        err.message.match(/^\"from/);
+        done();
+      });
+    });
+    it('will give error from _getAddressDetailedTransaction', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.getAddressTxids = sinon.stub().callsArgWith(2, null, ['txid']);
+      bitcoind._getAddressDetailedTransaction = sinon.stub().callsArgWith(2, new Error('test'));
+      bitcoind.getAddressHistory(address, {}, function(err) {
+        should.exist(err);
+        err.message.should.equal('test');
+        done();
+      });
+    });
     it('will give an error if length of addresses is too long', function(done) {
       var addresses = [];
       for (var i = 0; i < 101; i++) {
