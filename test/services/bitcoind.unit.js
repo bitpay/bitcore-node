@@ -1738,6 +1738,27 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_connectProcess', function() {
+    it('will give error if connecting while shutting down', function(done) {
+      var config = {
+        node: {
+          network: bitcore.Networks.testnet
+        },
+        spawn: {
+          datadir: 'testdir',
+          exec: 'testpath'
+        }
+      };
+      var bitcoind = new BitcoinService(config);
+      bitcoind.node.stopping = true;
+      bitcoind.startRetryInterval = 100;
+      bitcoind._loadTipFromNode = sinon.stub();
+      bitcoind._connectProcess({}, function(err) {
+        err.should.be.instanceof(Error);
+        err.message.should.match(/Stopping while trying to connect/);
+        bitcoind._loadTipFromNode.callCount.should.equal(0);
+        done();
+      });
+    });
     it('will give error from loadTipFromNode after 60 retries', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind._loadTipFromNode = sinon.stub().callsArgWith(1, new Error('test'));
