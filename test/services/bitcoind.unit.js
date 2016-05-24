@@ -3198,6 +3198,54 @@ describe('Bitcoin Service', function() {
         });
       });
     });
+    it('will skip querying the mempool with queryMempool set to false', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getAddressMempool = sinon.stub();
+      bitcoind.nodes.push({
+        client: {
+          getAddressMempool: getAddressMempool
+        }
+      });
+      sinon.spy(bitcoind, '_paginateTxids');
+      bitcoind.getAddressTxids = sinon.stub().callsArgWith(2, null, [txid1, txid2, txid3]);
+      bitcoind.getAddressBalance = sinon.stub().callsArgWith(2, null, {
+        received: 30 * 1e8,
+        balance: 20 * 1e8
+      });
+      var address = '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj';
+      var options = {
+        queryMempool: false
+      };
+      bitcoind.getAddressSummary(address, options, function() {
+        getAddressMempool.callCount.should.equal(0);
+        done();
+      });
+    });
+    it('will give error from _paginateTxids', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getAddressMempool = sinon.stub();
+      bitcoind.nodes.push({
+        client: {
+          getAddressMempool: getAddressMempool
+        }
+      });
+      sinon.spy(bitcoind, '_paginateTxids');
+      bitcoind.getAddressTxids = sinon.stub().callsArgWith(2, null, [txid1, txid2, txid3]);
+      bitcoind.getAddressBalance = sinon.stub().callsArgWith(2, null, {
+        received: 30 * 1e8,
+        balance: 20 * 1e8
+      });
+      bitcoind._paginateTxids = sinon.stub().throws(new Error('test'));
+      var address = '3NbU8XzUgKyuCgYgZEKsBtUvkTm2r7Xgwj';
+      var options = {
+        queryMempool: false
+      };
+      bitcoind.getAddressSummary(address, options, function(err) {
+        err.should.be.instanceOf(Error);
+        err.message.should.equal('test');
+        done();
+      });
+    });
   });
 
   describe('#getRawBlock', function() {
