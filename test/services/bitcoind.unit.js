@@ -3567,6 +3567,18 @@ describe('Bitcoin Service', function() {
 
   describe('#getBlockHeader', function() {
     var blockhash = '00000000050a6d07f583beba2d803296eb1e9d4980c4a20f206c584e89a4f02b';
+    it('will give error from getBlockHash', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHash = sinon.stub().callsArgWith(1, {code: -1, message: 'Test error'});
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind.getBlockHeader(10, function(err) {
+        err.should.be.instanceof(Error);
+      });
+    });
     it('it will give rpc error from client getblockheader', function() {
       var bitcoind = new BitcoinService(baseConfig);
       var getBlockHeader = sinon.stub().callsArgWith(1, {code: -1, message: 'Test error'});
@@ -3787,6 +3799,20 @@ describe('Bitcoin Service', function() {
       bitcoind._maybeGetBlockHash = sinon.stub().callsArgWith(1, new Error('test'));
       bitcoind.getBlockOverview(blockhash, function(err) {
         err.should.be.instanceOf(Error);
+        done();
+      });
+    });
+    it('will give error from client.getBlock', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlock = sinon.stub().callsArgWith(2, {code: -1, message: 'test'});
+      bitcoind.nodes.push({
+        client: {
+          getBlock: getBlock
+        }
+      });
+      bitcoind.getBlockOverview(blockhash, function(err) {
+        err.should.be.instanceOf(Error);
+        err.message.should.equal('test');
         done();
       });
     });
