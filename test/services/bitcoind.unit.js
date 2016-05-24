@@ -2445,6 +2445,15 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#getAddressTxids', function() {
+    it('will give error from _getHeightRangeQuery', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._getHeightRangeQuery = sinon.stub().throws(new Error('test'));
+      bitcoind.getAddressTxids('address', {}, function(err) {
+        err.should.be.instanceOf(Error);
+        err.message.should.equal('test');
+        done();
+      });
+    });
     it('will give rpc error from mempool query', function() {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.nodes.push({
@@ -2683,6 +2692,98 @@ describe('Bitcoin Service', function() {
       tx.height = 1;
       var confirmations = bitcoind._getConfirmationsDetail(tx);
       confirmations.should.equal(1000);
+    });
+  });
+
+  describe('#_getAddressDetailsForInput', function() {
+    it('will return if missing an address', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {};
+      bitcoind._getAddressDetailsForInput({}, 0, result, []);
+      should.not.exist(result.addresses);
+      should.not.exist(result.satoshis);
+    });
+    it('will only add address if it matches', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {};
+      bitcoind._getAddressDetailsForInput({
+        address: 'address1'
+      }, 0, result, ['address2']);
+      should.not.exist(result.addresses);
+      should.not.exist(result.satoshis);
+    });
+    it('will instantiate if outputIndexes not defined', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {
+        addresses: {}
+      };
+      bitcoind._getAddressDetailsForInput({
+        address: 'address1'
+      }, 0, result, ['address1']);
+      should.exist(result.addresses);
+      result.addresses['address1'].inputIndexes.should.deep.equal([0]);
+      result.addresses['address1'].outputIndexes.should.deep.equal([]);
+    });
+    it('will push to inputIndexes', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {
+        addresses: {
+          'address1': {
+            inputIndexes: [1]
+          }
+        }
+      };
+      bitcoind._getAddressDetailsForInput({
+        address: 'address1'
+      }, 2, result, ['address1']);
+      should.exist(result.addresses);
+      result.addresses['address1'].inputIndexes.should.deep.equal([1, 2]);
+    });
+  });
+
+  describe('#_getAddressDetailsForOutput', function() {
+    it('will return if missing an address', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {};
+      bitcoind._getAddressDetailsForOutput({}, 0, result, []);
+      should.not.exist(result.addresses);
+      should.not.exist(result.satoshis);
+    });
+    it('will only add address if it matches', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {};
+      bitcoind._getAddressDetailsForOutput({
+        address: 'address1'
+      }, 0, result, ['address2']);
+      should.not.exist(result.addresses);
+      should.not.exist(result.satoshis);
+    });
+    it('will instantiate if outputIndexes not defined', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {
+        addresses: {}
+      };
+      bitcoind._getAddressDetailsForOutput({
+        address: 'address1'
+      }, 0, result, ['address1']);
+      should.exist(result.addresses);
+      result.addresses['address1'].inputIndexes.should.deep.equal([]);
+      result.addresses['address1'].outputIndexes.should.deep.equal([0]);
+    });
+    it('will push if outputIndexes defined', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var result = {
+        addresses: {
+          'address1': {
+            outputIndexes: [0]
+          }
+        }
+      };
+      bitcoind._getAddressDetailsForOutput({
+        address: 'address1'
+      }, 1, result, ['address1']);
+      should.exist(result.addresses);
+      result.addresses['address1'].outputIndexes.should.deep.equal([0, 1]);
     });
   });
 
