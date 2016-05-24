@@ -2169,6 +2169,187 @@ describe('Bitcoin Service', function() {
         done();
       });
     });
+    it('will update with mempool results with multiple outputs', function(done) {
+      var deltas = [
+        {
+          txid: 'e9dcf22807db77ac0276b03cc2d3a8b03c4837db8ac6650501ef45af1c807cce',
+          satoshis: -7679241,
+          address: '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo',
+          index: 0,
+          timestamp: 1461342707725,
+          prevtxid: '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0',
+          prevout: 1
+        },
+        {
+          txid: 'e9dcf22807db77ac0276b03cc2d3a8b03c4837db8ac6650501ef45af1c807cce',
+          satoshis: -7679241,
+          address: '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo',
+          index: 1,
+          timestamp: 1461342707725,
+          prevtxid: '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0',
+          prevout: 2
+        }
+      ];
+      var bitcoind = new BitcoinService(baseConfig);
+      var confirmedUtxos = [
+        {
+          address: '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo',
+          txid: '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0',
+          outputIndex: 1,
+          script: '76a914f399b4b8894f1153b96fce29f05e6e116eb4c21788ac',
+          satoshis: 7679241,
+          height: 207111
+        },
+        {
+          address: '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo',
+          txid: '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0',
+          outputIndex: 2,
+          script: '76a914f399b4b8894f1153b96fce29f05e6e116eb4c21788ac',
+          satoshis: 7679241,
+          height: 207111
+        }
+      ];
+      bitcoind.nodes.push({
+        client: {
+          getAddressUtxos: sinon.stub().callsArgWith(1, null, {
+            result: confirmedUtxos
+          }),
+          getAddressMempool: sinon.stub().callsArgWith(1, null, {
+            result: deltas
+          })
+        }
+      });
+      var options = {
+        queryMempool: true
+      };
+      var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
+      bitcoind.getAddressUnspentOutputs(address, options, function(err, utxos) {
+        if (err) {
+          return done(err);
+        }
+        utxos.length.should.equal(0);
+        done();
+      });
+    });
+    it('will update with mempool results spending zero value output (likely never to happen)', function(done) {
+      var deltas = [
+        {
+          txid: 'e9dcf22807db77ac0276b03cc2d3a8b03c4837db8ac6650501ef45af1c807cce',
+          satoshis: 0,
+          address: '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo',
+          index: 0,
+          timestamp: 1461342707725,
+          prevtxid: '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0',
+          prevout: 1
+        }
+      ];
+      var bitcoind = new BitcoinService(baseConfig);
+      var confirmedUtxos = [
+        {
+          address: '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo',
+          txid: '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0',
+          outputIndex: 1,
+          script: '76a914f399b4b8894f1153b96fce29f05e6e116eb4c21788ac',
+          satoshis: 0,
+          height: 207111
+        }
+      ];
+      bitcoind.nodes.push({
+        client: {
+          getAddressUtxos: sinon.stub().callsArgWith(1, null, {
+            result: confirmedUtxos
+          }),
+          getAddressMempool: sinon.stub().callsArgWith(1, null, {
+            result: deltas
+          })
+        }
+      });
+      var options = {
+        queryMempool: true
+      };
+      var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
+      bitcoind.getAddressUnspentOutputs(address, options, function(err, utxos) {
+        if (err) {
+          return done(err);
+        }
+        utxos.length.should.equal(0);
+        done();
+      });
+    });
+    it('will not filter results if mempool is not spending', function(done) {
+      var deltas = [
+        {
+          txid: 'e9dcf22807db77ac0276b03cc2d3a8b03c4837db8ac6650501ef45af1c807cce',
+          satoshis: 10000,
+          address: '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo',
+          index: 0,
+          timestamp: 1461342707725
+        }
+      ];
+      var bitcoind = new BitcoinService(baseConfig);
+      var confirmedUtxos = [
+        {
+          address: '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo',
+          txid: '46f24e0c274fc07708b781963576c4c5d5625d926dbb0a17fa865dcd9fe58ea0',
+          outputIndex: 1,
+          script: '76a914f399b4b8894f1153b96fce29f05e6e116eb4c21788ac',
+          satoshis: 0,
+          height: 207111
+        }
+      ];
+      bitcoind.nodes.push({
+        client: {
+          getAddressUtxos: sinon.stub().callsArgWith(1, null, {
+            result: confirmedUtxos
+          }),
+          getAddressMempool: sinon.stub().callsArgWith(1, null, {
+            result: deltas
+          })
+        }
+      });
+      var options = {
+        queryMempool: true
+      };
+      var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
+      bitcoind.getAddressUnspentOutputs(address, options, function(err, utxos) {
+        if (err) {
+          return done(err);
+        }
+        utxos.length.should.equal(2);
+        done();
+      });
+    });
+    it('it will handle error from getAddressMempool', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.nodes.push({
+        client: {
+          getAddressMempool: sinon.stub().callsArgWith(1, {code: -1, message: 'test'})
+        }
+      });
+      var options = {
+        queryMempool: true
+      };
+      var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
+      bitcoind.getAddressUnspentOutputs(address, options, function(err) {
+        err.should.be.instanceOf(Error);
+        done();
+      });
+    });
+    it('should set query mempool if undefined', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getAddressMempool = sinon.stub().callsArgWith(1, {code: -1, message: 'test'});
+      bitcoind.nodes.push({
+        client: {
+          getAddressMempool: getAddressMempool
+        }
+      });
+      var options = {};
+      var address = '1Cj4UZWnGWAJH1CweTMgPLQMn26WRMfXmo';
+      bitcoind.getAddressUnspentOutputs(address, options, function(err) {
+        getAddressMempool.callCount.should.equal(1);
+        done();
+      });
+    });
   });
 
   describe('#_getBalanceFromMempool', function() {
