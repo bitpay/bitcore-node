@@ -3831,6 +3831,57 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_maybeGetBlockHash', function() {
+    it('will not get block hash with an address', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHash = sinon.stub();
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind._maybeGetBlockHash('2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br', function(err, hash) {
+        if (err) {
+          return done(err);
+        }
+        getBlockHash.callCount.should.equal(0);
+        hash.should.equal('2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br');
+        done();
+      });
+    });
+    it('will not get block hash with non zero-nine numeric string', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHash = sinon.stub();
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind._maybeGetBlockHash('109a', function(err, hash) {
+        if (err) {
+          return done(err);
+        }
+        getBlockHash.callCount.should.equal(0);
+        hash.should.equal('109a');
+        done();
+      });
+    });
+    it('will not get block hash with an address', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var getBlockHash = sinon.stub();
+      bitcoind.nodes.push({
+        client: {
+          getBlockHash: getBlockHash
+        }
+      });
+      bitcoind._maybeGetBlockHash('2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br', function(err, hash) {
+        if (err) {
+          return done(err);
+        }
+        getBlockHash.callCount.should.equal(0);
+        hash.should.equal('2N2JD6wb56AfK4tfmM6PwdVmoYk2dCKf4Br');
+        done();
+      });
+    });
     it('will get the block hash if argument is a number', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       var getBlockHash = sinon.stub().callsArgWith(1, null, {
