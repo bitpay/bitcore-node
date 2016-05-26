@@ -4417,6 +4417,24 @@ describe('Bitcoin Service', function() {
         done();
       });
     });
+    it('will handle scriptPubKey.addresses not being set', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      var rawTransaction = JSON.parse((JSON.stringify(rpcRawTransaction)));
+      delete rawTransaction.vout[0].scriptPubKey['addresses'];
+      bitcoind.nodes.push({
+        client: {
+          getRawTransaction: sinon.stub().callsArgWith(2, null, {
+            result: rawTransaction
+          })
+        }
+      });
+      var txid = '2d950d00494caf6bfc5fff2a3f839f0eb50f663ae85ce092bc5f9d45296ae91f';
+      bitcoind.getDetailedTransaction(txid, function(err, tx) {
+        should.exist(tx);
+        should.equal(tx.outputs[0].address, null);
+        done();
+      });
+    });
     it('will not include script if input missing scriptSig or coinbase', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       var rawTransaction = JSON.parse((JSON.stringify(rpcRawTransaction)));
