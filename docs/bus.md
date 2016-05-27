@@ -20,11 +20,11 @@ bus.close();
 ```javascript
 
 // subscribe to all transaction events
-bus.subscribe('db/transaction');
+bus.subscribe('bitcoind/rawtransaction');
 
-// only subscribe to events relevant to a bitcoin address
-bus.subscribe('address/transaction', ['13FMwCYz3hUhwPcaWuD2M1U2KzfTtvLM89']);
+// to subscribe to new block hashes
+bus.subscribe('bitcoind/hashblock');
 
 // unsubscribe
-bus.unsubscribe('db/transaction');
+bus.unsubscribe('bitcoind/rawtransaction');
 ```

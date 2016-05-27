@@ -3,9 +3,19 @@
 var should = require('chai').should();
 var sinon = require('sinon');
 var proxyquire = require('proxyquire');
-var AddressService = require('../../lib/services/address');
+var BitcoinService = require('../../lib/services/bitcoind');
+var index = require('../../lib');
+var log = index.log;
 
 describe('#start', function() {
+
+  var sandbox = sinon.sandbox.create();
+  beforeEach(function() {
+    sandbox.stub(log, 'error');
+  });
+  afterEach(function() {
+    sandbox.restore();
+  });
 
   describe('will dynamically create a node from a configuration', function() {
 
@@ -13,9 +23,13 @@ describe('#start', function() {
       var node;
       var TestNode = function(options) {
         options.services[0].should.deep.equal({
-          name: 'address',
-          module: AddressService,
-          config: {}
+          name: 'bitcoind',
+          module: BitcoinService,
+          config: {
+            spawn: {
+              datadir: './data'
+            }
+          }
         });
       };
       TestNode.prototype.start = sinon.stub().callsArg(0);
@@ -28,13 +42,21 @@ describe('#start', function() {
         '../node': TestNode
       });
 
+      starttest.registerExitHandlers = sinon.stub();
+
       node = starttest({
         path: __dirname,
         config: {
           services: [
-            'address'
+            'bitcoind'
           ],
-          datadir: './data'
+          servicesConfig: {
+            bitcoind: {
+              spawn: {
+                datadir: './data'
+              }
+            }
+          }
         }
       });
       node.should.be.instanceof(TestNode);
@@ -51,11 +73,13 @@ describe('#start', function() {
         '../node': TestNode
       });
       starttest.cleanShutdown = sinon.stub();
+      starttest.registerExitHandlers = sinon.stub();
+
       starttest({
         path: __dirname,
         config: {
           services: [],
-          datadir: './testdir'
+          servicesConfig: {}
         }
       });
       setImmediate(function() {
@@ -67,10 +91,13 @@ describe('#start', function() {
       var node;
       var TestNode = function(options) {
         options.services[0].should.deep.equal({
-          name: 'address',
-          module: AddressService,
+          name: 'bitcoind',
+          module: BitcoinService,
           config: {
-            param: 'test'
+            param: 'test',
+            spawn: {
+              datadir: './data'
+            }
           }
         });
       };
@@ -83,19 +110,23 @@ describe('#start', function() {
       var starttest = proxyquire('../../lib/scaffold/start', {
         '../node': TestNode
       });
+      starttest.registerExitHandlers = sinon.stub();
 
       node = starttest({
         path: __dirname,
         config: {
           services: [
-            'address'
+            'bitcoind'
           ],
           servicesConfig: {
-            'address': {
-              param: 'test'
+            'bitcoind': {
+              param: 'test',
+              spawn: {
+                datadir: './data'
+              }
             }
           },
-          datadir: './data'
+
         }
       });
       node.should.be.instanceof(TestNode);

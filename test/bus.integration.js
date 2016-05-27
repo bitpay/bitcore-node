@@ -1,12 +1,16 @@
+'use strict';
+
+var sinon = require('sinon');
 var Service = require('../lib/service');
 var BitcoreNode = require('../lib/node');
 var util = require('util');
-var EventEmitter = require('events').EventEmitter;
 var should = require('chai').should();
+var index = require('../lib');
+var log = index.log;
 
 var TestService = function(options) {
   this.node = options.node;
-}
+};
 util.inherits(TestService, Service);
 TestService.dependencies = [];
 
@@ -40,6 +44,14 @@ TestService.prototype.unsubscribe = function(name, emitter) {
 
 
 describe('Bus Functionality', function() {
+  var sandbox = sinon.sandbox.create();
+  beforeEach(function() {
+    sandbox.stub(log, 'info');
+  });
+  afterEach(function() {
+    sandbox.restore();
+  });
+
   it('should subscribe to testEvent', function(done) {
     var node = new BitcoreNode({
       datadir: './',

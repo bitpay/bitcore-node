@@ -8,6 +8,35 @@ var proxyquire = require('proxyquire');
 var start = require('../../lib/scaffold/start');
 
 describe('#start', function() {
+  describe('#checkConfigVersion2', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(console, 'warn');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
+    it('will give true with "datadir" at root', function() {
+      var checkConfigVersion2 = proxyquire('../../lib/scaffold/start', {}).checkConfigVersion2;
+      var v2 = checkConfigVersion2({datadir: '/home/user/.bitcore/data', services: []});
+      v2.should.equal(true);
+    });
+    it('will give true with "address" service enabled', function() {
+      var checkConfigVersion2 = proxyquire('../../lib/scaffold/start', {}).checkConfigVersion2;
+      var v2 = checkConfigVersion2({services: ['address']});
+      v2.should.equal(true);
+    });
+    it('will give true with "db" service enabled', function() {
+      var checkConfigVersion2 = proxyquire('../../lib/scaffold/start', {}).checkConfigVersion2;
+      var v2 = checkConfigVersion2({services: ['db']});
+      v2.should.equal(true);
+    });
+    it('will give false without "datadir" at root and "address", "db" services disabled', function() {
+      var checkConfigVersion2 = proxyquire('../../lib/scaffold/start', {}).checkConfigVersion2;
+      var v2 = checkConfigVersion2({services: []});
+      v2.should.equal(false);
+    });
+  });
   describe('#setupServices', function() {
     var cwd = process.cwd();
     var setupServices = proxyquire('../../lib/scaffold/start', {}).setupServices;
@@ -96,34 +125,6 @@ describe('#start', function() {
       }).should.throw('Could not load service');
     });
   });
-  describe('#registerSyncHandlers', function() {
-    it('will log the sync status at an interval', function(done) {
-      var log = {
-        info: sinon.stub()
-      };
-      var registerSyncHandlers = proxyquire('../../lib/scaffold/start', {
-        '../': {
-          log: log
-        }
-      }).registerSyncHandlers;
-      var node = new EventEmitter();
-      node.services = {
-        db: new EventEmitter()
-      };
-      node.services.db.tip = {
-        hash: 'hash',
-        __height: 10
-      };
-      registerSyncHandlers(node, 10);
-      node.emit('ready');
-      node.services.db.emit('addblock');
-      setTimeout(function() {
-        node.emit('synced');
-        log.info.callCount.should.be.within(3, 4);
-        done();
-      }, 35);
-    });
-  });
   describe('#cleanShutdown', function() {
     it('will call node stop and process exit', function() {
       var log = {
@@ -210,110 +211,6 @@ describe('#start', function() {
         proc.exit.callCount.should.equal(1);
         done();
       });
-    });
-  });
-  describe('#spawnChildProcess', function() {
-
-    it('should build the appropriate arguments to spawn a child process', function() {
-      var child = {
-        unref: function() {}
-      };
-      var _process = {
-        exit: function() {},
-        env: {
-          __bitcore_node: false
-        },
-        argv: [
-          'node',
-          'bitcore-node'
-        ],
-        cwd: function(){return ''},
-        pid: 999,
-        execPath: '/tmp'
-      };
-      var fd = {};
-      var spawn = sinon.stub().returns(child);
-      var openSync = sinon.stub().returns(fd);
-      var spawnChildProcess = proxyquire('../../lib/scaffold/start', {
-        fs: {
-          openSync: openSync
-        },
-        child_process: {
-          spawn: spawn
-        }
-      }).spawnChildProcess;
-
-      spawnChildProcess('/tmp', _process);
-
-      spawn.callCount.should.equal(1);
-      spawn.args[0][0].should.equal(_process.execPath);
-      var expected = [].concat(_process.argv);
-      expected.shift();
-      spawn.args[0][1].should.deep.equal(expected);
-      var cp_opt = {
-        stdio: ['ignore', fd, fd],
-        env: _process.env,
-        cwd: '',
-        detached: true
-      };
-      spawn.args[0][2].should.deep.equal(cp_opt);
-      openSync.callCount.should.equal(1);
-      openSync.args[0][0].should.equal('/tmp/bitcore-node.log');
-      openSync.args[0][1].should.equal('a+');
-    });
-    it('should not spawn a new child process if there is already a daemon running', function() {
-      var _process = {
-        exit: function() {},
-        env: {
-          __bitcore_node: true
-        },
-        argv: [
-          'node',
-          'bitcore-node'
-        ],
-        cwd: 'cwd',
-        pid: 999,
-        execPath: '/tmp'
-      };
-      var spawnChildProcess = proxyquire('../../lib/scaffold/start', {}).spawnChildProcess;
-      spawnChildProcess('/tmp', _process).should.equal(999);
-    });
-  });
-  describe('daemon', function() {
-    var sandbox;
-    var spawn;
-    var setup;
-    var registerSync;
-    var registerExit;
-    var start = require('../../lib/scaffold/start');
-    var options = {
-      config: {
-        datadir: '/tmp',
-        daemon: true
-      }
-    }
-    beforeEach(function() {
-      sandbox = sinon.sandbox.create();
-      spawn = sandbox.stub(start, 'spawnChildProcess', function() {});
-      setup = sandbox.stub(start, 'setupServices', function() {});
-      registerSync = sandbox.stub(start, 'registerSyncHandlers', function() {});
-      registerExit = sandbox.stub(start, 'registerExitHandlers', function() {});
-    });
-    afterEach(function() {
-      sandbox.restore();
-    });
-    it('call spawnChildProcess if there is a config option to do so', function() {
-      start(options);
-      registerSync.callCount.should.equal(1);
-      registerExit.callCount.should.equal(1);
-      spawn.callCount.should.equal(1);
-    });
-    it('not call spawnChildProcess if there is not an option to do so', function() {
-      options.config.daemon = false;
-      start(options);
-      registerSync.callCount.should.equal(1);
-      registerExit.callCount.should.equal(1);
-      spawn.callCount.should.equal(0);
     });
   });
   describe('#registerExitHandlers', function() {

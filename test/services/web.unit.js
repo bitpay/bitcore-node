@@ -5,6 +5,9 @@ var sinon = require('sinon');
 var EventEmitter = require('events').EventEmitter;
 var proxyquire = require('proxyquire');
 
+var index = require('../../lib');
+var log = index.log;
+
 var httpStub = {
   createServer: sinon.spy()
 };
@@ -22,19 +25,28 @@ var fakeSocket = new EventEmitter();
 
 fakeSocket.on('test/event1', function(data) {
   data.should.equal('testdata');
-  done();
 });
 
 fakeSocketListener.emit('connection', fakeSocket);
-
 fakeSocket.emit('subscribe', 'test/event1');
-
-
 
 var WebService = proxyquire('../../lib/services/web', {http: httpStub, https: httpsStub, fs: fsStub});
 
 describe('WebService', function() {
   var defaultNode = new EventEmitter();
+
+  describe('@constructor', function() {
+    it('will set socket rpc settings', function() {
+      var web = new WebService({node: defaultNode, enableSocketRPC: false});
+      web.enableSocketRPC.should.equal(false);
+
+      var web2 = new WebService({node: defaultNode, enableSocketRPC: true});
+      web2.enableSocketRPC.should.equal(true);
+
+      var web3 = new WebService({node: defaultNode});
+      web3.enableSocketRPC.should.equal(WebService.DEFAULT_SOCKET_RPC);
+    });
+  });
 
   describe('#start', function() {
     beforeEach(function() {
@@ -201,8 +213,43 @@ describe('WebService', function() {
     });
   });
 
+  describe('#_getRemoteAddress', function() {
+    it('will get remote address from cloudflare header', function() {
+      var web = new WebService({node: defaultNode});
+      var socket = {};
+      socket.conn = {};
+      socket.client = {};
+      socket.client.request = {};
+      socket.client.request.headers = {
+        'cf-connecting-ip': '127.0.0.1'
+      };
+      var remoteAddress = web._getRemoteAddress(socket);
+      remoteAddress.should.equal('127.0.0.1');
+    });
+    it('will get remote address from connection', function() {
+      var web = new WebService({node: defaultNode});
+      var socket = {};
+      socket.conn = {};
+      socket.conn.remoteAddress = '127.0.0.1';
+      socket.client = {};
+      socket.client.request = {};
+      socket.client.request.headers = {};
+      var remoteAddress = web._getRemoteAddress(socket);
+      remoteAddress.should.equal('127.0.0.1');
+    });
+  });
+
   describe('#socketHandler', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
+
     var bus = new EventEmitter();
+    bus.remoteAddress = '127.0.0.1';
 
     var Module1 = function() {};
     Module1.prototype.getPublishEvents = function() {
@@ -232,7 +279,30 @@ describe('WebService', function() {
         done();
       };
       socket = new EventEmitter();
+      socket.conn = {};
+      socket.conn.remoteAddress = '127.0.0.1';
+      socket.client = {};
+      socket.client.request = {};
+      socket.client.request.headers = {};
       web.socketHandler(socket);
+      socket.emit('message', 'data');
+    });
+
+    it('on message should NOT call socketMessageHandler if not enabled', function(done) {
+      web = new WebService({node: node, enableSocketRPC: false});
+      web.eventNames = web.getEventNames();
+      web.socketMessageHandler = sinon.stub();
+      socket = new EventEmitter();
+      socket.conn = {};
+      socket.conn.remoteAddress = '127.0.0.1';
+      socket.client = {};
+      socket.client.request = {};
+      socket.client.request.headers = {};
+      web.socketHandler(socket);
+      socket.on('message', function() {
+        web.socketMessageHandler.callCount.should.equal(0);
+        done();
+      });
       socket.emit('message', 'data');
     });
 
@@ -297,7 +367,7 @@ describe('WebService', function() {
       var message = {
         method: 'two',
         params: [1, 2]
-      }
+      };
       web.socketMessageHandler(message, function(response) {
         should.exist(response.error);
         response.error.message.should.equal('Method Not Found');
