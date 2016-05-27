@@ -24,6 +24,5 @@ Create a release tag and push it to the BitPay Github repo:
 
 ```bash
 git tag -s v<version> -m 'v<version>'
-git tag <version>
-git push upstream <version>
+git push upstream v<version>
 ```
