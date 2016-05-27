@@ -45,7 +45,7 @@
   ],
   "dependencies": {
     "async": "^1.3.0",
-    "bitcoind-rpc": "braydonf/bitcoind-rpc#594d9aa0bee54ab247578785bd2acd16a8c012e6",
+    "bitcoind-rpc": "^0.6.0",
     "bitcore-lib": "^0.13.13",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
