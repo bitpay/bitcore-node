@@ -429,7 +429,7 @@ describe('Bitcoin Service', function() {
     beforeEach(function() {
       sandbox.stub(log, 'warn');
     });
-    after(function() {
+    afterEach(function() {
       sandbox.restore();
     });
     it('should warn the user if reindex is set to 1 in the bitcoin.conf file', function() {
@@ -447,6 +447,22 @@ describe('Bitcoin Service', function() {
       bitcoind._checkConfigIndexes(config, node);
       log.warn.callCount.should.equal(1);
       node._reindex.should.equal(true);
+    });
+    it('should warn if zmq port and hosts do not match', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      var config = {
+        txindex: 1,
+        addressindex: 1,
+        spentindex: 1,
+        server: 1,
+        zmqpubrawtx: 'tcp://127.0.0.1:28332',
+        zmqpubhashblock: 'tcp://127.0.0.1:28331',
+        reindex: 1
+      };
+      var node = {};
+      (function() {
+        bitcoind._checkConfigIndexes(config, node);
+      }).should.throw('"zmqpubrawtx" and "zmqpubhashblock"');
     });
   });
 
