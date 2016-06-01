@@ -340,6 +340,13 @@ describe('Bitcoin Service', function() {
   });
 
   describe('#_loadSpawnConfiguration', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will parse a bitcoin.conf file', function() {
       var TestBitcoin = proxyquire('../../lib/services/bitcoind', {
         fs: {
@@ -352,7 +359,9 @@ describe('Bitcoin Service', function() {
         }
       });
       var bitcoind = new TestBitcoin(baseConfig);
-      bitcoind._loadSpawnConfiguration({datadir: process.env.HOME + '/.bitcoin'});
+      bitcoind.options.spawn.datadir = '/tmp/.bitcoin';
+      var node = {};
+      bitcoind._loadSpawnConfiguration(node);
       should.exist(bitcoind.spawn.config);
       bitcoind.spawn.config.should.deep.equal({
         addressindex: 1,
@@ -373,6 +382,33 @@ describe('Bitcoin Service', function() {
         zmqpubhashblock: 'tcp://127.0.0.1:28332',
         zmqpubrawtx: 'tcp://127.0.0.1:28332'
       });
+    });
+    it('will expand relative datadir to absolute path', function() {
+      var TestBitcoin = proxyquire('../../lib/services/bitcoind', {
+        fs: {
+          readFileSync: readFileSync,
+          existsSync: sinon.stub().returns(true),
+          writeFileSync: sinon.stub()
+        },
+        mkdirp: {
+          sync: sinon.stub()
+        }
+      });
+      var config = {
+        node: {
+          network: bitcore.Networks.testnet,
+          configPath: '/tmp/.bitcore/bitcore-node.json'
+        },
+        spawn: {
+          datadir: './data',
+          exec: 'testpath'
+        }
+      };
+      var bitcoind = new TestBitcoin(config);
+      bitcoind.options.spawn.datadir = './data';
+      var node = {};
+      bitcoind._loadSpawnConfiguration(node);
+      bitcoind.options.spawn.datadir.should.equal('/tmp/.bitcore/data');
     });
     it('should throw an exception if txindex isn\'t enabled in the configuration', function() {
       var TestBitcoin = proxyquire('../../lib/services/bitcoind', {
@@ -420,7 +456,9 @@ describe('Bitcoin Service', function() {
         }
       };
       var bitcoind = new TestBitcoin(config);
-      bitcoind._loadSpawnConfiguration({datadir: process.env.HOME + '/.bitcoin'});
+      bitcoind.options.spawn.datadir = '/tmp/.bitcoin';
+      var node = {};
+      bitcoind._loadSpawnConfiguration(node);
     });
   });
 
