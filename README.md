@@ -18,7 +18,7 @@ Note: For your convenience, we distribute bitcoind binaries for x86_64 Linux and
 - Node.js v0.10, v0.12 or v4
 - ZeroMQ *(libzmq3-dev for Ubuntu/Debian or zeromq on OSX)*
 - ~200GB of disk storage
-- ~4GB of RAM
+- ~8GB of RAM
 
 ## Configuration
 
