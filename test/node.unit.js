@@ -139,6 +139,21 @@ describe('Bitcore Node', function() {
       var methods = node.getAllAPIMethods();
       methods.should.deep.equal(['db1', 'db2', 'mda1', 'mda2', 'mdb1', 'mdb2']);
     });
+    it('will handle service without getAPIMethods defined', function() {
+      var node = new Node(baseConfig);
+      node.services = {
+        db: {
+          getAPIMethods: sinon.stub().returns(['db1', 'db2']),
+        },
+        service1: {},
+        service2: {
+          getAPIMethods: sinon.stub().returns(['mdb1', 'mdb2'])
+        }
+      };
+
+      var methods = node.getAllAPIMethods();
+      methods.should.deep.equal(['db1', 'db2', 'mdb1', 'mdb2']);
+    });
   });
 
   describe('#getAllPublishEvents', function() {
@@ -157,6 +172,20 @@ describe('Bitcore Node', function() {
       };
       var events = node.getAllPublishEvents();
       events.should.deep.equal(['db1', 'db2', 'mda1', 'mda2', 'mdb1', 'mdb2']);
+    });
+    it('will handle service without getPublishEvents defined', function() {
+      var node = new Node(baseConfig);
+      node.services = {
+        db: {
+          getPublishEvents: sinon.stub().returns(['db1', 'db2']),
+        },
+        service1: {},
+        service2: {
+          getPublishEvents: sinon.stub().returns(['mdb1', 'mdb2'])
+        }
+      };
+      var events = node.getAllPublishEvents();
+      events.should.deep.equal(['db1', 'db2', 'mdb1', 'mdb2']);
     });
   });
 
@@ -339,6 +368,28 @@ describe('Bitcore Node', function() {
       node.start(function(err) {
         should.exist(err);
         err.message.should.match(/^Existing API method\(s\) exists\:/);
+        done();
+      });
+
+    });
+    it('will handle service with getAPIMethods undefined', function(done) {
+      var node = new Node(baseConfig);
+
+      function TestService() {}
+      util.inherits(TestService, BaseService);
+      TestService.prototype.start = sinon.stub().callsArg(0);
+      TestService.prototype.getData = function() {};
+
+      node.getServiceOrder = sinon.stub().returns([
+        {
+          name: 'test',
+          module: TestService,
+          config: {}
+        },
+      ]);
+
+      node.start(function() {
+        TestService.prototype.start.callCount.should.equal(1);
         done();
       });
 
