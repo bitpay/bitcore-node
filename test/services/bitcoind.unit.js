@@ -83,6 +83,16 @@ describe('Bitcoin Service', function() {
     });
   });
 
+  describe('#_initDefaults', function() {
+    it('will set transaction concurrency', function() {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind._initDefaults({transactionConcurrency: 10});
+      bitcoind.transactionConcurrency.should.equal(10);
+      bitcoind._initDefaults({});
+      bitcoind.transactionConcurrency.should.equal(5);
+    });
+  });
+
   describe('@dependencies', function() {
     it('will have no dependencies', function() {
       BitcoinService.dependencies.should.deep.equal([]);
