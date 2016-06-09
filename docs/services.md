@@ -41,15 +41,17 @@ var Bitcoin = bitcore.services.Bitcoin;
 var Web = bitcore.services.Web;
 
 var myNode = new bitcore.Node({
-  datadir: '/home/user/.bitcore',
-  network: {
-    name: 'livenet'
-  },
-  "services": [
+  network: 'regtest'
+  services: [
     {
       name: 'bitcoind',
       module: Bitcoin,
-      config: {}
+      config: {
+        spawn: {
+          datadir: '/home/<username>/.bitcoin',
+          exec: '/home/<username>/bitcore-node/bin/bitcoind'
+        }
+      }
     },
     {
       name: 'web',
