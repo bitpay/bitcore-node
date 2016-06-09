@@ -525,46 +525,61 @@ describe('Bitcoin Service', function() {
     });
   });
 
-  describe('#_tryAll', function() {
-    it('will retry the number of bitcoind nodes', function(done) {
+  describe('#_tryAllClients', function() {
+    it('will retry for each node client', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.tryAllInterval = 1;
-      bitcoind.nodes.push({});
-      bitcoind.nodes.push({});
-      bitcoind.nodes.push({});
-      var count = 0;
-      var func = function(callback) {
-        count++;
-        if (count <= 2) {
-          callback(new Error('test'));
-        } else {
-          callback();
+      bitcoind.nodes.push({
+        client: {
+          getInfo: sinon.stub().callsArgWith(0, new Error('test'))
         }
-      };
-      bitcoind._tryAll(function(next) {
-        func(next);
-      }, function() {
-        count.should.equal(3);
+      });
+      bitcoind.nodes.push({
+        client: {
+          getInfo: sinon.stub().callsArgWith(0, new Error('test'))
+        }
+      });
+      bitcoind.nodes.push({
+        client: {
+          getInfo: sinon.stub().callsArg(0)
+        }
+      });
+      bitcoind._tryAllClients(function(client, next) {
+        client.getInfo(next);
+      }, function(err) {
+        if (err) {
+          return done(err);
+        }
+        bitcoind.nodes[0].client.getInfo.callCount.should.equal(1);
+        bitcoind.nodes[1].client.getInfo.callCount.should.equal(1);
+        bitcoind.nodes[2].client.getInfo.callCount.should.equal(1);
         done();
       });
     });
-    it('will get error if all fail', function(done) {
+    it('will get error if all clients fail', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.tryAllInterval = 1;
-      bitcoind.nodes.push({});
-      bitcoind.nodes.push({});
-      bitcoind.nodes.push({});
-      var count = 0;
-      var func = function(callback) {
-        count++;
-        callback(new Error('test'));
-      };
-      bitcoind._tryAll(function(next) {
-        func(next);
+      bitcoind.nodes.push({
+        client: {
+          getInfo: sinon.stub().callsArgWith(0, new Error('test'))
+        }
+      });
+      bitcoind.nodes.push({
+        client: {
+          getInfo: sinon.stub().callsArgWith(0, new Error('test'))
+        }
+      });
+      bitcoind.nodes.push({
+        client: {
+          getInfo: sinon.stub().callsArgWith(0, new Error('test'))
+        }
+      });
+      bitcoind._tryAllClients(function(client, next) {
+        client.getInfo(next);
       }, function(err) {
         should.exist(err);
+        err.should.be.instanceOf(Error);
         err.message.should.equal('test');
-        count.should.equal(3);
         done();
       });
     });
