@@ -233,6 +233,33 @@ describe('Bitcore Node', function() {
         getData.callCount.should.equal(1);
       });
     });
+    it('will handle config not being set', function() {
+      var node = new Node(baseConfig);
+      function TestService() {}
+      util.inherits(TestService, BaseService);
+      TestService.prototype.start = sinon.stub().callsArg(0);
+      var getData = sinon.stub();
+      TestService.prototype.getData = getData;
+      TestService.prototype.getAPIMethods = function() {
+        return [
+          ['getData', this, this.getData, 1]
+        ];
+      };
+      var service = {
+        name: 'testservice',
+        module: TestService,
+      };
+      node._startService(service, function(err) {
+        if (err) {
+          throw err;
+        }
+        TestService.prototype.start.callCount.should.equal(1);
+        should.exist(node.services.testservice);
+        should.exist(node.getData);
+        node.getData();
+        getData.callCount.should.equal(1);
+      });
+    });
     it('will give an error from start', function() {
       var node = new Node(baseConfig);
       function TestService() {}
