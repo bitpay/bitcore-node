@@ -130,4 +130,22 @@ describe('Utils', function() {
 
   });
 
+  describe('#parseParamsWithJSON', function() {
+    it('will parse object', function() {
+      var paramsArg = ['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou', '{"start": 100, "end": 1}'];
+      var params = utils.parseParamsWithJSON(paramsArg);
+      params.should.deep.equal(['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou', {start: 100, end: 1}]);
+    });
+    it('will parse array', function() {
+      var paramsArg = ['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou', '[0, 1]'];
+      var params = utils.parseParamsWithJSON(paramsArg);
+      params.should.deep.equal(['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou', [0, 1]]);
+    });
+    it('will parse numbers', function() {
+      var paramsArg = ['3', 0, 'b', '0', 0x12, '0.0001'];
+      var params = utils.parseParamsWithJSON(paramsArg);
+      params.should.deep.equal([3, 0, 'b', 0, 0x12, 0.0001]);
+    });
+  });
+
 });
