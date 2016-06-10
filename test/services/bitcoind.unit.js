@@ -556,6 +556,37 @@ describe('Bitcoin Service', function() {
         done();
       });
     });
+    it('will start using the current node index (round-robin)', function(done) {
+      var bitcoind = new BitcoinService(baseConfig);
+      bitcoind.tryAllInterval = 1;
+      bitcoind.nodes.push({
+        client: {
+          getInfo: sinon.stub().callsArgWith(0, new Error('2'))
+        }
+      });
+      bitcoind.nodes.push({
+        client: {
+          getInfo: sinon.stub().callsArgWith(0, new Error('3'))
+        }
+      });
+      bitcoind.nodes.push({
+        client: {
+          getInfo: sinon.stub().callsArgWith(0, new Error('1'))
+        }
+      });
+      bitcoind.nodesIndex = 2;
+      bitcoind._tryAllClients(function(client, next) {
+        client.getInfo(next);
+      }, function(err) {
+        err.should.be.instanceOf(Error);
+        err.message.should.equal('3');
+        bitcoind.nodes[0].client.getInfo.callCount.should.equal(1);
+        bitcoind.nodes[1].client.getInfo.callCount.should.equal(1);
+        bitcoind.nodes[2].client.getInfo.callCount.should.equal(1);
+        bitcoind.nodesIndex.should.equal(2);
+        done();
+      });
+    });
     it('will get error if all clients fail', function(done) {
       var bitcoind = new BitcoinService(baseConfig);
       bitcoind.tryAllInterval = 1;
