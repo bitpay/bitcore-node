@@ -5,9 +5,9 @@ set -e
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 platform=`uname -a | awk '{print tolower($1)}'`
 arch=`uname -m`
-version="0.12.0"
+version="0.12.1"
 url="https://github.com/bitpay/bitcoin/releases/download"
-tag="v0.12-bitcore"
+tag="v0.12.1-bitcore"
 
 if [ "${platform}" == "linux" ]; then
     if [ "${arch}" == "x86_64" ]; then
