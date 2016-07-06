@@ -46,6 +46,10 @@ describe('WebService', function() {
       var web3 = new WebService({node: defaultNode});
       web3.enableSocketRPC.should.equal(WebService.DEFAULT_SOCKET_RPC);
     });
+    it('will set configuration options for max payload', function() {
+      var web = new WebService({node: defaultNode, jsonRequestLimit: '200kb'});
+      web.jsonRequestLimit.should.equal('200kb');
+    });
   });
 
   describe('#start', function() {
@@ -72,6 +76,39 @@ describe('WebService', function() {
       web.start(function(err) {
         should.not.exist(err);
         httpsStub.createServer.called.should.equal(true);
+        done();
+      });
+    });
+    it('should pass json request limit to json body parser', function(done) {
+      var node = new EventEmitter();
+      var jsonStub = sinon.stub();
+      var TestWebService = proxyquire('../../lib/services/web', {
+        http: {
+          createServer: sinon.stub()
+        },
+        https: {
+          createServer: sinon.stub()
+        },
+        fs: fsStub,
+        express: sinon.stub().returns({
+          use: sinon.stub()
+        }),
+        'body-parser': {
+          json: jsonStub
+        },
+        'socket.io': {
+          listen: sinon.stub().returns({
+            on: sinon.stub()
+          })
+        }
+      });
+      var web = new TestWebService({node: node});
+      web.start(function(err) {
+        if (err) {
+          return done(err);
+        }
+        jsonStub.callCount.should.equal(1);
+        jsonStub.args[0][0].limit.should.equal('100kb');
         done();
       });
     });
