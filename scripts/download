@@ -7,7 +7,7 @@ platform=`uname -a | awk '{print tolower($1)}'`
 arch=`uname -m`
 version="0.12.1"
 url="https://github.com/bitpay/bitcoin/releases/download"
-tag="v0.12.1-bitcore-2"
+tag="v0.12.1-bitcore-4"
 
 if [ "${platform}" == "linux" ]; then
     if [ "${arch}" == "x86_64" ]; then
