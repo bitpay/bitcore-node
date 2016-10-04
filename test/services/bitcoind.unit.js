@@ -3070,7 +3070,19 @@ describe('Bitcoin Service', function() {
             'bc992ad772eb02864db07ef248d31fb3c6826d25f1153ebf8c79df9b7f70fcf2', // mempool
             'e9dcf22807db77ac0276b03cc2d3a8b03c4837db8ac6650501ef45af1c807cce' // confirmed
           ]);
-          done();
+
+          bitcoind.getAddressTxids(address, {queryMempoolOnly: true}, function(err, txids) {
+            if (err) {
+              return done(err);
+            }
+            getAddressTxids.callCount.should.equal(1);
+            txids.should.deep.equal([
+              'f35e7e2a2334e845946f3eaca76890d9a68f4393ccc9fe37a0c2fb035f66d2e9', // mempool
+              'f71bccef3a8f5609c7f016154922adbfe0194a96fb17a798c24077c18d0a9345', // mempool
+              'bc992ad772eb02864db07ef248d31fb3c6826d25f1153ebf8c79df9b7f70fcf2', // mempool
+            ]);
+            done();
+          });
         });
       });
     });
