@@ -12,13 +12,16 @@ tag="v0.12.1-bitcore-4"
 if [ "${platform}" == "linux" ]; then
     if [ "${arch}" == "x86_64" ]; then
         tarball_name="bitcoin-${version}-linux64.tar.gz"
-    elif [ "${arch}" == "x86_32" ]; then
+    elif [ "${arch}" == "x86_32" ] || [ "${arch}" == "i686" ] ; then
         tarball_name="bitcoin-${version}-linux32.tar.gz"
+    else
+        echo "Bitcoin binary distribution not available for architecture ${arch}"
+        exit -1
     fi
 elif [ "${platform}" == "darwin" ]; then
     tarball_name="bitcoin-${version}-osx64.tar.gz"
 else
-    echo "Bitcoin binary distribution not available for platform and architecture"
+    echo "Bitcoin binary distribution not available for platform ${platform}"
     exit -1
 fi
 
