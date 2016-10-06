@@ -217,12 +217,16 @@ node.services.bitcoind.getAddressBalance(address, options, function(err, balance
 
 This method will give history of an address limited by a range of block heights by using the "start" and "end" arguments. The "start" value is the more recent, and greater, block height. The "end" value is the older, and lesser, block height. This feature is most useful for synchronization as previous history can be omitted. Furthermore for large ranges of block heights, results can be paginated by using the "from" and "to" arguments.
 
+If "queryMempool" is set as true (it is true by default), it will show unconfirmed transactions from the bitcoin mempool. However, if you specify "start" and "end", "queryMempool" is ignored and is always false.
+
+If "queryMempoolOnly" is set as true (it is false by default), it will show *only* unconfirmed transactions from mempool.
+
 ```js
 var addresses = ['mgY65WSfEmsyYaYPQaXhmXMeBhwp4EcsQW'];
 var options = {
   start: 345000,
   end: 344000,
-  queryMempool: true
+  queryMempool: true // since we presented range, queryMempool will be ignored
 };
 node.services.bitcoind.getAddressHistory(addresses, options, function(err, history) {
   // see below
