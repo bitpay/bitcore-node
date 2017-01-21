@@ -1,0 +1,20 @@
+[Unit]
+Description=BWDB
+Requires=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/usr/opt/bitcore
+ExecStart=/usr/bin/bwdb 
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=15
+User=bitcore
+ExecStartPre=/bin/mkdir -p /run/bwdb
+ExecStartPre=/bin/chown bitcore:bitcore /run/bwdb
+ExecStartPre=/bin/chmod 755 /run/bwdb
+PermissionsStartOnly=true
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target
