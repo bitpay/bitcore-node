@@ -1,12 +1,10 @@
 'use strict';
 
-var should = require('chai').should();
-var sinon = require('sinon');
 var bitcore = require('bitcore-lib');
 
 var Encoding = require('../../../lib/services/address/encoding');
 
-describe.only('Address service encoding', function() {
+describe('Address service encoding', function() {
 
   var servicePrefix = new Buffer('0000', 'hex');
   var encoding = new Encoding(servicePrefix);
@@ -17,16 +15,27 @@ describe.only('Address service encoding', function() {
   var prefix0 = new Buffer('00', 'hex');
   var prefix1 = new Buffer('01', 'hex');
   addressSizeBuf.writeUInt8(address.length);
-  var addressIndexKeyBuf = Buffer.concat([servicePrefix, prefix0, addressSizeBuf, new Buffer(address), new Buffer('00000001', 'hex'), new Buffer(txid, 'hex')]);
+  var addressIndexKeyBuf = Buffer.concat([
+    servicePrefix,
+    prefix0,
+    addressSizeBuf,
+    new Buffer(address),
+    new Buffer('00000001', 'hex'),
+    new Buffer(txid, 'hex')]);
   var outputIndex = 5;
-  var utxoKeyBuf = Buffer.concat([servicePrefix, prefix1, addressSizeBuf, new Buffer(address), new Buffer(txid, 'hex'), new Buffer('00000005', 'hex')]);
+  var utxoKeyBuf = Buffer.concat([
+    servicePrefix,
+    prefix1,
+    addressSizeBuf,
+    new Buffer(address),
+    new Buffer(txid, 'hex'),
+    new Buffer('00000005', 'hex')]);
   var txHex = '0100000001cc3ffe0638792c8b39328bb490caaefe2cf418f2ce0144956e0c22515f29724d010000006a473044022030ce9fa68d1a32abf0cd4adecf90fb998375b64fe887c6987278452b068ae74c022036a7d00d1c8af19e298e04f14294c807ebda51a20389ad751b4ff3c032cf8990012103acfcb348abb526526a9f63214639d79183871311c05b2eebc727adfdd016514fffffffff02f6ae7d04000000001976a9144455183e407ee4d3423858c8a3275918aedcd18e88aca99b9b08010000001976a9140beceae2c29bfde08d2b6d80b33067451c5887be88ac00000000';
   var tx = new bitcore.Transaction(txHex);
   var sats = tx.outputs[0].satoshis;
   var satsBuf = new Buffer(8);
   satsBuf.writeDoubleBE(sats);
   var utxoValueBuf = Buffer.concat([new Buffer('00000001', 'hex'), satsBuf, tx.outputs[0]._scriptBuffer]);
-  var txEncoded = Buffer.concat([new Buffer('00000002', 'hex'), new Buffer('3ff0000000000000', 'hex'), new Buffer('0002', 'hex'), new Buffer('40000000000000004008000000000000', 'hex'), tx.toBuffer()]);
 
   it('should encode address key' , function() {
     encoding.encodeAddressIndexKey(address, height, txid).should.deep.equal(addressIndexKeyBuf);
@@ -50,10 +59,17 @@ describe.only('Address service encoding', function() {
     utxoKey.outputIndex.should.equal(outputIndex);
   });
   it('should encode utxo value', function() {
-    encoding.encodeUtxoIndexValue(height, tx.outputs[0].satoshis, tx.outputs[0]._scriptBuffer).should.deep.equal(utxoValueBuf);
+    encoding.encodeUtxoIndexValue(
+      height,
+      tx.outputs[0].satoshis,
+      tx.outputs[0]._scriptBuffer).should.deep.equal(utxoValueBuf);
   });
-  it('should decode utxo value', function() {
 
+  it('should decode utxo value', function() {
+    var utxoValue = encoding.decodeUtxoIndexValue(utxoValueBuf);
+    utxoValue.height.should.equal(height);
+    utxoValue.satoshis.should.equal(sats);
+    utxoValue.script.should.deep.equal(tx.outputs[0]._scriptBuffer);
   });
 });
 

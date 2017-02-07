@@ -5,7 +5,7 @@ var sinon = require('sinon');
 var EventEmitter = require('events').EventEmitter;
 var proxyquire = require('proxyquire');
 
-var index = require('../../lib');
+var index = require('../../../lib');
 var log = index.log;
 
 var httpStub = {
@@ -30,7 +30,7 @@ fakeSocket.on('test/event1', function(data) {
 fakeSocketListener.emit('connection', fakeSocket);
 fakeSocket.emit('subscribe', 'test/event1');
 
-var WebService = proxyquire('../../lib/services/web', {http: httpStub, https: httpsStub, fs: fsStub});
+var WebService = proxyquire('../../../lib/services/web', {http: httpStub, https: httpsStub, fs: fsStub});
 
 describe('WebService', function() {
   var defaultNode = new EventEmitter();
