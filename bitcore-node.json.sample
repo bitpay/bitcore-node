@@ -1,0 +1,22 @@
+{
+  "network": "livenet",
+  "port": 3001,
+  "datadir": "/tmp",
+  "services": [
+    "bitcoind",
+    "db",
+    "transaction",
+    "timestamp",
+    "address",
+    "mempool",
+    "wallet-api",
+    "web"
+  ],
+  "servicesConfig": {
+    "bitcoind": {
+      "connect": [
+        { "rpcconnect": "127.0.0.1", "rpcport": 8332, "rpcuser": "bitcoin", "rpcpassword": "local321", "zmqpubrawtx": "tcp://127.0.0.1:28332" }
+      ]
+    }
+  }
+}
