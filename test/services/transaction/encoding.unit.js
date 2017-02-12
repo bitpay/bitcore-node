@@ -1,7 +1,6 @@
 'use strict';
 
 var should = require('chai').should();
-var sinon = require('sinon');
 var bitcore = require('bitcore-lib');
 
 var Encoding = require('../../../lib/services/transaction/encoding');

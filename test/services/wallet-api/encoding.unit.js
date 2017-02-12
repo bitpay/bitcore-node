@@ -1,5 +1,6 @@
 'use strict';
 
+var should = require('chai').should();
 var bitcore = require('bitcore-lib');
 
 var Encoding = require('../../../lib/services/wallet-api/encoding');
