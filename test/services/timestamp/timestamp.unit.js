@@ -1,4 +1,5 @@
 'use strict';
+var should = require('chai').should();
 
 var Encoding = require('../../../lib/services/timestamp/encoding');
 
