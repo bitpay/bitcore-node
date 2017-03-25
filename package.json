@@ -78,7 +78,7 @@
     "sinon": "^1.15.4"
   },
   "peerDependencies": {
-    "bitcore-lib": "^0.14"
+    "bitcore-lib": "~0.13.7"
   },
   "license": "MIT"
 }
