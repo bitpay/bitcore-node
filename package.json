@@ -27,8 +27,7 @@
     }
   ],
   "bin": {
-    "bitcore-node": "./bin/bitcore-node",
-    "bitcoind": "./bin/bitcoind"
+    "bitcore-node": "./bin/bitcore-node"
   },
   "scripts": {
     "preinstall": "./scripts/download",
