@@ -91,18 +91,7 @@ var bitcore = {
   process: null
 };
 
-var httpOpts = {
-  protocol: 'http:',
-  hostname: 'localhost',
-  port: bitcore.configFile.conf.port,
-  method: 'GET',
-  body: ''
-};
-
-var fee = 100000;
-
 var rpc = new BitcoinRPC(rpcConfig);
-
 var walletPassphrase = 'test';
 var startingSatoshis = 0;
 
@@ -110,7 +99,7 @@ var numberOfStartingTxs = 50;
 
 var walletPrivKeys = [];
 var initialTxs = [];
-
+var fee = 100000;
 
 describe('Wallet Operations', function() {
 
@@ -119,7 +108,7 @@ describe('Wallet Operations', function() {
   afterEach(function(done) {
     bitcore.process.kill();
     bitcoin.process.kill();
-    setTimeout(done, 2000); //we need this here to let bitcoin process clean up after itself
+    setTimeout(done, 2000);
   });
 
   beforeEach(function(done) {
@@ -151,63 +140,70 @@ function toArgs(opts) {
 }
 
 function waitForService(task, next) {
-  var retryOpts = { times: 10, interval: 1000 };
+  var retryOpts = { times: 20, interval: 1000 };
   async.retry(retryOpts, task, next);
 }
 
 function queryBitcoreNode(httpOpts, next) {
-console.log('query bitcore node');
-console.log('called request');
+console.log('request', httpOpts);
   var error;
-    var request = http.request(httpOpts, function(res) {
+  var request = http.request(httpOpts, function(res) {
 
-      if (res.statusCode !== 200) {
-        return next(res.statusCode);
+    if (res.statusCode !== 200) {
+console.log('status code: ', error, res.statusCode);
+      if (error) {
+        return;
       }
+      return next(res.statusCode);
+    }
 
-      var resError;
-      var resData = '';
+    var resError;
+    var resData = '';
 
-      res.on('error', function(e) {
-        resError = e;
-      });
-
-      res.on('data', function(data) {
-        resData += data;
-      });
-
-      res.on('end', function() {
-console.log('end');
-        if (error) {
-          return;
-        }
-        if (httpOpts.errorFilter) {
-          return httpOpts.errorFilter(resError, resData);
-        }
-        if (resError) {
-          return next(resError);
-        }
-          next('try again');
-      });
-
+    res.on('error', function(e) {
+      resError = e;
     });
 
-    request.on('error', function(e) {
-      error = e;
-      return next(e);
+    res.on('data', function(data) {
+      resData += data;
     });
 
-    request.write('');
-    request.end();
+    res.on('end', function() {
+console.log('end: ', error);
+      if (error) {
+        return;
+      }
+      if (httpOpts.errorFilter) {
+        return next(httpOpts.errorFilter(resError, resData));
+      }
+      if (resError) {
+        return next(resError);
+      }
+      next();
+    });
+
+  });
+
+  request.on('error', function(e) {
+    error = e
+    next(error);
+  });
+
+  request.write('');
+  request.end();
 }
 
 function waitForBitcoreNode(next) {
-console.log('wait');
-  var errorFilter = function(err, res, next) {
+  bitcore.process.stdout.on('data', function(data) {
+    console.log(data.toString());
+  });
+  bitcore.process.stderr.on('data', function(data) {
+    console.log(data.toString());
+  });
+  var errorFilter = function(err, res) {
     if (err || (res && !JSON.parse(res).result)) {
-      return next('still syncing');
+      return 'still syncing';
     }
-    next();
   };
 
   var httpOpts = Object.assign({
@@ -254,7 +250,6 @@ function initializeAndStartService(opts, next) {
 }
 
 function startBitcoreNode(next) {
-console.log('start bitcore');
   initializeAndStartService(bitcore, next);
 }
 
@@ -306,9 +301,9 @@ function generateSpendingTx(privKey, utxo) {
   var tx = new Transaction();
 
   tx.from(utxo);
-  tx.to(toPrivKey.toAddress(), satsToPrivKey);
+  tx.to(toPrivKey.toAddress().toString(), satsToPrivKey);
   tx.fee(fee);
-  tx.change(changePrivKey.toAddress());
+  tx.change(changePrivKey.toAddress().toString());
   tx.sign(privKey);
 
   walletPrivKeys.push(changePrivKey);
