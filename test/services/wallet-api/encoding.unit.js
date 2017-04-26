@@ -23,12 +23,24 @@ describe('Wallet-Api service encoding', function() {
   satsBuf.writeDoubleBE(sats);
 
   it('should encode wallet transaction key' , function() {
-    encoding.encodeWalletTransactionKey(walletId, height).should.deep.equal(Buffer.concat([
+    encoding.encodeWalletTransactionKey(walletId, height, txid).should.deep.equal(Buffer.concat([
       servicePrefix,
       encoding.subKeyMap.transaction.buffer,
       new Buffer('0c', 'hex'),
       new Buffer(walletId),
-      new Buffer('00000001', 'hex')
+      new Buffer('00000001', 'hex'),
+      new Buffer(txid, 'hex')
+    ]));
+  });
+
+  it('should encode wallet transaction key without a txid (all zeroes) or height (0)' , function() {
+    encoding.encodeWalletTransactionKey(walletId).should.deep.equal(Buffer.concat([
+      servicePrefix,
+      encoding.subKeyMap.transaction.buffer,
+      new Buffer('0c', 'hex'),
+      new Buffer(walletId),
+      new Buffer('00000000', 'hex'),
+      new Buffer(new Array(65).join('0'), 'hex')
     ]));
   });
 
@@ -42,14 +54,6 @@ describe('Wallet-Api service encoding', function() {
     ]));
     walletTransactionKey.walletId.should.equal(walletId);
     walletTransactionKey.height.should.equal(height);
-  });
-
-  it('should encode wallet transaction value', function() {
-    encoding.encodeWalletTransactionValue(txid).should.deep.equal(new Buffer(txid, 'hex'));
-  });
-
-  it('should decode wallet transaction value', function() {
-    encoding.decodeWalletTransactionValue(new Buffer(txid, 'hex')).should.equal(txid);
   });
 
   it('should encode wallet utxo key', function() {
