@@ -17,6 +17,7 @@ var fs = require('fs');
 var http = require('http');
 var crypto = require('crypto');
 
+var debug = false;
 var bitcoreDataDir = '/tmp/bitcore';
 var bitcoinDataDir = '/tmp/bitcoin';
 
@@ -93,12 +94,15 @@ var bitcore = {
 var rpc = new BitcoinRPC(rpcConfig);
 var walletPassphrase = 'test';
 
-var numberOfStartingTxs = 50;
+var numberOfStartingTxs = 49; //this should be an even number of txs
+var txCount = 0;
+var blockHeight = 0;
 
 var walletPrivKeys = [];
 var initialTxs = [];
 var fee = 100000;
 var walletId = crypto.createHash('sha256').update('test').digest('hex');
+var satoshisReceived = 0;
 
 describe('Wallet Operations', function() {
 
@@ -123,11 +127,7 @@ describe('Wallet Operations', function() {
 
   it('should register wallet', function(done) {
 
-    var httpOpts = Object.assign({
-      path: '/wallet-api/wallets/' + walletId,
-      method: 'POST'
-    }, bitcore.httpOpts);
-
+    var httpOpts = getHttpOpts({ path: '/wallet-api/wallets/' + walletId, method: 'POST' });
     queryBitcoreNode(httpOpts, function(err, res) {
       if (err) {
         return done(err);
@@ -143,15 +143,12 @@ describe('Wallet Operations', function() {
     var addresses = JSON.stringify(walletPrivKeys.map(function(privKey) {
       return privKey.toAddress().toString();
     }));
-    var httpOpts = Object.assign({
+    var httpOpts = getHttpOpts({
       path: '/wallet-api/wallets/' + walletId + '/addresses',
       method: 'POST',
       body: addresses,
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': addresses.length
-      }
-    }, bitcore.httpOpts);
+      length: addresses.length
+    });
     async.waterfall([ queryBitcoreNode.bind(this, httpOpts) ], function(err, res) {
       if (err) {
         return done(err);
@@ -160,10 +157,7 @@ describe('Wallet Operations', function() {
 
       Object.keys(job).should.deep.equal(['jobId']);
 
-      var httpOpts = Object.assign({
-        path: '/wallet-api/jobs/' + job.jobId,
-        method: 'GET'
-      }, bitcore.httpOpts);
+      var httpOpts = getHttpOpts({ path: '/wallet-api/jobs/' + job.jobId });
 
       async.retry({ times: 10, interval: 1000 }, function(next) {
         queryBitcoreNode(httpOpts, function(err, res) {
@@ -187,27 +181,89 @@ describe('Wallet Operations', function() {
   });
 
   it('should get a list of transactions', function(done) {
-    var httpOpts = Object.assign({
-      path: '/wallet-api/wallets/' + walletId + '/transactions',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    }, bitcore.httpOpts);
+    var httpOpts = getHttpOpts({ path: '/wallet-api/wallets/' + walletId + '/transactions' });
     queryBitcoreNode(httpOpts, function(err, res) {
       if(err) {
         return done(err);
       }
-      var results = res.split('\n').slice(0, -1);
-      results.length.should.equal(numberOfStartingTxs);
+      //jsonl is returned, so there will be a newline at the end
+      var results = res.split('\n').filter(function(result) {
+        return result.length > 0;
+      });
       var map = initialTxs.map(function(tx) {
         return tx.serialize();
       });
       for(var i = 0; i < results.length; i++) {
         var result = results[i];
         var tx = new Transaction(JSON.parse(result));
-        tx.uncheckedSerialize().should.equal(initialTxs[i].serialize());
+        map.splice(map.indexOf(tx.uncheckedSerialize()), 1);
       }
+      map.length.should.equal(0);
+      results.length.should.equal(numberOfStartingTxs);
+      done();
+    });
+  });
+
+  it('should get the balance of a wallet', function(done) {
+    var httpOpts = getHttpOpts({ path: '/wallet-api/wallets/' + walletId + '/balance' });
+    queryBitcoreNode(httpOpts, function(err, res) {
+      if(err) {
+        return done(err);
+      }
+      var results = JSON.parse(res);
+      results.satoshis.should.equal(satoshisReceived);
+      done();
+    });
+
+  });
+
+  it('should get the set of utxos for the wallet', function(done) {
+    var httpOpts = getHttpOpts({ path: '/wallet-api/wallets/' + walletId + '/utxos' });
+    queryBitcoreNode(httpOpts, function(err, res) {
+      if(err) {
+        return done(err);
+      }
+      var results = JSON.parse(res);
+      // all starting txs were spending to our wallet
+      results.utxos.length.should.equal(numberOfStartingTxs);
+      var map = initialTxs.map(function(tx) {
+        return tx.txid;
+      });
+      var balance = 0;
+      for(var i = 0; i < results.utxos.length; i++) {
+        var result = results.utxos[i];
+        balance += result.satoshis;
+        map.splice(map.indexOf(result.txid), 1);
+      }
+      map.length.should.equal(0);
+      results.height.should.equal(blockHeight);
+      balance.should.equal(satoshisReceived);
+      done();
+    });
+  });
+
+  it('should get the list of jobs', function(done) {
+    var httpOpts = getHttpOpts({ path: '/wallet-api/jobs' });
+    queryBitcoreNode(httpOpts, function(err, res) {
+      if(err) {
+        return done(err);
+      }
+      var results = JSON.parse(res);
+      results.jobCount.should.equal(1);
+      done();
+    });
+  });
+
+  it('should remove all wallets', function(done) {
+    var httpOpts = getHttpOpts({ path: '/wallet-api/wallets', method: 'DELETE' });
+    queryBitcoreNode(httpOpts, function(err, res) {
+      if(err) {
+        return done(err);
+      }
+      //walletTransactionKey = 1, walletUtxoKey = 1, walletUtxoSatoshis = 1 <-- multiples of numberOfStartingTxs
+      //walletAddresses = 1, walletBalance = 1 <-- one record per index
+      var results = JSON.parse(res);
+      results.numberRemoved.should.equal((numberOfStartingTxs * 3) + 2);
       done();
     });
   });
@@ -273,7 +329,9 @@ function queryBitcoreNode(httpOpts, next) {
 
 function waitForBitcoreNode(next) {
   bitcore.process.stdout.on('data', function(data) {
-    console.log(data.toString());
+    if (debug) {
+      console.log(data.toString());
+    }
   });
   bitcore.process.stderr.on('data', function(data) {
     console.log(data.toString());
@@ -284,11 +342,7 @@ function waitForBitcoreNode(next) {
     }
   };
 
-  var httpOpts = Object.assign({
-    path: '/wallet-api/issynced',
-    errorFilter: errorFilter,
-    method: 'GET'
-  }, bitcore.httpOpts);
+  var httpOpts = getHttpOpts({ path: '/wallet-api/issynced', errorFilter: errorFilter });
 
   waitForService(queryBitcoreNode.bind(this, httpOpts), next);
 }
@@ -299,6 +353,7 @@ function waitForBitcoinReady(next) {
       if (err || (res && res.error)) {
         return next('keep trying');
       }
+      blockHeight += 150;
       next();
     });
   }, function(err) {
@@ -372,7 +427,7 @@ function getPrivateKeyWithABalance(next) {
 }
 
 function generateSpendingTx(privKey, utxo) {
-
+  txCount++;
   var toPrivKey = new PrivateKey('testnet'); //external addresses
   var changePrivKey = new PrivateKey('testnet'); //our wallet keys
   var utxoSatoshis = Unit.fromBTC(utxo.amount).satoshis;
@@ -386,6 +441,7 @@ function generateSpendingTx(privKey, utxo) {
   tx.sign(privKey);
 
   walletPrivKeys.push(changePrivKey);
+  satoshisReceived += Unit.fromBTC(utxo.amount).toSatoshis() - (satsToPrivKey + fee);
   return tx;
 }
 
@@ -406,7 +462,13 @@ function setupInitialTx(index, next) {
 }
 
 function setupInitialTxs(next) {
-  async.timesSeries(numberOfStartingTxs, setupInitialTx, next);
+  async.timesSeries(numberOfStartingTxs, setupInitialTx, function(err) {
+    if(err) {
+      return next(err);
+    }
+    blockHeight++;
+    rpc.generate(1, next);
+  });
 }
 
 function sendTx(tx, generateBlocks, next) {
@@ -415,6 +477,7 @@ function sendTx(tx, generateBlocks, next) {
       return next(err);
     }
     if (generateBlocks) {
+      blockHeight += generateBlocks;
       rpc.generate(generateBlocks, function(err) {
         if(err) {
           return next(err);
@@ -425,4 +488,17 @@ function sendTx(tx, generateBlocks, next) {
       next(null, tx);
     }
   });
+}
+
+function getHttpOpts(opts) {
+  return Object.assign({
+    path: opts.path,
+    method: opts.method || 'GET',
+    body: opts.body,
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': opts.length || 0
+    },
+    errorFilter: opts.errorFilter
+  }, bitcore.httpOpts);
 }
