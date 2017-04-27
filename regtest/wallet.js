@@ -17,7 +17,7 @@ var fs = require('fs');
 var http = require('http');
 var crypto = require('crypto');
 
-var debug = false;
+var debug = true;
 var bitcoreDataDir = '/tmp/bitcore';
 var bitcoinDataDir = '/tmp/bitcoin';
 
@@ -181,7 +181,8 @@ describe('Wallet Operations', function() {
   });
 
   it('should get a list of transactions', function(done) {
-    var httpOpts = getHttpOpts({ path: '/wallet-api/wallets/' + walletId + '/transactions' });
+    var end = Date.now() + 86400000;
+    var httpOpts = getHttpOpts({ path: '/wallet-api/wallets/' + walletId + '/transactions?start=0&end=' + end });
     queryBitcoreNode(httpOpts, function(err, res) {
       if(err) {
         return done(err);
