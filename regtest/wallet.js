@@ -92,7 +92,6 @@ var bitcore = {
 
 var rpc = new BitcoinRPC(rpcConfig);
 var walletPassphrase = 'test';
-var startingSatoshis = 0;
 
 var numberOfStartingTxs = 50;
 
@@ -201,6 +200,9 @@ describe('Wallet Operations', function() {
       }
       var results = res.split('\n').slice(0, -1);
       results.length.should.equal(numberOfStartingTxs);
+      var map = initialTxs.map(function(tx) {
+        return tx.serialize();
+      });
       for(var i = 0; i < results.length; i++) {
         var result = results[i];
         var tx = new Transaction(JSON.parse(result));
@@ -261,7 +263,7 @@ function queryBitcoreNode(httpOpts, next) {
   });
 
   request.on('error', function(e) {
-    error = e
+    error = e;
     next(error);
   });
 
@@ -293,7 +295,7 @@ function waitForBitcoreNode(next) {
 
 function waitForBitcoinReady(next) {
   waitForService(function(next) {
-    rpc.generate(101, function(err, res) {
+    rpc.generate(150, function(err, res) {
       if (err || (res && res.error)) {
         return next('keep trying');
       }
@@ -335,7 +337,7 @@ function startBitcoind(next) {
 }
 
 function unlockWallet(next) {
-  rpc.walletPassPhrase(walletPassphrase, 3000, function(err, res) {
+  rpc.walletPassPhrase(walletPassphrase, 3000, function(err) {
     if(err && err.code !== -15) {
       return next(err);
     }
@@ -393,7 +395,7 @@ function setupInitialTx(index, next) {
       return next(err);
     }
     var tx = generateSpendingTx(privKey, utxo);
-    sendTx(tx, function(err, tx) {
+    sendTx(tx, (index % 2 === 0 ? 0 : 1), function(err, tx) {
       if(err) {
         return next(err);
       }
@@ -401,22 +403,26 @@ function setupInitialTx(index, next) {
       next();
     });
   });
-};
+}
 
 function setupInitialTxs(next) {
   async.timesSeries(numberOfStartingTxs, setupInitialTx, next);
 }
 
-function sendTx(tx, next) {
-  rpc.sendRawTransaction(tx.serialize(), function(err, res) {
+function sendTx(tx, generateBlocks, next) {
+  rpc.sendRawTransaction(tx.serialize(), function(err) {
     if(err) {
       return next(err);
     }
-    rpc.generate(1, function(err) {
-      if(err) {
-        return next(err);
-      }
+    if (generateBlocks) {
+      rpc.generate(generateBlocks, function(err) {
+        if(err) {
+          return next(err);
+        }
+        next(null, tx);
+      });
+    } else {
       next(null, tx);
-    });
+    }
   });
 }
