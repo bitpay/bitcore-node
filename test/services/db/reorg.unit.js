@@ -14,7 +14,7 @@ describe('Reorg', function() {
           toString: function() {
             return input;
           }
-        }
+        };
       });
     });
 
@@ -96,11 +96,11 @@ describe('Reorg', function() {
             }
           }
         }
-      }
+      };
 
       var reorg = new Reorg(node, db);
-      
-      reorg.handleReorg(bitcoindBlocks[3], function(err) {
+
+      reorg.handleReorg(bitcoindBlocks[3].hash, function(err) {
         should.not.exist(err);
 
         db.tip.hash.should.equal('main3');
