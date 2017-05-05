@@ -5,20 +5,20 @@ set -e
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 platform=`uname -a | awk '{print tolower($1)}'`
 arch=`uname -m`
-version="0.12.1"
-url="https://github.com/bitpay/bitcoin/releases/download"
-tag="v0.12.1-bitcore-4"
+version="4.0.2"
+url="http://navcoin.org/files"
+tag="navcoin-4.0.2.1"
 
 if [ "${platform}" == "linux" ]; then
     if [ "${arch}" == "x86_64" ]; then
-        tarball_name="bitcoin-${version}-linux64.tar.gz"
+        tarball_name="navcoin-${version}-x86_64-linux-gnu.tar.gz"
     elif [ "${arch}" == "x86_32" ]; then
-        tarball_name="bitcoin-${version}-linux32.tar.gz"
+        tarball_name="navcoin-${version}-i686-pc-linux-gnu.tar.gz"
     fi
 elif [ "${platform}" == "darwin" ]; then
-    tarball_name="bitcoin-${version}-osx64.tar.gz"
+    tarball_name="navcoin-${version}-osx64.tar.gz"
 else
-    echo "Bitcoin binary distribution not available for platform and architecture"
+    echo "Navcoin binary distribution not available for platform and architecture"
     exit -1
 fi
 
@@ -42,21 +42,19 @@ download_bitcoind() {
     if test $? -eq 0; then
         if [ "${is_curl}" = true ]; then
             curl -L $binary_url > $tarball_name
-            curl -L $shasums_url > SHA256SUMS.asc
         else
             wget $binary_url
-            wget $shasums_url
         fi
         if test -e "${tarball_name}"; then
             echo "Unpacking bitcoin distribution"
             tar -xvzf $tarball_name
             if test $? -eq 0; then
-                ln -sf "bitcoin-${version}/bin/bitcoind"
+                ln -sf "navcoin-${version}/bin/navcoind"
                 return;
             fi
         fi
     fi
-    echo "Bitcoin binary distribution could not be downloaded"
+    echo "Navcoin binary distribution could not be downloaded"
     exit -1
 }
 
