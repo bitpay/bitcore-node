@@ -4,10 +4,10 @@
   "author": "BitPay <dev@bitpay.com>",
   "version": "3.1.3",
   "main": "./index.js",
-  "repository": "git://github.com/bitpay/bitcore-node.git",
-  "homepage": "https://github.com/bitpay/bitcore-node",
+  "repository": "git://github.com/navcoindev/bitcore-node.git",
+  "homepage": "https://github.com/navcoindev/bitcore-node",
   "bugs": {
-    "url": "https://github.com/bitpay/bitcore-node/issues"
+    "url": "https://github.com/navcoindev/bitcore-node/issues"
   },
   "contributors": [
     {
@@ -28,11 +28,11 @@
   ],
   "bin": {
     "bitcore-node": "./bin/bitcore-node",
-    "bitcoind": "./bin/bitcoind"
+    "bitcoind": "./bin/navcoind"
   },
   "scripts": {
     "preinstall": "./scripts/download",
-    "verify": "./scripts/download --skip-bitcoin-download --verify-bitcoin-download",
+    "verify": "./scripts/download --skip-bitcoin-download",
     "test": "mocha -R spec --recursive",
     "regtest": "./scripts/regtest",
     "jshint": "jshint --reporter=node_modules/jshint-stylish ./lib",
@@ -46,7 +46,7 @@
   "dependencies": {
     "async": "^1.3.0",
     "bitcoind-rpc": "^0.6.0",
-    "bitcore-lib": "^0.13.13",
+    "bitcore-lib": "git://github.com/navcoindev/bitcore-lib",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
     "commander": "^2.8.1",
@@ -67,7 +67,7 @@
   },
   "devDependencies": {
     "benchmark": "1.0.0",
-    "bitcore-p2p": "^1.1.0",
+    "bitcore-p2p": "git://github.com/navcoindev/bitcore-p2p",
     "chai": "^3.5.0",
     "coveralls": "^2.11.9",
     "istanbul": "^0.4.3",
