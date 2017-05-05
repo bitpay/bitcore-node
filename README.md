@@ -1,31 +1,53 @@
 Bitcore Node
 ============
 
-A Bitcoin full node for building applications and services with Node.js. A node is extensible and can be configured to run additional services. At the minimum a node has an interface to [Bitcoin Core with additional indexing](https://github.com/bitpay/bitcoin/tree/0.12.1-bitcore) for more advanced address queries. Additional services can be enabled to make a node more useful such as exposing new APIs, running a block explorer and wallet service.
+A Navcoin full node for building applications and services with Node.js. A node is extensible and can be configured to run additional services. At the minimum a node has an interface to [Navcoin full node](https://github.com/navcoindev/navcoin2) for more advanced address queries. Additional services can be enabled to make a node more useful such as exposing new APIs, running a block explorer and wallet service.
 
 ## Install
 
-```bash
-npm install -g bitcore-node
+```bashl
+export SKIP_NAVCOIN_DOWNLOAD="1"
+sudo npm install --unsafe-perm -g git://github.com/aguycalled/bitcore-node.git
+export SKIP_NAVCOIN_DOWNLOAD="0"
+bitcore-node create mynode
+cd mynode
 bitcore-node start
 ```
 
-Note: For your convenience, we distribute bitcoind binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. For more detailed installation instructions, or if you want to compile the project yourself, then please see the Bitcore branch of [Bitcoin Core with additional indexing](https://github.com/bitpay/bitcoin/tree/0.12.1-bitcore).
+Note: For your convenience, we automate the download and compilation of the navcoind daemon. Upon npm install, the sources will be downloaded and built.
+
+## Installing modules
+
+```bashl
+cd mynode
+bitcore-node install insight-api
+bitcore-node install bitcore-wallet-service
+```
 
 ## Prerequisites
 
-- GNU/Linux x86_32/x86_64, or OSX 64bit *(for bitcoind distributed binaries)*
+- GNU/Linux x86_32/x86_64, or OSX 64bit
 - Node.js v0.10, v0.12 or v4
 - ZeroMQ *(libzmq3-dev for Ubuntu/Debian or zeromq on OSX)*
 - ~200GB of disk storage
 - ~8GB of RAM
+
+### Installing libzmq3-dev on Debian
+
+Add the following line to /etc/apt/sources.list
+
+```
+deb http://http.us.debian.org/debian testing main contrib non-free
+```
+
+Then apt-get install libzmq3-dev.
 
 ## Configuration
 
 Bitcore includes a Command Line Interface (CLI) for managing, configuring and interfacing with your Bitcore Node.
 
 ```bash
-bitcore-node create -d <bitcoin-data-dir> mynode
+bitcore-node create -d <navcoin-data-dir> mynode
 cd mynode
 bitcore-node install <service>
 bitcore-node install https://github.com/yourname/helloworld
