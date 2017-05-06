@@ -28,7 +28,7 @@
   ],
   "bin": {
     "bitcore-node": "./bin/bitcore-node",
-    "bitcoind": "./bin/navcoind"
+    "navcoind": "./bin/navcoind"
   },
   "scripts": {
     "preinstall": "./scripts/download",
