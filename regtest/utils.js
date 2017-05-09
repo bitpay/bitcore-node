@@ -88,7 +88,9 @@ utils.waitForBitcoreNode = function(opts, callback) {
 
   var errorFilter = function(err, res) {
     try {
-      if (JSON.parse(res).height === opts.blockHeight) {
+      var info = JSON.parse(res);
+      if (info.dbheight === opts.blockHeight &&
+        info.bitcoindheight === opts.blockHeight) {
         return;
       }
       return res;

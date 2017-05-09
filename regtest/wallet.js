@@ -8,7 +8,7 @@ var path = require('path');
 var utils = require('./utils');
 var crypto = require('crypto');
 
-var debug = false;
+var debug = true;
 var bitcoreDataDir = '/tmp/bitcore';
 var bitcoinDataDir = '/tmp/bitcoin';
 
@@ -149,6 +149,7 @@ describe('Wallet Operations', function() {
 
     it('should get a list of transactions', function(done) {
 
+      //the wallet should be fully uploaded and indexed by the time this happens
       utils.sendTxs.call(utils, self.opts, function(err) {
 
         if(err) {
