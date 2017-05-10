@@ -132,9 +132,13 @@ describe('DB Operations', function() {
 
         req.on('end', function() {
           var body = JSON.parse(data);
-          //console.log('request', body);
+          if (debug) {
+            console.log('request', body);
+          }
           var response = JSON.stringify({ result: responses[responseCount++] });
-          //console.log('response', response, 'id: ', body.id);
+          if (debug) {
+            console.log('response', response, 'id: ', body.id);
+          }
           res.write(response);
           res.end();
         });
@@ -204,7 +208,7 @@ function publishBlockHash(blockHash, callback) {
         return callback(err);
       }
 
-      blockHash.should.equal(JSON.parse(res).hash);
+      blockHash.should.equal(JSON.parse(res).dbhash);
       callback();
 
     });

@@ -24,6 +24,7 @@ var rpcConfig = {
 var bitcoin = {
   args: {
     datadir: bitcoinDataDir,
+    txindex: 1,
     listen: 0,
     regtest: 1,
     server: 1,
@@ -192,7 +193,13 @@ describe('Wallet Operations', function() {
 
     it('should get list of transactions', function(done) {
 
-      utils.getListOfTxs.call(utils, self.opts, done);
+      utils.waitForBitcoreNode(self.opts, function(err) {
+
+        if(err) {
+          return done(err);
+        }
+        utils.getListOfTxs.call(utils, self.opts, done);
+      });
 
     });
 
