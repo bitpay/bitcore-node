@@ -129,7 +129,7 @@ describe('Wallet Operations', function() {
 
     it('should register wallet', function(done) {
 
-      utils.registerWallet.call(utils, self.opts,  function(err, res) {
+      utils.registerWallet(self.opts,  function(err, res) {
 
         if (err) {
           return done(err);
@@ -144,24 +144,23 @@ describe('Wallet Operations', function() {
 
     it('should upload a wallet', function(done) {
 
-      utils.uploadWallet.call(utils, self.opts, done);
+      utils.uploadWallet(self.opts, done);
 
     });
 
     it('should get a list of transactions', function(done) {
 
       //the wallet should be fully uploaded and indexed by the time this happens
-      utils.sendTxs.call(utils, self.opts, function(err) {
+      utils.sendTxs(self.opts, function(err) {
 
         if(err) {
           return done(err);
         }
-        utils.waitForBitcoreNode.call(utils, self.opts, function(err) {
-
+        utils.waitForBitcoreNode(self.opts, function(err) {
           if(err) {
             return done(err);
           }
-          utils.getListOfTxs.call(utils, self.opts, done);
+          utils.getListOfTxs(self.opts, done);
         });
       });
 
@@ -169,106 +168,98 @@ describe('Wallet Operations', function() {
 
   });
 
-  describe('Load addresses after syncing the blockchain', function() {
+  //describe('Load addresses after syncing the blockchain', function() {
 
-    var self = this;
+  //  var self = this;
 
-    self.opts = Object.assign({}, opts);
+  //  self.opts = Object.assign({}, opts);
 
-    after(utils.cleanup.bind(utils, self.opts));
+  //  after(utils.cleanup.bind(utils, self.opts));
 
-    before(function(done) {
-      async.series([
-        utils.startBitcoind.bind(utils, self.opts),
-        utils.waitForBitcoinReady.bind(utils, self.opts),
-        utils.unlockWallet.bind(utils, self.opts),
-        utils.setupInitialTxs.bind(utils, self.opts),
-        utils.sendTxs.bind(utils, self.opts),
-        utils.startBitcoreNode.bind(utils, self.opts),
-        utils.waitForBitcoreNode.bind(utils, self.opts),
-        utils.registerWallet.bind(utils, self.opts),
-        utils.uploadWallet.bind(utils, self.opts)
-      ], done);
-    });
+  //  before(function(done) {
+  //    async.series([
+  //      utils.startBitcoind.bind(utils, self.opts),
+  //      utils.waitForBitcoinReady.bind(utils, self.opts),
+  //      utils.unlockWallet.bind(utils, self.opts),
+  //      utils.setupInitialTxs.bind(utils, self.opts),
+  //      utils.sendTxs.bind(utils, self.opts),
+  //      utils.startBitcoreNode.bind(utils, self.opts),
+  //      utils.waitForBitcoreNode.bind(utils, self.opts),
+  //      utils.registerWallet.bind(utils, self.opts),
+  //      utils.uploadWallet.bind(utils, self.opts)
+  //    ], done);
+  //  });
 
-    it('should get list of transactions', function(done) {
+  //  it('should get list of transactions', function(done) {
 
-      utils.waitForBitcoreNode(self.opts, function(err) {
+  //    utils.getListOfTxs(self.opts, done);
 
-        if(err) {
-          return done(err);
-        }
-        utils.getListOfTxs.call(utils, self.opts, done);
-      });
+  //  });
 
-    });
+  //  it('should get the balance of a wallet', function(done) {
 
-    it('should get the balance of a wallet', function(done) {
+  //    var httpOpts = utils.getHttpOpts(
+  //      self.opts,
+  //      { path: '/wallet-api/wallets/' + self.opts.walletId + '/balance' });
 
-      var httpOpts = utils.getHttpOpts.call(
-        utils,
-        self.opts,
-        { path: '/wallet-api/wallets/' + self.opts.walletId + '/balance' });
+  //    utils.queryBitcoreNode(httpOpts, function(err, res) {
+  //      if(err) {
+  //        return done(err);
+  //      }
+  //      var results = JSON.parse(res);
+  //      results.satoshis.should.equal(self.opts.satoshisReceived);
+  //      done();
+  //    });
 
-      utils.queryBitcoreNode.call(utils, httpOpts, function(err, res) {
-        if(err) {
-          return done(err);
-        }
-        var results = JSON.parse(res);
-        results.satoshis.should.equal(self.opts.satoshisReceived);
-        done();
-      });
+  //  });
 
-    });
+  //  it('should get the set of utxos for the wallet', function(done) {
 
-    it('should get the set of utxos for the wallet', function(done) {
+  //    var httpOpts = utils.getHttpOpts(
+  //      self.opts,
+  //      { path: '/wallet-api/wallets/' + opts.walletId + '/utxos' });
 
-      var httpOpts = utils.getHttpOpts.call(
-        utils,
-        self.opts,
-        { path: '/wallet-api/wallets/' + opts.walletId + '/utxos' });
+  //    utils.queryBitcoreNode(httpOpts, function(err, res) {
 
-      utils.queryBitcoreNode.call(utils, httpOpts, function(err, res) {
+  //      if(err) {
+  //        return done(err);
+  //      }
 
-        if(err) {
-          return done(err);
-        }
+  //      var results = JSON.parse(res);
+  //      var balance = 0;
 
-        var results = JSON.parse(res);
-        var balance = 0;
+  //      results.utxos.forEach(function(utxo) {
+  //        balance += utxo.satoshis;
+  //      });
 
-        results.utxos.forEach(function(utxo) {
-          balance += utxo.satoshis;
-        });
+  //      results.height.should.equal(self.opts.blockHeight);
+  //      balance.should.equal(self.opts.satoshisReceived);
+  //      done();
+  //    });
+  //  });
 
-        results.height.should.equal(self.opts.blockHeight);
-        balance.should.equal(self.opts.satoshisReceived);
-        done();
-      });
-    });
+  //  it('should get the list of jobs', function(done) {
+  //    var httpOpts = utils.getHttpOpts(self.opts, { path: '/wallet-api/jobs' });
+  //    utils.queryBitcoreNode(httpOpts, function(err, res) {
+  //      if(err) {
+  //        return done(err);
+  //      }
+  //      var results = JSON.parse(res);
+  //      results.jobCount.should.equal(1);
+  //      done();
+  //    });
+  //  });
 
-    it('should get the list of jobs', function(done) {
-      var httpOpts = utils.getHttpOpts.call(utils, self.opts, { path: '/wallet-api/jobs' });
-      utils.queryBitcoreNode.call(utils, httpOpts, function(err, res) {
-        if(err) {
-          return done(err);
-        }
-        var results = JSON.parse(res);
-        results.jobCount.should.equal(1);
-        done();
-      });
-    });
-
-    it('should remove all wallets', function(done) {
-      var httpOpts = utils.getHttpOpts.call(utils, self.opts, { path: '/wallet-api/wallets', method: 'DELETE' });
-      utils.queryBitcoreNode.call(utils, httpOpts, function(err, res) {
-        if(err) {
-          return done(err);
-        }
-        var results = JSON.parse(res);
-        results.numberRemoved.should.equal(152);
-        done();
-      });
-    });
-  });
+  //  it('should remove all wallets', function(done) {
+  //    var httpOpts = utils.getHttpOpts(self.opts, { path: '/wallet-api/wallets', method: 'DELETE' });
+  //    utils.queryBitcoreNode(httpOpts, function(err, res) {
+  //      if(err) {
+  //        return done(err);
+  //      }
+  //      var results = JSON.parse(res);
+  //      results.numberRemoved.should.equal(152);
+  //      done();
+  //    });
+  //  });
+  //});
 });

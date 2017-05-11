@@ -25,7 +25,7 @@ utils.toArgs = function(opts) {
 };
 
 utils.waitForService = function(task, callback) {
-  var retryOpts = { times: 20, interval: 1000 };
+  var retryOpts = { times: 20, interval: 10000 };
   async.retry(retryOpts, task, callback);
 };
 
@@ -35,9 +35,8 @@ utils.queryBitcoreNode = function(httpOpts, callback) {
 
     if (res.statusCode !== 200 && res.statusCode !== 201) {
       if (error) {
-        return;
+        return callback();
       }
-      return callback(res.statusCode);
     }
 
     var resError;
@@ -53,7 +52,7 @@ utils.queryBitcoreNode = function(httpOpts, callback) {
 
     res.on('end', function() {
       if (error) {
-        return;
+        return callback(error);
       }
       if (httpOpts.errorFilter) {
         return callback(httpOpts.errorFilter(resError, resData));
@@ -65,7 +64,7 @@ utils.queryBitcoreNode = function(httpOpts, callback) {
 
   request.on('error', function(e) {
     error = e;
-    callback(error);
+    callback();
   });
 
   request.write(httpOpts.body || '');
@@ -100,8 +99,14 @@ utils.waitForBitcoreNode = function(opts, callback) {
   };
 
   var httpOpts = self.getHttpOpts(opts, { path: '/wallet-api/info', errorFilter: errorFilter });
-
-  self.waitForService(self.queryBitcoreNode.bind(self, httpOpts), callback);
+  var rounds = 10;
+  async.whilst(
+    function() {
+console.log('called rounds', rounds);
+      return rounds--;
+    },
+    self.queryBitcoreNode.bind(self, httpOpts), callback);
+  //self.waitForService(self.queryBitcoreNode.bind(self, httpOpts), callback);
 };
 
 utils.waitForBitcoinReady = function(opts, callback) {
@@ -334,7 +339,6 @@ utils.uploadWallet = function(opts, callback) {
 };
 
 utils.getListOfTxs = function(opts, callback) {
-
   var self = this;
   var end = Date.now() + 86400000;
   var httpOpts = self.getHttpOpts(opts, {
