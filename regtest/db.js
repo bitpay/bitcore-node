@@ -132,13 +132,9 @@ describe('DB Operations', function() {
 
         req.on('end', function() {
           var body = JSON.parse(data);
-          if (debug) {
-            console.log('request', body);
-          }
+          //console.log('request', body);
           var response = JSON.stringify({ result: responses[responseCount++] });
-          if (debug) {
-            console.log('response', response, 'id: ', body.id);
-          }
+          //console.log('response', response, 'id: ', body.id);
           res.write(response);
           res.end();
         });
