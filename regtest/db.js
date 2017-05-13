@@ -101,12 +101,16 @@ describe('DB Operations', function() {
       blocks.genesis, //end initChain
       block1.hash,
       blocks.block1a,
+      { height: 1, hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block1.header.prevHash).toString('hex') },
       block2.hash,
       blocks.block1b,
-      { hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block1.header.prevHash).toString('hex') },
-      { hash: block2.header.hash, previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex') },
+      { height: 1, hash: block2.header.hash, previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex') },
+      { height: 1, hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block1.header.prevHash).toString('hex') },
+      { height: 1, hash: block2.header.hash, previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex') },
       blocks.genesis,
+      { height: 0, hash: genesis.hash },
       blocks.block1b,
+      { height: 1, hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex') },
     ];
 
     after(function(done) {
