@@ -8,7 +8,7 @@ var path = require('path');
 var utils = require('./utils');
 var crypto = require('crypto');
 
-var debug = false;
+var debug = true;
 var bitcoreDataDir = '/tmp/bitcore';
 var bitcoinDataDir = '/tmp/bitcoin';
 
