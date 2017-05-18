@@ -6,8 +6,8 @@ A Bitcoin full node for building applications and services with Node.js. A node 
 ## Install
 
 ```bash
-npm install -g bitcore-node
-bitcore-node start
+$ npm install -g bitcore-node
+$ bitcore-node start
 ```
 
 Note: For your convenience, we distribute bitcoind binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. For more detailed installation instructions, or if you want to compile the project yourself, then please see the Bitcore branch of [Bitcoin Core with additional indexing](https://github.com/bitpay/bitcoin/tree/0.12.1-bitcore).
@@ -16,7 +16,7 @@ Note: For your convenience, we distribute bitcoind binaries for x86_64 Linux and
 
 - GNU/Linux x86_32/x86_64, or OSX 64bit *(for bitcoind distributed binaries)*
 - Node.js v0.10, v0.12 or v4
-- ZeroMQ *(libzmq3-dev for Ubuntu/Debian or zeromq on OSX)*
+- ZeroMQ *(libzmq3-dev for Ubuntu/Debian or [zeromq on OSX](http://brewformulas.org/Zeromq))*
 - ~200GB of disk storage
 - ~8GB of RAM
 
@@ -25,10 +25,10 @@ Note: For your convenience, we distribute bitcoind binaries for x86_64 Linux and
 Bitcore includes a Command Line Interface (CLI) for managing, configuring and interfacing with your Bitcore Node.
 
 ```bash
-bitcore-node create -d <bitcoin-data-dir> mynode
-cd mynode
-bitcore-node install <service>
-bitcore-node install https://github.com/yourname/helloworld
+$ bitcore-node create -d <bitcoin-data-dir> mynode
+$ cd mynode
+$ bitcore-node install <service>
+$ bitcore-node install https://github.com/yourname/helloworld
 ```
 
 This will create a directory with configuration files for your node and install the necessary dependencies. For more information about (and developing) services, please see the [Service Documentation](docs/services.md).
