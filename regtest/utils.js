@@ -99,7 +99,7 @@ utils.waitForBitcoreNode = function(opts, callback) {
     }
   };
 
-  var httpOpts = self.getHttpOpts(opts, { path: '/wallet-api/info', errorFilter: errorFilter });
+  var httpOpts = self.getHttpOpts(opts, { path: '/info', errorFilter: errorFilter });
 
   self.waitForService(self.queryBitcoreNode.bind(self, httpOpts), callback);
 };
