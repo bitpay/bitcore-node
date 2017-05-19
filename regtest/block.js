@@ -47,9 +47,9 @@ var bitcore = {
       services: [
         'bitcoind',
         'db',
-        'block',
         'web',
-        'block.regtest',
+        'block',
+        'block-test'
       ],
       servicesConfig: {
         bitcoind: {
@@ -62,6 +62,9 @@ var bitcore = {
               zmqpubrawtx: bitcoin.args.zmqpubrawtx
             }
           ]
+        },
+        'block-test': {
+          requirePath: path.resolve(__dirname + '/test_web.js')
         }
       }
     }
@@ -111,8 +114,55 @@ describe('Block Operations', function() {
       ], done);
     });
 
-    it('should sync block headers', function(done) {
-      done();
+    it('should sync block hashes as keys and heights as values', function(done) {
+
+      async.timesLimit(opts.initialHeight + 1, 12, function(n, next) {
+        utils.queryBitcoreNode(Object.assign({
+          path: '/test/hash/' + n
+        }, bitcore.httpOpts), function(err, res) {
+
+          if(err) {
+            return done(err);
+          }
+          res = JSON.parse(res);
+          expect(res.height).to.equal(n);
+          expect(res.hash.length).to.equal(64);
+          next(null, res.hash);
+        });
+      }, function(err, hashes) {
+
+        if(err) {
+          return done(err);
+        }
+        self.hashes = hashes;
+        done();
+
+      });
+    });
+
+    it('should sync block heights as keys and hashes as values', function(done) {
+      async.timesLimit(opts.initialHeight + 1, 12, function(n, next) {
+        utils.queryBitcoreNode(Object.assign({
+          path: '/test/height/' + self.hashes[n]
+        }, bitcore.httpOpts), function(err, res) {
+
+          if(err) {
+            return done(err);
+          }
+          res = JSON.parse(res);
+          expect(res.height).to.equal(n);
+          expect(res.hash).to.equal(self.hashes[n]);
+          next();
+        });
+      }, function(err) {
+
+        if(err) {
+          return done(err);
+        }
+        done();
+
+      });
+
     });
   });
 

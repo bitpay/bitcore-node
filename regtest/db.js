@@ -16,7 +16,7 @@ var BufferUtil = bitcore.util.buffer;
    Bitcoind does not need to be started or run
 */
 
-var debug = false;
+var debug = true;
 var bitcoreDataDir = '/tmp/bitcore';
 var pubSocket;
 var rpcServer;
@@ -41,12 +41,9 @@ var bitcore = {
       services: [
         'bitcoind',
         'db',
-        'transaction',
-        'timestamp',
-        'address',
-        'mempool',
-        'wallet-api',
-        'web'
+        'web',
+        'block',
+        'reorg-test'
       ],
       servicesConfig: {
         bitcoind: {
@@ -59,7 +56,8 @@ var bitcore = {
               zmqpubrawtx: 'tcp://127.0.0.1:38332'
             }
           ]
-        }
+        },
+        'reorg-test': { requirePath: path.resolve(__dirname + '/test_web.js') }
       }
     }
   },
@@ -96,9 +94,11 @@ describe('DB Operations', function() {
 
     var responses = [
       genesis.hash,
-      { hash: genesis.hash, height: 0 },
+      { height: 0, hash: genesis.hash },
       genesis.hash,
-      blocks.genesis, //end initChain
+      blocks.genesis,
+      genesis.hash,
+      { height: 0, hash: genesis.hash, previousblockhash: new Array(65).join('0') },
       block1.hash,
       blocks.block1a,
       { height: 1, hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block1.header.prevHash).toString('hex') },
@@ -108,7 +108,6 @@ describe('DB Operations', function() {
       { height: 1, hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block1.header.prevHash).toString('hex') },
       { height: 1, hash: block2.header.hash, previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex') },
       blocks.genesis,
-      { height: 0, hash: genesis.hash },
       blocks.block1b,
       { height: 1, hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex') },
     ];
@@ -136,9 +135,9 @@ describe('DB Operations', function() {
 
         req.on('end', function() {
           var body = JSON.parse(data);
-          //console.log('request', body);
-          var response = JSON.stringify({ result: responses[responseCount++] });
-          //console.log('response', response, 'id: ', body.id);
+          console.log('request', body);
+          var response = JSON.stringify({ result: responses[responseCount++], count: responseCount });
+          console.log('response', response, 'id: ', body.id);
           res.write(response);
           res.end();
         });
