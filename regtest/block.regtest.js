@@ -1,12 +1,11 @@
 'use strict';
 
 var chai = require('chai');
-var should = chai.should();
+var expect = chai.expect;
 var async = require('async');
 var BitcoinRPC = require('bitcoind-rpc');
 var path = require('path');
 var utils = require('./utils');
-var crypto = require('crypto');
 
 var debug = true;
 var bitcoreDataDir = '/tmp/bitcore';
@@ -49,7 +48,8 @@ var bitcore = {
         'bitcoind',
         'db',
         'block',
-        'web'
+        'web',
+        'block.regtest',
       ],
       servicesConfig: {
         bitcoind: {
@@ -112,8 +112,7 @@ describe('Block Operations', function() {
     });
 
     it('should sync block headers', function(done) {
-
-        done();
+      done();
     });
   });
 
