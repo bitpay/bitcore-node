@@ -53,7 +53,8 @@ var bitcore = {
         'address',
         'mempool',
         'wallet-api',
-        'web'
+        'web',
+        'block'
       ],
       servicesConfig: {
         bitcoind: {
