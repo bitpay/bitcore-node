@@ -30,7 +30,7 @@ var bitcoin = {
     rpcpassword: rpcConfig.pass,
     rpcport: rpcConfig.port,
     zmqpubrawtx: 'tcp://127.0.0.1:38332',
-    zmqpubhashblock: 'tcp://127.0.0.1:38332'
+    zmqpubrawblock: 'tcp://127.0.0.1:38332'
   },
   datadir: bitcoinDataDir,
   exec: 'bitcoind', //if this isn't on your PATH, then provide the absolute path, e.g. /usr/local/bin/bitcoind
@@ -116,7 +116,7 @@ describe('Block Operations', function() {
 
     it('should sync block hashes as keys and heights as values', function(done) {
 
-      async.timesLimit(opts.initialHeight + 1, 12, function(n, next) {
+      async.timesLimit(opts.initialHeight, 12, function(n, next) {
         utils.queryBitcoreNode(Object.assign({
           path: '/test/hash/' + n
         }, bitcore.httpOpts), function(err, res) {
@@ -141,7 +141,7 @@ describe('Block Operations', function() {
     });
 
     it('should sync block heights as keys and hashes as values', function(done) {
-      async.timesLimit(opts.initialHeight + 1, 12, function(n, next) {
+      async.timesLimit(opts.initialHeight, 12, function(n, next) {
         utils.queryBitcoreNode(Object.assign({
           path: '/test/height/' + self.hashes[n]
         }, bitcore.httpOpts), function(err, res) {

@@ -1,7 +1,7 @@
 'use strict';
 
 var chai = require('chai');
-var should = chai.should();
+var expect = chai.expect;
 var async = require('async');
 var path = require('path');
 var utils = require('./utils');
@@ -83,6 +83,51 @@ var opts = {
 var genesis = new Block(new Buffer(blocks.genesis, 'hex'));
 var block1 = new Block(new Buffer(blocks.block1a, 'hex'));
 var block2 = new Block(new Buffer(blocks.block1b, 'hex'));
+var rawGenesis = blocks.genesis;
+var rawBlock1 = blocks.block1a;
+var rawBlock2 = blocks.block1b;
+var genesisHash = genesis.hash;
+var genesisHeader = {
+  height: 0,
+  hash: genesis.hash,
+  previousblockhash: new Array(65).join('0')
+};
+var block1Header = {
+  height: 1,
+  hash: block1.header.hash,
+  previousblockhash: BufferUtil.reverse(block1.header.prevHash).toString('hex')
+};
+var block2Header = {
+  height: 1,
+  hash: block2.header.hash,
+  previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex')
+};
+
+
+function publishBlockHash(rawBlockHex, callback) {
+
+  pubSocket.send([ 'rawblock', new Buffer(rawBlockHex, 'hex') ]);
+
+  var httpOpts = utils.getHttpOpts(opts, { path: '/info' });
+
+  // we don't know exactly when all the blockhandlers will complete after the "tip" event
+  // so we must wait an indeterminate time to check on the current tip
+  setTimeout(function() {
+
+    utils.queryBitcoreNode(httpOpts, function(err, res) {
+
+      if(err) {
+        return callback(err);
+      }
+
+      var block = Block.fromString(rawBlockHex);
+      expect(block.hash).equal(JSON.parse(res).dbhash);
+      callback();
+
+    });
+
+  }, 2000);
+}
 
 describe('DB Operations', function() {
 
@@ -93,23 +138,11 @@ describe('DB Operations', function() {
     var self = this;
 
     var responses = [
-      genesis.hash,
-      { height: 0, hash: genesis.hash },
-      genesis.hash,
-      blocks.genesis,
-      genesis.hash,
-      { height: 0, hash: genesis.hash, previousblockhash: new Array(65).join('0') },
-      block1.hash,
-      blocks.block1a,
-      { height: 1, hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block1.header.prevHash).toString('hex') },
-      block2.hash,
-      blocks.block1b,
-      { height: 1, hash: block2.header.hash, previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex') },
-      { height: 1, hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block1.header.prevHash).toString('hex') },
-      { height: 1, hash: block2.header.hash, previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex') },
-      blocks.genesis,
-      blocks.block1b,
-      { height: 1, hash: block1.header.hash, previousblockhash: BufferUtil.reverse(block2.header.prevHash).toString('hex') },
+      genesisHash,
+      genesisHeader,
+      rawGenesis,
+      block1Header,
+      block2Header
     ];
 
     after(function(done) {
@@ -135,9 +168,13 @@ describe('DB Operations', function() {
 
         req.on('end', function() {
           var body = JSON.parse(data);
-          console.log('request', body);
+          if (debug) {
+            console.log('request', body);
+          }
           var response = JSON.stringify({ result: responses[responseCount++], count: responseCount });
-          console.log('response', response, 'id: ', body.id);
+          if (debug) {
+            console.log('response', response, 'id: ', body.id);
+          }
           res.write(response);
           res.end();
         });
@@ -156,9 +193,6 @@ describe('DB Operations', function() {
 
     it('should reorg when needed', function(done) {
 
-      var block1a = '77d0b8043d3a1353ffd22ad70e228e30c15fd0f250d51d608b1b7997e6239ffb';
-      var block1b = '2e516187b1b58467cb138bf68ff00d9bda71b5487cdd7b9b9cfbe7b153cd59d4';
-
       /*
         _______________________________________________________
        |             |              |             |            |
@@ -175,14 +209,15 @@ describe('DB Operations', function() {
 
       async.series([
 
-        publishBlockHash.bind(self, block1a),
-        publishBlockHash.bind(self, block1b)
+        publishBlockHash.bind(self, rawBlock1),
+        publishBlockHash.bind(self, rawBlock2)
 
       ], function(err) {
 
         if(err) {
           return done(err);
         }
+
         done();
 
       });
@@ -191,28 +226,5 @@ describe('DB Operations', function() {
 
 });
 
-function publishBlockHash(blockHash, callback) {
-
-  pubSocket.send([ 'hashblock', new Buffer(blockHash, 'hex') ]);
-
-  var httpOpts = utils.getHttpOpts(opts, { path: '/wallet-api/info' });
-
-  //we don't know exactly when all the blockhandlers will complete after the "tip" event
-  //so we must wait an indeterminate time to check on the current tip
-  setTimeout(function() {
-
-    utils.queryBitcoreNode(httpOpts, function(err, res) {
-
-      if(err) {
-        return callback(err);
-      }
-
-      blockHash.should.equal(JSON.parse(res).dbhash);
-      callback();
-
-    });
-
-  }, 2000);
-}
 
 

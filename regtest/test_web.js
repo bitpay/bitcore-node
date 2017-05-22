@@ -1,3 +1,5 @@
+'use strict';
+
 var BaseService = require('../lib/service');
 var inherits = require('util').inherits;
 
