@@ -43,7 +43,8 @@ var bitcore = {
         'db',
         'web',
         'block',
-        'reorg-test'
+        'reorg-test',
+        'timestamp'
       ],
       servicesConfig: {
         bitcoind: {

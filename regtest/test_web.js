@@ -9,7 +9,7 @@ var TestWebService = function(options) {
 
 inherits(TestWebService, BaseService);
 
-TestWebService.dependencies = ['web', 'block'];
+TestWebService.dependencies = ['web', 'block', 'timestamp'];
 
 TestWebService.prototype.start = function(callback) {
   callback();
@@ -23,15 +23,27 @@ TestWebService.prototype.setupRoutes = function(app) {
 
   var self = this;
 
-  app.get('/hash/:height', function(req, res) {
+  app.get('/block/hash/:height', function(req, res) {
     self.node.services.block.getBlockHash(req.params.height, function(err, hash) {
       res.status(200).jsonp({ hash: hash, height: parseInt(req.params.height) });
     });
   });
 
-  app.get('/height/:hash', function(req, res) {
+  app.get('/block/height/:hash', function(req, res) {
     self.node.services.block.getBlockHeight(req.params.hash, function(err, height) {
       res.status(200).jsonp({ hash: req.params.hash, height: height });
+    });
+  });
+
+  app.get('/timestamp/time/:hash', function(req, res) {
+    self.node.services.timestamp.getTimestamp(req.params.hash, function(err, timestamp) {
+      res.status(200).jsonp({ hash: req.params.hash, timestamp: timestamp });
+    });
+  });
+
+  app.get('/timestamp/hash/:time', function(req, res) {
+    self.node.services.timestamp.getHash(req.params.time, function(err, hash) {
+      res.status(200).jsonp({ hash: hash, timestamp: parseInt(req.params.time) });
     });
   });
 

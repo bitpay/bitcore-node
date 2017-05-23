@@ -49,6 +49,7 @@ var bitcore = {
         'db',
         'web',
         'block',
+        'timestamp',
         'block-test'
       ],
       servicesConfig: {
@@ -118,7 +119,7 @@ describe('Block Operations', function() {
 
       async.timesLimit(opts.initialHeight, 12, function(n, next) {
         utils.queryBitcoreNode(Object.assign({
-          path: '/test/hash/' + n
+          path: '/test/block/hash/' + n
         }, bitcore.httpOpts), function(err, res) {
 
           if(err) {
@@ -143,7 +144,7 @@ describe('Block Operations', function() {
     it('should sync block heights as keys and hashes as values', function(done) {
       async.timesLimit(opts.initialHeight, 12, function(n, next) {
         utils.queryBitcoreNode(Object.assign({
-          path: '/test/height/' + self.hashes[n]
+          path: '/test/block/height/' + self.hashes[n]
         }, bitcore.httpOpts), function(err, res) {
 
           if(err) {

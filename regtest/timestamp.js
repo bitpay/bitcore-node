@@ -1,12 +1,11 @@
 'use strict';
 
 var chai = require('chai');
-var should = chai.should();
+var expect = chai.expect;
 var async = require('async');
 var BitcoinRPC = require('bitcoind-rpc');
 var path = require('path');
 var utils = require('./utils');
-var crypto = require('crypto');
 
 var debug = true;
 var bitcoreDataDir = '/tmp/bitcore';
@@ -49,7 +48,9 @@ var bitcore = {
         'bitcoind',
         'web',
         'db',
-        'timestamp'
+        'timestamp',
+        'block',
+        'test-timestamp'
       ],
       servicesConfig: {
         bitcoind: {
@@ -62,6 +63,9 @@ var bitcore = {
               zmqpubrawtx: bitcoin.args.zmqpubrawtx
             }
           ]
+        },
+        'test-timestamp': {
+          requirePath: path.resolve(__dirname + '/test_web.js')
         }
       }
     }
@@ -85,16 +89,7 @@ var opts = {
   bitcoinDataDir: bitcoinDataDir,
   bitcoreDataDir: bitcoreDataDir,
   rpc: new BitcoinRPC(rpcConfig),
-  walletPassphrase: 'test',
-  txCount: 0,
   blockHeight: 0,
-  walletPrivKeys: [],
-  initialTxs: [],
-  fee: 100000,
-  feesReceived: 0,
-  satoshisSent: 0,
-  walletId: crypto.createHash('sha256').update('test').digest('hex'),
-  satoshisReceived: 0,
   initialHeight: 150
 };
 
@@ -112,15 +107,93 @@ describe('Timestamp Index', function() {
     async.series([
       utils.startBitcoind.bind(utils, self.opts),
       utils.waitForBitcoinReady.bind(utils, self.opts),
-      utils.unlockWallet.bind(utils, self.opts),
-      utils.sendTxs.bind(utils, self.opts),
       utils.startBitcoreNode.bind(utils, self.opts),
       utils.waitForBitcoreNode.bind(utils, self.opts),
+      function(next) {
+
+        async.timesLimit(opts.initialHeight, 12, function(n, next) {
+          utils.queryBitcoreNode(Object.assign({
+            path: '/test/block/hash/' + n
+          }, bitcore.httpOpts), function(err, res) {
+
+            if(err) {
+              return done(err);
+            }
+            res = JSON.parse(res);
+            expect(res.height).to.equal(n);
+            expect(res.hash.length).to.equal(64);
+            next(null, res.hash);
+          });
+        }, function(err, hashes) {
+
+          if(err) {
+            return next(err);
+          }
+          self.hashes = hashes;
+          next();
+
+        });
+
+      }
     ], done);
   });
 
-  it('should sync timestamps', function(done) {
-    done();
+  it('should sync block hashes as keys and timestamps as values', function(done) {
+
+    var lastTimestamp = 0;
+    async.mapLimit(self.hashes, 12, function(hash, next) {
+
+      utils.queryBitcoreNode(Object.assign({
+        path: '/test/timestamp/time/' + hash
+      }, bitcore.httpOpts), function(err, res) {
+
+        if(err) {
+          return next(err);
+        }
+
+        res = JSON.parse(res);
+        next(null, res.timestamp);
+      });
+    }, function(err, timestamps) {
+
+      if(err) {
+        return done(err);
+      }
+      timestamps.forEach(function(timestamp) {
+        expect(timestamp).to.be.above(lastTimestamp);
+        lastTimestamp = timestamp;
+      });
+      self.timestamps = timestamps;
+      done();
+
+    });
+  });
+
+  it('should sync block timestamps as keys and block hashes as values', function(done) {
+
+    async.eachOfLimit(self.timestamps, 12, function(timestamp, index, next) {
+      utils.queryBitcoreNode(Object.assign({
+        path: '/test/timestamp/hash/' + timestamp
+      }, bitcore.httpOpts), function(err, res) {
+
+        if(err) {
+          return done(err);
+        }
+
+        res = JSON.parse(res);
+        expect(res.hash).to.equal(self.hashes[index]);
+        expect(res.timestamp).to.equal(timestamp);
+        next();
+      });
+    }, function(err) {
+
+      if(err) {
+        return done(err);
+      }
+      done();
+
+    });
+
   });
 
 });
