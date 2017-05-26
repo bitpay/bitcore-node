@@ -1,7 +1,7 @@
 'use strict';
 
 var chai = require('chai');
-var should = chai.should();
+var expect = chai.expect;
 var async = require('async');
 var BitcoinRPC = require('bitcoind-rpc');
 var path = require('path');
@@ -51,7 +51,8 @@ var bitcore = {
         'timestamp',
         'web',
         'block',
-        'utxo'
+        'utxo',
+        'utxo-test'
       ],
       servicesConfig: {
         bitcoind: {
@@ -64,6 +65,9 @@ var bitcore = {
               zmqpubrawtx: bitcoin.args.zmqpubrawtx
             }
           ]
+        },
+        'utxo-test': {
+          requirePath: path.resolve(__dirname + '/test_web.js')
         }
       }
     }
@@ -123,7 +127,31 @@ describe('Utxo Operations', function() {
   });
 
   it('should index utxos', function(done) {
-    done();
+    async.mapLimit(opts.walletPrivKeys, 12, function(privKey, next) {
+
+      var address = privKey.toAddress().toString();
+      utils.queryBitcoreNode(Object.assign({
+        path: '/test/utxo/' + address
+      }, bitcore.httpOpts), function(err, res) {
+
+        if(err) {
+          return next(err);
+        }
+
+        res = JSON.parse(res);
+        expect(res.address).to.equal(address);
+        next(null, res.utxos);
+      });
+    }, function(err, utxos) {
+
+      if(err) {
+        return done(err);
+      }
+console.log('done');
+
+      done();
+
+    });
   });
 
 });

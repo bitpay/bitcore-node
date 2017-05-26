@@ -47,6 +47,11 @@ TestWebService.prototype.setupRoutes = function(app) {
     });
   });
 
+  app.get('/utxo/:address', function(req, res) {
+    self.node.services.utxo.getUtxosForAddress(req.params.address, function(err, utxos) {
+      res.status(200).jsonp({ address: req.params.address, utxos: utxos });
+    });
+  });
 };
 
 TestWebService.prototype.getRoutePrefix = function() {
