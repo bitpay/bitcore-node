@@ -121,6 +121,7 @@ describe('Utxo Operations', function() {
       utils.waitForBitcoinReady.bind(utils, self.opts),
       utils.unlockWallet.bind(utils, self.opts),
       utils.setupInitialTxs.bind(utils, self.opts),
+      utils.sendTxs.bind(utils, self.opts),
       utils.startBitcoreNode.bind(utils, self.opts),
       utils.waitForBitcoreNode.bind(utils, self.opts)
     ], done);
@@ -140,6 +141,8 @@ describe('Utxo Operations', function() {
 
         res = JSON.parse(res);
         expect(res.address).to.equal(address);
+        expect(res.utxos.length).equal(1);
+        expect(Object.keys(res.utxos[0])).to.deep.equal([ 'txid',  'outputIndex', 'address', 'height', 'satoshis', 'script' ]);
         next(null, res.utxos);
       });
     }, function(err, utxos) {
@@ -147,7 +150,6 @@ describe('Utxo Operations', function() {
       if(err) {
         return done(err);
       }
-console.log('done');
 
       done();
 
