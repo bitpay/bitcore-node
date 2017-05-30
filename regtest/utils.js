@@ -12,24 +12,26 @@ var Unit = bitcore.Unit;
 var Transaction = bitcore.Transaction;
 var PrivateKey = bitcore.PrivateKey;
 
-var utils = {};
+var Utils = function(opts) {
+  this.opts = opts;
+};
 
-utils.writeConfigFile = function(fileStr, obj) {
+Utils.prototype.writeConfigFile = function(fileStr, obj) {
   fs.writeFileSync(fileStr, JSON.stringify(obj));
 };
 
-utils.toArgs = function(opts) {
+Utils.prototype.toArgs = function(opts) {
   return Object.keys(opts).map(function(key) {
     return '-' + key + '=' + opts[key];
   });
 };
 
-utils.waitForService = function(task, callback) {
+Utils.prototype.waitForService = function(task, callback) {
   var retryOpts = { times: 20, interval: 1000 };
   async.retry(retryOpts, task, callback);
 };
 
-utils.queryBitcoreNode = function(httpOpts, callback) {
+Utils.prototype.queryBitcoreNode = function(httpOpts, callback) {
   var error;
   var request = http.request(httpOpts, function(res) {
 
@@ -72,25 +74,16 @@ utils.queryBitcoreNode = function(httpOpts, callback) {
   request.end();
 };
 
-utils.waitForBitcoreNode = function(opts, callback) {
+Utils.prototype.waitForBitcoreNode = function(callback) {
 
   var self = this;
-
-  opts.bitcore.process.stdout.on('data', function(data) {
-    if (opts.debug) {
-      console.log(data.toString());
-    }
-  });
-
-  opts.bitcore.process.stderr.on('data', function(data) {
-    console.log(data.toString());
-  });
 
   var errorFilter = function(err, res) {
     try {
       var info = JSON.parse(res);
-      if (info.dbheight === opts.blockHeight &&
-        info.bitcoindheight === opts.blockHeight) {
+      if (info.dbheight === self.opts.blockHeight &&
+        info.dbheight === info.bitcoindheight &&
+        info.bitcoindhash === info.dbhash) {
         return;
       }
       return res;
@@ -99,22 +92,22 @@ utils.waitForBitcoreNode = function(opts, callback) {
     }
   };
 
-  var httpOpts = self.getHttpOpts(opts, { path: '/info', errorFilter: errorFilter });
+  var httpOpts = self.getHttpOpts({ path: '/info', errorFilter: errorFilter });
 
   self.waitForService(self.queryBitcoreNode.bind(self, httpOpts), callback);
 };
 
-utils.waitForBitcoinReady = function(opts, callback) {
+Utils.prototype.waitForBitcoinReady = function(callback) {
 
   var self = this;
   self.waitForService(function(callback) {
 
-    opts.rpc.generate(opts.initialHeight, function(err, res) {
+    self.opts.rpc.generate(self.opts.initialHeight, function(err, res) {
 
       if (err || (res && res.error)) {
         return callback('keep trying');
       }
-      opts.blockHeight += opts.initialHeight;
+      self.opts.blockHeight += self.opts.initialHeight;
       callback();
     });
   }, function(err) {
@@ -129,7 +122,7 @@ utils.waitForBitcoinReady = function(opts, callback) {
 
 };
 
-utils.initializeAndStartService = function(opts, callback) {
+Utils.prototype.initializeAndStartService = function(opts, callback) {
 
   var self = this;
 
@@ -152,16 +145,36 @@ utils.initializeAndStartService = function(opts, callback) {
 
 };
 
-utils.startBitcoreNode = function(opts, callback) {
-  this.initializeAndStartService(opts.bitcore, callback);
+Utils.prototype.startBitcoreNode = function(callback) {
+  var self = this;
+  this.initializeAndStartService(self.opts.bitcore, function(err) {
+
+    if(err) {
+      return callback(err);
+    }
+
+    self.opts.bitcore.process.stdout.on('data', function(data) {
+      if (self.opts.debug) {
+        process.stdout.write(data.toString());
+      }
+    });
+
+    self.opts.bitcore.process.stderr.on('data', function(data) {
+      process.stdout.write(data.toString());
+    });
+
+
+    callback();
+
+  });
 };
 
-utils.startBitcoind = function(opts, callback) {
-  this.initializeAndStartService(opts.bitcoin, callback);
+Utils.prototype.startBitcoind = function(callback) {
+  this.initializeAndStartService(this.opts.bitcoin, callback);
 };
 
-utils.unlockWallet = function(opts, callback) {
-  opts.rpc.walletPassPhrase(opts.walletPassphrase, 3000, function(err) {
+Utils.prototype.unlockWallet = function(callback) {
+  this.opts.rpc.walletPassPhrase(this.opts.walletPassphrase, 3000, function(err) {
     if(err && err.code !== -15) {
       return callback(err);
     }
@@ -169,9 +182,10 @@ utils.unlockWallet = function(opts, callback) {
   });
 };
 
-utils.getPrivateKeysWithABalance = function(opts, callback) {
+Utils.prototype.getPrivateKeysWithABalance = function(callback) {
 
-  opts.rpc.listUnspent(function(err, res) {
+  var self = this;
+  self.opts.rpc.listUnspent(function(err, res) {
 
     if(err) {
       return callback(err);
@@ -188,7 +202,7 @@ utils.getPrivateKeysWithABalance = function(opts, callback) {
     }
     async.mapLimit(utxos, 8, function(utxo, callback) {
 
-      opts.rpc.dumpPrivKey(utxo.address, function(err, res) {
+      self.opts.rpc.dumpPrivKey(utxo.address, function(err, res) {
         if(err) {
           return callback(err);
         }
@@ -206,8 +220,9 @@ utils.getPrivateKeysWithABalance = function(opts, callback) {
 
 };
 
-utils.generateSpendingTxs = function(opts, utxos) {
+Utils.prototype.generateSpendingTxs = function(utxos) {
 
+  var self = this;
   return utxos.map(function(utxo) {
 
     var toPrivKey = new PrivateKey('testnet'); //external addresses
@@ -218,45 +233,46 @@ utils.generateSpendingTxs = function(opts, utxos) {
 
     tx.from(utxo.utxo);
     tx.to(toPrivKey.toAddress().toString(), satsToPrivKey);
-    tx.fee(opts.fee);
+    tx.fee(self.opts.fee);
     tx.change(changePrivKey.toAddress().toString());
     tx.sign(utxo.privKey);
 
-    opts.walletPrivKeys.push(changePrivKey);
-    opts.satoshisReceived += Unit.fromBTC(utxo.utxo.amount).toSatoshis() - (satsToPrivKey + opts.fee);
+    self.opts.walletPrivKeys.push(changePrivKey);
+    self.opts.satoshisReceived += Unit.fromBTC(utxo.utxo.amount).toSatoshis() - (satsToPrivKey + self.opts.fee);
     return tx;
   });
 
 };
 
-utils.setupInitialTxs = function(opts, callback) {
+Utils.prototype.setupInitialTxs = function(callback) {
 
   var self = this;
-  self.getPrivateKeysWithABalance(opts, function(err, utxos) {
+  self.getPrivateKeysWithABalance(function(err, utxos) {
 
     if(err) {
       return callback(err);
     }
-    opts.initialTxs = self.generateSpendingTxs(opts, utxos);
+    self.opts.initialTxs = self.generateSpendingTxs(utxos);
     callback();
   });
 
 };
 
-utils.sendTxs = function(opts, callback) {
-  async.eachOfSeries(opts.initialTxs, this.sendTx.bind(this, opts), callback);
+Utils.prototype.sendTxs = function(callback) {
+  async.eachOfSeries(this.opts.initialTxs, this.sendTx.bind(this), callback);
 };
 
-utils.sendTx = function(opts, tx, index, callback) {
+Utils.prototype.sendTx = function(tx, index, callback) {
 
-  opts.rpc.sendRawTransaction(tx.serialize(), function(err) {
+  var self = this;
+  self.opts.rpc.sendRawTransaction(tx.serialize(), function(err) {
     if (err) {
       return callback(err);
     }
     var mod = index % 2;
     if (mod === 1) {
-      opts.blockHeight++;
-      opts.rpc.generate(1, callback);
+      self.opts.blockHeight++;
+      self.opts.rpc.generate(1, callback);
     } else {
       callback();
     }
@@ -264,7 +280,7 @@ utils.sendTx = function(opts, tx, index, callback) {
 
 };
 
-utils.getHttpOpts = function(opts, httpOpts) {
+Utils.prototype.getHttpOpts = function(httpOpts) {
   return Object.assign({
     path: httpOpts.path,
     method: httpOpts.method || 'GET',
@@ -274,28 +290,28 @@ utils.getHttpOpts = function(opts, httpOpts) {
       'Content-Length': httpOpts.length || 0
     },
     errorFilter: httpOpts.errorFilter
-  }, opts.bitcore.httpOpts);
+  }, this.opts.bitcore.httpOpts);
 };
 
-utils.registerWallet = function(opts, callback) {
+Utils.prototype.registerWallet = function(callback) {
 
-  var httpOpts = this.getHttpOpts(opts, { path: '/wallet-api/wallets/' + opts.walletId, method: 'POST' });
+  var httpOpts = this.getHttpOpts(this.opts, { path: '/wallet-api/wallets/' + this.opts.walletId, method: 'POST' });
   this.queryBitcoreNode(httpOpts, callback);
 
 };
 
-utils.uploadWallet = function(opts, callback) {
+Utils.prototype.uploadWallet = function(callback) {
 
   var self = this;
-  var addresses = JSON.stringify(opts.walletPrivKeys.map(function(privKey) {
+  var addresses = JSON.stringify(self.opts.walletPrivKeys.map(function(privKey) {
     if (privKey.privKey) {
       return privKey.pubKey.toString();
     }
     return privKey.toAddress().toString();
   }));
 
-  var httpOpts = self.getHttpOpts(opts, {
-    path: '/wallet-api/wallets/' + opts.walletId + '/addresses',
+  var httpOpts = self.getHttpOpts(self.opts, {
+    path: '/wallet-api/wallets/' + self.opts.walletId + '/addresses',
     method: 'POST',
     body: addresses,
     length: addresses.length
@@ -309,7 +325,7 @@ utils.uploadWallet = function(opts, callback) {
 
     Object.keys(job).should.deep.equal(['jobId']);
 
-    var httpOpts = self.getHttpOpts(opts, { path: '/wallet-api/jobs/' + job.jobId });
+    var httpOpts = self.getHttpOpts(self.opts, { path: '/wallet-api/jobs/' + job.jobId });
 
     async.retry({ times: 10, interval: 1000 }, function(next) {
       self.queryBitcoreNode(httpOpts, function(err, res) {
@@ -333,12 +349,12 @@ utils.uploadWallet = function(opts, callback) {
 
 };
 
-utils.getListOfTxs = function(opts, callback) {
+Utils.prototype.getListOfTxs = function(callback) {
 
   var self = this;
   var end = Date.now() + 86400000;
-  var httpOpts = self.getHttpOpts(opts, {
-    path: '/wallet-api/wallets/' + opts.walletId + '/transactions?start=0&end=' + end });
+  var httpOpts = self.getHttpOpts(self.opts, {
+    path: '/wallet-api/wallets/' + self.opts.walletId + '/transactions?start=0&end=' + end });
 
   self.queryBitcoreNode(httpOpts, function(err, res) {
     if(err) {
@@ -353,7 +369,7 @@ utils.getListOfTxs = function(opts, callback) {
 
     });
 
-    var map = opts.initialTxs.map(function(tx) {
+    var map = self.opts.initialTxs.map(function(tx) {
       return tx.serialize();
     });
 
@@ -363,15 +379,15 @@ utils.getListOfTxs = function(opts, callback) {
     });
 
     map.length.should.equal(0);
-    results.length.should.equal(opts.initialTxs.length);
+    results.length.should.equal(self.opts.initialTxs.length);
     callback();
   });
 };
 
-utils.cleanup = function(opts, callback) {
-  opts.bitcore.process.kill();
-  opts.bitcoin.process.kill();
+Utils.prototype.cleanup = function(callback) {
+  this.opts.bitcore.process.kill();
+  this.opts.bitcoin.process.kill();
   setTimeout(callback, 2000);
 };
 
-module.exports = utils;
+module.exports = Utils;
