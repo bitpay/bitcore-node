@@ -127,19 +127,25 @@ Utils.prototype.initializeAndStartService = function(opts, callback) {
   var self = this;
 
   rimraf(opts.datadir, function(err) {
+
     if(err) {
       return callback(err);
     }
+
     mkdirp(opts.datadir, function(err) {
+
       if(err) {
         return callback(err);
       }
+
       if (opts.configFile) {
         self.writeConfigFile(opts.configFile.file, opts.configFile.conf);
       }
+
       var args = _.isArray(opts.args) ? opts.args : self.toArgs(opts.args);
       opts.process = spawn(opts.exec, args, opts.opts);
       callback();
+
     });
   });
 
@@ -170,7 +176,22 @@ Utils.prototype.startBitcoreNode = function(callback) {
 };
 
 Utils.prototype.startBitcoind = function(callback) {
-  this.initializeAndStartService(this.opts.bitcoin, callback);
+  var self = this;
+  self.initializeAndStartService(self.opts.bitcoin, function() {
+
+    // in case you choose to -printtoconsole
+    self.opts.bitcoin.process.stdout.on('data', function(data) {
+      if (self.opts.debug) {
+        process.stdout.write(data.toString());
+      }
+    });
+
+    self.opts.bitcoin.process.stderr.on('data', function(data) {
+      process.stdout.write(data.toString());
+    });
+
+    callback();
+  });
 };
 
 Utils.prototype.unlockWallet = function(callback) {

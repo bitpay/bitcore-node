@@ -4,7 +4,7 @@ var chai = require('chai');
 var expect = chai.expect;
 var async = require('async');
 var path = require('path');
-var utils = require('./utils');
+var Utils = require('./utils');
 var zmq = require('zmq');
 var http = require('http');
 var blocks = require('../test/data/blocks.json');
@@ -80,6 +80,7 @@ var opts = {
   bitcoreDataDir: bitcoreDataDir,
   blockHeight: 0
 };
+var utils = new Utils(opts);
 
 var genesis = new Block(new Buffer(blocks.genesis, 'hex'));
 var block1 = new Block(new Buffer(blocks.block1a, 'hex'));
@@ -109,7 +110,7 @@ function publishBlockHash(rawBlockHex, callback) {
 
   pubSocket.send([ 'rawblock', new Buffer(rawBlockHex, 'hex') ]);
 
-  var httpOpts = utils.getHttpOpts(opts, { path: '/info' });
+  var httpOpts = utils.getHttpOpts({ path: '/info' });
 
   // we don't know exactly when all the blockhandlers will complete after the "tip" event
   // so we must wait an indeterminate time to check on the current tip
@@ -184,10 +185,8 @@ describe('DB Operations', function() {
 
       setupFakeZmq();
 
-      self.opts = Object.assign({}, opts);
-
-      utils.startBitcoreNode(self.opts, function() {
-        utils.waitForBitcoreNode(self.opts, done);
+      utils.startBitcoreNode(function() {
+        utils.waitForBitcoreNode(done);
       });
 
     });
@@ -211,17 +210,15 @@ describe('DB Operations', function() {
       async.series([
 
         publishBlockHash.bind(self, rawBlock1),
-        publishBlockHash.bind(self, rawBlock2)
+        publishBlockHash.bind(self, rawBlock2),
+        function(next) {
+          utils.opts.blockHeight++;
+          next();
+        },
+        utils.waitForBitcoreNode.bind(utils)
 
-      ], function(err) {
+      ], done);
 
-        if(err) {
-          return done(err);
-        }
-
-        done();
-
-      });
     });
   });
 
