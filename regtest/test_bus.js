@@ -8,6 +8,7 @@ var log = index.log;
 
 var TestBusService = function(options) {
   BaseService.call(this, options);
+  this._cache = { transaction: [], block: [], headers: [] };
 };
 
 inherits(TestBusService, BaseService);
@@ -26,11 +27,10 @@ TestBusService.prototype.start = function(callback) {
   self.bus = self.node.openBus({ remoteAddress: 'localhost' });
 
   self.bus.on('p2p/transaction', function(tx) {
-    var self = this;
     self._cache.transaction.push(tx);
     if (self._ready) {
       for(var i = 0; i < self._cache.transaction.length; i++) {
-        var transaction = self._cache.transaction.unshift();
+        var transaction = self._cache.transaction.shift();
         self.pubSocket.send([ 'transaction', new Buffer(transaction.uncheckedSerialize(), 'hex') ]);
       }
       return;
@@ -49,28 +49,22 @@ TestBusService.prototype.start = function(callback) {
     }
   });
 
-  self.bus.on('p2p/headers', function(headers) {
-    var self = this;
-    self._cache.headers.push(headers);
-    if (self._ready) {
-      for(var i = 0; i < self._cache.headers.length; i++) {
-        var hdrs = self._cache.headers.unshift();
-        self.pubSocket.send([ 'headers', hdrs ]);
-      }
-      return;
-    }
-  });
-
   self.bus.subscribe('p2p/transaction');
   self.bus.subscribe('p2p/block');
 
   self.node.on('ready', function() {
-    //we could be getting events right away, so until our subscribers get connected, we need to cache
-    self._cache = { transaction: [], block: [], headers: [] };
+
+
     setTimeout(function() {
       self._ready = true;
+      self.node.services.p2p.getMempool(function(err, mempool) {
+
+console.log(mempool);
+      });
     }, 2000);
+
   });
+
   callback();
 };
 

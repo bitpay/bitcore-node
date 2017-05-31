@@ -13,7 +13,7 @@ var Transaction = bitcore.Transaction;
 var PrivateKey = bitcore.PrivateKey;
 var Unit = bitcore.Unit;
 
-var debug = false;
+var debug = true;
 var extraDebug = true;
 var bitcoreDataDir = '/tmp/bitcore';
 var bitcoinDataDir = '/tmp/bitcoin';
@@ -79,9 +79,9 @@ var bitcore = {
 };
 
 if (debug && extraDebug) {
-  bitcoin.args.printtoconsole = 1,
-  bitcoin.args.debug = 1,
-  bitcoin.args.logips = 1
+  bitcoin.args.printtoconsole = 1;
+  bitcoin.args.debug = 1;
+  bitcoin.args.logips = 1;
 }
 
 var opts = {
@@ -163,7 +163,7 @@ describe('P2P Operations', function() {
     ], done);
   });
 
-  it('should connect to the p2p network and stream the mempool to clients', function(done) {
+  it.only('should connect to the p2p network and stream the mempool to clients', function(done) {
     async.series([
       utils.unlockWallet.bind(utils),
       utils.setupInitialTxs.bind(utils),
