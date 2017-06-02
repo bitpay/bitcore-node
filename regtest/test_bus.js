@@ -15,7 +15,7 @@ var TestBusService = function(options) {
 
 inherits(TestBusService, BaseService);
 
-TestBusService.dependencies = ['p2p'];
+TestBusService.dependencies = ['p2p', 'web'];
 
 TestBusService.prototype.start = function(callback) {
 
@@ -59,39 +59,37 @@ TestBusService.prototype.start = function(callback) {
 
   self.node.on('ready', function() {
 
-    setTimeout(function() {
-      self._ready = true;
-      self.node.services.p2p.getMempool(function(err, mempool) {
-
-        if(err) {
-          throw err;
-        }
-
-        mempool.forEach(function(tx) {
-          self.pubSocket.send([ 'transaction', new Buffer(tx.uncheckedSerialize(), 'hex') ]);
-        });
-      });
-
-      assert(self._bestHeight, 'best height not set on a time after ready');
-      self.node.services.p2p.getBlocks(
-        constants.BITCOIN_GENESIS_HASH.regtest,
-        self._bestHeight,
-        function(err, blocks) {
-
-        if(err) {
-          throw err;
-        }
-
-        blocks.forEach(function(block) {
-          self.pubSocket.send([ 'block', block.toBuffer() ]);
-        });
-      });
-
-    }, 2000);
+    self._ready = true;
+    self.node.services.p2p.getMempool();
+    self.node.services.p2p.getBlocks({ newestHash: constants.BITCOIN_GENESIS_HASH.regtest });
 
   });
 
   callback();
+};
+
+TestBusService.prototype.setupRoutes = function(app) {
+
+  var self = this;
+
+  app.get('/mempool', function(req, res) {
+    self.node.services.p2p.getMempool(req.params.filter);
+    res.status(200);
+  });
+
+  app.get('/blocks', function(req, res) {
+    self.node.services.p2p.getBlocks(req.params.filter);
+    res.status(200);
+  });
+
+  app.get('/info', function(req, res) {
+console.log('test test test test');
+    res.status(200).jsonp({ result: (self._ready && (self._bestHeight >= 0))});
+  });
+};
+
+TestBusService.prototype.getRoutePrefix = function() {
+  return 'test';
 };
 
 TestBusService.prototype.stop = function(callback) {

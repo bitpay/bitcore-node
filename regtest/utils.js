@@ -78,21 +78,23 @@ Utils.prototype.waitForBitcoreNode = function(callback) {
 
   var self = this;
 
-  var errorFilter = function(err, res) {
-    try {
-      var info = JSON.parse(res);
-      if (info.dbheight === self.opts.blockHeight &&
-        info.dbheight === info.bitcoindheight &&
-        info.bitcoindhash === info.dbhash) {
-        return;
+  var errorFilter = self.opts.errorFilter;
+  if (!errorFilter) {
+    errorFilter = function(err, res) {
+      try {
+        var info = JSON.parse(res);
+        if (info.dbheight === self.opts.blockHeight &&
+          info.dbheight === info.bitcoindheight &&
+          info.bitcoindhash === info.dbhash) {
+          return;
+        }
+        return res;
+      } catch(e) {
+        return e;
       }
-      return res;
-    } catch(e) {
-      return e;
-    }
-  };
-
-  var httpOpts = self.getHttpOpts({ path: '/info', errorFilter: errorFilter });
+    };
+  }
+  var httpOpts = self.getHttpOpts({ path: opts.path || '/info', errorFilter: errorFilter });
 
   self.waitForService(self.queryBitcoreNode.bind(self, httpOpts), callback);
 };

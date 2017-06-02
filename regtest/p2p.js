@@ -51,7 +51,7 @@ var bitcore = {
       network: 'regtest',
       port: 53001,
       datadir: bitcoreDataDir,
-      services: ['p2p', 'test-p2p'],
+      services: ['p2p', 'test-p2p', 'web'],
       servicesConfig: {
         p2p: {
           peers: [
@@ -101,7 +101,19 @@ var opts = {
   satoshisSent: 0,
   walletId: crypto.createHash('sha256').update('test').digest('hex'),
   satoshisReceived: 0,
-  initialHeight: 150
+  initialHeight: 150,
+  path: '/test/info',
+  errorFilter: function(err, res) {
+console.log(err, res);
+    try {
+      var info = JSON.parse(res);
+      if (res.result) {
+        return;
+      }
+    } catch(e) {
+      return e;
+    }
+  }
 };
 
 var utils = new Utils(opts);
@@ -142,12 +154,6 @@ function setupZmqSubscriber(callback) {
   callback();
 }
 
-function waitForZmqConnection(callback) {
-  async.retry({ interval: 500, times: 50 }, function(next) {
-    return next(txs.length < utils.opts.initialTxs.length);
-  }, callback);
-}
-
 describe('P2P Operations', function() {
 
   this.timeout(60000);
@@ -163,15 +169,6 @@ describe('P2P Operations', function() {
     ], done);
   });
 
-  //it('should get blocks from peer that we do not have on startup', function(done) {
-
-  //  setTimeout(function() {
-  //    expect(blocks.length).to.equal(10);
-  //    done();
-  //  }, 1000);
-
-  //  done();
-  //});
 
   it('should connect to the p2p network and stream the mempool to clients', function(done) {
     async.series([
@@ -186,7 +183,7 @@ describe('P2P Operations', function() {
 
       utils.startBitcoreNode.bind(utils),
       setupZmqSubscriber,
-      waitForZmqConnection
+      utils.waitForBitcoreNode.bind(utils)
 
     ], function(err) {
 
@@ -254,12 +251,24 @@ describe('P2P Operations', function() {
 
   });
 
-  it('should send new blocks as they are broadcasted by our trusted peer', function(done) {
-    //expect(blocks.length).to.equal(1);
+  it('should get blocks from peer that we do not have on startup', function(done) {
+    expect(blocks.length).to.equal(151);
     done();
   });
 
-
+  it('should be able to set a mempool filter and only get back what is NOT in the filter', function(done) {
+    var newTx = txs.shift();
+    utils.queryBitcoreNode(Object.assign({
+      path: '/mempool?filter=' + txs
+    }), bitcore.httpOpts, function(err, data) {
+      if (err) {
+        return done(err);
+      }
+      newTxs = JSON.parse(data).transactions;
+      expect(newTxs.length).to.equal(2);
+      expect(newTx).to.equal(newTxs[0].hash);
+    });
+  });
 
 });
 

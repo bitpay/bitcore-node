@@ -1,6 +1,7 @@
 {
   "name": "bitcore-node",
   "description": "Full node with extended capabilities using Bitcore and Bitcoin Core",
+  "engines": { "node": ">=6.10.3" },
   "author": "BitPay <dev@bitpay.com>",
   "version": "4.0.0",
   "main": "./index.js",
