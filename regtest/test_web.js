@@ -52,6 +52,15 @@ TestWebService.prototype.setupRoutes = function(app) {
       res.status(200).jsonp({ utxos: utxos });
     });
   });
+
+  app.get('/info', function(req, res) {
+    var tip = self.node.services.block.tip;
+console.log(tip);
+    if (tip) {
+      return res.status(200).jsonp({ tip: JSON.stringify(tip) });
+    }
+    return res.status(503).end();
+  });
 };
 
 TestWebService.prototype.getRoutePrefix = function() {

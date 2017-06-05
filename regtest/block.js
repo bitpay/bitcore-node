@@ -5,7 +5,7 @@ var expect = chai.expect;
 var async = require('async');
 var BitcoinRPC = require('bitcoind-rpc');
 var path = require('path');
-var utils = require('./utils');
+var Utils = require('./utils');
 
 var debug = true;
 var extraDebug = true;
@@ -24,14 +24,12 @@ var rpcConfig = {
 var bitcoin = {
   args: {
     datadir: bitcoinDataDir,
-    listen: 0,
+    listen: 1,
     regtest: 1,
     server: 1,
     rpcuser: rpcConfig.user,
     rpcpassword: rpcConfig.pass,
-    rpcport: rpcConfig.port,
-    zmqpubrawtx: 'tcp://127.0.0.1:38332',
-    zmqpubrawblock: 'tcp://127.0.0.1:38332'
+    rpcport: rpcConfig.port
   },
   datadir: bitcoinDataDir,
   exec: 'bitcoind', //if this isn't on your PATH, then provide the absolute path, e.g. /usr/local/bin/bitcoind
@@ -54,14 +52,10 @@ var bitcore = {
         'block-test'
       ],
       servicesConfig: {
-        bitcoind: {
-          connect: [
+        p2p: {
+          peers: [
             {
-              rpcconnect: rpcConfig.host,
-              rpcport: rpcConfig.port,
-              rpcuser: rpcConfig.user,
-              rpcpassword: rpcConfig.pass,
-              zmqpubrawtx: bitcoin.args.zmqpubrawtx
+              ip: { v4: '127.0.0.1' }
             }
           ]
         },
@@ -91,8 +85,21 @@ var opts = {
   bitcoreDataDir: bitcoreDataDir,
   rpc: new BitcoinRPC(rpcConfig),
   blockHeight: 0,
-  initialHeight: 150
+  initialHeight: 150,
+  path: '/test/info',
+  errorFilter: function(req, res) {
+    try {
+      var info = JSON.parse(res);
+      if (info.result) {
+        return;
+      }
+    } catch(e) {
+      return e;
+    }
+  }
 };
+
+var utils = new Utils(opts);
 
 describe('Block Operations', function() {
 
@@ -103,16 +110,15 @@ describe('Block Operations', function() {
     var self = this;
 
     after(function(done) {
-      utils.cleanup(self.opts, done);
+      utils.cleanup(done);
     });
 
     before(function(done) {
-      self.opts = Object.assign({}, opts);
       async.series([
-        utils.startBitcoind.bind(utils, self.opts),
-        utils.waitForBitcoinReady.bind(utils, self.opts),
-        utils.startBitcoreNode.bind(utils, self.opts),
-        utils.waitForBitcoreNode.bind(utils, self.opts)
+        utils.startBitcoind.bind(utils),
+        utils.waitForBitcoinReady.bind(utils),
+        utils.startBitcoreNode.bind(utils),
+        utils.waitForBitcoreNode.bind(utils)
       ], done);
     });
 
