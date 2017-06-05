@@ -5,8 +5,6 @@ var inherits = require('util').inherits;
 var zmq = require('zmq');
 var index = require('../lib');
 var log = index.log;
-var constants = require('../lib/constants');
-var assert = require('assert');
 
 var TestBusService = function(options) {
   BaseService.call(this, options);
@@ -31,11 +29,10 @@ TestBusService.prototype.start = function(callback) {
   self.bus.on('p2p/transaction', function(tx) {
     self._cache.transaction.push(tx);
     if (self._ready) {
-      for(var i = 0; i < self._cache.transaction.length; i++) {
+      while(self._cache.transaction.length > 0) {
         var transaction = self._cache.transaction.shift();
         self.pubSocket.send([ 'transaction', new Buffer(transaction.uncheckedSerialize(), 'hex') ]);
       }
-      return;
     }
   });
 
@@ -46,22 +43,33 @@ TestBusService.prototype.start = function(callback) {
   self.bus.on('p2p/block', function(block) {
     self._cache.block.push(block);
     if (self._ready) {
-      for(var i = 0; i < self._cache.block.length; i++) {
+      while(self._cache.block.length > 0) {
         var blk = self._cache.block.shift();
         self.pubSocket.send([ 'block', blk.toBuffer() ]);
       }
-      return;
+    }
+  });
+
+  self.bus.on('p2p/headers', function(headers) {
+    headers.forEach(function(header) {
+      self._cache.headers.push(header);
+    });
+
+    if (self._ready) {
+      while(self._cache.headers.length > 0) {
+        var hdr = self._cache.headers.shift();
+        self.pubSocket.send([ 'headers', hdr.toBuffer() ]);
+      }
     }
   });
 
   self.bus.subscribe('p2p/transaction');
   self.bus.subscribe('p2p/block');
+  self.bus.subscribe('p2p/headers');
 
   self.node.on('ready', function() {
 
     self._ready = true;
-    self.node.services.p2p.getMempool();
-    self.node.services.p2p.getBlocks({ newestHash: constants.BITCOIN_GENESIS_HASH.regtest });
 
   });
 
@@ -73,17 +81,35 @@ TestBusService.prototype.setupRoutes = function(app) {
   var self = this;
 
   app.get('/mempool', function(req, res) {
-    self.node.services.p2p.getMempool(req.params.filter);
-    res.status(200);
+    self.node.services.p2p.clearInventoryCache();
+    var filter;
+    if (req.query.filter) {
+      filter = JSON.parse(req.query.filter);
+    }
+    self.node.services.p2p.getMempool(filter);
+    res.status(200).end();
   });
 
   app.get('/blocks', function(req, res) {
-    self.node.services.p2p.getBlocks(req.params.filter);
-    res.status(200);
+    self.node.services.p2p.clearInventoryCache();
+    var filter;
+    if (req.query.filter) {
+      filter = JSON.parse(req.query.filter);
+    }
+    self.node.services.p2p.getBlocks(filter);
+    res.status(200).end();
+  });
+
+  app.get('/headers', function(req, res) {
+    var filter;
+    if (req.query.filter) {
+      filter = JSON.parse(req.query.filter);
+    }
+    self.node.services.p2p.getHeaders(filter);
+    res.status(200).end();
   });
 
   app.get('/info', function(req, res) {
-console.log('test test test test');
     res.status(200).jsonp({ result: (self._ready && (self._bestHeight >= 0))});
   });
 };

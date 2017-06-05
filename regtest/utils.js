@@ -11,6 +11,7 @@ var http = require('http');
 var Unit = bitcore.Unit;
 var Transaction = bitcore.Transaction;
 var PrivateKey = bitcore.PrivateKey;
+var assert = require('assert');
 
 var Utils = function(opts) {
   this.opts = opts;
@@ -94,7 +95,7 @@ Utils.prototype.waitForBitcoreNode = function(callback) {
       }
     };
   }
-  var httpOpts = self.getHttpOpts({ path: opts.path || '/info', errorFilter: errorFilter });
+  var httpOpts = self.getHttpOpts({ path: self.opts.path || '/info', errorFilter: errorFilter });
 
   self.waitForService(self.queryBitcoreNode.bind(self, httpOpts), callback);
 };
@@ -281,24 +282,35 @@ Utils.prototype.setupInitialTxs = function(callback) {
 
 };
 
-Utils.prototype.sendTxs = function(callback) {
+Utils.prototype.sendTxs = function(generateBlockAfterEach, callback) {
+  var self = this;
+  if (typeof generateBlockAfterEach !== 'function') {
+    return async.eachSeries(this.opts.initialTxs, function(tx, next) {
+      self.sendTx(tx, generateBlockAfterEach, next);
+    }, callback);
+  }
   async.eachOfSeries(this.opts.initialTxs, this.sendTx.bind(this), callback);
 };
 
 Utils.prototype.sendTx = function(tx, index, callback) {
 
   var self = this;
-  self.opts.rpc.sendRawTransaction(tx.serialize(), function(err) {
+  // sending these too quickly will prevent them from being relayed over the
+  // p2p network
+  self.opts.rpc.sendRawTransaction(tx.serialize(), function(err, res) {
     if (err) {
       return callback(err);
     }
+    assert(res.result === tx.hash, 'sendTx: provided hash did not match returned hash');
     var mod = index % 2;
-    if (mod === 1) {
-      self.opts.blockHeight++;
-      self.opts.rpc.generate(1, callback);
-    } else {
-      callback();
-    }
+    setTimeout(function() {
+      if (mod === 1) {
+        self.opts.blockHeight++;
+        self.opts.rpc.generate(1, callback);
+      } else {
+        callback();
+      }
+    }, 200);
   });
 
 };

@@ -8,8 +8,9 @@ var path = require('path');
 var utils = require('./utils');
 
 var debug = true;
-var bitcoreDataDir = '/tmp/bitcore';
-var bitcoinDataDir = '/tmp/bitcoin';
+var extraDebug = true;
+var bitcoreDataDir = '/tmp/testtmpfs/bitcore';
+var bitcoinDataDir = '/tmp/testtmpfs/bitcoin';
 
 var rpcConfig = {
   protocol: 'http',
@@ -45,7 +46,7 @@ var bitcore = {
       port: 53001,
       datadir: bitcoreDataDir,
       services: [
-        'bitcoind',
+        'p2p',
         'db',
         'web',
         'block',
