@@ -76,16 +76,6 @@ utils.waitForBitcoreNode = function(opts, callback) {
 
   var self = this;
 
-  opts.bitcore.process.stdout.on('data', function(data) {
-    if (opts.debug) {
-      console.log(data.toString());
-    }
-  });
-
-  opts.bitcore.process.stderr.on('data', function(data) {
-    console.log(data.toString());
-  });
-
   var errorFilter = function(err, res) {
     try {
       var info = JSON.parse(res);
@@ -153,7 +143,22 @@ utils.initializeAndStartService = function(opts, callback) {
 };
 
 utils.startBitcoreNode = function(opts, callback) {
-  this.initializeAndStartService(opts.bitcore, callback);
+  this.initializeAndStartService(opts.bitcore, function(err) {
+    if (err) {
+      return callback(err);
+    }
+
+    opts.bitcore.process.stdout.on('data', function(data) {
+      if (opts.debug) {
+        process.stdout.write(data.toString());
+      }
+    });
+
+    opts.bitcore.process.stderr.on('data', function(data) {
+      process.stderr.write(data.toString());
+    });
+    callback();
+  });
 };
 
 utils.startBitcoind = function(opts, callback) {
@@ -341,6 +346,8 @@ utils.getListOfTxs = function(opts, callback) {
     path: '/wallet-api/wallets/' + opts.walletId + '/transactions?start=0&end=' + end });
 
   self.queryBitcoreNode(httpOpts, function(err, res) {
+
+console.log(err, res);
     if(err) {
       return callback(err);
     }
