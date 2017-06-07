@@ -6,6 +6,8 @@ var async = require('async');
 var BitcoinRPC = require('bitcoind-rpc');
 var path = require('path');
 var Utils = require('./utils');
+var constants = require('../lib/constants');
+var zmq = require('zmq');
 
 var debug = true;
 var extraDebug = true;
@@ -60,7 +62,7 @@ var bitcore = {
           ]
         },
         'block-test': {
-          requirePath: path.resolve(__dirname + '/test_web.js')
+          requirePath: path.resolve(__dirname + '/test_bus.js')
         }
       }
     }
@@ -101,6 +103,38 @@ var opts = {
 
 var utils = new Utils(opts);
 
+var subSocket;
+var blocks = [];
+
+function processMessages(topic, message) {
+  var topicStr = topic.toString();
+  if (topicStr === 'block/block') {
+    return blocks.push(message);
+  }
+}
+
+function setupZmqSubscriber(callback) {
+
+  subSocket = zmq.socket('sub');
+  subSocket.on('connect', function(fd, endPoint) {
+    if (debug) {
+      console.log('ZMQ connected to:', endPoint);
+    }
+  });
+
+  subSocket.on('disconnect', function(fd, endPoint) {
+    if (debug) {
+      console.log('ZMQ disconnect:', endPoint);
+    }
+  });
+
+  subSocket.monitor(100, 0);
+  subSocket.connect('tcp://127.0.0.1:38332');
+  subSocket.subscribe('block');
+  subSocket.on('message', processMessages);
+  callback();
+}
+
 describe('Block Operations', function() {
 
   this.timeout(60000);
@@ -118,34 +152,54 @@ describe('Block Operations', function() {
         utils.startBitcoind.bind(utils),
         utils.waitForBitcoinReady.bind(utils),
         utils.startBitcoreNode.bind(utils),
-        utils.waitForBitcoreNode.bind(utils)
+        utils.waitForBitcoreNode.bind(utils),
+        setupZmqSubscriber
       ], done);
     });
 
-    it('should sync block hashes as keys and heights as values', function(done) {
-
-      async.timesLimit(opts.initialHeight, 12, function(n, next) {
-        utils.queryBitcoreNode(Object.assign({
-          path: '/test/block/hash/' + n
-        }, bitcore.httpOpts), function(err, res) {
-
-          if(err) {
-            return done(err);
-          }
-          res = JSON.parse(res);
-          expect(res.height).to.equal(n);
-          expect(res.hash.length).to.equal(64);
-          next(null, res.hash);
-        });
-      }, function(err, hashes) {
+    it.only('should be able to get historical blocks from the network', function(done) {
+      var filter = { startHash: constants.BITCOIN_GENESIS_HASH.regtest };
+      utils.queryBitcoreNode(Object.assign({
+        path: '/test/p2p/blocks?filter=' + JSON.stringify(filter),
+      }, bitcore.httpOpts), function(err) {
 
         if(err) {
           return done(err);
         }
-        self.hashes = hashes;
-        done();
+
+        setTimeout(function() {
+          expect(blocks.length).to.equal(150);
+          done();
+        }, 2000);
+
 
       });
+    });
+
+    it('should sync block hashes as keys and heights as values', function(done) {
+
+      //async.timesLimit(opts.initialHeight, 12, function(n, next) {
+      //  utils.queryBitcoreNode(Object.assign({
+      //    path: '/test/block/hash/' + n
+      //  }, bitcore.httpOpts), function(err, res) {
+
+      //    if(err) {
+      //      return done(err);
+      //    }
+      //    res = JSON.parse(res);
+      //    expect(res.height).to.equal(n);
+      //    expect(res.hash.length).to.equal(64);
+      //    next(null, res.hash);
+      //  });
+      //}, function(err, hashes) {
+
+      //  if(err) {
+      //    return done(err);
+      //  }
+      //  self.hashes = hashes;
+      //  done();
+
+      //});
     });
 
     it('should sync block heights as keys and hashes as values', function(done) {

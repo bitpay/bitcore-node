@@ -55,7 +55,6 @@ TestWebService.prototype.setupRoutes = function(app) {
 
   app.get('/info', function(req, res) {
     var tip = self.node.services.block.tip;
-console.log(tip);
     if (tip) {
       return res.status(200).jsonp({ tip: JSON.stringify(tip) });
     }
