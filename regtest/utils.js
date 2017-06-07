@@ -347,7 +347,6 @@ utils.getListOfTxs = function(opts, callback) {
 
   self.queryBitcoreNode(httpOpts, function(err, res) {
 
-console.log(err, res);
     if(err) {
       return callback(err);
     }
