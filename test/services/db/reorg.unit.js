@@ -50,9 +50,7 @@ describe('Reorg', function() {
       var db = {
         tip: tipBlocks[3],
         concurrentTip: concurrentBlocks[4],
-        store: {
-          batch: sinon.stub().callsArg(1)
-        },
+        batch: sinon.stub().callsArg(1),
         getConcurrentBlockOperations: sinon.stub().callsArgWith(2, null, []),
         getSerialBlockOperations: sinon.stub().callsArgWith(2, null, []),
         getConcurrentTipOperation: sinon.stub().returns(null),
