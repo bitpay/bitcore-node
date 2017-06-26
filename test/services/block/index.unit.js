@@ -49,7 +49,7 @@ describe('Block Service', function() {
       expect(blockService._chainTips.get('ee')).to.deep.equal(['dd', 'cc', 'bb', 'aa', '00']);
     });
 
-    it('should merge chain tips where there is a fork (a parent block has more than one child)' , function() {
+    it('should merge blocks where there is a fork (a parent block has more than one child)' , function() {
 
       var blocks = ['aa','bb','cc','dd','ee'];
       var prevBlocks = ['00','aa','aa','cc','dd'];
@@ -62,8 +62,41 @@ describe('Block Service', function() {
 
       expect(blockService._chainTips.length).to.equal(2);
       expect(blockService._chainTips.get('ee')).to.deep.equal(['dd', 'cc', 'aa', '00']);
+      expect(blockService._chainTips.get('bb')).to.deep.equal(['aa', '00']);
     });
 
+    it('should merge blocks where there is a fork (a parent block has more than one child) and blocks are received out of order' , function() {
+
+      var blocks = ['cc','aa','bb','ee','dd'];
+      var prevBlocks = ['aa','00','aa','dd','cc'];
+
+      blocks.forEach(function(n, index) {
+        var block = { header: { prevHash: new Buffer(prevBlocks[index], 'hex') }, hash: n };
+        blockService._mergeBlockIntoChainTips(block);
+      });
+
+
+      expect(blockService._chainTips.length).to.equal(2);
+      expect(blockService._chainTips.get('ee')).to.deep.equal(['dd', 'cc', 'aa', '00']);
+      expect(blockService._chainTips.get('bb')).to.deep.equal(['aa', '00']);
+    });
+
+    it('should merge blocks where there is a three-way fork (a parent block has more than one child) and blocks are received out of order' , function() {
+
+      var blocks = ['cc','aa','bb','ee','dd'];
+      var prevBlocks = ['aa','00','aa','dd','aa'];
+
+      blocks.forEach(function(n, index) {
+        var block = { header: { prevHash: new Buffer(prevBlocks[index], 'hex') }, hash: n };
+        blockService._mergeBlockIntoChainTips(block);
+      });
+
+
+      expect(blockService._chainTips.length).to.equal(3);
+      expect(blockService._chainTips.get('ee')).to.deep.equal(['dd', 'aa', '00']);
+      expect(blockService._chainTips.get('bb')).to.deep.equal(['aa', '00']);
+      expect(blockService._chainTips.get('cc')).to.deep.equal(['aa', '00']);
+    });
 
   });
 
