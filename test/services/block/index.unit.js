@@ -100,6 +100,73 @@ describe('Block Service', function() {
 
   });
 
+  it('shoudd merge blocks where there is three-way fork and blocks are received in order.', function() {
+
+      var blocks = ['aa','bb','cc','dd','ee'];
+      var prevBlocks = ['00','aa','aa','aa','dd'];
+
+      blocks.forEach(function(n, index) {
+        var block = { header: { prevHash: new Buffer(prevBlocks[index], 'hex') }, hash: n };
+        blockService._mergeBlockIntoChainTips(block);
+      });
+
+
+      expect(blockService._chainTips.length).to.equal(3);
+      expect(blockService._chainTips.get('ee')).to.deep.equal(['dd', 'aa', '00']);
+      expect(blockService._chainTips.get('bb')).to.deep.equal(['aa', '00']);
+      expect(blockService._chainTips.get('cc')).to.deep.equal(['aa', '00']);
+  });
+
+  describe('Reorgs', function() {
+
+    it('should find a common ancestor in the normal case', function() {
+
+      var blocks = ['aa', 'bb', 'cc', 'dd'];
+      var prevBlocks = ['00', 'aa', 'bb', 'bb'];
+
+      blocks.forEach(function(n, index) {
+        var block = { header: { prevHash: new Buffer(prevBlocks[index], 'hex') }, hash: n };
+        blockService._mergeBlockIntoChainTips(block);
+      });
+
+      blockService.tip = { hash: 'cc', height: 3 };
+      var commonAncestor = blockService._findCommonAncestor({ hash: 'dd' });
+      expect(commonAncestor).to.equal('bb');
+
+    });
+
+    it('should find a common ancestor in the case where more than one block is built on an alternative chain before reorg is discovered', function() {
+
+      // even though 'ee' is the tip on the alt chain, 'dd' was the last block to come in that was not an orphan block. So 'dd' was the first to allow
+      // reorg validation
+      var blocks = ['aa', 'bb', 'cc', 'ee', 'dd'];
+      var prevBlocks = ['00', 'aa', 'bb', 'dd', 'bb'];
+
+      blocks.forEach(function(n, index) {
+        var block = { header: { prevHash: new Buffer(prevBlocks[index], 'hex') }, hash: n };
+        blockService._mergeBlockIntoChainTips(block);
+      });
+
+      blockService.tip = { hash: 'cc', height: 3 };
+      var commonAncestor = blockService._findCommonAncestor({ hash: 'dd' });
+      expect(commonAncestor).to.equal('bb');
+
+    });
+
+  });
+
+  describe('Send all unsent blocks from main chain', function() {
+    var blocks = ['ee','aa','bb','dd','cc'];
+    var prevBlocks = ['dd','00','aa','cc','bb'];
+
+    blocks.forEach(function(n, index) {
+      var block = { header: { prevHash: new Buffer(prevBlocks[index], 'hex') }, hash: n };
+      blockService._mergeBlockIntoChainTips(block);
+    });
+
+
+
+  });
 });
 
 
