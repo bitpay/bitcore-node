@@ -59,7 +59,6 @@ describe('Block Service', function() {
         blockService._mergeBlockIntoChainTips(block);
       });
 
-
       expect(blockService._chainTips.length).to.equal(2);
       expect(blockService._chainTips.get('ee')).to.deep.equal(['dd', 'cc', 'aa', '00']);
       expect(blockService._chainTips.get('bb')).to.deep.equal(['aa', '00']);
@@ -156,15 +155,16 @@ describe('Block Service', function() {
   });
 
   describe('Send all unsent blocks from main chain', function() {
-    var blocks = ['ee','aa','bb','dd','cc'];
-    var prevBlocks = ['dd','00','aa','cc','bb'];
 
-    blocks.forEach(function(n, index) {
-      var block = { header: { prevHash: new Buffer(prevBlocks[index], 'hex') }, hash: n };
-      blockService._mergeBlockIntoChainTips(block);
+    it('should send all unsent blocks from the active/main chain', function() {
+      var blocks = ['ee','aa','bb','dd','cc'];
+      var prevBlocks = ['dd','00','aa','cc','bb'];
+
+      blocks.forEach(function(n, index) {
+        var block = { header: { prevHash: new Buffer(prevBlocks[index], 'hex') }, hash: n };
+        blockService._mergeBlockIntoChainTips(block);
+      });
     });
-
-
 
   });
 });
