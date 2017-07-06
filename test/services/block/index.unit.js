@@ -22,6 +22,24 @@ describe('Block Service', function() {
     blockService._encoding = new Encoding(new Buffer('0000', 'hex'));
   });
 
+  describe.only('#_applyHeaderHeights', function() {
+    it('should apply heights to the list of headers', function() {
+      var genesis = '0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206';
+      blockService._blockHeaderQueue = LRU(100);
+      blockService._blockHeaderQueue.set(genesis, { prevHash: '00' });
+      blockService._latestHeaderHashReceived = '100';
+      blockService.node = { getNetworkName: function() { return 'regtest'; } };
+      for(var i = 0; i < 99; i++) {
+        var prevHash = i.toString();
+        if (i === 0) {
+          prevHash = genesis;
+        }
+        blockService._blockHeaderQueue.set((i+1).toString(), { prevHash: prevHash });
+      }
+      blockService._applyHeaderHeights();
+    });
+  });
+
   describe('#_blockAlreadyProcessed', function() {
 
     it('should detect that a block has already been delivered to us', function() {
