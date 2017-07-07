@@ -29,14 +29,18 @@ describe('Block Service', function() {
       blockService._blockHeaderQueue.set(genesis, { prevHash: '00' });
       blockService._latestHeaderHashReceived = '100';
       blockService.node = { getNetworkName: function() { return 'regtest'; } };
-      for(var i = 0; i < 99; i++) {
+      for(var i = 0; i < 100; i++) {
         var prevHash = i.toString();
         if (i === 0) {
           prevHash = genesis;
         }
         blockService._blockHeaderQueue.set((i+1).toString(), { prevHash: prevHash });
       }
+
       blockService._applyHeaderHeights();
+      for(var j = 0; j < blockService._applyHeaderHeights.length; j++) {
+        expect(blockService._applyHeaderHeights[j]).to.equal(j.toString());
+      }
     });
   });
 
