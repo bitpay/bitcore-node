@@ -21,7 +21,10 @@ describe('Address service encoding', function() {
     addressSizeBuf,
     new Buffer(address),
     new Buffer('00000001', 'hex'),
-    new Buffer(txid, 'hex')]);
+    new Buffer(txid, 'hex'),
+    new Buffer('00000000', 'hex'),
+    new Buffer('00', 'hex')
+  ]);
   var outputIndex = 5;
   var utxoKeyBuf = Buffer.concat([
     servicePrefix,

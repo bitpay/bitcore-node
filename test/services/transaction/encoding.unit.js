@@ -37,6 +37,6 @@ describe('Transaction service encoding', function() {
     tx.__height.should.equal(2);
     tx.__timestamp.should.equal(1);
     tx.__inputValues.should.deep.equal([2,3]);
-    tx.toBuffer().toString('hex').should.equal(txHex);
+    tx.toRaw().toString('hex').should.equal(txHex);
   });
 });

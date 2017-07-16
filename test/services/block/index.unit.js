@@ -8,7 +8,6 @@ var crypto = require('crypto');
 var sinon = require('sinon');
 var Block = require('bitcore-lib').Block;
 var Encoding  = require('../../../lib/services/block/encoding');
-var EventEmitter = require('events').EventEmitter;
 var LRU = require('lru-cache');
 var constants = require('../../../lib/constants');
 
@@ -17,40 +16,24 @@ describe('Block Service', function() {
   var blockService;
 
   beforeEach(function() {
-    blockService = new BlockService({ node: { services: []}});
-    blockService._chainTips = ['00'];
-    blockService._encoding = new Encoding(new Buffer('0000', 'hex'));
-  });
-
-  describe.only('#_applyHeaderHeights', function() {
-    it('should apply heights to the list of headers', function() {
-      var genesis = '0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206';
-      blockService._blockHeaderQueue = LRU(100);
-      blockService._blockHeaderQueue.set(genesis, { prevHash: '00' });
-      blockService._latestHeaderHashReceived = '100';
-      blockService.node = { getNetworkName: function() { return 'regtest'; } };
-      for(var i = 0; i < 100; i++) {
-        var prevHash = i.toString();
-        if (i === 0) {
-          prevHash = genesis;
-        }
-        blockService._blockHeaderQueue.set((i+1).toString(), { prevHash: prevHash });
-      }
-
-      blockService._applyHeaderHeights();
-      for(var j = 0; j < blockService._applyHeaderHeights.length; j++) {
-        expect(blockService._applyHeaderHeights[j]).to.equal(j.toString());
+    blockService = new BlockService({
+      node: {
+        getNetworkName: function() { return 'regtest'; },
+        services: []
       }
     });
+    blockService._chainTips = ['00'];
+    blockService._encoding = new Encoding(new Buffer('0000', 'hex'));
   });
 
   describe('#_blockAlreadyProcessed', function() {
 
     it('should detect that a block has already been delivered to us', function() {
-      blockService._blockHeaderQueue.set('aa', {});
+      blockService._blockQueue = LRU(1);
+      blockService._blockQueue.set('aa', '00');
       expect(blockService._blockAlreadyProcessed({ hash: 'aa' })).to.be.true;
       expect(blockService._blockAlreadyProcessed('bb')).to.be.false;
-      blockService._blockHeaderQueue.reset();
+      blockService._blockQueue.reset();
     });
 
   });
@@ -73,57 +56,6 @@ describe('Block Service', function() {
 
   });
 
-  describe('#_cacheHeader', function() {
-    it('should cache header', function() {
-      var toObj = sinon.stub().returns('header');
-      var header = { hash: 'aa', toObject: toObj };
-      blockService._blockHeaderQueue = LRU(1);
-      blockService._cacheHeader(header);
-      expect(toObj.calledOnce);
-      expect(blockService._blockHeaderQueue.get('aa')).to.equal('header');
-    });
-  });
-
-  describe('#_checkChain', function() {
-
-    var sandbox;
-    beforeEach(function() {
-      sandbox = sinon.sandbox.create();
-    });
-
-    after(function() {
-      sandbox.restore();
-    });
-
-    it('should check that blocks between the active chain tip and the block service tip are in the same chain and the chain is complete.', function() {
-
-      blockService._tip = { hash: 'aa' };
-      blockService._blockHeaderQueue = LRU(5);
-      blockService._blockQueue = LRU(5);
-      blockService._blockHeaderQueue.set('cc', { prevHash: 'bb' });
-      blockService._blockHeaderQueue.set('bb', { prevHash: 'aa' });
-      blockService._blockQueue.set('bb', 'block cc');
-      blockService._blockQueue.set('cc', 'block bb');
-      var result = blockService._checkChain('cc');
-      expect(result).to.be.true;
-      blockService._blockQueue.reset();
-      blockService._blockHeaderQueue.reset();
-    });
-
-    it('should check that blocks between the active chain tip and the block service tip are in a different chain.', function() {
-
-      blockService._tip = { hash: 'aa' };
-      blockService._blockHeaderQueue = LRU(5);
-      blockService._blockQueue = LRU(5);
-      blockService._blockHeaderQueue.set('cc', { prevHash: 'xx' });
-      blockService._blockHeaderQueue.set('bb', { prevHash: 'aa' });
-      blockService._blockQueue.set('bb', 'block cc');
-      blockService._blockQueue.set('cc', 'block bb');
-      var result = blockService._checkChain('cc');
-      expect(result).to.be.false;
-    });
-  });
-
   describe('#_computeChainwork', function() {
 
     it('should calculate chain work correctly', function() {
@@ -141,23 +73,23 @@ describe('Block Service', function() {
     it('should determine the block in a normal state', function() {
       var sandbox = sinon.sandbox.create();
       var stub1 = sandbox.stub(blockService, '_isChainReorganizing').returns(false);
-      var stub2 = sandbox.stub(blockService, '_isOrphanBlock').returns(false);
+      var stub2 = sandbox.stub(blockService, '_isOutOfOrder').returns(false);
       expect(blockService._determineBlockState({})).to.equal('normal');
       sandbox.restore();
     });
 
-    it('should determine the block in a orphan state', function() {
+    it('should determine the block in a outoforder state', function() {
       var sandbox = sinon.sandbox.create();
       var stub1 = sandbox.stub(blockService, '_isChainReorganizing').returns(false);
-      var stub2 = sandbox.stub(blockService, '_isOrphanBlock').returns(true);
-      expect(blockService._determineBlockState({})).to.equal('orphaned');
+      var stub2 = sandbox.stub(blockService, '_isOutOfOrder').returns(true);
+      expect(blockService._determineBlockState({})).to.equal('outoforder');
       sandbox.restore();
     });
 
     it('should determine the block in a reorg state', function() {
       var sandbox = sinon.sandbox.create();
       var stub1 = sandbox.stub(blockService, '_isChainReorganizing').returns(true);
-      var stub2 = sandbox.stub(blockService, '_isOrphanBlock').returns(false);
+      var stub2 = sandbox.stub(blockService, '_isOutOfOrder').returns(false);
       expect(blockService._determineBlockState({})).to.equal('reorg');
       sandbox.restore();
     });
@@ -177,15 +109,35 @@ describe('Block Service', function() {
     it('should find the common ancestor between the current chain and the new chain', function() {
       var block = { hash: 'cc' };
       blockService._tip = { hash: 'bb' }
-      blockService._blockHeaderQueue = new LRU(5);
-      blockService._blockHeaderQueue.set('aa', { prevHash: '00' });
-      blockService._blockHeaderQueue.set('bb', { prevHash: 'aa' });
-      blockService._blockHeaderQueue.set('cc', { prevHash: 'aa' });
+      blockService._blockQueue = new LRU(5);
+      blockService._blockQueue.set('aa', { prevHash: '00' });
+      blockService._blockQueue.set('bb', { prevHash: 'aa' });
+      blockService._blockQueue.set('cc', { prevHash: 'aa' });
       blockService._chainTips = [ 'cc', 'bb' ];
       var commonAncestor = blockService._findCommonAncestor(block);
       expect(commonAncestor).to.equal('aa');
     });
 
+  });
+
+  describe('#getBestBlockHash', function() {
+    it('should get best block hash', function() {
+    });
+  });
+
+  describe('#getBlock', function() {
+    it('should get block', function() {
+    });
+  });
+
+  describe('#getBlockHashesByTimestamp', function() {
+    it('should get block hashes by timestamp', function() {
+    });
+  });
+
+  describe('#getBlockHeader', function() {
+    it('should get block header', function() {
+    });
   });
 
   describe('#_getBlockOperations', function() {
@@ -209,25 +161,22 @@ describe('Block Service', function() {
 
   });
 
+  describe('#getBlockOverview', function() {
+    it('should get block overview', function() {
+    });
+  };
+
   describe('#_getChainwork', function() {
 
-    it('should get chainwork, chainwork already on header', function() {
+    it('should get chainwork', function() {
       var expected = new BN(new Buffer('000000000000000000000000000000000000000000677c7b8122f9902c79f4e0', 'hex'));
-      blockService._blockHeaderQueue.set('bb', { prevHash: 'aa', chainwork: '000000000000000000000000000000000000000000677c7b8122f9902c79f4e0'});
-      blockService._blockHeaderQueue.set('aa', { prevHash: '00', chainwork: '000000000000000000000000000000000000000000677bd68118a98f8779ea90'});
+      blockService._meta = [ { chainwork: '000000000000000000000000000000000000000000677bd68118a98f8779ea90', hash: 'aa' } ];
+      blockService._blockQueue = LRU(1);
+      blockService._blockQueue.set('bb', { header: { bits: 0x18018d30 }});
       var actual = blockService._getChainwork('bb');
       assert(actual.eq(expected), 'not equal: actual: ' + actual + ' expected: ' + expected);
-
     });
 
-    it('should get chainwork, chainwork not already on header', function() {
-      var expected = new BN(new Buffer('000000000000000000000000000000000000000000677c7b8122f9902c79f4e0', 'hex'));
-      blockService._blockHeaderQueue.set('bb', { prevHash: 'aa', bits: 0x18018d30 });
-      blockService._blockHeaderQueue.set('aa', { prevHash: '00', chainwork: '000000000000000000000000000000000000000000677bd68118a98f8779ea90'});
-      var actual = blockService._getChainwork('bb');
-      assert(actual.eq(expected), 'not equal: actual: ' + actual + ' expected: ' + expected);
-
-    });
   });
 
   describe('#_getDelta', function() {
@@ -243,18 +192,21 @@ describe('Block Service', function() {
 
     it('should get all unsent blocks for the active chain', function() {
 
-      var expected = [ 'block bb', 'block cc' ];
+      var block1 = { header: { prevHash: new Buffer('00', 'hex') }};
+      var block2 = { header: { prevHash: new Buffer('aa', 'hex') }};
+      var block3 = { header: { prevHash: new Buffer('bb', 'hex') }};
+      var expected = [ block2, block3 ];
       blockService._tip = { hash: 'aa' };
-      blockService._blockHeaderQueue = LRU(5);
-      blockService._blockQueue = LRU(5);
-      blockService._blockHeaderQueue.set('cc', { prevHash: 'bb' });
-      blockService._blockHeaderQueue.set('bb', { prevHash: 'aa' });
-      blockService._blockQueue.set('bb', 'block cc');
-      blockService._blockQueue.set('aa', 'block 00');
-      blockService._blockQueue.set('cc', 'block bb');
+      blockService._blockQueue = LRU(3);
+      blockService._blockQueue.set('aa', block1);
+      blockService._blockQueue.set('bb', block2);
+      blockService._blockQueue.set('cc', block3);
       var actual = blockService._getDelta('cc');
       expect(actual).to.deep.equal(expected);
     });
+  });
+
+  describe('#getRawBlock', function() {
   });
 
   describe('#_isChainReorganizing', function() {
@@ -273,58 +225,30 @@ describe('Block Service', function() {
 
   });
 
-  describe('#_isOrphanBlock', function() {
+  describe('#_isOutOfOrder', function() {
 
     beforeEach(function() {
       var prevHash = '00000000';
       for(var i = 0; i < 110; i++) {
         var newHash = crypto.randomBytes(4);
-        blockService._blockHeaderQueue.set(newHash, { prevHash: new Buffer(prevHash, 'hex') });
+        var mock = { toBuffer: function() { return new Buffer(new Array(10), 'hex') } };
+        blockService._blockQueue.set(newHash, mock);
         prevHash = newHash;
       }
     });
 
     it('should detect an orphaned block', function() {
       var block = { hash: 'ee',  header: { prevHash: new Buffer('aa', 'hex') }};
-      expect(blockService._isOrphanBlock(block)).to.be.true;
+      expect(blockService._isOutOfOrder(block)).to.be.true;
     });
 
     it('should not detect an orphaned block', function() {
       var block = { hash: 'new',  header: { prevHash: '00' }};
-      expect(blockService._isOrphanBlock(block)).to.be.true;
+      expect(blockService._isOutOfOrder(block)).to.be.true;
     });
 
   });
 
-  describe('#_loadTip', function() {
-
-    var tip = { hash: 'aa', height: 1 };
-    var sandbox;
-    var testEmitter = new EventEmitter();
-
-    beforeEach(function() {
-      sandbox = sinon.sandbox.create();
-
-      blockService._db = {
-
-        getServiceTip: function(name) {
-          testEmitter.emit('tip-' + name, tip);
-        }
-
-      };
-    });
-
-    after(function() {
-      sandbox.restore();
-    });
-
-    it('should load the tip from the db service', function() {
-      testEmitter.on('tip-block', function(_tip) {
-        expect(_tip).to.deep.equal(tip);
-      });
-      blockService._loadTip();
-    });
-  });
 
   describe('#_onBestHeight', function() {
     var sandbox;
@@ -337,13 +261,10 @@ describe('Block Service', function() {
     });
 
     it('should set best height', function() {
-      var tips = sandbox.stub();
-      var loadTip = sandbox.stub(blockService, '_loadTip');
-      blockService._db = { once: tips };
+      var startSync = sandbox.stub(blockService, '_startSync');
       blockService._onBestHeight(123);
       expect(blockService._bestHeight).to.equal(123);
-      expect(tips.calledTwice).to.be.true;
-      expect(loadTip.calledOnce).to.be.true;
+      expect(startSync.calledOnce).to.be.true;
     });
 
   });
@@ -356,8 +277,9 @@ describe('Block Service', function() {
       var alreadyProcessed = sandbox.stub(blockService, '_blockAlreadyProcessed').returns(false);
       var cacheBlock = sandbox.stub(blockService, '_cacheBlock');
       var blockState = sandbox.stub(blockService, '_determineBlockState').returns('normal');
-      var updateChainTips = sandbox.stub(blockService, '_updateChainTips');
+      var updateChainTips = sandbox.stub(blockService, '_updateChainInfo');
       var sendAllUnsent = sandbox.stub(blockService, '_sendDelta');
+      var saveMetaData  = sandbox.stub(blockService, '_saveMetaData');
 
       blockService._onBlock({ hash: 'aa' });
       expect(alreadyProcessed.callCount).to.equal(1);
@@ -365,6 +287,7 @@ describe('Block Service', function() {
       expect(blockState.callCount).to.equal(1);
       expect(updateChainTips.callCount).to.equal(1);
       expect(sendAllUnsent.callCount).to.equal(1);
+      expect(saveMetaData.callCount).to.equal(1);
 
       sandbox.restore();
 
@@ -377,7 +300,7 @@ describe('Block Service', function() {
       var alreadyProcessed = sandbox.stub(blockService, '_blockAlreadyProcessed').returns(false);
       var cacheBlock = sandbox.stub(blockService, '_cacheBlock');
       var blockState = sandbox.stub(blockService, '_determineBlockState').returns('reorg');
-      var updateChainTips = sandbox.stub(blockService, '_updateChainTips');
+      var updateChainTips = sandbox.stub(blockService, '_updateChainInfo');
 
       var reorgListener = blockService.on('reorg', function(block) {
         expect(block).to.equal(block);
@@ -398,8 +321,8 @@ describe('Block Service', function() {
       var sandbox = sinon.sandbox.create();
       var alreadyProcessed = sandbox.stub(blockService, '_blockAlreadyProcessed').returns(false);
       var cacheBlock = sandbox.stub(blockService, '_cacheBlock');
-      var blockState = sandbox.stub(blockService, '_determineBlockState').returns('orphaned');
-      var updateChainTips = sandbox.stub(blockService, '_updateChainTips');
+      var blockState = sandbox.stub(blockService, '_determineBlockState').returns('outoforder');
+      var updateChainTips = sandbox.stub(blockService, '_updateChainInfo');
 
       blockService._onBlock({ hash: 'aa' });
       expect(alreadyProcessed.callCount).to.equal(1);
@@ -420,103 +343,25 @@ describe('Block Service', function() {
     });
   });
 
-  describe('#_onHeaders', function() {
-    var sandbox;
-    beforeEach(function() {
-      sandbox = sinon.sandbox.create();
-    });
-
-    after(function() {
-      sandbox.restore();
-    });
-
-    it('should handle header delivery', function() {
-      var headers = [ { hash: '00' }, { hash: 'aa' } ];
-      var cache = sandbox.stub(blockService, '_cacheHeaders');
-      blockService._onHeaders(headers);
-      expect(cache.calledOnce).to.be.true;
-      expect(blockService._latestHeaderHash).to.equal('aa');
-    });
-
-  });
-
-  describe('#_onTipHeader', function() {
-    var sandbox;
-    beforeEach(function() {
-      sandbox = sinon.sandbox.create();
-    });
-
-    after(function() {
-      sandbox.restore();
-    });
-
-    it('should set initial tip after receiving from db', function() {
-      var startSubs = sandbox.stub(blockService, '_startSubscriptions');
-      var startSync = sandbox.stub(blockService, '_startSync');
-      var tip = { height: 100, hash: 'aa' };
-      blockService._onTipHeader(tip);
-      expect(blockService._headerTip).to.deep.equal(tip);
-      expect(startSubs.calledOnce).to.be.true;
-      expect(startSync.calledOnce).to.be.true;
-    });
-
-    it('should set initial tip after not receiving from db', function() {
-      var startSubs = sandbox.stub(blockService, '_startSubscriptions');
-      var startSync = sandbox.stub(blockService, '_startSync');
-      var tip = null;
-      blockService.node = { getNetworkName: function() { return 'regtest'; } };
-      blockService._onTipHeader(tip);
-      expect(blockService._headerTip).to.deep.equal({ height: 0, hash: constants.BITCOIN_GENESIS_HASH['regtest']});
-      expect(startSubs.calledOnce).to.be.true;
-      expect(startSync.calledOnce).to.be.true;
-    });
-
-  });
-
-  describe('#_onTipBlock', function() {
-
-    var sandbox;
-    beforeEach(function() {
-      sandbox = sinon.sandbox.create();
-    });
-
-    after(function() {
-      sandbox.restore();
-    });
-
-    it('should set initial tip after receiving from db', function() {
-      var tip = { height: 100, hash: 'aa' };
-      blockService._onTipBlock(tip);
-      expect(blockService._tip).to.deep.equal(tip);
-    });
-
-    it('should set initial tip after not receiving from db', function() {
-      var tip = null;
-      blockService.node = { getNetworkName: function() { return 'regtest'; } };
-      blockService._onTipBlock(tip);
-      expect(blockService._tip).to.deep.equal({ height: 0, hash: constants.BITCOIN_GENESIS_HASH['regtest']});
-    });
-
-  });
-
-  describe('#_reportBootStatus', function() {
-    it('should report info on boot', function() {
-      blockService._tip = { height: 100, hash: 'aa' };
-      blockService._reportBootStatus();
-    });
-  });
 
   describe('#_selectActiveChain', function() {
 
-    it('should select active chain based on most chain work', function() {
-      blockService._blockHeaderQueue.set('cc', { prevHash: '00', bits: 0x18018d30 });
-      blockService._blockHeaderQueue.set('bb', { prevHash: 'aa', bits: 0x18018d30 });
-      blockService._blockHeaderQueue.set('aa', { chainwork: '000000000000000000000000000000000000000000677bd68118a98f8779ea90'});
-      blockService._blockHeaderQueue.set('00', { chainwork: '000000000000000000000000000000000000000000677bd68118a98f8779ea8f'});
-      blockService._chainTips.push('bb');
-      blockService._chainTips.push('cc');
+    var sandbox;
+    beforeEach(function() {
+      sandbox = sinon.sandbox.create();
+    });
 
-      var expected = 'bb';
+    after(function() {
+      sandbox.restore();
+    });
+
+    it('should select active chain based on most chain work', function() {
+      blockService._chainTips = [ 'aa', 'cc' ];
+
+      var getCW = sandbox.stub(blockService, '_getChainwork');
+      getCW.onCall(0).returns(new BN(1));
+      getCW.onCall(1).returns(new BN(2));
+      var expected = 'cc';
       var actual = blockService._selectActiveChain();
       expect(actual).to.equal(expected);
     });
@@ -535,15 +380,14 @@ describe('Block Service', function() {
     });
 
     it('should send all unsent blocks for the active chain', function() {
+      blockService._meta = [ { hash: 'aa' } ];
       var activeChain = sandbox.stub(blockService, '_selectActiveChain').returns('aa');
-      var checkChain = sandbox.stub(blockService, '_checkChain').returns(true);
       var getDelta = sandbox.stub(blockService, '_getDelta').returns(['aa', '00']);
       var broadcast = sandbox.stub(blockService, '_broadcast');
       var setTip = sandbox.stub(blockService, '_setTip');
 
       blockService._sendDelta();
       expect(activeChain.calledOnce).to.be.true;
-      expect(checkChain.calledOnce).to.be.true;
       expect(getDelta.calledOnce).to.be.true;
       expect(broadcast.calledTwice).to.be.true;
       expect(setTip.calledOnce).to.be.true;
@@ -600,8 +444,8 @@ describe('Block Service', function() {
       blockService._startSubscriptions();
       expect(blockService._subscribed).to.be.true;
       expect(openBus.calledOnce).to.be.true;
-      expect(on.calledTwice).to.be.true;
-      expect(subscribe.calledTwice).to.be.true;
+      expect(on.calledOnce).to.be.true;
+      expect(subscribe.calledOnce).to.be.true;
     });
   });
 
@@ -618,22 +462,10 @@ describe('Block Service', function() {
       sandbox.restore();
     });
 
-    it('should start the sync of headers if type set', function() {
-      blockService._tip = { height: 100 };
-      blockService._bestHeight = 200;
-      var stub = sandbox.stub(blockService, '_sync');
-      blockService._startSync('header');
-      expect(stub.calledOnce).to.be.true;
-      expect(stub.calledWith('header')).to.be.true;
-      expect(blockService._latestHeaderHash).to.equal(constants.BITCOIN_GENESIS_HASH[blockService.node.getNetworkName()]);
-      expect(blockService._p2pHeaderCallsNeeded).to.equal(1);
-    });
-
     it('should start the sync of blocks if type set', function() {
       var stub = sandbox.stub(blockService, '_sync');
-      blockService._startSync('block');
+      blockService._startSync();
       expect(stub.calledOnce).to.be.true;
-      expect(stub.calledWith('block')).to.be.true;
       expect(blockService._latestBlockHash).to.equal(constants.BITCOIN_GENESIS_HASH[blockService.node.getNetworkName()]);
       expect(blockService._p2pBlockCallsNeeded).to.equal(1);
     });
@@ -644,20 +476,9 @@ describe('Block Service', function() {
        blockService._p2pBlockCallsNeeded = 2;
        var getBlocks = sinon.stub();
        blockService._p2p = { getBlocks: getBlocks };
-       blockService._sync('block');
+       blockService._sync();
        expect(blockService._p2pBlockCallsNeeded).to.equal(1);
        expect(getBlocks.calledOnce).to.be.true;
-    });
-  });
-
-  describe('#_sync', function() {
-    it('should sync headers', function() {
-       blockService._p2pHeaderCallsNeeded = 2;
-       var getHeaders = sinon.stub();
-       blockService._p2p = { getHeaders: getHeaders };
-       blockService._sync('header');
-       expect(blockService._p2pHeaderCallsNeeded).to.equal(1);
-       expect(getHeaders.calledOnce).to.be.true;
     });
   });
 
@@ -665,11 +486,22 @@ describe('Block Service', function() {
   describe('#start', function() {
 
     var sandbox;
+    var getServiceTip;
+    var getServicePrefix;
+    var loadMeta;
+    var startSubs;
 
     beforeEach(function() {
       sandbox = sinon.sandbox.create();
+      getServiceTip = sandbox.stub().callsArgWith(1, null, { height: 100, hash: 'aa' });
+      getServicePrefix = sandbox.stub().callsArgWith(1, null, new Buffer('0000', 'hex'));
+      loadMeta = sandbox.stub(blockService, '_loadMeta').callsArgWith(0, null);
+      startSubs = sandbox.stub(blockService, '_startSubscriptions');
+
       blockService._db = {
-        getPrefix: sandbox.stub().callsArgWith(1, null, new Buffer('0000', 'hex')) };
+        getPrefix: getServicePrefix,
+        getServiceTip: getServiceTip
+      };
       var setListeners = sandbox.stub(blockService, '_setListeners');
     });
 
@@ -680,6 +512,10 @@ describe('Block Service', function() {
     it('should get the prefix', function(done) {
       blockService.start(function() {
         expect(blockService._encoding).to.be.an.instanceof(Encoding);
+        expect(getServiceTip.calledOnce).to.be.true;
+        expect(getServicePrefix.calledOnce).to.be.true;
+        expect(loadMeta.calledOnce).to.be.true;
+        expect(startSubs.calledOnce).to.be.true;
         done();
       });
     });
@@ -693,41 +529,127 @@ describe('Block Service', function() {
 
   });
 
-  describe('#_updateChainTips', function() {
+  describe('#_updateChainInfo', function() {
 
-    it('should set chain tips under normal block arrival conditions, in order arrival' , function() {
+    var sandbox;
 
-      var blocks = ['aa','bb','cc','dd','ee'];
-
-      blocks.forEach(function(n, index) {
-
-        var buf = new Buffer('00', 'hex');
-        if (index) {
-          buf = new Buffer(blocks[index-1], 'hex');
-        }
-
-        var block = { header: { prevHash: buf }, hash: n };
-        blockService._updateChainTips(block, 'normal');
-      });
-
-      expect(blockService._chainTips.length).to.equal(1);
-      expect(blockService._chainTips).to.deep.equal(['ee']);
+    beforeEach(function() {
+      sandbox = sinon.sandbox.create();
     });
 
-    it('should not set chain tips if not in normal or reorg state' , function() {
+    after(function() {
+      sandbox.restore();
+    });
 
-      var block = { header: { prevHash: new Buffer('aa', 'hex') }};
-      blockService._updateChainTips(block, 'orphan');
-      expect(blockService._chainTips).to.deep.equal(['00']);
+    it('should update chain tips and incomplete block list for the out of order state', function() {
+      var stub = sandbox.stub(blockService, '_updateOutOfOrderStateChainInfo');
+      blockService._updateChainInfo({ header: { prevHash: new Buffer('aa', 'hex')}}, 'outoforder');
+      expect(stub.calledOnce).to.be.true;
+    });
+
+    it('should update chain tips and incomplete block list for normal state', function() {
+      var stub = sandbox.stub(blockService, '_updateNormalStateChainInfo');
+      blockService._updateChainInfo({ header: { prevHash: new Buffer('aa', 'hex')}}, 'normal');
+      expect(stub.calledOnce).to.be.true;
+    });
+
+    it('should update chain tips and incomplete block list for reorg state', function() {
+      var stub = sandbox.stub(blockService, '_updateReorgStateChainInfo');
+      blockService._updateChainInfo({ header: { prevHash: new Buffer('aa', 'hex')}}, 'reorg');
+      expect(stub.calledOnce).to.be.true;
+    });
+  });
+
+
+  describe('#_updateOutOfOrderStateChainInfo', function() {
+
+    var block1 = { hash: 'aa', header: { prevHash: new Buffer('99', 'hex') } };
+    var block2 = { hash: 'bb', header: { prevHash: new Buffer('aa', 'hex') } };
+    var block3 = { hash: 'cc', header: { prevHash: new Buffer('bb', 'hex') } };
+    var block4 = { hash: 'dd', header: { prevHash: new Buffer('cc', 'hex') } };
+    var block5 = { hash: 'ee', header: { prevHash: new Buffer('dd', 'hex') } };
+    var block6_1 = { hash: '11', header: { prevHash: new Buffer('ee', 'hex') } };
+    var block6 = { hash: 'ff', header: { prevHash: new Buffer('ee', 'hex') } };
+
+    it('should join chains if needed', function() {
+
+      blockService._incompleteChains = [ [block6, block5], [block3, block2] ];
+      blockService._updateOutOfOrderStateChainInfo(block4);
+      expect(blockService._incompleteChains).to.deep.equal([ [ block6, block5, block4, block3, block2] ]);
 
     });
 
-    it('should set chain tips when there is a reorg taking place' , function() {
+    it('should join chains if needed different order', function() {
 
-      var block = { hash: 'ee', header: { prevHash: 'dd' } };
-      blockService._updateChainTips(block, 'reorg');
-      expect(blockService._chainTips).to.deep.equal(['00', 'ee']);
+      blockService._incompleteChains = [ [block3, block2], [block6, block5] ];
+      blockService._updateOutOfOrderStateChainInfo(block4);
+      expect(blockService._incompleteChains).to.deep.equal([ [ block6, block5, block4, block3, block2] ]);
 
+    });
+
+    it('should not join chains', function() {
+      blockService._incompleteChains = [ [block2, block1], [block6, block5] ];
+      blockService._updateOutOfOrderStateChainInfo(block4);
+      expect(blockService._incompleteChains).to.deep.equal([ [ block2, block1 ], [ block6, block5, block4 ] ]);
+    });
+
+    it('should not join chains, only add a new chain', function() {
+      blockService._incompleteChains = [ [block2, block1] ];
+      blockService._updateOutOfOrderStateChainInfo(block6);
+      expect(blockService._incompleteChains).to.deep.equal([ [ block2, block1 ], [ block6 ] ]);
+    });
+
+    it('should join multiple different chains', function() {
+      blockService._incompleteChains = [ [block2, block1], [block6], [block6_1], [block4] ];
+      blockService._updateOutOfOrderStateChainInfo(block5);
+      expect(blockService._incompleteChains).to.deep.equal([
+        [ block2, block1 ],
+        [ block6, block5, block4 ],
+        [ block6_1, block5, block4 ]
+      ]);
+    });
+  });
+
+  describe('#_updateReorgStateChainInfo', function() {
+    it('should update chain tips for reorg situation', function() {
+      blockService._chainTips = [];
+      blockService._updateReorgStateChainInfo({ hash: 'aa' });
+      expect(blockService._chainTips).to.deep.equal([ 'aa' ]);
+    });
+  });
+
+  describe('#_updateNormalStateChainInfo', function() {
+
+    it('should update chain tips when there is no incomplete chains', function() {
+      var block2 = { hash: 'bb', header: { prevHash: new Buffer('aa', 'hex') } };
+      blockService._incompleteChains = [];
+      blockService._chainTips = [ 'aa' ];
+      blockService._updateNormalStateChainInfo(block2, 'aa');
+      expect(blockService._chainTips).to.deep.equal([ 'bb' ]);
+      expect(blockService._incompleteChains).to.deep.equal([]);
+    });
+
+    it('should update chain tips when there is an incomplete chain', function() {
+      var block2 = { hash: 'bb', header: { prevHash: new Buffer('aa', 'hex') } };
+      var block3 = { hash: 'cc', header: { prevHash: new Buffer('bb', 'hex') } };
+      var block4 = { hash: 'dd', header: { prevHash: new Buffer('cc', 'hex') } };
+      blockService._incompleteChains = [ [ block4, block3 ] ];
+      blockService._chainTips = [ 'aa' ];
+      blockService._updateNormalStateChainInfo(block2, 'aa');
+      expect(blockService._chainTips).to.deep.equal([ 'dd' ]);
+      expect(blockService._incompleteChains).to.deep.equal([]);
+    });
+
+    it('should update chain tip when there are mulitipla chain tips', function() {
+      var block4 = { hash: 'dd', header: { prevHash: new Buffer('cc', 'hex') } };
+      var block5 = { hash: 'ee', header: { prevHash: new Buffer('dd', 'hex') } };
+      var block6_1 = { hash: '11', header: { prevHash: new Buffer('ee', 'hex') } };
+      var block6 = { hash: 'ff', header: { prevHash: new Buffer('ee', 'hex') } };
+      blockService._incompleteChains = [ [ block6, block5 ], [ block6_1, block5 ] ];
+      blockService._chainTips = [ 'cc' ];
+      blockService._updateNormalStateChainInfo(block4, 'cc');
+      expect(blockService._chainTips).to.deep.equal([ '11', 'ff' ]);
+      expect(blockService._incompleteChains).to.deep.equal([]);
     });
   });
 
