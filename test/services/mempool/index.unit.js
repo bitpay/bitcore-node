@@ -39,12 +39,61 @@ describe('Mempool Service', function() {
         done();
       });
     });
+  });
 
-    describe('#getTransaction', function(done) {
-      var get = sandbox.stub().callsArgWith(1, null, tx.toJSON());
+  describe('#stop', function() {
+    it('should stop the service', function(done) {
+      mempoolService.stop(function() {
+        done();
+      });
     });
   });
 
+  describe('#getTransaction', function() {
+
+    it('should get a transaction', function(done) {
+      var get = sandbox.stub().callsArgWith(1, null, tx.toJSON());
+      var key = sandbox.stub();
+      mempoolService._encoding = { encodeMempoolTransactionKey: key };
+      mempoolService._db = { get: get  };
+      mempoolService.getTransaction(tx.hash, function(err, mytx) {
+        if(err) {
+          return done(err);
+        }
+        expect(mytx).to.deep.equal(tx.toJSON());
+        done();
+      });
+    });
+
+  });
+
+  describe('#_onTransaction', function() {
+
+    it('should add the transaction to the database', function() {
+      var key = sandbox.stub();
+      var value = sandbox.stub();
+      mempoolService._encoding = {
+        encodeMempoolTransactionKey: key,
+        encodeMempoolTransactionValue: value
+      };
+      var put = sandbox.stub();
+      mempoolService._db = { put: put };
+      mempoolService._onTransaction({});
+      expect(key.calledOnce).to.be.true;
+      expect(value.calledOnce).to.be.true;
+      expect(put.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#_onBlock', function() {
+    it('should remove block\'s txs from database', function() {
+      var batch = sandbox.stub();
+      mempoolService._db = { batch: batch };
+      var block = { transactions: [ { id: 1 }, { id: 2 } ] };
+      mempoolService._onBlock(block);
+      expect(batch.calledOnce).to.be.true;
+    });
+  });
 });
 
 
