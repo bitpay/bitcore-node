@@ -14,6 +14,9 @@ describe('Address service encoding', function() {
   var addressSizeBuf = new Buffer(1);
   var prefix0 = new Buffer('00', 'hex');
   var prefix1 = new Buffer('01', 'hex');
+  var ts = Math.floor(new Date('2017-02-28').getTime() / 1000);
+  var tsBuf = new Buffer(8);
+  tsBuf.writeDoubleBE(ts);
   addressSizeBuf.writeUInt8(address.length);
   var addressIndexKeyBuf = Buffer.concat([
     servicePrefix,
@@ -23,7 +26,8 @@ describe('Address service encoding', function() {
     new Buffer('00000001', 'hex'),
     new Buffer(txid, 'hex'),
     new Buffer('00000000', 'hex'),
-    new Buffer('00', 'hex')
+    new Buffer('00', 'hex'),
+    tsBuf
   ]);
   var outputIndex = 5;
   var utxoKeyBuf = Buffer.concat([
@@ -38,10 +42,10 @@ describe('Address service encoding', function() {
   var sats = tx.outputs[0].satoshis;
   var satsBuf = new Buffer(8);
   satsBuf.writeDoubleBE(sats);
-  var utxoValueBuf = Buffer.concat([new Buffer('00000001', 'hex'), satsBuf, tx.outputs[0]._scriptBuffer]);
+  var utxoValueBuf = Buffer.concat([new Buffer('00000001', 'hex'), satsBuf, tsBuf, tx.outputs[0]._scriptBuffer]);
 
   it('should encode address key' , function() {
-    encoding.encodeAddressIndexKey(address, height, txid).should.deep.equal(addressIndexKeyBuf);
+    encoding.encodeAddressIndexKey(address, height, txid, 0, 0, ts).should.deep.equal(addressIndexKeyBuf);
   });
 
   it('should decode address key', function() {
@@ -65,6 +69,7 @@ describe('Address service encoding', function() {
     encoding.encodeUtxoIndexValue(
       height,
       tx.outputs[0].satoshis,
+      ts,
       tx.outputs[0]._scriptBuffer).should.deep.equal(utxoValueBuf);
   });
 
@@ -73,6 +78,7 @@ describe('Address service encoding', function() {
     utxoValue.height.should.equal(height);
     utxoValue.satoshis.should.equal(sats);
     utxoValue.script.should.deep.equal(tx.outputs[0]._scriptBuffer);
+    utxoValue.timestamp.should.equal(ts);
   });
 });
 
