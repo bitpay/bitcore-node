@@ -15,8 +15,8 @@ describe('Address service encoding', function() {
   var prefix0 = new Buffer('00', 'hex');
   var prefix1 = new Buffer('01', 'hex');
   var ts = Math.floor(new Date('2017-02-28').getTime() / 1000);
-  var tsBuf = new Buffer(8);
-  tsBuf.writeDoubleBE(ts);
+  var tsBuf = new Buffer(4);
+  tsBuf.writeUInt32BE(ts);
   addressSizeBuf.writeUInt8(address.length);
   var addressIndexKeyBuf = Buffer.concat([
     servicePrefix,

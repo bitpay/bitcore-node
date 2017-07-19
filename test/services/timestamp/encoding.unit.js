@@ -11,8 +11,8 @@ describe('Timestamp service encoding', function() {
   var encoding = new Encoding(servicePrefix);
   var blockhash = '00000000000000000115b92b1ff4377441049bff75c6c48b626eb99e8b744297';
   var timestamp = 5;
-  var timestampBuf = new Buffer(8);
-  timestampBuf.writeDoubleBE(timestamp);
+  var timestampBuf = new Buffer(4);
+  timestampBuf.writeUInt32BE(timestamp);
 
   it('should encode block timestamp key' , function() {
     encoding.encodeBlockTimestampKey(blockhash).should.deep.equal(Buffer.concat([servicePrefix, blockPrefix, new Buffer(blockhash, 'hex')]));
@@ -47,5 +47,3 @@ describe('Timestamp service encoding', function() {
     encoding.decodeTimestampBlockValue(new Buffer(blockhash, 'hex')).should.equal(blockhash);
   });
 });
-
-
