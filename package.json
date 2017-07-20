@@ -4,10 +4,10 @@
   "author": "BitPay <dev@bitpay.com>",
   "version": "3.1.3",
   "main": "./index.js",
-  "repository": "git://github.com/navcoindev/bitcore-node.git",
-  "homepage": "https://github.com/navcoindev/bitcore-node",
+  "repository": "git://github.com/navcoin/bitcore-node.git",
+  "homepage": "https://github.com/navcoin/bitcore-node",
   "bugs": {
-    "url": "https://github.com/navcoindev/bitcore-node/issues"
+    "url": "https://github.com/navcoin/bitcore-node/issues"
   },
   "contributors": [
     {
@@ -46,7 +46,7 @@
   "dependencies": {
     "async": "^1.3.0",
     "bitcoind-rpc": "^0.6.0",
-    "bitcore-lib": "git://github.com/navcoindev/bitcore-lib",
+    "bitcore-lib": "git://github.com/navcoin/bitcore-lib",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
     "commander": "^2.8.1",
@@ -67,7 +67,7 @@
   },
   "devDependencies": {
     "benchmark": "1.0.0",
-    "bitcore-p2p": "git://github.com/navcoindev/bitcore-p2p",
+    "bitcore-p2p": "git://github.com/navcoin/bitcore-p2p",
     "chai": "^3.5.0",
     "coveralls": "^2.11.9",
     "istanbul": "^0.4.3",
