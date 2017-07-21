@@ -71,7 +71,7 @@
     "socket.io": "^1.4.5",
     "socket.io-client": "^1.4.5",
     "ttyread": "^1.0.2",
-    "bitcore-p2p": ""
+    "bitcore-p2p": "bitpay/bitcore-p2p#bcoin"
   },
   "optionalDependencies": {
     "bufferutil": "~1.2.1",
