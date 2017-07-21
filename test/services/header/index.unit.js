@@ -134,6 +134,19 @@ describe('Header Service', function() {
     });
   });
 
+  describe('#_getChainwork', function() {
+
+    it('should get chainwork', function() {
+      var expected = new BN(new Buffer('000000000000000000000000000000000000000000677c7b8122f9902c79f4e0', 'hex'));
+      headerService._meta = [ { chainwork: '000000000000000000000000000000000000000000677bd68118a98f8779ea90', hash: 'aa' } ];
+      headerService._blockQueue = LRU(1);
+      headerService._blockQueue.set('bb', { header: { bits: 0x18018d30 }});
+      var actual = headerService._getChainwork('bb');
+      assert(actual.eq(expected), 'not equal: actual: ' + actual + ' expected: ' + expected);
+    });
+
+  });
+
   describe('#_computeChainwork', function() {
 
     it('should calculate chain work correctly', function() {
