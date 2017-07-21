@@ -49,7 +49,7 @@
     "wallet backend"
   ],
   "dependencies": {
-    "async": "^1.3.0",
+    "async": "^2.5.0",
     "bcoin": "bcoin-org/bcoin#master",
     "bitcoind-rpc": "^0.6.0",
     "bitcore-lib": "^0.14",
