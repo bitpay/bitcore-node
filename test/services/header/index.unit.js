@@ -134,4 +134,16 @@ describe('Header Service', function() {
     });
   });
 
+  describe('#_computeChainwork', function() {
+
+    it('should calculate chain work correctly', function() {
+      var expected = new BN(new Buffer('000000000000000000000000000000000000000000677c7b8122f9902c79f4e0', 'hex'));
+      var prev = new BN(new Buffer('000000000000000000000000000000000000000000677bd68118a98f8779ea90', 'hex'));
+
+      var actual = headerService._computeChainwork(0x18018d30, prev);
+      assert(actual.eq(expected), 'not equal: actual: ' + actual + ' expected: ' + expected);
+    });
+
+  });
+
 });

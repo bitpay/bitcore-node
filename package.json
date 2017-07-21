@@ -50,7 +50,7 @@
   ],
   "dependencies": {
     "async": "^2.5.0",
-    "bcoin": "bcoin-org/bcoin#master",
+    "bcoin": "1.0.0-beta.12",
     "bitcoind-rpc": "^0.6.0",
     "bitcore-lib": "^0.14",
     "body-parser": "^1.13.3",

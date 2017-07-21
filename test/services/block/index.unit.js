@@ -15,7 +15,9 @@ describe('Block Service', function() {
 
   var blockService;
 
+  var sandbox;
   beforeEach(function() {
+    sandbox = sinon.sandbox.create();
     blockService = new BlockService({
       node: {
         getNetworkName: function() { return 'regtest'; },
@@ -26,13 +28,21 @@ describe('Block Service', function() {
     blockService._encoding = new Encoding(new Buffer('0000', 'hex'));
   });
 
+  afterEach(function() {
+    sandbox.restore();
+  });
+
   describe('#_blockAlreadyProcessed', function() {
 
     it('should detect that a block has already been delivered to us', function() {
+      var rhash1 = sinon.stub().returns('aa');
+      var rhash2 = sinon.stub().returns('bb');
+      var block1 = { rhash: rhash1 };
+      var block2 = { rhash: rhash2 };
       blockService._blockQueue = LRU(1);
       blockService._blockQueue.set('aa', '00');
-      expect(blockService._blockAlreadyProcessed({ hash: 'aa' })).to.be.true;
-      expect(blockService._blockAlreadyProcessed('bb')).to.be.false;
+      expect(blockService._blockAlreadyProcessed(block1)).to.be.true;
+      expect(blockService._blockAlreadyProcessed(block2)).to.be.false;
       blockService._blockQueue.reset();
     });
 
@@ -42,28 +52,17 @@ describe('Block Service', function() {
 
     it('should set the block in the block queue and db', function() {
       var sandbox = sinon.sandbox.create();
+      var rhash = sinon.stub().returns('aa');
       var spy1 = sandbox.spy();
       var stub1 = sandbox.stub();
       blockService._blockQueue = { set: stub1 };
-      var block = {};
+      var block = { rhash: rhash };
       sandbox.stub(blockService, '_getBlockOperations');
       blockService._db = { batch: spy1 };
       blockService._cacheBlock(block);
       expect(spy1.calledOnce).to.be.true;
       expect(stub1.calledOnce).to.be.true;
       sandbox.restore();
-    });
-
-  });
-
-  describe('#_computeChainwork', function() {
-
-    it('should calculate chain work correctly', function() {
-      var expected = new BN(new Buffer('000000000000000000000000000000000000000000677c7b8122f9902c79f4e0', 'hex'));
-      var prev = new BN(new Buffer('000000000000000000000000000000000000000000677bd68118a98f8779ea90', 'hex'));
-
-      var actual = blockService._computeChainwork(0x18018d30, prev);
-      assert(actual.eq(expected), 'not equal: actual: ' + actual + ' expected: ' + expected);
     });
 
   });
@@ -164,7 +163,7 @@ describe('Block Service', function() {
   describe('#getBlockOverview', function() {
     it('should get block overview', function() {
     });
-  };
+  });
 
   describe('#_getChainwork', function() {
 
