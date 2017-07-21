@@ -3,19 +3,19 @@
   "port": 3001,
   "datadir": "/tmp",
   "services": [
-    "bitcoind",
+    "p2p",
     "db",
+    "header",
+    "block",
     "transaction",
     "timestamp",
-    "address",
     "mempool",
-    "wallet-api",
-    "web"
+    "address"
   ],
   "servicesConfig": {
-    "bitcoind": {
-      "connect": [
-        { "rpcconnect": "127.0.0.1", "rpcport": 8332, "rpcuser": "bitcoin", "rpcpassword": "local321", "zmqpubrawtx": "tcp://127.0.0.1:28332" }
+    "p2p": {
+      "peers": [
+        { "ip": { "v4": "<some trusted full node>" } }
       ]
     }
   }
