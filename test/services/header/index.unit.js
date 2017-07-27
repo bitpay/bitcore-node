@@ -2,7 +2,6 @@
 
 var sinon = require('sinon');
 var HeaderService = require('../../../lib/services/header');
-var Tx = require('bcoin').tx;
 var expect = require('chai').expect;
 var Encoding  = require('../../../lib/services/header/encoding');
 var utils = require('../../../lib/utils');
