@@ -2,150 +2,124 @@
 
 var should = require('chai').should();
 var utils = require('../lib/utils');
+var sinon = require('sinon');
 
 describe('Utils', function() {
 
-  describe('#isHash', function() {
+  describe('#isHeight', function() {
 
-    it('false for short string', function() {
-      var a = utils.isHash('ashortstring');
-      a.should.equal(false);
+    it('should detect a height', function() {
+      utils.isHeight(12).should.be.true;
     });
 
-    it('false for long string', function() {
-      var a = utils.isHash('00000000000000000000000000000000000000000000000000000000000000000');
-      a.should.equal(false);
-    });
-
-    it('false for correct length invalid char', function() {
-      var a = utils.isHash('z000000000000000000000000000000000000000000000000000000000000000');
-      a.should.equal(false);
-    });
-
-    it('false for invalid type (buffer)', function() {
-      var a = utils.isHash(new Buffer('abcdef', 'hex'));
-      a.should.equal(false);
-    });
-
-    it('false for invalid type (number)', function() {
-      var a = utils.isHash(123456);
-      a.should.equal(false);
-    });
-
-    it('true for hash', function() {
-      var a = utils.isHash('fc63629e2106c3440d7e56751adc8cfa5266a5920c1b54b81565af25aec1998b');
-      a.should.equal(true);
+    it('should detect a non-height', function() {
+      utils.isHeight('aaaaaa').should.be.false;
     });
 
   });
 
-  describe('#isSafeNatural', function() {
+  describe('#isAbsolutePath', function() {
 
-    it('false for float', function() {
-      var a = utils.isSafeNatural(0.1);
-      a.should.equal(false);
+    it('should detect absolute path', function() {
+      utils.isAbsolutePath('/').should.be.true;
     });
 
-    it('false for string float', function() {
-      var a = utils.isSafeNatural('0.1');
-      a.should.equal(false);
-    });
-
-    it('false for string integer', function() {
-      var a = utils.isSafeNatural('1');
-      a.should.equal(false);
-    });
-
-    it('false for negative integer', function() {
-      var a = utils.isSafeNatural(-1);
-      a.should.equal(false);
-    });
-
-    it('false for negative integer string', function() {
-      var a = utils.isSafeNatural('-1');
-      a.should.equal(false);
-    });
-
-    it('false for infinity', function() {
-      var a = utils.isSafeNatural(Infinity);
-      a.should.equal(false);
-    });
-
-    it('false for NaN', function() {
-      var a = utils.isSafeNatural(NaN);
-      a.should.equal(false);
-    });
-
-    it('false for unsafe number', function() {
-      var a = utils.isSafeNatural(Math.pow(2, 53));
-      a.should.equal(false);
-    });
-
-    it('true for positive integer', function() {
-      var a = utils.isSafeNatural(1000);
-      a.should.equal(true);
-    });
-
-  });
-
-  describe('#startAtZero', function() {
-
-    it('will set key to zero if not set', function() {
-      var obj = {};
-      utils.startAtZero(obj, 'key');
-      obj.key.should.equal(0);
-    });
-
-    it('not if already set', function() {
-      var obj = {
-        key: 10
-      };
-      utils.startAtZero(obj, 'key');
-      obj.key.should.equal(10);
-    });
-
-    it('not if set to false', function() {
-      var obj = {
-        key: false
-      };
-      utils.startAtZero(obj, 'key');
-      obj.key.should.equal(false);
-    });
-
-    it('not if set to undefined', function() {
-      var obj = {
-        key: undefined
-      };
-      utils.startAtZero(obj, 'key');
-      should.equal(obj.key, undefined);
-    });
-
-    it('not if set to null', function() {
-      var obj = {
-        key: null
-      };
-      utils.startAtZero(obj, 'key');
-      should.equal(obj.key, null);
+    it('should not detect absolute path', function() {
+      utils.isAbsolutePath('.').should.be.false;
     });
 
   });
 
   describe('#parseParamsWithJSON', function() {
-    it('will parse object', function() {
-      var paramsArg = ['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou', '{"start": 100, "end": 1}'];
-      var params = utils.parseParamsWithJSON(paramsArg);
-      params.should.deep.equal(['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou', {start: 100, end: 1}]);
-    });
-    it('will parse array', function() {
-      var paramsArg = ['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou', '[0, 1]'];
-      var params = utils.parseParamsWithJSON(paramsArg);
-      params.should.deep.equal(['3CMNFxN1oHBc4R1EpboAL5yzHGgE611Xou', [0, 1]]);
-    });
-    it('will parse numbers', function() {
-      var paramsArg = ['3', 0, 'b', '0', 0x12, '0.0001'];
-      var params = utils.parseParamsWithJSON(paramsArg);
-      params.should.deep.equal([3, 0, 'b', 0, 0x12, 0.0001]);
+    it('should parse json params', function() {
+      utils.parseParamsWithJSON([ '{"test":"1"}', '{}', '[]' ])
+        .should.deep.equal([{test:'1'}, {}, []]);
     });
   });
 
+  describe('#getTerminalKey', function() {
+    it('should get the terminal key for a buffer', function() {
+      utils.getTerminalKey(new Buffer('ffff', 'hex'))
+        .should.deep.equal(new Buffer('010000', 'hex'));
+    });
+
+    it('should get the terminal key for a large buffer', function() {
+      utils.getTerminalKey(Buffer.concat([ new Buffer(new Array(64).join('f'), 'hex'), new Buffer('fe', 'hex') ]))
+        .should.deep.equal(new Buffer('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 'hex'));
+    });
+  });
+
+  describe('#diffTime', function() {
+    it('should get the difference in time in seconds', function(done) {
+      var time = process.hrtime();
+      setTimeout(function() {
+        var res = utils.diffTime(time);
+        res.should.be.greaterThan(0.1);
+        res.should.be.lessThan(0.5);
+        done();
+      }, 100);
+    });
+  });
+
+  describe('#sendError', function() {
+    it('should send a web-style error', function() {
+      var err = { statusCode: 500, message: 'hi there', stack: 'some stack' };
+      var status = sinon.stub().returnsThis();
+      var send = sinon.stub();
+      var res = { status: status, send: send };
+      utils.sendError(err, res);
+      send.should.be.calledOnce;
+      status.should.be.calledOnce;
+      status.args[0][0].should.equal(500);
+      send.args[0][0].should.equal('hi there');
+    });
+
+    it('should send a 503 in the case where there is no given status code', function() {
+      var err = { message: 'hi there', stack: 'some stack' };
+      var status = sinon.stub().returnsThis();
+      var send = sinon.stub();
+      var res = { status: status, send: send };
+      utils.sendError(err, res);
+      send.should.be.calledOnce;
+      status.should.be.calledOnce;
+      status.args[0][0].should.equal(503);
+      send.args[0][0].should.equal('hi there');
+    });
+  });
+
+  describe('#encodeTip', function() {
+    it('should encode tip', function() {
+      var res = utils.encodeTip({ height: 0xdeadbeef, hash: new Array(65).join('0') }, 'test');
+      res.should.deep.equal({
+          key: new Buffer('ffff7469702d74657374', 'hex'),
+          value: new Buffer('deadbeef00000000000000000000000000000000000000000000000000000000000000000', 'hex')
+        });
+    });
+  });
+
+  describe('#SimpleMap', function() {
+    var map = new utils.SimpleMap();
+
+    it('should build a simple map', function() {
+      map.should.be.instanceOf(Object);
+    });
+
+    it('should set a key and value', function() {
+      map.set('key', 'value');
+      map.getIndex(0).should.equal('value');
+    });
+
+    it('should get a value for key', function() {
+      map.get('key').should.equal('value');
+    });
+
+    it('should get a get a value at a specific index', function() {
+      map.getIndex(0).should.equal('value');
+    });
+
+    it('should get the last index', function() {
+      map.set('last key', 'last value');
+      map.getLastIndex().should.equal('last value');
+    });
+  });
 });

@@ -81,11 +81,12 @@ describe('Header Service', function() {
 
     it('should start the sync process', function() {
       headerService._bestHeight = 123;
+      headerService._checkpoint = 8888;
       headerService._tip = { height: 121, hash: 'a' };
       var sync = sandbox.stub(headerService, '_sync');
       headerService._startSync();
       expect(sync.calledOnce).to.be.true;
-      expect(headerService._numNeeded).to.equal(2);
+      expect(headerService._numNeeded).to.equal(8888);
     });
 
   });
@@ -118,7 +119,7 @@ describe('Header Service', function() {
       headerService._db = { batch: batch };
       headerService._onHeaders(headers);
       header.height = 1;
-      header.chainwork = '00000000000000000000000000000001';
+      header.chainwork = '0000000000000000000000000000000000000000000000000000000000000001';
 
       expect(batch.calledOnce).to.be.true;
       var expected = batch.args[0][0];

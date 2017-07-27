@@ -189,7 +189,7 @@ describe('Bitcore Node', function() {
     });
   });
 
-  describe('#getServiceOrder', function() {
+  describe('#_getServiceOrder', function() {
     it('should return the services in the correct order', function() {
       var node = new Node(baseConfig);
       node._unloadedServices = [
@@ -218,7 +218,7 @@ describe('Bitcore Node', function() {
           }
         }
       ];
-      var order = node.getServiceOrder();
+      var order = node._getServiceOrder(node._unloadedServices);
       order[0].name.should.equal('daemon');
       order[1].name.should.equal('p2p');
       order[2].name.should.equal('db');
@@ -336,7 +336,7 @@ describe('Bitcore Node', function() {
         ];
       };
 
-      node.getServiceOrder = sinon.stub().returns([
+      node._getServiceOrder = sinon.stub().returns([
         {
           name: 'test1',
           module: TestService,
@@ -379,7 +379,7 @@ describe('Bitcore Node', function() {
         ];
       };
 
-      node.getServiceOrder = sinon.stub().returns([
+      node._getServiceOrder = sinon.stub().returns([
         {
           name: 'test',
           module: TestService,
@@ -407,7 +407,7 @@ describe('Bitcore Node', function() {
       TestService.prototype.start = sinon.stub().callsArg(0);
       TestService.prototype.getData = function() {};
 
-      node.getServiceOrder = sinon.stub().returns([
+      node._getServiceOrder = sinon.stub().returns([
         {
           name: 'test',
           module: TestService,
@@ -471,7 +471,7 @@ describe('Bitcore Node', function() {
       };
       node.test2 = {};
       node.test2.stop = sinon.stub().callsArg(0);
-      node.getServiceOrder = sinon.stub().returns([
+      node._getServiceOrder = sinon.stub().returns([
         {
           name: 'test1',
           module: TestService
