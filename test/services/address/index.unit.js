@@ -205,6 +205,7 @@ describe('Address Service', function() {
 
     it('should reorg', function() {
       var getAddressString = sandbox.stub().returns('a');
+      var oldEncodeTip = utils.encodeTip;
       var encodeTip = sandbox.stub().returns({ key: 'key', value: 'value' });
       var batch = sandbox.stub();
       addressService._tip = { height: 100 };
@@ -216,6 +217,7 @@ describe('Address Service', function() {
       addressService._onReorg(oldList, common);
       expect(batch.calledOnce).to.be.true;
       expect(encodeTip.calledOnce).to.be.true;
+      utils.encodeTip = oldEncodeTip;
     });
 
   });

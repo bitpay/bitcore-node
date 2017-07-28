@@ -82,7 +82,7 @@ describe('WebService', function() {
     it('should pass json request limit to json body parser', function(done) {
       var node = new EventEmitter();
       var jsonStub = sinon.stub();
-      var TestWebService = proxyquire('../../lib/services/web', {
+      var TestWebService = proxyquire('../../../lib/services/web', {
         http: {
           createServer: sinon.stub()
         },
