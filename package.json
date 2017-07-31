@@ -34,7 +34,6 @@
   },
   "scripts": {
     "test": "mocha -R spec --recursive",
-    "regtest": "./scripts/regtest",
     "jshint": "jshint --reporter=node_modules/jshint-stylish ./lib",
     "coverage": "istanbul cover _mocha -- --recursive",
     "coveralls": "./node_modules/.bin/istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- --recursive -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
@@ -63,23 +62,13 @@
     "liftoff": "^2.2.0",
     "lodash": "^4.17.4",
     "lru-cache": "^4.0.2",
-    "memdown": "^1.0.0",
     "mkdirp": "0.5.0",
-    "multer": "^1.2.1",
     "path-is-absolute": "^1.0.0",
-    "semver": "^5.0.1",
     "socket.io": "^1.4.5",
     "socket.io-client": "^1.4.5",
-    "ttyread": "^1.0.2",
     "bitcore-p2p": "bitpay/bitcore-p2p#bcoin"
   },
-  "optionalDependencies": {
-    "bufferutil": "~1.2.1",
-    "utf-8-validate": "~1.2.1"
-  },
   "devDependencies": {
-    "zmq": "^2.14.0",
-    "benchmark": "1.0.0",
     "chai": "^3.5.0",
     "coveralls": "^2.11.9",
     "istanbul": "^0.4.3",

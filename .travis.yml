@@ -1,22 +1,10 @@
+dist: trusty
 sudo: false
 language: node_js
-env:
-  - CXX=g++-4.8 CC=gcc-4.8
-addons:
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - g++-4.8
-      - gcc-4.8
-      - libzmq3-dev
 node_js:
-  - "v0.10.25"
-  - "v0.12.7"
-  - "v4"
+  - 8
 script:
-  - npm run regtest
-  - npm run test
+  - npm run coverage
   - npm run jshint
 after_success:
   - npm run coveralls

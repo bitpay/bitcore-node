@@ -22,10 +22,10 @@
   "trailing": true,
   "undef": true,
   "unused": true,
-  "maxparams": 4,
-  "maxstatements": 15,
+  "maxparams": 6,
+  "maxstatements": 25,
   "maxcomplexity": 10,
-  "maxdepth": 3,
+  "maxdepth": 4,
   "maxlen": 120,
   "multistr": true,
   "predef": [
