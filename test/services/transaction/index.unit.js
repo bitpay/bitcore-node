@@ -122,4 +122,18 @@ describe('Transaction Service', function() {
     });
   });
 
+  describe('#_addMissingInputValues', function() {
+    it('should add missing input values on a tx', function(done) {
+      sandbox.stub(txService, 'getTransaction').callsArgWith(1, null, tx);
+      tx.__inputValues = [];
+      txService._addMissingInputValues(tx, function(err, tx) {
+        if (err) {
+          return done(err);
+        }
+        tx.__inputValues.should.deep.equal([113903300000000, 113903300000000, 50000000000000, 113903300000000 ]);
+        done();
+      });
+
+    });
+  });
 });
