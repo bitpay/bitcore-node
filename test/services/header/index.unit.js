@@ -109,6 +109,11 @@ describe('Header Service', function() {
       headerService._tip = { height: 0 };
       headerService._originalTip = { height: 0, hash: header.hash };
       headerService._bestHeight = { height: 1 };
+      headerService._headers = {
+        getIndex: function() { return { hash: header.hash }; },
+        getLastIndex: sinon.stub(),
+        set: sinon.stub()
+      };
       var getChainwork = sandbox.stub(headerService, '_getChainwork').returns(new BN(1));
       var headers = [ header ];
 
