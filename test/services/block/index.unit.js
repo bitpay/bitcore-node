@@ -101,7 +101,8 @@ describe('Block Service', function() {
       var processBlock = sandbox.stub(blockService, '_processBlock');
       blockService._unprocessedBlocks = [];
       blockService._header = { getAllHeaders: getAllHeaders };
-      blockService._onBlock(block);
+      blockService._tip = { height: 123 };
+      blockService._onBlock(block, { height: 124 });
       expect(detectReorg.callCount).to.equal(1);
       expect(processBlock.callCount).to.equal(1);
     });
@@ -115,7 +116,8 @@ describe('Block Service', function() {
       var handleReorg = sandbox.stub(blockService, '_handleReorg');
       blockService._unprocessedBlocks = [];
       blockService._header = { getAllHeaders: getAllHeaders };
-      blockService._onBlock(block);
+      blockService._tip = { height: 123 };
+      blockService._onBlock(block, { height: 124 });
       expect(handleReorg.callCount).to.equal(1);
       expect(detectReorg.callCount).to.equal(1);
       expect(processBlock.callCount).to.equal(0);
@@ -166,6 +168,7 @@ describe('Block Service', function() {
       var sync = sandbox.stub(blockService, '_sync');
       blockService._bestHeight = 100;
       blockService._tip = { height: 99 };
+      blockService._header = { getAllHeaders: sinon.stub().returns({ size: 100 }) };
       blockService._startSync();
       expect(sync.calledOnce).to.be.true;
       expect(blockService._numNeeded).to.equal(1);

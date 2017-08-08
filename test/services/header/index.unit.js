@@ -111,7 +111,7 @@ describe('Header Service', function() {
       headerService._bestHeight = { height: 1 };
       headerService._headers = {
         getIndex: function() { return { hash: header.hash }; },
-        getLastIndex: sinon.stub(),
+        getLastIndex: sinon.stub().returns({ hash: 'aa' }),
         set: sinon.stub()
       };
       var getChainwork = sandbox.stub(headerService, '_getChainwork').returns(new BN(1));
