@@ -26,7 +26,7 @@
   "maxstatements": 25,
   "maxcomplexity": 10,
   "maxdepth": 4,
-  "maxlen": 120,
+  "maxlen": 140,
   "multistr": true,
   "predef": [
   "after",
