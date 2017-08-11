@@ -40,6 +40,14 @@ deb http://http.us.debian.org/debian testing main contrib non-free
 
 Then apt-get install libzmq3-dev.
 
+### MongoDB
+
+If MongoDB fails to connect when running `bitcore-node start` try installing it with apt:
+
+```bashl
+sudo apt install mongodb-server
+```
+
 ## Configuration
 
 Bitcore includes a Command Line Interface (CLI) for managing, configuring and interfacing with your Bitcore Node.
