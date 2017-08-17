@@ -1,0 +1,34 @@
+  get('/addrs/:addrs/utxo', this.cacheShort(), addresses.checkAddrs.bind(addresses), addresses.multiutxo.bind(addresses));
+  get('/addr/:addr/utxo', this.cacheShort(), addresses.checkAddr.bind(addresses), addresses.utxo.bind(addresses));
+  post('/addrs/utxo', this.cacheShort(), addresses.checkAddrs.bind(addresses), addresses.multiutxo.bind(addresses));
+  get('/addrs/:addrs/txs', this.cacheShort(), addresses.checkAddrs.bind(addresses), addresses.multitxs.bind(addresses));
+  get('/addr/:addr', this.cacheShort(), addresses.checkAddr.bind(addresses), addresses.show.bind(addresses));
+  post('/addrs/txs', this.cacheShort(), addresses.checkAddrs.bind(addresses), addresses.multitxs.bind(addresses));
+
+  get('/addr/:addr/totalReceived', this.cacheShort(), addresses.checkAddr.bind(addresses), addresses.totalReceived.bind(addresses));
+  get('/addr/:addr/totalSent', this.cacheShort(), addresses.checkAddr.bind(addresses), addresses.totalSent.bind(addresses));
+  get('/addr/:addr/unconfirmedBalance', this.cacheShort(), addresses.checkAddr.bind(addresses), addresses.unconfirmedBalance.bind(addresses));
+
+  get('/tx/:txid', this.cacheShort(), transactions.show.bind(transactions));
+  param('txid', transactions.transaction.bind(transactions));
+  get('/txs', this.cacheShort(), transactions.list.bind(transactions));
+  post('/tx/send', transactions.send.bind(transactions));
+  get('/rawtx/:txid', this.cacheLong(), transactions.showRaw.bind(transactions));
+  param('txid', transactions.rawTransaction.bind(transactions));
+
+  get('/blocks', this.cacheShort(), blocks.list.bind(blocks));
+  get('/block/:blockHash', this.cacheShort(), blocks.checkBlockHash.bind(blocks), blocks.show.bind(blocks));
+  param('blockHash', blocks.block.bind(blocks));
+  param('blockHash', blocks.rawBlock.bind(blocks));
+  get('/block-index/:height', this.cacheShort(), blocks.blockIndex.bind(blocks));
+  param('height', blocks.blockIndex.bind(blocks));
+  get('/rawblock/:blockHash', this.cacheLong(), blocks.checkBlockHash.bind(blocks), blocks.showRaw.bind(blocks));
+
+  get('/status', this.cacheShort(), status.show.bind(status));
+  get('/sync', this.cacheShort(), status.sync.bind(status));
+  get('/peer', this.cacheShort(), status.peer.bind(status));
+  get('/version', this.cacheShort(), status.version.bind(status));
+  get('/messages/verify', messages.verify.bind(messages));
+  post('/messages/verify', messages.verify.bind(messages));
+  get('/utils/estimatefee', utils.estimateFee.bind(utils));
+  get('/currency', currency.index.bind(currency));
