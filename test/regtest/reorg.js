@@ -1,7 +1,6 @@
 'use strict';
 
 var expect = require('chai').expect;
-var sinon = require('sinon');
 var net = require('net');
 var spawn = require('child_process').spawn;
 var path = require('path');
@@ -31,10 +30,6 @@ var blocks = rawBlocks.map(function(rawBlock) {
 var headers = blocks.map(function(block) {
   return block.header;
 });
-
-console.log(headers);
-
-var magic = new Buffer('fabfb5da', 'hex');
 
 var debug = true;
 var bitcoreDataDir = '/tmp/bitcore';
@@ -255,6 +250,8 @@ describe('Reorg', function() {
                 return;
               }
               var data = JSON.parse(resData);
+              expect(data.height).to.equal(7);
+              expect(data.hash).to.equal(reorgBlock.rhash());
               done(resError, resData);
             });
 
