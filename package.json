@@ -5,30 +5,13 @@
     "node": ">=8.2.0"
   },
   "author": "BitPay <dev@bitpay.com>",
-  "version": "5.0.0",
+  "version": "5.0.0-beta.1",
   "main": "./index.js",
   "repository": "git://github.com/bitpay/bitcore-node.git",
   "homepage": "https://github.com/bitpay/bitcore-node",
   "bugs": {
     "url": "https://github.com/bitpay/bitcore-node/issues"
   },
-  "contributors": [
-    {
-      "name": "Christopher Jeffrey"
-    },
-    {
-      "name": "Braydon Fuller",
-      "email": "braydon@bitpay.com"
-    },
-    {
-      "name": "Chris Kleeschulte",
-      "email": "chrisk@bitpay.com"
-    },
-    {
-      "name": "Patrick Nagurny",
-      "email": "patrick@bitpay.com"
-    }
-  ],
   "bin": {
     "bitcore-node": "./bin/bitcore-node"
   },
@@ -51,8 +34,8 @@
     "async": "^2.5.0",
     "bcoin": "bcoin-org/bcoin#886008a1822ce1da7fa8395ee7db4bcc1750a28a",
     "bitcoind-rpc": "^0.6.0",
-    "bitcore-lib": "bitpay/bitcore-lib#transitional",
-    "bitcore-p2p": "bitpay/bitcore-p2p#bcoin",
+    "bitcore-lib": "5.0.0-beta.1",
+    "bitcore-p2p": "5.0.0-beta.1",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
     "commander": "^2.8.1",
