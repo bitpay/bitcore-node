@@ -207,7 +207,7 @@ describe('Reorg', function() {
     shutdownBitcore(done);
   });
 
-  it('should reorg correctly', function(done) {
+  it('should reorg correctly when already synced', function(done) {
 
     // at this point we have a fully synced chain at height 7....
     // we now want to send a new block number 7 whose prev hash is block 6 (it should be block 7)
@@ -216,13 +216,15 @@ describe('Reorg', function() {
     setTimeout(function() {
 
         console.log('From Test: reorging to block: ' + reorgBlock.rhash());
+
+        // send the reorg block
         rawBlocks.push(rawReorgBlocks);
         var blockHash = reorgBlock.rhash();
         var inv = p2p.Inventory.forBlock(blockHash);
-
         var msg = messages.Inventory([inv]);
         tcpSocket.write(msg.toBuffer());
 
+        // wait 2 secs until the reorg happens, if it takes any longer the test ought to fail anyway
         setTimeout(function() {
           var error;
           var request = http.request('http://localhost:53001/api/block/' + reorgBlock.rhash(), function(res) {
@@ -269,5 +271,6 @@ describe('Reorg', function() {
 
 
   });
+
 });
 
