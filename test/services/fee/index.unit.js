@@ -39,11 +39,14 @@ describe('#Fee Service', function() {
     var estimateFee = sinon.stub().callsArgWith(1, null, { result: 0.1 });
     feeService._client = { estimateFee: estimateFee };
     feeService.estimateFee(4, function(err, fee) {
+
       if (err) {
         return done(err);
       }
-      expect(fee.result).to.equal(0.1);
+
+      expect(fee).to.equal(0.1);
       done();
+
     });
   });
 

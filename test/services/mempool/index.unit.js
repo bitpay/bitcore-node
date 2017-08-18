@@ -57,7 +57,8 @@ describe('Mempool Service', function() {
     it('should get a mempool transaction', function(done) {
       var get = sandbox.stub().callsArgWith(1, null, tx.toJSON());
       var key = sandbox.stub();
-      mempoolService._encoding = { encodeMempoolTransactionKey: key };
+      var val = sandbox.stub().returns(tx.toJSON());
+      mempoolService._encoding = { encodeMempoolTransactionKey: key, decodeMempoolTransactionValue: val };
       mempoolService._db = { get: get  };
       mempoolService.getMempoolTransaction(tx.hash, function(err, mytx) {
         if(err) {

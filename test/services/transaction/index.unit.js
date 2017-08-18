@@ -31,13 +31,9 @@ describe('Transaction Service', function() {
 
   describe('#start', function() {
     it('should get the prefix and the service tip', function(done) {
-      var startSubs = sandbox.stub(txService, '_startSubscriptions');
       var getPrefix = sandbox.stub().callsArgWith(1, null, new Buffer('ffee', 'hex'));
-      var getServiceTip = sandbox.stub().callsArgWith(1, null, { height: 1, hash: 'aa' });
-      txService._db = { getPrefix: getPrefix, getServiceTip: getServiceTip };
+      txService._db = { getPrefix: getPrefix };
       txService.start(function() {
-        startSubs.calledOnce.should.be.true;
-        getServiceTip.calledOnce.should.be.true;
         getPrefix.calledOnce.should.be.true;
         txService._encoding.should.be.instanceOf(Encoding);
         done();
@@ -64,13 +60,6 @@ describe('Transaction Service', function() {
     });
   });
 
-  describe('#_cacheOutputValues', function() {
-    it('should cache output values', function() {
-      txService._cacheOutputValues(tx);
-      txService._inputValuesCache.get('25e28f9fb0ada5353b7d98d85af5524b2f8df5b0b0e2d188f05968bceca603eb').should.deep.equal([ 50000000000000, 113903300000000 ]);
-    });
-  });
-
   describe('#_getBlockTimestamp', function() {
     it('should get the block\'s timestamp', function() {
       var getTimestamp = sandbox.stub().returns(1);
@@ -81,56 +70,54 @@ describe('Transaction Service', function() {
   });
 
   describe('#onBlock', function() {
+
     it('should process new blocks that come in from the block service', function(done) {
-      var getTimestamp = sandbox.stub().returns(1);
-      txService._timestamp = { getTimestampSync: getTimestamp };
-      var batch = sandbox.stub().callsArgWith(1, null);
-      txService._db = { batch: batch };
+
+      var _processTransaction = sandbox.stub(txService, '_processTransaction');
+
       txService.onBlock(block, function(err, ops) {
-        txService._encoding.decodeTransactionKey(ops[0].key).should
-          .equal('6321fd1cf3fbf32a41bbb47b7090ab9896bbe6093e4c342c0269b652fa800c2b');
-        txService._encoding.decodeTransactionValue(ops[0].value).should
-          .be.instanceOf(Tx);
+        if (err) {
+          return done(err);
+        }
+        _processTransaction.calledOnce.should.be.true;
         done();
       });
     });
   });
 
   describe('#_onReorg', function() {
-    it('should perform a reorg', function() {
-      var commonAncestorHeader = block.toHeaders().toJSON();
+    it('should perform a reorg', function(done) {
       var oldList = [];
-      txService._tip = { height: 80000, hash: 'aa' };
-      var batch = sandbox.stub().callsArgWith(1, null);
-      txService._db = { batch: batch };
-      txService._onReorg(commonAncestorHeader, oldList);
-      batch.should.be.calledOnce;
-      batch.args[0][0][0].key.toString('hex').should.deep.equal('ffff7469702d756e646566696e6564');
-      batch.args[0][0][0].value.toString('hex').should.deep.equal('0000000000000000008ba8d6beb01577730fae52517988564322026e5e2d90a3ee5d3cfb');
-    });
-  });
+      var ops = txService.onReorg([ null, oldList ], function(err, ops) {
 
-  describe('#_startSubscriptions', function() {
-    it('should start subscriptions', function() {
-
-      var on = sandbox.stub();
-      var subscribe = sandbox.stub();
-      txService._bus = { on: on, subscribe: subscribe };
-      txService._startSubscriptions();
-      on.should.be.calledOnce;
-      subscribe.should.be.calledOnce;
-    });
-  });
-
-  describe('#_addMissingInputValues', function() {
-    it('should add missing input values on a tx', function(done) {
-      sandbox.stub(txService, 'getTransaction').callsArgWith(2, null, tx);
-      tx.__inputValues = [];
-      txService._addMissingInputValues(tx, {}, function(err, tx) {
         if (err) {
           return done(err);
         }
-        tx.__inputValues.should.deep.equal([113903300000000, 113903300000000, 50000000000000, 113903300000000 ]);
+
+        ops.should.deep.equal([]);
+        done();
+      });
+    });
+  });
+
+
+  describe('#getInputValues', function() {
+
+    it('should add missing input values on a tx', function(done) {
+
+      var put = sandbox.stub().callsArgWith(2, null);
+      txService._db = { put: put };
+
+      sandbox.stub(txService, '_getTransaction').callsArgWith(2, null, tx.txid(), tx);
+
+      tx.__inputValues = [];
+
+      txService.getInputValues(tx, {}, function(err, tx) {
+
+        if (err) {
+          return done(err);
+        }
+        tx.__inputValues.should.deep.equal([1139033, 1139033, 500000, 1139033]);
         done();
       });
 

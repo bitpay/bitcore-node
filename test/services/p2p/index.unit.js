@@ -18,7 +18,7 @@ describe('P2P Service', function() {
     });
     sinon.stub(p2p, '_initPool');
     p2p._pool = new EventEmitter();
-    p2p.start(done);
+    done();
   });
 
   it('should get the mempool from the network', function() {

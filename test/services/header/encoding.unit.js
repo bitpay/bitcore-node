@@ -7,6 +7,9 @@ var Encoding = require('../../../lib/services/header/encoding');
 describe('Header service encoding', function() {
 
   var servicePrefix = new Buffer('0000', 'hex');
+
+  var hashPrefix = new Buffer('00', 'hex');
+  var heightPrefix = new Buffer('01', 'hex');
   var encoding = new Encoding(servicePrefix);
   var hash = '91b58f19b6eecba94ed0f6e463e8e334ec0bcda7880e2985c82a8f32e4d03add';
   var hashBuf = new Buffer(hash, 'hex');
@@ -31,15 +34,23 @@ describe('Header service encoding', function() {
   var chainBuf = new Buffer('0000000000000000000000000000000000000000000000000000000200020002', 'hex');
   heightBuf.writeUInt32BE(header.height);
 
-  it('should encode header key' , function() {
-    encoding.encodeHeaderKey(header.height, hash).should.deep.equal(Buffer.concat([servicePrefix, heightBuf, hashBuf]));
+  it('should encode header hash key' , function() {
+    encoding.encodeHeaderHashKey(hash).should.deep.equal(Buffer.concat([servicePrefix, hashPrefix, hashBuf]));
   });
 
-  it('should decode header key', function() {
-    encoding.decodeHeaderKey(Buffer.concat([servicePrefix, heightBuf, hashBuf]))
-    .should.deep.equal({ height: 123, hash: hash });
+  it('should decode header hash key', function() {
+    encoding.decodeHeaderHashKey(Buffer.concat([servicePrefix, hashPrefix, hashBuf]))
+    .should.deep.equal(hash);
   });
 
+  it('should encode header height key' , function() {
+    encoding.encodeHeaderHeightKey(header.height).should.deep.equal(Buffer.concat([servicePrefix, heightPrefix, heightBuf]));
+  });
+
+  it('should decode header height key', function() {
+    encoding.decodeHeaderHeightKey(Buffer.concat([servicePrefix, heightPrefix, heightBuf]))
+    .should.deep.equal(header.height);
+  });
   it('should encode header value', function() {
     var prevHashBuf = new Buffer(header.prevHash, 'hex');
     versionBuf.writeInt32BE(header.version); // signed

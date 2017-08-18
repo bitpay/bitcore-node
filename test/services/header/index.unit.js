@@ -9,13 +9,15 @@ var Encoding  = require('../../../lib/services/header/encoding');
 var utils = require('../../../lib/utils');
 var Block = require('bitcore-lib').Block;
 var BN = require('bn.js');
+var Emitter = require('events').EventEmitter;
 
 describe('Header Service', function() {
 
   var headerService;
   var sandbox;
   var prevHeader = new Block(new Buffer('01000000b25c0849b469983b4a5b90a49e4c0e4ba3853122ed141b5bd92d14000000000021a8aaa4995e4ce3b885677730b153741feda66a08492287a45c6a131671ba5a72ff504c5a0c011c456e4d060201000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08045a0c011c028208ffffffff0100f2052a010000004341041994d910507ec4b2135dd32a4723caf00f8567f356ffbd5e703786d856b49a89d6597c280d8981238fbde81fa3767161bc3e994c17be41b42235a61c24c73459ac0000000001000000013b517d1aebd89b4034e0cf9b25ecbe82ef162ce71284e92a1f1adebf44ea1409000000008b483045022100c7ebc62e89740ddab42a64435c996e1c91a063f9f2cc004b4f023f7a1be5234402207608837faebec16049461d4ef7de807ce217040fd2a823a29da16ec07e463d440141048f108c0da4b5be3308e2e0b521d02d341de85b36a29285b47f00bc33e57a89cf4b6e76aa4a48ddc9a5e882620779e0f1b19dc98d478052fbd544167c745be1d8ffffffff010026e85a050000001976a914f760ef90462b0a4bde26d597c1f29324f5cd0fc488ac00000000', 'hex')).header.toObject();
-  var header = new Block(new Buffer('010000006a39821735ec18a366d95b391a7ff10dee181a198f1789b0550e0d00000000002b0c80fa52b669022c344c3e09e6bb9698ab90707bb4bb412af3fbf31cfd2163a601514c5a0c011c572aef0f0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08045a0c011c022003ffffffff0100f2052a01000000434104c5b694d72e601091fd733c6b18b94795c13e2db6b1474747e7be914b407854cad37cee3058f85373b9f9dbb0014e541c45851d5f85e83a1fd7c45e54423718f3ac00000000', 'hex')).header.toObject();
+  var preObjectHeader = new Block(new Buffer('010000006a39821735ec18a366d95b391a7ff10dee181a198f1789b0550e0d00000000002b0c80fa52b669022c344c3e09e6bb9698ab90707bb4bb412af3fbf31cfd2163a601514c5a0c011c572aef0f0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08045a0c011c022003ffffffff0100f2052a01000000434104c5b694d72e601091fd733c6b18b94795c13e2db6b1474747e7be914b407854cad37cee3058f85373b9f9dbb0014e541c45851d5f85e83a1fd7c45e54423718f3ac00000000', 'hex')).header;
+  var header = preObjectHeader.toObject();
   beforeEach(function() {
     sandbox = sinon.sandbox.create();
     headerService = new HeaderService({
@@ -37,18 +39,19 @@ describe('Header Service', function() {
     it('should get prefix for database', function(done) {
 
       var getServiceTip = sandbox.stub().callsArgWith(1, null, { height: 123, hash: 'a' });
-      var startSubs = sandbox.stub(headerService, '_startSubscriptions');
       var setListeners = sandbox.stub(headerService, '_setListeners');
       var getPrefix = sandbox.stub().callsArgWith(1, null, new Buffer('ffee', 'hex'));
-      var getPersistedHeaders = sandbox.stub(headerService, '_getPersistedHeaders')
-        .callsArgWith(0, null, sinon.stub());
+      var getLastHeader = sandbox.stub(headerService, '_getLastHeader').callsArgWith(0, null);
+      var openBus = sandbox.stub();
+      headerService.node = { openBus: openBus };
+      var _startHeaderSubscription = sandbox.stub(headerService, '_startHeaderSubscription');
 
-      headerService._db = { getPrefix: getPrefix, getServiceTip: getServiceTip };
+      headerService._db = { getPrefix: getPrefix, getServiceTip: getServiceTip, batch: sinon.stub() };
 
       headerService.start(function() {
-        expect(startSubs.calledOnce).to.be.true;
+        expect(_startHeaderSubscription.calledOnce).to.be.true;
+        expect(getLastHeader.calledOnce).to.be.true;
         expect(setListeners.calledOnce).to.be.true;
-        expect(getPersistedHeaders.calledOnce).to.be.true;
         expect(headerService._tip).to.be.deep.equal({ height: 123, hash: 'a' });
         expect(headerService._encoding).to.be.instanceOf(Encoding);
         done();
@@ -68,10 +71,27 @@ describe('Header Service', function() {
 
   describe('#getAllHeaders', function() {
 
-    it('should get all the headers', function() {
-      headerService._headers = {};
-      var headers = headerService.getAllHeaders();
-      expect(headers).to.deep.equal({});
+    it('should get all the headers', function(done) {
+      headerService._tip = { height: 123 };
+
+      var fakeStream = new Emitter();
+      var createReadStream = sandbox.stub().returns(fakeStream);
+      headerService._db = { createReadStream: createReadStream };
+
+      headerService.getAllHeaders(function(err, headers) {
+        if (err) {
+          return done(err);
+        }
+
+        expect(headers.length).to.deep.equal(1);
+        expect(headers.get(header.hash).hash).to.equal('00000000008ba8d6beb01577730fae52517988564322026e5e2d90a3ee5d3cfb');
+        done();
+      });
+
+      header.chainwork = '00';
+      fakeStream.emit('data', { value: headerService._encoding.encodeHeaderValue(header) });
+      fakeStream.emit('end');
+
     });
   });
 
@@ -79,12 +99,11 @@ describe('Header Service', function() {
 
     it('should start the sync process', function() {
       headerService._bestHeight = 123;
-      headerService._checkpoint = 8888;
-      headerService._tip = { height: 121, hash: 'a' };
-      var sync = sandbox.stub(headerService, '_sync');
+      headerService._tip = { height: 120 };
+      var getHeaders = sandbox.stub();
+      headerService._p2p = { getHeaders: getHeaders };
       headerService._startSync();
-      expect(sync.calledOnce).to.be.true;
-      expect(headerService._numNeeded).to.equal(8888);
+      expect(getHeaders.calledOnce).to.be.true;
     });
 
   });
@@ -106,41 +125,13 @@ describe('Header Service', function() {
 
     it('should handle new headers received', function() {
 
-      headerService._tip = { height: 0 };
-      headerService._originalTip = { height: 0, hash: header.hash };
-      headerService._bestHeight = { height: 1 };
-      headerService._headers = {
-        getIndex: function() { return { hash: header.hash }; },
-        getLastIndex: sinon.stub().returns({ hash: 'aa' }),
-        set: sinon.stub()
-      };
-      var getChainwork = sandbox.stub(headerService, '_getChainwork').returns(new BN(1));
-      var headers = [ header ];
-
-      var batch = sandbox.stub().callsArgWith(1, null);
-
-      headerService._db = { batch: batch };
+      var headers = [preObjectHeader];
+      var onHeader = sandbox.stub(headerService, '_onHeader');
+      var saveHeaders = sandbox.stub(headerService, '_saveHeaders');
+      headerService._tip = { height: 123, hash: 'aa' };
       headerService._onHeaders(headers);
-      header.height = 1;
-      header.chainwork = '0000000000000000000000000000000000000000000000000000000000000001';
-
-      expect(batch.calledOnce).to.be.true;
-      expect(getChainwork.calledOnce).to.be.true;
-      var expected = batch.args[0][0];
-
-      expect(expected[0]).to.deep.equal({
-        type: 'put',
-        key: headerService._encoding.encodeHeaderKey(1, header.hash),
-        value: headerService._encoding.encodeHeaderValue(header)
-      });
-      var tip = utils.encodeTip({ height: 1, hash: header.hash });
-      expect(expected[1]).to.deep.equal({
-        type: 'put',
-        key: tip.key,
-        value: tip.value
-      });
-      expect(headerService._tip.height).to.equal(1);
-      expect(headerService._tip.hash).to.equal(header.hash);
+      expect(onHeader.calledOnce).to.be.true;
+      expect(saveHeaders.calledOnce).to.be.true;
 
     });
   });
