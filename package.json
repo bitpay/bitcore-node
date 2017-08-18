@@ -36,6 +36,7 @@
     "bitcoind-rpc": "^0.6.0",
     "bitcore-lib": "5.0.0-beta.1",
     "bitcore-p2p": "5.0.0-beta.1",
+    "bn.js": "^4.11.8",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
     "commander": "^2.8.1",
