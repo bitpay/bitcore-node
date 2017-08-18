@@ -6,6 +6,7 @@ var should = chai.should();
 var Logger = require('../lib/logger');
 
 describe('Logger', function() {
+  process.env.BITCORE_ENV = 'debug';
   var sandbox = sinon.sandbox.create();
   afterEach(function() {
     sandbox.restore();
@@ -31,10 +32,10 @@ describe('Logger', function() {
   it('will log with formatting', function() {
     var logger = new Logger({formatting: true});
 
-    sandbox.stub(console, 'info');
+    sandbox.stub(console, 'log');
     logger.info('Test info log');
-    console.info.callCount.should.equal(1);
-    console.info.restore();
+    console.log.callCount.should.equal(1);
+    console.log.restore();
 
     sandbox.stub(console, 'error');
     logger.error(new Error('Test error log'));
@@ -46,20 +47,20 @@ describe('Logger', function() {
     console.log.callCount.should.equal(1);
     console.log.restore();
 
-    sandbox.stub(console, 'warn');
+    sandbox.stub(console, 'log');
     logger.warn('Test warn log');
-    console.warn.callCount.should.equal(1);
-    console.warn.restore();
+    console.log.callCount.should.equal(1);
+    console.log.restore();
   });
 
   it('will log without formatting', function() {
     var logger = new Logger({formatting: false});
 
-    sandbox.stub(console, 'info');
+    sandbox.stub(console, 'log');
     logger.info('Test info log');
-    console.info.callCount.should.equal(1);
-    should.not.exist(console.info.args[0][0].match(/^\[/));
-    console.info.restore();
+    console.log.callCount.should.equal(1);
+    should.not.exist(console.log.args[0][0].match(/^\[/));
+    console.log.restore();
 
     sandbox.stub(console, 'error');
     logger.error(new Error('Test error log'));
@@ -73,11 +74,11 @@ describe('Logger', function() {
     should.equal(console.log.args[0][0].match(/^\[/), null);
     console.log.restore();
 
-    sandbox.stub(console, 'warn');
+    sandbox.stub(console, 'log');
     logger.warn('Test warn log');
-    console.warn.callCount.should.equal(1);
-    should.equal(console.warn.args[0][0].match(/^\[/), null);
-    console.warn.restore();
+    console.log.callCount.should.equal(1);
+    should.equal(console.log.args[0][0].match(/^\[/), null);
+    console.log.restore();
   });
 
 });

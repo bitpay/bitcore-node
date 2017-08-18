@@ -1,0 +1,22 @@
+{
+  "network": "livenet",
+  "port": 3001,
+  "datadir": "/tmp",
+  "services": [
+    "p2p",
+    "db",
+    "header",
+    "block",
+    "transaction",
+    "timestamp",
+    "mempool",
+    "address"
+  ],
+  "servicesConfig": {
+    "p2p": {
+      "peers": [
+        { "ip": { "v4": "<some trusted full node>" } }
+      ]
+    }
+  }
+}
