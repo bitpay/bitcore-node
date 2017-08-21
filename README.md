@@ -10,7 +10,7 @@ There is no upgrade path from previous versions of Bitcore Node due to the remov
 ## Install
 
 ```bash
-npm install -g bitcore-node
+npm install -g bitcore-node@beta
 ./bin/bitcore-node start
 ```
 
