@@ -3,6 +3,10 @@ Bitcore Node
 
 A Bitcoin blockchain indexing and query service. Intended to be used with as a Bitcoin full node or in conjunction with a Bitcoin full node.
 
+## Upgrading from previous versions of Bitcore Node
+
+There is no upgrade path from previous versions of Bitcore Node due to the removal of the included Bitcoin Core software. By installing this version, you must resynchronize the indexes from scratch.
+
 ## Install
 
 ```bash
@@ -38,7 +42,6 @@ There are several add-on services available to extend the functionality of Bitco
 
 ## Documentation
 
-- [Upgrade Notes](docs/upgrade.md)
 - [Services](docs/services.md)
   - [Fee](docs/services/fee.md) - Creates a service to handle fee queries
   - [Header](docs/services/header.md) - Creates a service to handle block headers

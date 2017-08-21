@@ -17,6 +17,7 @@ none
 
 ## Other services this service Depends on
 
+- db
 - header
 - transaction
 - timestamp
