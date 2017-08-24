@@ -64,9 +64,7 @@ describe('Address Service', function() {
         }
 
         expect(res).to.be.deep.equal({
-          totalItems: 3,
-          from: 12,
-          to: 14,
+          totalCount: 3,
           items: [ {}, {}, {} ]
         });
 
@@ -76,22 +74,24 @@ describe('Address Service', function() {
 
   });
 
-  describe('#_getAddresHistory', function() {
+  describe('#_getAddressHistory', function() {
     it('should get the address history', function(done) {
       var encoding = new Encoding(new Buffer('0001', 'hex'));
       addressService._encoding = encoding;
+      var getHeaderHash = sandbox.stub().callsArgWith(1, null, 'aa');
+      addressService._header = { getHeaderHash: getHeaderHash };
       var address = 'a';
       var opts = { from: 12, to: 14 };
       var txid = '1c6ea4a55a3edaac0a05e93b52908f607376a8fdc5387c492042f8baa6c05085';
       var data = [ null, encoding.encodeAddressIndexKey(address, 123, txid, 1, 1) ];
-      var getTransaction = sandbox.stub().callsArgWith(2, null, {});
+      var getTransaction = sandbox.stub().callsArgWith(2, null, { __height: 123, outputs: [ { value: 1 } ], __inputValues: [ 1 ] });
       addressService._tx = { getTransaction: getTransaction };
 
       var txidStream = new Readable();
 
       txidStream._read = function() {
         txidStream.push(data.pop());
-      }
+      };
 
       var createReadStream = sandbox.stub().returns(txidStream);
       addressService._db = { createKeyStream: createReadStream };
@@ -101,7 +101,22 @@ describe('Address Service', function() {
           return done(err);
         }
         expect(getTransaction.calledOnce).to.be.true;
-        expect(res).to.deep.equal([{}]);
+        expect(res).to.deep.equal([
+            {
+              __blockhash: 'aa',
+              __height: 123,
+              __inputSatoshis: 1,
+              __inputValues: [
+                1
+              ],
+              __outputSatoshis: 1,
+              outputs: [
+                {
+                  value: 1
+                }
+              ]
+            }
+        ]);
         done();
       });
     });
@@ -125,7 +140,7 @@ describe('Address Service', function() {
 
       txidStream._read = function() {
         txidStream.push(data.pop());
-      }
+      };
 
       var createReadStream = sandbox.stub().returns(txidStream);
       addressService._db = { createKeyStream: createReadStream };
@@ -181,14 +196,14 @@ describe('Address Service', function() {
           return done(err);
         }
         expect(res[0]).to.deep.equal({
-          address: "a",
+          address: 'a',
           amount: 0.0012,
           confirmations: 27,
           confirmationsFromCache: true,
           satoshis: 120000,
-          scriptPubKey: "76a91449f8c749a9960dc29b5cbe7d2397cea7d26611bb88ac",
+          scriptPubKey: '76a91449f8c749a9960dc29b5cbe7d2397cea7d26611bb88ac',
           ts: 1546300800,
-          txid: "25e28f9fb0ada5353b7d98d85af5524b2f8df5b0b0e2d188f05968bceca603eb",
+          txid: '25e28f9fb0ada5353b7d98d85af5524b2f8df5b0b0e2d188f05968bceca603eb',
           vout: 1
         });
         done();
