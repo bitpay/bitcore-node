@@ -12,6 +12,9 @@ var http = require('http');
 
 var rpc1Address;
 var rpc2Address;
+var tx1;
+var tx2;
+var block;
 
 var rpcConfig = {
   protocol: 'http',
@@ -177,7 +180,7 @@ var shutdownBitcore = function(callback) {
   callback();
 };
 
-var txid;
+
 var buildInitialChain = function(callback) {
   async.waterfall([
     function(next) {
@@ -208,11 +211,13 @@ var buildInitialChain = function(callback) {
       rpc1.sendToAddress(rpc2Address, 25, next);
     },
     function(res, next) {
+      tx1 = res.result;
       console.log('TXID: ' + res.result);
-      console.log('generating 6 blocks');
+      console.log('generating 7 blocks');
       rpc1.generate(7, next);
     },
     function(res, next) {
+      block = res.result[res.result.length - 1];
       rpc2.getBalance(function(err, res) {
         console.log(res);
         next();
@@ -232,7 +237,7 @@ var buildInitialChain = function(callback) {
       rpc2.sendToAddress(rpc1Address, 20, next);
     },
     function(res, next) {
-      txid = res.result;
+      tx2 = res.result;
       console.log('sending from rpc2Address TXID: ', res);
       console.log('generating 6 blocks');
       rpc2.generate(6, next);
@@ -292,7 +297,7 @@ var startBitcore = function(callback) {
 
 };
 
-describe('Address', function() {
+describe('Block', function() {
 
   this.timeout(60000);
 
@@ -327,17 +332,19 @@ describe('Address', function() {
     });
   });
 
-  it('should get address info correctly: /addr/:addr', function(done) {
+  it('should get blocks: /blocks', function(done) {
 
-
-    var request = http.request('http://localhost:53001/api/addr/' + rpc2Address, function(res) {
+    var request = http.request('http://localhost:53001/api/blocks', function(res) {
 
       var error;
       if (res.statusCode !== 200 && res.statusCode !== 201) {
+
         if (error) {
           return;
         }
+
         return done('Error from bitcore-node webserver: ' + res.statusCode);
+
       }
 
       var resError;
@@ -356,9 +363,7 @@ describe('Address', function() {
           return;
         }
         var data = JSON.parse(resData);
-        console.log(data);
-        expect(data.balance).to.equal(0);
-        expect(data.totalSent).to.equal(25);
+        expect(data.length).to.equal(114);
         done();
       });
 
@@ -367,16 +372,19 @@ describe('Address', function() {
     request.end();
   });
 
-  it('should get a utxo: /addr/:addr/utxo', function(done) {
+  it('should get a block: /block/:hash', function(done) {
 
-    var request = http.request('http://localhost:53001/api/addr/' + rpc1Address + '/utxo', function(res) {
+    var request = http.request('http://localhost:53001/api/block/' + block, function(res) {
 
       var error;
       if (res.statusCode !== 200 && res.statusCode !== 201) {
+
         if (error) {
           return;
         }
+
         return done('Error from bitcore-node webserver: ' + res.statusCode);
+
       }
 
       var resError;
@@ -395,137 +403,28 @@ describe('Address', function() {
           return;
         }
         var data = JSON.parse(resData);
-        console.log(data);
-        expect(data.length).equal(1);
-        expect(data[0].amount).equal(20);
-        expect(data[0].satoshis).equal(2000000000);
-        expect(data[0].confirmations).equal(6);
+        expect(data.hash).to.equal(block);
         done();
       });
 
     });
-
     request.write('');
     request.end();
-
   });
 
-  it('should get multi-address utxos: /addrs/:addrs/utxo', function(done) {
+  it('should get a block-index: /block-index/:height', function(done) {
 
-    var request = http.request('http://localhost:53001/api/addrs/' + rpc2Address + ',' + rpc1Address + '/utxo', function(res) {
+    var request = http.request('http://localhost:53001/api/block-index/' + '108', function(res) {
 
       var error;
       if (res.statusCode !== 200 && res.statusCode !== 201) {
+
         if (error) {
           return;
         }
+
         return done('Error from bitcore-node webserver: ' + res.statusCode);
-      }
 
-      var resError;
-      var resData = '';
-
-      res.on('error', function(e) {
-        resError = e;
-      });
-
-      res.on('data', function(data) {
-        resData += data;
-      });
-
-      res.on('end', function() {
-        if (error) {
-          return;
-        }
-        var data = JSON.parse(resData);
-        console.log(data);
-        expect(data.length).to.equal(1);
-        expect(data[0].amount).to.equal(20);
-        expect(data[0].satoshis).to.equal(2000000000);
-        done();
-      });
-
-    });
-
-    request.write('');
-    request.end();
-
-  });
-
-  it('should post a utxo: /addrs/:addrs/utxo', function(done) {
-
-    var body = JSON.stringify({
-      addrs: [ rpc1Address, rpc2Address ]
-    });
-
-    var httpOpts = {
-      hostname: 'localhost',
-      port: 53001,
-      path: '/api/addrs/utxo',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': body.length
-      }
-    };
-
-    var request = http.request(httpOpts, function(res) {
-
-      var error;
-      if (res.statusCode !== 200 && res.statusCode !== 201) {
-        if (error) {
-          return;
-        }
-        return done('Error from bitcore-node webserver: ' + res.statusCode);
-      }
-
-      var resError;
-      var resData = '';
-
-      res.on('error', function(e) {
-        resError = e;
-      });
-
-      res.on('data', function(data) {
-        resData += data;
-      });
-
-      res.on('end', function() {
-        if (error) {
-          return;
-        }
-        var data = JSON.parse(resData);
-        console.log(data);
-        expect(data.length).to.equal(1);
-        expect(data[0].amount).to.equal(20);
-        expect(data[0].satoshis).to.equal(2000000000);
-        done();
-      });
-
-    });
-
-    request.write(body);
-    request.end();
-
-  });
-
-  it('should get txs for a set of addresses: /addrs/:addrs/txs', function(done) {
-
-    var httpOpts = {
-      hostname: 'localhost',
-      port: 53001,
-      path: '/api/addrs/' + rpc1Address + ',' + rpc2Address + '/txs',
-      method: 'GET'
-    };
-
-    var request = http.request(httpOpts, function(res) {
-
-      var error;
-      if (res.statusCode !== 200 && res.statusCode !== 201) {
-        if (error) {
-          return;
-        }
-        return done('Error from bitcore-node webserver: ' + res.statusCode);
       }
 
       var resError;
@@ -545,9 +444,7 @@ describe('Address', function() {
         }
         var data = JSON.parse(resData);
         console.log(resData);
-        expect(data.items.length).to.equal(3);
-        expect(data.from).to.equal(0);
-        expect(data.to).to.equal(3);
+        expect(data.blockHash).to.equal(block);
         done();
       });
 
@@ -555,33 +452,21 @@ describe('Address', function() {
 
     request.write('');
     request.end();
-
   });
 
-  it('should post txs for a set of addresses: /addrs/txs', function(done) {
+  it('should get a raw block: /rawblock/:hash', function(done) {
 
-    var body = JSON.stringify({
-      addrs: [ rpc1Address, rpc2Address ]
-    });
-
-    var httpOpts = {
-      hostname: 'localhost',
-      port: 53001,
-      path: '/api/addrs/txs',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    };
-
-    var request = http.request(httpOpts, function(res) {
+    var request = http.request('http://localhost:53001/api/rawblock/' + block, function(res) {
 
       var error;
       if (res.statusCode !== 200 && res.statusCode !== 201) {
+
         if (error) {
           return;
         }
+
         return done('Error from bitcore-node webserver: ' + res.statusCode);
+
       }
 
       var resError;
@@ -601,60 +486,7 @@ describe('Address', function() {
         }
         var data = JSON.parse(resData);
         console.log(resData);
-        expect(data.items.length).to.equal(3);
-        expect(data.from).to.equal(0);
-        expect(data.to).to.equal(3);
-        done();
-      });
-
-    });
-
-    request.write(body);
-    request.end();
-
-  });
-
-  it('should get totalReceived for an address: /addr/:addr/totalReceived', function(done) {
-
-    var httpOpts = {
-      hostname: 'localhost',
-      port: 53001,
-      path: '/api/addr/' + rpc1Address + '/totalReceived',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    };
-
-    var request = http.request(httpOpts, function(res) {
-
-      var error;
-      if (res.statusCode !== 200 && res.statusCode !== 201) {
-        if (error) {
-          return;
-        }
-        return done('Error from bitcore-node webserver: ' + res.statusCode);
-      }
-
-      var resError;
-      var resData = '';
-
-      res.on('error', function(e) {
-        resError = e;
-      });
-
-      res.on('data', function(data) {
-        resData += data;
-      });
-
-      res.on('end', function() {
-
-        if (error) {
-          return;
-        }
-
-        var data = JSON.parse(resData);
-        expect(data).to.equal(2000000000);
+        expect(data.rawblock).to.not.be.null;
         done();
       });
 
@@ -662,107 +494,9 @@ describe('Address', function() {
 
     request.write('');
     request.end();
-
   });
-
-  it('should get totalSent for an address: /addr/:addr/totalSent', function(done) {
-
-    var httpOpts = {
-      hostname: 'localhost',
-      port: 53001,
-      path: '/api/addr/' + rpc1Address + '/totalSent',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    };
-
-    var request = http.request(httpOpts, function(res) {
-
-      var error;
-      if (res.statusCode !== 200 && res.statusCode !== 201) {
-        if (error) {
-          return;
-        }
-        return done('Error from bitcore-node webserver: ' + res.statusCode);
-      }
-
-      var resError;
-      var resData = '';
-
-      res.on('error', function(e) {
-        resError = e;
-      });
-
-      res.on('data', function(data) {
-        resData += data;
-      });
-
-      res.on('end', function() {
-        if (error) {
-          return;
-        }
-        var data = JSON.parse(resData);
-        expect(data).to.equal(0);
-        done();
-      });
-
-    });
-
-    request.write('');
-    request.end();
-
-  });
-
-  it('should get unconfirmedBalance for an address: /addr/:addr/unconfirmedBalance', function(done) {
-
-    var httpOpts = {
-      hostname: 'localhost',
-      port: 53001,
-      path: '/api/addr/' + rpc1Address + '/unconfirmedBalance',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    };
-
-    var request = http.request(httpOpts, function(res) {
-
-      var error;
-      if (res.statusCode !== 200 && res.statusCode !== 201) {
-        if (error) {
-          return;
-        }
-        return done('Error from bitcore-node webserver: ' + res.statusCode);
-      }
-
-      var resError;
-      var resData = '';
-
-      res.on('error', function(e) {
-        resError = e;
-      });
-
-      res.on('data', function(data) {
-        resData += data;
-      });
-
-      res.on('end', function() {
-        if (error) {
-          return;
-        }
-        var data = JSON.parse(resData);
-        expect(data).to.equal(0);
-        done();
-      });
-
-    });
-
-    request.write('');
-    request.end();
-
-  });
-
 });
+
+
 
 
