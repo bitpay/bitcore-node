@@ -12,7 +12,7 @@ var bcoin = require('bcoin');
 describe('Address Service', function() {
 
   var tx = Tx.fromRaw( '0100000004de9b4bb17f627096a9ee0b4528e4eae17df5b5c69edc29704c2e84a7371db29f010000006b483045022100f5b1a0d33b7be291c3953c25f8ae39d98601aa7099a8674daf638a08b86c7173022006ce372da5ad088a1cc6e5c49c2760a1b6f085eb1b51b502211b6bc9508661f9012102ec5e3731e54475dd2902326f43602a03ae3d62753324139163f81f20e787514cffffffff7a1d4e5fc2b8177ec738cd723a16cf2bf493791e55573445fc0df630fe5e2d64010000006b483045022100cf97f6cb8f126703e9768545dfb20ffb10ba78ae3d101aa46775f5a239b075fc02203150c4a89a11eaf5e404f4f96b62efa4455e9525765a025525c7105a7e47b6db012102c01e11b1d331f999bbdb83e8831de503cd52a01e3834a95ccafd615c67703d77ffffffff9e52447116415ca0d0567418a1a4ef8f27be3ff5a96bf87c922f3723d7db5d7c000000006b483045022100f6c117e536701be41a6b0b544d7c3b1091301e4e64a6265b6eb167b15d16959d022076916de4b115e700964194ce36a24cb9105f86482f4abbc63110c3f537cd5770012102ddf84cc7bee2d6a82ac09628a8ad4a26cd449fc528b81e7e6cc615707b8169dfffffffff5815d9750eb3572e30d6fd9df7afb4dbd76e042f3aa4988ac763b3fdf8397f80010000006a473044022028f4402b736066d93d2a32b28ccd3b7a21d84bb58fcd07fe392a611db94cdec5022018902ee0bf2c3c840c1b81ead4e6c87c88c48b2005bf5eea796464e561a620a8012102b6cdd1a6cd129ef796faeedb0b840fcd0ca00c57e16e38e46ee7028d59812ae7ffffffff0220a10700000000001976a914c342bcd1a7784d9842f7386b8b3b8a3d4171a06e88ac59611100000000001976a91449f8c749a9960dc29b5cbe7d2397cea7d26611bb88ac00000000', 'hex');
-  var blocks = require('../../regtest/data/blocks.json');
+  var blocks = require('../../data/blocks.json');
   var addressService;
   var sandbox;
 
@@ -54,6 +54,7 @@ describe('Address Service', function() {
 
 
   describe('#getAddressHistory', function() {
+
     it('should get the address history', function(done) {
 
       sandbox.stub(addressService, '_getAddressHistory').callsArgWith(2, null, {});
@@ -78,8 +79,14 @@ describe('Address Service', function() {
     it('should get the address history', function(done) {
       var encoding = new Encoding(new Buffer('0001', 'hex'));
       addressService._encoding = encoding;
+
       var getHeaderHash = sandbox.stub().callsArgWith(1, null, 'aa');
-      addressService._header = { getHeaderHash: getHeaderHash };
+      var getBlockHeader = sandbox.stub().callsArgWith(1, null, 'aa');
+
+      addressService._header = {
+        getHeaderHash: getHeaderHash,
+        getBlockHeader: getBlockHeader
+      };
       var address = 'a';
       var opts = { from: 12, to: 14 };
       var txid = '1c6ea4a55a3edaac0a05e93b52908f607376a8fdc5387c492042f8baa6c05085';
@@ -198,7 +205,7 @@ describe('Address Service', function() {
         expect(res[0]).to.deep.equal({
           address: 'a',
           amount: 0.0012,
-          confirmations: 27,
+          height: 123,
           confirmationsFromCache: true,
           satoshis: 120000,
           scriptPubKey: '76a91449f8c749a9960dc29b5cbe7d2397cea7d26611bb88ac',
@@ -229,8 +236,6 @@ describe('Address Service', function() {
         expect(ops[0].type).to.equal('del');
 
         done();
-
-
       });
 
     });
