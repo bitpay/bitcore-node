@@ -101,6 +101,7 @@ describe('Block Service', function() {
     it('should process blocks', function() {
       var processBlock = sandbox.stub(blockService, '_processBlock');
       blockService._tip = { hash: block1.rhash(), height: 1 };
+      blockService._header = { blockServiceSyncing: false };
       blockService._onBlock(block2);
       expect(processBlock.calledOnce).to.be.true;
     });
@@ -108,6 +109,7 @@ describe('Block Service', function() {
     it('should not process blocks', function() {
       var processBlock = sandbox.stub(blockService, '_processBlock');
       blockService._tip = { hash: block2.rhash(), height: 1 };
+      blockService._header = { blockServiceSyncing: false };
       blockService._onBlock(block1);
       expect(processBlock.calledOnce).to.be.false;
     });
