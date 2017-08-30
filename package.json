@@ -2,7 +2,7 @@
   "name": "bitcore-node",
   "description": "Full node with extended capabilities using Bitcore and Bitcoin Core",
   "engines": {
-    "node": ">=8.2.0"
+    "node": ">=8.0.0"
   },
   "author": "BitPay <dev@bitpay.com>",
   "version": "5.0.0-beta.3",
@@ -29,7 +29,7 @@
   ],
   "dependencies": {
     "async": "^2.5.0",
-    "bcoin": "bcoin-org/bcoin#886008a1822ce1da7fa8395ee7db4bcc1750a28a",
+    "bcoin": "bcoin-org/bcoin#57b98b2368c8106a9c215d73e40e1a7ae39042f3",
     "bitcoind-rpc": "^0.6.0",
     "bitcore-lib": "5.0.0-beta.1",
     "bitcore-p2p": "5.0.0-beta.1",
