@@ -233,6 +233,7 @@ describe('DB', function() {
   });
 
   describe('#close', function() {
+    this.timeout(3000);
     it('should close the store if there is a store and it is open', function(done) {
 
       var close = sandbox.stub().callsArgWith(0, null);
@@ -246,6 +247,7 @@ describe('DB', function() {
         done();
       });
     });
+    this.timeout(2000);
   });
 
   describe('#getServiceTip', function() {
