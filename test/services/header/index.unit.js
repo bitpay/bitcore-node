@@ -102,6 +102,7 @@ describe('Header Service', function() {
       headerService._tip = { height: 120 };
       var getHeaders = sandbox.stub();
       headerService._p2p = { getHeaders: getHeaders };
+      headerService._lastHeader = { height: 124 };
       headerService._startSync();
       expect(getHeaders.calledOnce).to.be.true;
     });
@@ -115,6 +116,7 @@ describe('Header Service', function() {
       headerService._tip = { height: 121, hash: 'a' };
       var getHeaders = sandbox.stub();
       headerService._p2p = { getHeaders: getHeaders };
+      headerService._lastHeader = { height: 124 };
       headerService._sync();
       expect(getHeaders.calledOnce).to.be.true;
     });
