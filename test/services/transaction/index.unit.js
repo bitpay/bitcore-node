@@ -73,7 +73,7 @@ describe('Transaction Service', function() {
 
     it('should process new blocks that come in from the block service', function(done) {
 
-      var _processTransaction = sandbox.stub(txService, '_processTransaction');
+      var _processTransaction = sandbox.stub(txService, '_processTransaction').callsArgWith(2, null, {});
 
       txService.onBlock(block, function(err, ops) {
         if (err) {
@@ -101,9 +101,9 @@ describe('Transaction Service', function() {
   });
 
 
-  describe('#getInputValues', function() {
+  describe('#_getInputValues', function() {
 
-    it('should add missing input values on a tx', function(done) {
+    it('should get input values', function(done) {
 
       var put = sandbox.stub().callsArgWith(2, null);
       txService._db = { put: put };
@@ -112,12 +112,12 @@ describe('Transaction Service', function() {
 
       tx.__inputValues = [];
 
-      txService.getInputValues(tx, {}, function(err, tx) {
+      txService._getInputValues(tx, {}, function(err, values) {
 
         if (err) {
           return done(err);
         }
-        tx.__inputValues.should.deep.equal([1139033, 1139033, 500000, 1139033]);
+        values.should.deep.equal([1139033, 1139033, 500000, 1139033]);
         done();
       });
 
