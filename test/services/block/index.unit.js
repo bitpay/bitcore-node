@@ -49,23 +49,27 @@ describe('Block Service', function() {
     it('should find the common ancestor between the current chain and the new chain', function(done) {
 
       blockService._tip = { hash: block2.rhash(), height: 70901 };
+      var data = blockService._encoding.encodeBlockValue(block2);
+      blockService._db = { get: sandbox.stub().callsArgWith(1, null, data) };
+      blockService._timestamp = { getTimestamp: sandbox.stub().callsArgWith(1, null, 1234) };
+      var commonAncestorHash = bcoin.util.revHex(block2.prevBlock);
+      var allHeaders = { get: sandbox.stub().returns({ prevHash: commonAncestorHash }), size: 1e6 };
 
-      var encodedData = blockService._encoding.encodeBlockValue(block2);
+      blockService._findCommonAncestor('aa', allHeaders, function(err, commonAncestorHashActual, oldBlockList) {
 
-      var get = sandbox.stub().callsArgWith(1, null, encodedData);
-
-      var headers = { get: sandbox.stub().returns({ prevHash: block1.rhash() }) };
-      blockService._db = { get: get };
-
-      blockService._findCommonAncestor('aa', headers, function(err, common, oldBlocks) {
-        if (err) {
+        if(err) {
           return done(err);
         }
-        expect(common).to.equal('aa');
-        expect(oldBlocks).to.deep.equal([]);
+
+        block2.__ts = 1234;
+        block2.__height = 70901;
+        expect(commonAncestorHashActual).to.equal(commonAncestorHash);
+        expect(oldBlockList).to.deep.equal([block2]);
         done();
+
       });
     });
+
   });
 
   describe('#getBestBlockHash', function() {

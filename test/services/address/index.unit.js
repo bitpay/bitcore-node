@@ -228,11 +228,14 @@ describe('Address Service', function() {
     it('should reorg when there is nothing to reorg', function(done ) {
 
       var commonAncestorHeader = bcoin.block.fromRaw(blocks[5], 'hex').toHeaders().toJSON();
-      var oldBlocks = [bcoin.block.fromRaw(blocks[6], 'hex')];
+      var block = bcoin.block.fromRaw(blocks[6], 'hex');
+      block.__ts = 55555;
+      block.__height = 999;
+      var oldBlocks = [block];
 
       addressService.onReorg([commonAncestorHeader, oldBlocks], function(err, ops) {
 
-        expect(ops.length).to.equal(0);
+        expect(ops.length).to.equal(2);
         done();
 
       });
