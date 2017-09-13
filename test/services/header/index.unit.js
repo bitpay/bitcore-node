@@ -42,6 +42,8 @@ describe('Header Service', function() {
       var setListeners = sandbox.stub(headerService, '_setListeners');
       var getPrefix = sandbox.stub().callsArgWith(1, null, new Buffer('ffee', 'hex'));
       var getLastHeader = sandbox.stub(headerService, '_getLastHeader').callsArgWith(0, null);
+      var setGenesisBlock = sandbox.stub(headerService, '_setGenesisBlock').callsArgWith(0, null);
+      headerService.GENESIS_HASH = '00';
       var openBus = sandbox.stub();
       headerService.node = { openBus: openBus };
       var _startHeaderSubscription = sandbox.stub(headerService, '_startHeaderSubscription');
@@ -50,9 +52,10 @@ describe('Header Service', function() {
 
       headerService.start(function() {
         expect(_startHeaderSubscription.calledOnce).to.be.true;
-        expect(getLastHeader.calledOnce).to.be.true;
+        expect(setGenesisBlock.calledOnce).to.be.true;
+        expect(getLastHeader.calledOnce).to.be.false;
         expect(setListeners.calledOnce).to.be.true;
-        expect(headerService._tip).to.be.deep.equal({ height: 123, hash: 'a' });
+        expect(headerService._tip).to.be.deep.equal({ height: 0, hash: '00' });
         expect(headerService._encoding).to.be.instanceOf(Encoding);
         done();
       });
@@ -161,4 +164,28 @@ describe('Header Service', function() {
 
   });
 
+  describe('#_getLastHeader', function() {
+    it('should get the last header from which to start synchronizing more headers', function(done) {
+
+      var stream = new Emitter();
+      var header = Object.assign({ chainwork: '00', height: 2 }, prevHeader );
+      var headerBuf = headerService._encoding.encodeHeaderValue(header);
+
+      headerService._tip = { height: 2, hash: 'aa' };
+
+      headerService._db = {
+        createReadStream: sandbox.stub().returns(stream),
+        batch: sandbox.stub().callsArgWith(1, null)
+      };
+      headerService._getLastHeader(function(err) {
+        if(err) {
+          return done(err);
+        }
+        expect(headerService._tip.hash).to.equal(header.hash);
+        done();
+      });
+      stream.emit('data', { value: headerBuf });
+      stream.emit('end');
+    });
+  });
 });
