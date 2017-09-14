@@ -20,7 +20,6 @@ describe('Address Service', function() {
     sandbox = sinon.sandbox.create();
     addressService = new AddressService({
       node: {
-        getNetworkName: function() { return 'regtest'; },
         services: []
       }
     });

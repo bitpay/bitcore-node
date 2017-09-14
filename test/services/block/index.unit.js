@@ -19,7 +19,6 @@ describe('Block Service', function() {
     sandbox = sinon.sandbox.create();
     blockService = new BlockService({
       node: {
-        getNetworkName: function() { return 'regtest'; },
         services: []
       }
     });

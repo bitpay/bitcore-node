@@ -18,7 +18,6 @@ describe('Transaction Service', function() {
     sandbox = sinon.sandbox.create();
     txService = new TxService({
       node: {
-        getNetworkName: function() { return 'regtest'; },
         services: []
       }
     });
