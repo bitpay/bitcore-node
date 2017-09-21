@@ -10,6 +10,7 @@ var utils = require('../../../lib/utils');
 var Block = require('bitcore-lib').Block;
 var BN = require('bn.js');
 var Emitter = require('events').EventEmitter;
+var bcoin = require('bcoin');
 
 describe('Header Service', function() {
 
@@ -101,11 +102,15 @@ describe('Header Service', function() {
 
     it('should start the sync process', function() {
       headerService._bestHeight = 123;
+      var unsub = sinon.stub();
       headerService._tip = { height: 120 };
+      headerService._bus = { unsubscribe: unsub };
+      headerService._blockProcessor = { length: 0 };
       var getHeaders = sandbox.stub();
       headerService._p2p = { getHeaders: getHeaders };
       headerService._lastHeader = { height: 124 };
       headerService._startSync();
+      expect(unsub.calledOnce).to.be.true;
       expect(getHeaders.calledOnce).to.be.true;
     });
 
@@ -133,7 +138,11 @@ describe('Header Service', function() {
       var onHeader = sandbox.stub(headerService, '_onHeader');
       var saveHeaders = sandbox.stub(headerService, '_saveHeaders');
       headerService._tip = { height: 123, hash: 'aa' };
+
+      headerService._lastHeader = { hash: header.prevHash };
+
       headerService._onHeaders(headers);
+
       expect(onHeader.calledOnce).to.be.true;
       expect(saveHeaders.calledOnce).to.be.true;
 

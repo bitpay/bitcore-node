@@ -43,16 +43,44 @@ describe('Block Service', function() {
     });
   });
 
+  describe('#_getOldBlocks', function() {
+
+    it('should get the old block list (blocks to be removed from indexes)', function(done) {
+
+      blockService._tip = { height: 10, hash: 'cc' };
+
+      var header = { height: 8, hash: 'aa' };
+      var getStub = sandbox.stub();
+
+      getStub.onCall(0).returns({ hash: 'bb', height: 9 });
+      getStub.onCall(1).returns({ hash: 'aa', height: 8 });
+
+      var allHeaders = { get: getStub };
+      sandbox.stub(blockService, 'getBlock').callsArgWith(1, null, {});
+
+      blockService._timestamp = { getTimestamp: sinon.stub().callsArgWith(1, null, 1234) };
+
+      blockService._getOldBlocks(header, allHeaders, function(err, blocks) {
+        if (err) {
+          return done(err);
+        }
+        expect(blocks.length).to.equal(1);
+        expect(blocks[0].__height).to.equal(9);
+        expect(blocks[0].__ts).to.equal(1234);
+        done();
+      });
+
+    });
+  });
+
   describe('#_findCommonAncestor', function() {
 
     it('should find the common ancestor between the current chain and the new chain', function(done) {
 
-      blockService._tip = { hash: block2.rhash(), height: 70901 };
-      var data = blockService._encoding.encodeBlockValue(block2);
-      blockService._db = { get: sandbox.stub().callsArgWith(1, null, data) };
-      blockService._timestamp = { getTimestamp: sandbox.stub().callsArgWith(1, null, 1234) };
-      var commonAncestorHash = bcoin.util.revHex(block2.prevBlock);
-      var allHeaders = { get: sandbox.stub().returns({ prevHash: commonAncestorHash }), size: 1e6 };
+      sandbox.stub(blockService, 'getBlock').callsArgWith(1, null, block1);
+      sandbox.stub(blockService, '_getOldBlocks').callsArgWith(2, null, [block2]);
+
+      var allHeaders = { get: sandbox.stub().returns({ hash: 'somecommonancestor', prevHash: block1.rhash() }), size: 1e6 };
 
       blockService._findCommonAncestor('aa', allHeaders, function(err, commonAncestorHashActual, oldBlockList) {
 
@@ -60,9 +88,7 @@ describe('Block Service', function() {
           return done(err);
         }
 
-        block2.__ts = 1234;
-        block2.__height = 70901;
-        expect(commonAncestorHashActual).to.equal(commonAncestorHash);
+        expect(commonAncestorHashActual).to.equal('somecommonancestor');
         expect(oldBlockList).to.deep.equal([block2]);
         done();
 
@@ -123,11 +149,9 @@ describe('Block Service', function() {
 
     it('should set listeners for headers, reorg', function() {
       var on = sandbox.stub();
-      var once = sandbox.stub();
-      blockService._header = { on: on, once: once };
+      blockService._header = { on: on };
       blockService._setListeners();
-      expect(on.calledOnce).to.be.true;
-      expect(once.calledOnce).to.be.true;
+      expect(on.calledTwice).to.be.true;
     });
 
   });
