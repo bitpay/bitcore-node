@@ -6,6 +6,7 @@ var sinon = require('sinon');
 var bcoin = require('bcoin');
 var Block = bcoin.block;
 var Encoding  = require('../../../lib/services/block/encoding');
+var utils = require('../../../lib/utils');
 
 describe('Block Service', function() {
 
@@ -43,53 +44,24 @@ describe('Block Service', function() {
     });
   });
 
-  describe('#_getOldBlocks', function() {
-
-    it('should get the old block list (blocks to be removed from indexes)', function(done) {
-
-      blockService._tip = { height: 10, hash: 'cc' };
-
-      var header = { height: 8, hash: 'aa' };
-      var getStub = sandbox.stub();
-
-      getStub.onCall(0).returns({ hash: 'bb', height: 9 });
-      getStub.onCall(1).returns({ hash: 'aa', height: 8 });
-
-      var allHeaders = { get: getStub };
-      sandbox.stub(blockService, 'getBlock').callsArgWith(1, null, {});
-
-      blockService._timestamp = { getTimestamp: sinon.stub().callsArgWith(1, null, 1234) };
-
-      blockService._getOldBlocks(header, allHeaders, function(err, blocks) {
-        if (err) {
-          return done(err);
-        }
-        expect(blocks.length).to.equal(1);
-        expect(blocks[0].__height).to.equal(9);
-        expect(blocks[0].__ts).to.equal(1234);
-        done();
-      });
-
-    });
-  });
-
   describe('#_findCommonAncestor', function() {
 
     it('should find the common ancestor between the current chain and the new chain', function(done) {
 
-      sandbox.stub(blockService, 'getBlock').callsArgWith(1, null, block1);
-      sandbox.stub(blockService, '_getOldBlocks').callsArgWith(2, null, [block2]);
+      sandbox.stub(blockService, '_getBlock').callsArgWith(1, null, block2);
+      blockService._tip = { hash: 'aa' };
+      var headers = new utils.SimpleMap();
+      headers.set('aa', 'someheader');
 
-      var allHeaders = { get: sandbox.stub().returns({ hash: 'somecommonancestor', prevHash: block1.rhash() }), size: 1e6 };
+      blockService._header = { getAllHeaders: sandbox.stub().callsArgWith(0, null, headers) };
 
-      blockService._findCommonAncestor('aa', allHeaders, function(err, commonAncestorHashActual, oldBlockList) {
+      blockService._findCommonAncestor(function(err, commonAncestorHashActual) {
 
         if(err) {
           return done(err);
         }
 
-        expect(commonAncestorHashActual).to.equal('somecommonancestor');
-        expect(oldBlockList).to.deep.equal([block2]);
+        expect(commonAncestorHashActual).to.equal('aa');
         done();
 
       });
@@ -127,31 +99,40 @@ describe('Block Service', function() {
 
   describe('#_onBlock', function() {
 
-    it('should process blocks', function() {
-      var processBlock = sandbox.stub(blockService, '_processBlock');
-      blockService._tip = { hash: block1.rhash(), height: 1 };
-      blockService._header = { blockServiceSyncing: false };
-      blockService._onBlock(block2);
-      expect(processBlock.calledOnce).to.be.true;
+    it('should process blocks', function(done) {
+      var getBlock = sandbox.stub(blockService, '_getBlock').callsArgWith(1, null, null);
+      var processBlock = sandbox.stub(blockService, '_processBlock').callsArgWith(1, null);
+      blockService._onBlock(block2, function(err) {
+        if(err) {
+          return done(err);
+        }
+        expect(processBlock.calledOnce).to.be.true;
+        expect(getBlock.calledOnce).to.be.true;
+        done();
+      });
     });
 
-    it('should not process blocks', function() {
+    it('should not process blocks', function(done) {
+      var getBlock = sandbox.stub(blockService, '_getBlock').callsArgWith(1, null, block2);
       var processBlock = sandbox.stub(blockService, '_processBlock');
-      blockService._tip = { hash: block2.rhash(), height: 1 };
-      blockService._header = { blockServiceSyncing: false };
-      blockService._onBlock(block1);
-      expect(processBlock.calledOnce).to.be.false;
+      blockService._onBlock(block2, function(err) {
+        if(err) {
+          return done(err);
+        }
+        expect(getBlock.calledOnce).to.be.true;
+        expect(processBlock.called).to.be.false;
+        done();
+      });
     });
-
   });
 
   describe('#_setListeners', function() {
 
-    it('should set listeners for headers, reorg', function() {
+    it('should set listeners for best height', function() {
       var on = sandbox.stub();
-      blockService._header = { on: on };
+      blockService._p2p = { on: on };
       blockService._setListeners();
-      expect(on.calledTwice).to.be.true;
+      expect(on.calledOnce).to.be.true;
     });
 
   });
@@ -167,24 +148,10 @@ describe('Block Service', function() {
 
   });
 
-  describe('#_startSubscriptions', function() {
-    it('should start the subscriptions if not already subscribed', function() {
-      var on = sinon.stub();
-      var subscribe = sinon.stub();
-      var openBus = sinon.stub().returns({ on: on, subscribe: subscribe });
-      blockService.node = { openBus: openBus };
-      blockService._startSubscriptions();
-      expect(blockService._subscribed).to.be.true;
-      expect(openBus.calledOnce).to.be.true;
-      expect(on.calledOnce).to.be.true;
-      expect(subscribe.calledOnce).to.be.true;
-    });
-  });
-
   describe('#_startSync', function() {
 
-    it('should start the sync of blocks if type set', function() {
-      blockService._header = { getLastHeader: sinon.stub.returns({ height: 100 }) };
+    it('should start the sync of blocks', function() {
+      blockService._header = { getLastHeader: sinon.stub().returns({ height: 100 }) };
       blockService._tip = { height: 98 };
       var sync = sandbox.stub(blockService, '_sync');
       blockService._startSync();
@@ -200,6 +167,7 @@ describe('Block Service', function() {
       var getServiceTip = sandbox.stub().callsArgWith(1, null, { height: 1, hash: 'aa' });
       var setListeners = sandbox.stub(blockService, '_setListeners');
       var setTip = sandbox.stub(blockService, '_setTip');
+      blockService.node = { openBus: sandbox.stub() };
       blockService._db = { getPrefix: getPrefix, getServiceTip: getServiceTip };
       blockService.start(function() {
         expect(blockService._encoding).to.be.an.instanceof(Encoding);

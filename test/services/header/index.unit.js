@@ -51,7 +51,6 @@ describe('Header Service', function() {
       headerService._db = { getPrefix: getPrefix, getServiceTip: getServiceTip, batch: sinon.stub() };
 
       headerService.start(function() {
-        expect(_startHeaderSubscription.calledOnce).to.be.true;
         expect(setGenesisBlock.calledOnce).to.be.true;
         expect(getLastHeader.calledOnce).to.be.false;
         expect(setListeners.calledOnce).to.be.true;
@@ -101,31 +100,27 @@ describe('Header Service', function() {
   describe('#_startSync', function() {
 
     it('should start the sync process', function() {
-      headerService._bestHeight = 123;
-      var unsub = sinon.stub();
-      headerService._tip = { height: 120 };
-      headerService._bus = { unsubscribe: unsub };
-      headerService._blockProcessor = { length: 0 };
-      var getHeaders = sandbox.stub();
-      headerService._p2p = { getHeaders: getHeaders };
-      headerService._lastHeader = { height: 124 };
+      var removeAllSubs = sandbox.stub(headerService, '_removeAllSubscriptions');
+      headerService._blockProcessor = { length: sinon.stub().returns(0) };
+      headerService._bestHeight = 100;
+      headerService._tip = { height: 98 };
+      var sync = sandbox.stub(headerService, '_sync');
       headerService._startSync();
-      expect(unsub.calledOnce).to.be.true;
-      expect(getHeaders.calledOnce).to.be.true;
+      expect(removeAllSubs.calledOnce).to.be.true;
+      expect(sync.calledOnce).to.be.true;
     });
 
   });
 
   describe('#_sync', function() {
 
-    it('should sync header', function() {
-      headerService._numNeeded = 1000;
-      headerService._tip = { height: 121, hash: 'a' };
-      var getHeaders = sandbox.stub();
-      headerService._p2p = { getHeaders: getHeaders };
-      headerService._lastHeader = { height: 124 };
+    it('should sync headers', function() {
+      var startHeaderSub = sandbox.stub(headerService, '_startHeaderSubscription');
+      var getP2PHeaders = sandbox.stub(headerService, '_getP2PHeaders');
+      headerService._tip = { hash: 'aa' };
       headerService._sync();
-      expect(getHeaders.calledOnce).to.be.true;
+      expect(getP2PHeaders.calledOnce).to.be.true;
+      expect(startHeaderSub.calledOnce).to.be.true;
     });
 
   });
