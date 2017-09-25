@@ -126,17 +126,6 @@ describe('Block Service', function() {
     });
   });
 
-  describe('#_setListeners', function() {
-
-    it('should set listeners for best height', function() {
-      var on = sandbox.stub();
-      blockService._p2p = { on: on };
-      blockService._setListeners();
-      expect(on.calledOnce).to.be.true;
-    });
-
-  });
-
   describe('#_setTip', function() {
 
     it('should set the tip if given a block', function() {
@@ -165,7 +154,7 @@ describe('Block Service', function() {
     it('should get the prefix', function(done) {
       var getPrefix = sandbox.stub().callsArgWith(1, null, blockService._encoding);
       var getServiceTip = sandbox.stub().callsArgWith(1, null, { height: 1, hash: 'aa' });
-      var setListeners = sandbox.stub(blockService, '_setListeners');
+      var performSanityCheck = sandbox.stub(blockService, '_performSanityCheck').callsArgWith(1, null, { hash: 'aa', height: 123 });
       var setTip = sandbox.stub(blockService, '_setTip');
       blockService.node = { openBus: sandbox.stub() };
       blockService._db = { getPrefix: getPrefix, getServiceTip: getServiceTip };
