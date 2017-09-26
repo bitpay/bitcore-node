@@ -134,7 +134,8 @@ describe('Header Service', function() {
       var saveHeaders = sandbox.stub(headerService, '_saveHeaders');
       headerService._tip = { height: 123, hash: 'aa' };
 
-      headerService._lastHeader = { hash: header.prevHash };
+      var lastHeader = Object.assign({ height: 1, chainwork: new Array(65).join('0') }, prevHeader);
+      headerService._lastHeader = lastHeader;
 
       headerService._onHeaders(headers);
 

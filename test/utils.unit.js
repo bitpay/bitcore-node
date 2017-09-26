@@ -122,4 +122,15 @@ describe('Utils', function() {
       map.getLastIndex().should.equal('last value');
     });
   });
+
+  describe('#convertMillisecondsToHumanReadable', function() {
+    it('should convert a number of milliseconds to human readable format', function() {
+      var actual1 = utils.convertMillisecondsToHumanReadable(164532);
+      actual1.should.equal('2 minute(s). 44 second(s). 532 millisecond(s).');
+      var actual2 = utils.convertMillisecondsToHumanReadable(1);
+      actual2.should.equal('1 millisecond(s).');
+      var actual3 = utils.convertMillisecondsToHumanReadable(null);
+      actual3.should.equal('invalid number of ms.');
+    });
+  });
 });

@@ -22,10 +22,12 @@ describe('Header service encoding', function() {
     bits: 400000,
     nonce: 123456,
     height: 123,
-    chainwork: '0000000000000000000000000000000000000000000000000000000200020002'
+    chainwork: '0000000000000000000000000000000000000000000000000000000200020002',
+    nextHash: '91b58f19b6eecba94ed0f6e463e8e334ec0bcda7880e2985c82a8f32e4d03ade'
   };
   var versionBuf = new Buffer(4);
   var prevHashBuf = new Buffer(header.prevHash, 'hex');
+  var nextHashBuf = new Buffer(header.nextHash, 'hex');
   var merkleRootBuf = new Buffer(header.merkleRoot, 'hex');
   var tsBuf = new Buffer(4);
   var bitsBuf = new Buffer(4);
@@ -67,7 +69,8 @@ describe('Header service encoding', function() {
       bitsBuf,
       nonceBuf,
       heightBuf,
-      chainBuf
+      chainBuf,
+      nextHashBuf
     ]));
   });
 
@@ -81,7 +84,8 @@ describe('Header service encoding', function() {
       bitsBuf,
       nonceBuf,
       heightBuf,
-      chainBuf
+      chainBuf,
+      nextHashBuf
     ])).should.deep.equal(header);
   });
 });
