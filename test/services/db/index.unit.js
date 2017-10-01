@@ -237,7 +237,7 @@ describe('DB', function() {
     it('should close the store if there is a store and it is open', function(done) {
 
       var close = sandbox.stub().callsArgWith(0, null);
-      dbService._store = { isOpen: sinon.stub().returns(true), close: close };
+      dbService._store = { isClosed: sinon.stub().returns(false), close: close };
 
       dbService.close(function(err) {
         if(err) {

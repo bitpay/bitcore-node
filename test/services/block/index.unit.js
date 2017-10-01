@@ -51,17 +51,15 @@ describe('Block Service', function() {
       sandbox.stub(blockService, '_getBlock').callsArgWith(1, null, block2);
       blockService._tip = { hash: 'aa' };
       var headers = new utils.SimpleMap();
-      headers.set('aa', 'someheader');
 
-      blockService._header = { getAllHeaders: sandbox.stub().callsArgWith(0, null, headers) };
-
-      blockService._findCommonAncestor(function(err, commonAncestorHashActual) {
+      blockService._header = { getBlockHeader: sandbox.stub().callsArgWith(1, null, { hash: 'bb' }) };
+      blockService._findCommonAncestor(function(err, header) {
 
         if(err) {
           return done(err);
         }
 
-        expect(commonAncestorHashActual).to.equal('aa');
+        expect(header).to.deep.equal({ hash: 'bb' });
         done();
 
       });
@@ -128,11 +126,16 @@ describe('Block Service', function() {
 
   describe('#_setTip', function() {
 
-    it('should set the tip if given a block', function() {
-      blockService._db = {};
+    it('should set the tip if given a block', function(done) {
+      var saveTip = sandbox.stub(blockService, '_saveTip').callsArgWith(1, null);
       blockService._tip = { height: 99, hash: '00' };
-      blockService._setTip({ height: 100, hash: 'aa' });
-      expect(blockService._tip).to.deep.equal({ height: 100, hash: 'aa' });
+      blockService._setTip({ height: 100, hash: 'aa' }, function(err) {
+        if(err) {
+          return done(err);
+        }
+        expect(blockService._tip).to.deep.equal({ height: 100, hash: 'aa' });
+        done();
+      });
     });
 
   });
@@ -151,11 +154,11 @@ describe('Block Service', function() {
 
   describe('#start', function() {
 
-    it('should get the prefix', function(done) {
+    it('should get the service started', function(done) {
       var getPrefix = sandbox.stub().callsArgWith(1, null, blockService._encoding);
       var getServiceTip = sandbox.stub().callsArgWith(1, null, { height: 1, hash: 'aa' });
       var performSanityCheck = sandbox.stub(blockService, '_performSanityCheck').callsArgWith(1, null, { hash: 'aa', height: 123 });
-      var setTip = sandbox.stub(blockService, '_setTip');
+      var setTip = sandbox.stub(blockService, '_setTip').callsArgWith(1, null);
       blockService.node = { openBus: sandbox.stub() };
       blockService._db = { getPrefix: getPrefix, getServiceTip: getServiceTip };
       blockService.start(function() {
