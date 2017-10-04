@@ -46,7 +46,7 @@
   "dependencies": {
     "async": "^1.3.0",
     "bitcoind-rpc": "^0.6.0",
-    "bitcore-lib": "git://github.com/navcoin/bitcore-lib.git#388fe19666198337e5add22c8eec3b5cb2e82afd",
+    "bitcore-lib": "git://github.com/navcoin/bitcore-lib.git",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
     "commander": "^2.8.1",
