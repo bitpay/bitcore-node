@@ -41,7 +41,7 @@ describe('Header Service', function() {
       var getServiceTip = sandbox.stub().callsArgWith(1, null, { height: 123, hash: 'a' });
       var setListeners = sandbox.stub(headerService, '_setListeners');
       var getPrefix = sandbox.stub().callsArgWith(1, null, new Buffer('ffee', 'hex'));
-      var getLastHeader = sandbox.stub(headerService, '_getLastHeader').callsArgWith(0, null);
+      var adjustHeadersForCheckPointTip = sandbox.stub(headerService, '_adjustHeadersForCheckPointTip').callsArgWith(0, null);
       var setGenesisBlock = sandbox.stub(headerService, '_setGenesisBlock').callsArgWith(0, null);
       headerService.GENESIS_HASH = '00';
       var openBus = sandbox.stub();
@@ -52,7 +52,7 @@ describe('Header Service', function() {
 
       headerService.start(function() {
         expect(setGenesisBlock.calledOnce).to.be.true;
-        expect(getLastHeader.calledOnce).to.be.false;
+        expect(adjustHeadersForCheckPointTip.calledOnce).to.be.false;
         expect(setListeners.calledOnce).to.be.true;
         expect(headerService._tip).to.be.deep.equal({ height: 0, hash: '00' });
         expect(headerService._encoding).to.be.instanceOf(Encoding);
@@ -168,7 +168,7 @@ describe('Header Service', function() {
 
   });
 
-  describe('#_getLastHeader', function() {
+  describe('#_adjustHeadersForCheckPointTip', function() {
     it('should get the last header from which to start synchronizing more headers', function(done) {
 
       var stream = new Emitter();
@@ -181,7 +181,7 @@ describe('Header Service', function() {
         createReadStream: sandbox.stub().returns(stream),
         batch: sandbox.stub().callsArgWith(1, null)
       };
-      headerService._getLastHeader(function(err) {
+      headerService._adjustHeadersForCheckPointTip(function(err) {
         if(err) {
           return done(err);
         }
