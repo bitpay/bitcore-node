@@ -56,7 +56,7 @@ describe('Address Service', function() {
 
     it('should get the address history', function(done) {
 
-      sandbox.stub(addressService, '_getAddressHistory').callsArgWith(2, null, {});
+      sandbox.stub(addressService, '_getAddressHistory').callsArgWith(2, null, null);
       addressService.getAddressHistory(['a', 'b', 'c'], { from: 12, to: 14 }, function(err, res) {
 
         if (err) {
@@ -64,8 +64,8 @@ describe('Address Service', function() {
         }
 
         expect(res).to.be.deep.equal({
-          totalCount: 3,
-          items: [ {}, {}, {} ]
+          totalCount: 0,
+          items: []
         });
 
         done();
@@ -81,6 +81,8 @@ describe('Address Service', function() {
 
       var getHeaderHash = sandbox.stub().callsArgWith(1, null, 'aa');
       var getBlockHeader = sandbox.stub().callsArgWith(1, null, 'aa');
+      var getTxidsByAddress = sandbox.stub().callsArgWith(1, null, []);
+      addressService._mempool = { getTxidsByAddress: getTxidsByAddress };
 
       addressService._header = {
         getHeaderHash: getHeaderHash,
@@ -106,16 +108,14 @@ describe('Address Service', function() {
         if (err) {
           return done(err);
         }
+        expect(getTxidsByAddress.calledOnce).to.be.true;
         expect(getTransaction.calledOnce).to.be.true;
         expect(res).to.deep.equal([
             {
-              __blockhash: 'aa',
               __height: 123,
-              __inputSatoshis: 1,
               __inputValues: [
                 1
               ],
-              __outputSatoshis: 1,
               outputs: [
                 {
                   value: 1

@@ -161,6 +161,7 @@ describe('Block Service', function() {
       var setTip = sandbox.stub(blockService, '_setTip').callsArgWith(1, null);
       blockService.node = { openBus: sandbox.stub() };
       blockService._db = { getPrefix: getPrefix, getServiceTip: getServiceTip };
+      blockService._header = { on: sinon.stub() };
       blockService.start(function() {
         expect(blockService._encoding).to.be.an.instanceof(Encoding);
         expect(getServiceTip.calledOnce).to.be.true;

@@ -46,19 +46,6 @@ describe('Transaction Service', function() {
     });
   });
 
-  describe('#sendTransaction', function() {
-    it('should send a raw transaction', function(done) {
-      var sendTransaction = sandbox.stub().callsArg(0);
-      txService._p2p = { sendTransaction: sendTransaction };
-      txService.sendTransaction(function(err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
-    });
-  });
-
   describe('#_getBlockTimestamp', function() {
     it('should get the block\'s timestamp', function() {
       var getTimestamp = sandbox.stub().returns(1);
