@@ -67,7 +67,7 @@
   },
   "devDependencies": {
     "benchmark": "1.0.0",
-    "bitcore-p2p": "git://github.com/navcoin/bitcore-p2p",
+    "bitcore-p2p": "git://github.com/navcoin/bitcore-p2p.git",
     "chai": "^3.5.0",
     "coveralls": "^2.11.9",
     "istanbul": "^0.4.3",
