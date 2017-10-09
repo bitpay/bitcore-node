@@ -81,8 +81,8 @@ describe('Address Service', function() {
 
       var getHeaderHash = sandbox.stub().callsArgWith(1, null, 'aa');
       var getBlockHeader = sandbox.stub().callsArgWith(1, null, 'aa');
-      var getTxidsByAddress = sandbox.stub().callsArgWith(1, null, []);
-      addressService._mempool = { getTxidsByAddress: getTxidsByAddress };
+      var getTxsByAddress = sandbox.stub().callsArgWith(1, null, []);
+      addressService._mempool = { getTxsByAddress: getTxsByAddress };
 
       addressService._header = {
         getHeaderHash: getHeaderHash,
@@ -108,7 +108,7 @@ describe('Address Service', function() {
         if (err) {
           return done(err);
         }
-        expect(getTxidsByAddress.calledOnce).to.be.true;
+        expect(getTxsByAddress.calledOnce).to.be.true;
         expect(getTransaction.calledOnce).to.be.true;
         expect(res).to.deep.equal([
             {

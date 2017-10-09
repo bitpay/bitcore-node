@@ -111,4 +111,21 @@ describe('Transaction Service', function() {
 
     });
   });
+
+  describe('#setMetaTxInfo', function() {
+    it('should set the appropriate meta data on a tx.', function(done) {
+      sandbox.stub(txService, '_getInputValues').callsArgWith(2, null, [2]);
+      var tx = { outputs: [ { value: 1 } ], inputs: [ { value: 2, isCoinbase: sinon.stub().returns(false) } ] };
+
+      txService.setTxMetaInfo(tx, {}, function(err, _tx) {
+        if (err) {
+          return done(err);
+        }
+        _tx.__inputValues.should.deep.equal([2]);
+        _tx.confirmations.should.equal(0);
+        _tx.inputSatoshis.should.equal(2);
+        done();
+      });
+    });
+  });
 });
