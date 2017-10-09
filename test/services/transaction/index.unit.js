@@ -94,7 +94,7 @@ describe('Transaction Service', function() {
       var put = sandbox.stub().callsArgWith(2, null);
       txService._db = { put: put };
 
-      sandbox.stub(txService, '_getTransaction').callsArgWith(2, null, tx.txid(), tx);
+      sandbox.stub(txService, '_getTransaction').callsArgWith(2, null, tx.txid(), tx, {});
 
       tx.__inputValues = [];
 
@@ -103,8 +103,10 @@ describe('Transaction Service', function() {
         if (err) {
           return done(err);
         }
+
         values.should.deep.equal([1139033, 1139033, 500000, 1139033]);
         done();
+
       });
 
     });
