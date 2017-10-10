@@ -16,7 +16,7 @@
     "bitcore-node": "./bin/bitcore-node"
   },
   "scripts": {
-    "test": "mocha -R spec --recursive"
+    "test": "NODE_ENV=test mocha -R spec --recursive test"
   },
   "tags": [
     "bitcoin",
