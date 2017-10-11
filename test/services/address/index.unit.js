@@ -130,37 +130,22 @@ describe('Address Service', function() {
 
   describe('#AddressSummary', function() {
 
-    it('should get the address summary', function(done) {
-      var encoding = new Encoding(new Buffer('0001', 'hex'));
-      addressService._encoding = encoding;
-      var address = 'a';
-      var txid = tx.txid();
-      var data = [ null, encoding.encodeAddressIndexKey(address, 123, txid, 1, 0) ];
-      var inputValues = [120, 0, 120, 120];
-      tx.__inputValues = inputValues;
-      var getTransaction = sandbox.stub().callsArgWith(2, null, tx);
-      addressService._tx = { getTransaction: getTransaction };
-      addressService._header = { getBestHeight: function() { return 150; } };
+    it('should get the address summary, incoming', function(done) {
 
-      var txidStream = new Readable();
+      var _tx = tx;
+      _tx.__inputValues = [ 0, 0, 0, 0 ];
+      var results = { items: [_tx] };
 
-      txidStream._read = function() {
-        txidStream.push(data.pop());
-      };
-
-      var createReadStream = sandbox.stub().returns(txidStream);
-      addressService._db = { createKeyStream: createReadStream };
-
-      addressService.getAddressSummary(address, {}, function(err, res) {
+      sandbox.stub(addressService, 'getAddressHistory').callsArgWith(2, null, results);
+      addressService.getAddressSummary('1JoSiR4dBcSrGs2AZBP2gCHqCCsgzccsGb', {}, function(err, res) {
         if (err) {
           return done(err);
         }
-        expect(getTransaction.calledOnce).to.be.true;
-        expect(res).to.deep.equal({ addrStr: 'a',
-          balance: 0.01139033,
-          balanceSat: 1139033,
-          totalReceived: 0.01139033,
-          totalReceivedSat: 1139033,
+        expect(res).to.deep.equal({ addrStr: '1JoSiR4dBcSrGs2AZBP2gCHqCCsgzccsGb',
+          balance: 0.005,
+          balanceSat: 500000,
+          totalReceived: 0.005,
+          totalReceivedSat: 500000,
           totalSent: 0,
           totalSentSat: 0,
           unconfirmedBalance: 0,
@@ -175,6 +160,7 @@ describe('Address Service', function() {
     });
 
   });
+
   describe('#getAddressUnspentOutputs', function() {
     it('should get address utxos', function(done) {
 
