@@ -180,6 +180,7 @@ describe('Address Service', function() {
 
       var txidStream = new EventEmitter();
 
+      addressService._mempool = { getTxsByAddress: sinon.stub().callsArgWith(1, null, []) };
       var createReadStream = sandbox.stub().returns(txidStream);
       addressService._db = { createReadStream: createReadStream };
 
