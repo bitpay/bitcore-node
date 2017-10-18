@@ -82,6 +82,9 @@ describe('Address Service', function() {
       var getHeaderHash = sandbox.stub().callsArgWith(1, null, 'aa');
       var getBlockHeader = sandbox.stub().callsArgWith(1, null, 'aa');
       var getTxsByAddress = sandbox.stub().callsArgWith(1, null, []);
+      var getTransaction = sandbox.stub().callsArgWith(2, null, { __height: 123, outputs: [ { value: 1 } ], __inputValues: [ 1 ] });
+
+      addressService._transaction = { getTransaction: getTransaction };
       addressService._mempool = { getTxsByAddress: getTxsByAddress };
 
       addressService._header = {
@@ -89,11 +92,9 @@ describe('Address Service', function() {
         getBlockHeader: getBlockHeader
       };
       var address = 'a';
-      var opts = { from: 12, to: 14 };
+      var opts = { from: 0, to: 10 };
       var txid = '1c6ea4a55a3edaac0a05e93b52908f607376a8fdc5387c492042f8baa6c05085';
       var data = [ null, encoding.encodeAddressIndexKey(address, 123, txid, 1, 1) ];
-      var getTransaction = sandbox.stub().callsArgWith(2, null, { __height: 123, outputs: [ { value: 1 } ], __inputValues: [ 1 ] });
-      addressService._tx = { getTransaction: getTransaction };
 
       var txidStream = new Readable();
 
