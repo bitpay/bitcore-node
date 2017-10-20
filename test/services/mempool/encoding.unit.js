@@ -42,7 +42,7 @@ describe('Block service encoding', function() {
 
     it('should encode mempool address key', function() {
 
-      encoding.encodeMempoolAddressKey(address, hash, 0, 1, now)
+      encoding.encodeMempoolAddressKey(address, hash, 0, 1)
         .should.deep.equal(Buffer.concat([
           servicePrefix,
           addressPrefix,
@@ -50,7 +50,8 @@ describe('Block service encoding', function() {
           new Buffer(address),
           new Buffer(hash, 'hex'),
           new Buffer('00000000', 'hex'),
-          new Buffer('01', 'hex'), nowBuf ]));
+          new Buffer('01', 'hex')
+        ]));
     });
 
     it('should decode mempool address key', function() {
@@ -61,12 +62,12 @@ describe('Block service encoding', function() {
         new Buffer(address),
         new Buffer(hash, 'hex'),
         new Buffer('00000000', 'hex'),
-        new Buffer('01', 'hex'), nowBuf ])).should.deep.equal({
+        new Buffer('01', 'hex') ])).should.deep.equal({
           address: address,
           txid: hash,
           index: 0,
           input: 1,
-          timestamp: now});
+        });
     });
 
   });

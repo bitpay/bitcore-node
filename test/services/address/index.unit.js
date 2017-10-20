@@ -81,7 +81,7 @@ describe('Address Service', function() {
 
       var getHeaderHash = sandbox.stub().callsArgWith(1, null, 'aa');
       var getBlockHeader = sandbox.stub().callsArgWith(1, null, 'aa');
-      var getTxsByAddress = sandbox.stub().callsArgWith(1, null, []);
+      var getTxsByAddress = sandbox.stub().callsArgWith(2, null, []);
       var getTransaction = sandbox.stub().callsArgWith(2, null, { __height: 123, outputs: [ { value: 1 } ], __inputValues: [ 1 ] });
 
       addressService._transaction = { getTransaction: getTransaction };
@@ -181,7 +181,7 @@ describe('Address Service', function() {
 
       var txidStream = new EventEmitter();
 
-      addressService._mempool = { getTxsByAddress: sinon.stub().callsArgWith(1, null, []) };
+      addressService._mempool = { getTxsByAddress: sinon.stub().callsArgWith(2, null, []) };
       var createReadStream = sandbox.stub().returns(txidStream);
       addressService._db = { createReadStream: createReadStream };
 

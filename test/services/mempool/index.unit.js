@@ -73,10 +73,10 @@ describe('Mempool Service', function() {
   describe('#_onTransaction', function() {
 
     it('should add the transaction to the database', function() {
-      var put = sandbox.stub();
-      mempoolService._db = { put: put };
+      var batch = sandbox.stub();
+      mempoolService._db = { batch: batch };
       mempoolService._onTransaction(tx);
-      expect(put.calledOnce).to.be.true;
+      expect(batch.calledOnce).to.be.true;
     });
   });
 
@@ -84,7 +84,7 @@ describe('Mempool Service', function() {
     it('should remove block\'s txs from database', function(done) {
       mempoolService.onBlock(block, function(err, ops) {
         expect(ops[0].type).to.deep.equal('del');
-        expect(ops[0].key.toString('hex')).to.deep.equal('00006321fd1cf3fbf32a41bbb47b7090ab9896bbe6093e4c342c0269b652fa800c2b');
+        expect(ops[0].key.toString('hex')).to.deep.equal('0000006321fd1cf3fbf32a41bbb47b7090ab9896bbe6093e4c342c0269b652fa800c2b');
         done();
       });
     });
