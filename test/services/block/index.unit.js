@@ -44,16 +44,16 @@ describe('Block Service', function() {
     });
   });
 
-  describe('#_findCommonAncestor', function() {
+  describe('#_findCommonAncestorAndBlockHashesToRemove', function() {
 
-    it('should find the common ancestor between the current chain and the new chain', function(done) {
+    it('should find the common ancestor and hashes between the current chain and the new chain', function(done) {
 
       sandbox.stub(blockService, '_getBlock').callsArgWith(1, null, block2);
       blockService._tip = { hash: 'aa' };
       var headers = new utils.SimpleMap();
 
       blockService._header = { getBlockHeader: sandbox.stub().callsArgWith(1, null, { hash: 'bb' }) };
-      blockService._findCommonAncestor(function(err, header) {
+      blockService._findCommonAncestorAndBlockHashesToRemove(function(err, header, hashes) {
 
         if(err) {
           return done(err);
@@ -158,6 +158,7 @@ describe('Block Service', function() {
       var getPrefix = sandbox.stub().callsArgWith(1, null, blockService._encoding);
       var getServiceTip = sandbox.stub().callsArgWith(1, null, { height: 1, hash: 'aa' });
       var performSanityCheck = sandbox.stub(blockService, '_performSanityCheck').callsArgWith(1, null, { hash: 'aa', height: 123 });
+      var loadRecentBlockHashes = sandbox.stub(blockService, '_loadRecentBlockHashes').callsArgWith(0, null, new utils.SimpleMap());
       var setTip = sandbox.stub(blockService, '_setTip').callsArgWith(1, null);
       blockService.node = { openBus: sandbox.stub() };
       blockService._db = { getPrefix: getPrefix, getServiceTip: getServiceTip };
