@@ -82,6 +82,7 @@ describe('Mempool Service', function() {
 
   describe('#_onBlock', function() {
     it('should remove block\'s txs from database', function(done) {
+      mempoolService.enable();
       mempoolService.onBlock(block, function(err, ops) {
         expect(ops[0].type).to.deep.equal('del');
         expect(ops[0].key.toString('hex')).to.deep.equal('0000006321fd1cf3fbf32a41bbb47b7090ab9896bbe6093e4c342c0269b652fa800c2b');
