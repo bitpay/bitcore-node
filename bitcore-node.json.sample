@@ -1,5 +1,5 @@
 {
-  "network": "livenet",
+  "network": "testnet",
   "port": 3001,
   "datadir": "/tmp",
   "services": [
@@ -7,16 +7,28 @@
     "db",
     "header",
     "block",
+    "mempool",
+    "address",
     "transaction",
     "timestamp",
-    "mempool",
-    "address"
+    "fee",
+    "insight-api",
+    "web"
   ],
   "servicesConfig": {
-    "p2p": {
-      "peers": [
-        { "ip": { "v4": "<some trusted full node>" } }
-      ]
+    "insight-api": {
+      "routePrefix": "api",
+      "disableRateLimiter": true,
+      "enableCache": true
+    },
+    "fee": {
+      "rpc": {
+        "user": "local",
+        "pass": "local",
+        "host": "localhost",
+        "protocol": "http",
+        "port": 18332
+      }
     }
   }
 }

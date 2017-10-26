@@ -52,7 +52,7 @@ describe('Header Service', function() {
 
       headerService.start(function() {
         expect(setGenesisBlock.calledOnce).to.be.true;
-        expect(adjustHeadersForCheckPointTip.calledOnce).to.be.false;
+        expect(adjustHeadersForCheckPointTip.calledOnce).to.be.true;
         expect(setListeners.calledOnce).to.be.true;
         expect(headerService._tip).to.be.deep.equal({ height: 0, hash: '00' });
         expect(headerService._encoding).to.be.instanceOf(Encoding);

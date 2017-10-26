@@ -32,12 +32,10 @@ describe('Mempool Service', function() {
 
     it('should get the db prefix', function(done) {
       var getPrefix = sandbox.stub().callsArgWith(1, null, new Buffer('0001', 'hex'));
-      var startSubs = sandbox.stub(mempoolService, '_startSubscriptions');
       mempoolService._db = { getPrefix: getPrefix };
 
       mempoolService.start(function() {
         expect(getPrefix.calledOnce).to.be.true;
-        expect(startSubs.calledOnce).to.be.true;
         done();
       });
     });
@@ -82,6 +80,9 @@ describe('Mempool Service', function() {
 
   describe('#_onBlock', function() {
     it('should remove block\'s txs from database', function(done) {
+      mempoolService.node = { openBus: sinon.stub() };
+      mempoolService._p2p = { getMempool: sinon.stub() };
+      sandbox.stub(mempoolService, '_startSubscriptions');
       mempoolService.enable();
       mempoolService.onBlock(block, function(err, ops) {
         expect(ops[0].type).to.deep.equal('del');

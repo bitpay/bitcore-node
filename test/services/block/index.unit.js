@@ -44,22 +44,20 @@ describe('Block Service', function() {
     });
   });
 
-  describe('#_findCommonAncestorAndBlockHashesToRemove', function() {
+  describe('#_findLatestValidBlockHeader', function() {
 
-    it('should find the common ancestor and hashes between the current chain and the new chain', function(done) {
+    it('should find the latest valid block header whose hash is also in our block index', function(done) {
 
-      sandbox.stub(blockService, '_getBlock').callsArgWith(1, null, block2);
-      blockService._tip = { hash: 'aa' };
-      var headers = new utils.SimpleMap();
+      blockService._tip = { hash: 'aa', height: 2 };
 
-      blockService._header = { getBlockHeader: sandbox.stub().callsArgWith(1, null, { hash: 'bb' }) };
-      blockService._findCommonAncestorAndBlockHashesToRemove(function(err, header, hashes) {
+      blockService._header = { getBlockHeader: sandbox.stub().callsArgWith(1, null, { hash: 'aa', height: 2 }) };
+      blockService._findLatestValidBlockHeader(function(err, header) {
 
         if(err) {
           return done(err);
         }
 
-        expect(header).to.deep.equal({ hash: 'bb' });
+        expect(header).to.deep.equal({ hash: 'aa', height: 2 });
         done();
 
       });
