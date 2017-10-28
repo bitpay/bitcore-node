@@ -5,9 +5,9 @@ set -e
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 platform=`uname -a | awk '{print tolower($1)}'`
 arch=`uname -m`
-version="4.0.4"
+version="4.0.6"
 url="http://navcoin.org/files"
-tag="navcoin-4.0.4"
+tag="navcoin-4.0.6"
 
 if [ "${platform}" == "linux" ]; then
     if [ "${arch}" == "x86_64" ]; then
