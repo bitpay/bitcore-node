@@ -177,7 +177,7 @@ describe('Address Service', function() {
         value: encoding.encodeUtxoIndexValue(123, 120000, ts, tx.outputs[1].script.raw)
       };
 
-      addressService._header = { getBestHeight: function() { return 150; } };
+      addressService._block = { getTip: function() { return { height: 150 }; } };
 
       var txidStream = new EventEmitter();
 
@@ -193,7 +193,7 @@ describe('Address Service', function() {
           address: 'a',
           amount: 0.0012,
           height: 123,
-          confirmationsFromCache: true,
+          confirmations: 28,
           satoshis: 120000,
           scriptPubKey: '76a91449f8c749a9960dc29b5cbe7d2397cea7d26611bb88ac',
           ts: 1546300800,
