@@ -56,7 +56,9 @@ describe('Address Service', function() {
 
     it('should get the address history', function(done) {
 
-      sandbox.stub(addressService, '_getAddressHistory').callsArgWith(2, null, null);
+      sandbox.stub(addressService, '_getAddressTxidHistory').callsArgWith(2, null, null);
+      sandbox.stub(addressService, '_getAddressTxHistory').callsArgWith(1, null, []);
+
       addressService.getAddressHistory(['a', 'b', 'c'], { from: 12, to: 14 }, function(err, res) {
 
         if (err) {
@@ -74,58 +76,29 @@ describe('Address Service', function() {
 
   });
 
-  describe('#_getAddressHistory', function() {
-    it('should get the address history', function(done) {
-      var encoding = new Encoding(new Buffer('0001', 'hex'));
-      addressService._encoding = encoding;
+  describe('#_getAddressTxidHistory', function() {
+    it('should get the address txid history', function(done) {
 
-      var getHeaderHash = sandbox.stub().callsArgWith(1, null, 'aa');
-      var getBlockHeader = sandbox.stub().callsArgWith(1, null, 'aa');
-      var getTxsByAddress = sandbox.stub().callsArgWith(2, null, []);
-      var getTransaction = sandbox.stub().callsArgWith(2, null, { __height: 123, outputs: [ { value: 1 } ], __inputValues: [ 1 ] });
-
-      addressService._transaction = { getTransaction: getTransaction };
-      addressService._mempool = { getTxsByAddress: getTxsByAddress };
-
-      addressService._header = {
-        getHeaderHash: getHeaderHash,
-        getBlockHeader: getBlockHeader
-      };
-      var address = 'a';
-      var opts = { from: 0, to: 10 };
-      var txid = '1c6ea4a55a3edaac0a05e93b52908f607376a8fdc5387c492042f8baa6c05085';
-      var data = [ null, encoding.encodeAddressIndexKey(address, 123, txid, 1, 1) ];
-
+      addressService._mempool = { getTxidsByAddress: sinon.stub().callsArgWith(2, null, []) };
       var txidStream = new Readable();
+      sandbox.stub(addressService, '_getTxidStream').returns(txidStream);
+      var addressInfoBuf = addressService._encoding.encodeAddressIndexKey('a', 10, tx.txid(), 1, 1, 1234567);
+      var options = {txIdList: []};
 
-      txidStream._read = function() {
-        txidStream.push(data.pop());
-      };
+      addressService._getAddressTxidHistory('a', options, function(err) {
 
-      var createReadStream = sandbox.stub().returns(txidStream);
-      addressService._db = { createKeyStream: createReadStream };
-
-      addressService._getAddressHistory(address, opts, function(err, res) {
         if (err) {
           return done(err);
         }
-        expect(getTxsByAddress.calledOnce).to.be.true;
-        expect(getTransaction.calledOnce).to.be.true;
-        expect(res).to.deep.equal([
-            {
-              __height: 123,
-              __inputValues: [
-                1
-              ],
-              outputs: [
-                {
-                  value: 1
-                }
-              ]
-            }
-        ]);
+
+        expect(options.txIdList).to.deep.equal([{txid: tx.txid(), height: 10}]);
         done();
+
       });
+
+      txidStream.push(addressInfoBuf);
+      txidStream.push(null);
+
     });
   });
 
@@ -181,7 +154,7 @@ describe('Address Service', function() {
 
       var txidStream = new EventEmitter();
 
-      addressService._mempool = { getTxsByAddress: sinon.stub().callsArgWith(2, null, []) };
+      addressService._mempool = { getTxidsByAddress: sinon.stub().callsArgWith(2, null, []) };
       var createReadStream = sandbox.stub().returns(txidStream);
       addressService._db = { createReadStream: createReadStream };
 
