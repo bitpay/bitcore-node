@@ -2,7 +2,6 @@
 
 var request = require('request');
 var config = require('./config.json');
-var addresses = require('/tmp/large_amounts_utxos.json');
 
 // each of those addresses has a large number of utxos
 
@@ -10,23 +9,23 @@ var addresses = require('/tmp/large_amounts_utxos.json');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var url = config.old;
+var url = config.txs.new;
 
 if (process.argv[2] === 'old') {
-  url = config.new;
+  url = config.txs.old;
 }
 
-var options = {
+console.log(url);
 
+var options = {
   url: url,
   method: 'POST',
   qs: { from: 0, to: 5, noAsm: 1, noScriptSig: 1, noSpent: 1 },
-  json: { addrs: '1H4drU7anmDUdJKAcJXfoExPPNJbwiM7nJ' }
-  //json: { addrs: addresses }
+  json: { addrs: config.addrs }
 };
 
 request(options, function(err, response, body) {
-  console.log(JSON.stringify(body));
+  console.log(body);
 });
 
 
