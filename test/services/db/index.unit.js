@@ -34,6 +34,9 @@ describe('DB', function() {
   describe('#start', function() {
     it('should start the db service by creating a db dir, ' +
       ' if necessary, and setting the store', function(done) {
+
+      dbService._setDataPath();
+
       dbService.start(function() {
         dbService._store.should.be.instanceOf(Levelup);
         done();
