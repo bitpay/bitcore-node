@@ -1,64 +1,61 @@
 Bitcore Node
 ============
 
-A Bitcoin full node for building applications and services with Node.js. A node is extensible and can be configured to run additional services. At the minimum a node has native bindings to Bitcoin Core with the [Bitcoin Service](docs/services/bitcoind.md). Additional services can be enabled to make a node more useful such as exposing new APIs, adding new indexes for addresses with the [Address Service](docs/services/address.md), running a block explorer, wallet service, and other customizations.
+A Bitcoin blockchain indexing and query service. Intended to be used with as a Bitcoin full node or in conjunction with a Bitcoin full node.
+
+## Upgrading from previous versions of Bitcore Node
+
+There is no upgrade path from previous versions of Bitcore Node due to the removal of the included Bitcoin Core software. By installing this version, you must resynchronize the indexes from scratch.
 
 ## Install
 
 ```bash
-npm install -g bitcore-node
-bitcore-node start
+npm install
+./bin/bitcore-node start
 ```
 
-Note: For your convenience, we distribute binaries for x86_64 Linux and x86_64 Mac OS X. Upon npm install, the binaries for your platform will be downloaded. For more detailed installation instructions, or if you want to compile the project yourself, then please see the [Build & Install](docs/build.md) documentation to build the project from source.
+Note: A default configuration file is placed in the bitcore user's home directory (~/.bitcore/bitcore-node.json). Or, alternatively, you can copy the provided "bitcore-node.json.sample" file to the project's root directory as bitcore-node.json and edit it for your preferences. If you don't have a preferred block source (trusted peer), [Bcoin](https://github.com/bcoin-org/bcoin) will be started automatically and synchronized with the mainnet chain.
 
 ## Prerequisites
 
-- Node.js v0.12 or v4.2
-- ~100GB of disk storage
+- Node.js v8.2.0+
+- ~500GB of disk storage
 - ~4GB of RAM
-- Mac OS X >= 10.9, Ubuntu >= 12.04 (libc >= 2.15 and libstdc++ >= 6.0.16)
 
 ## Configuration
 
-Bitcore includes a Command Line Interface (CLI) for managing, configuring and interfacing with your Bitcore Node.
+The main configuration file is called "bitcore-node.json". This file instructs bitcore-node for the following options:
 
-```bash
-bitcore-node create -d <bitcoin-data-dir> mynode
-cd mynode
-bitcore-node install <service>
-bitcore-node install https://github.com/yourname/helloworld
-```
-
-This will create a directory with configuration files for your node and install the necessary dependencies. For more information about (and developing) services, please see the [Service Documentation](docs/services.md).
-
-To start bitcore-node as a daemon:
-
-```bash
-bitcore-node start --daemon
-```
+- location of database files (datadir)
+- tcp port for web services, if configured (port)
+- bitcoin network type (e.g. mainnet, testnet3, regtest), (network)
+- what services to include (services)
+- the services' configuration (servicesConfig)
 
 ## Add-on Services
 
 There are several add-on services available to extend the functionality of Bitcore:
 
-- [Insight API](https://github.com/bitpay/insight-api/tree/v0.3.0)
-- [Insight UI](https://github.com/bitpay/insight/tree/v0.3.0)
+- [Insight API](https://github.com/bitpay/insight-api)
+- [Insight UI](https://github.com/bitpay/insight-ui)
 - [Bitcore Wallet Service](https://github.com/bitpay/bitcore-wallet-service)
 
 ## Documentation
 
 - [Services](docs/services.md)
-  - [Bitcoind](docs/services/bitcoind.md) - Native bindings to Bitcoin Core
-  - [Database](docs/services/db.md) - The foundation API methods for getting information about blocks and transactions.
-  - [Address](docs/services/address.md) - Adds additional API methods for querying and subscribing to events with bitcoin addresses.
+  - [Fee](docs/services/fee.md) - Creates a service to handle fee queries
+  - [Header](docs/services/header.md) - Creates a service to handle block headers
+  - [Block](docs/services/block.md) - Creates a service to handle blocks
+  - [Transaction](docs/services/transaction.md) - Creates a service to handle transactions
+  - [Address](docs/services/address.md) - Creates a service to handle addresses
+  - [Mempool](docs/services/mempool.md) - Creates a service to handle mempool
+  - [Timestamp](docs/services/timestamp.md) - Creates a service to handle timestamp
+  - [Db](docs/services/db.md) - Creates a service to handle the database
+  - [p2p](docs/services/p2p.md) - Creates a service to handle the peer-to-peer network
   - [Web](docs/services/web.md) - Creates an express application over which services can expose their web/API content
-- [Build & Install](docs/build.md) - How to build and install from source
-- [Testing & Development](docs/testing.md) - Developer guide for testing
+- [Development Environment](docs/development.md) - Guide for setting up a development environment
 - [Node](docs/node.md) - Details on the node constructor
 - [Bus](docs/bus.md) - Overview of the event bus constructor
-- [Errors](docs/errors.md) - Reference for error handling and types
-- [Patch](docs/patch.md) - Information about the patch applied to Bitcoin Core
 - [Release Process](docs/release.md) - Information about verifying a release and the release process.
 
 ## Contributing
@@ -69,6 +66,6 @@ Please send pull requests for bug fixes, code optimization, and ideas for improv
 
 Code released under [the MIT license](https://github.com/bitpay/bitcore-node/blob/master/LICENSE).
 
-Copyright 2013-2015 BitPay, Inc.
+Copyright 2013-2017 BitPay, Inc.
 
 - bitcoin: Copyright (c) 2009-2015 Bitcoin Core Developers (MIT License)

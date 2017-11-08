@@ -1,103 +1,84 @@
 'use strict';
 
-var chai = require('chai');
-var should = chai.should();
-var sinon = require('sinon');
-var bitcorenode = require('../../../');
 var bitcore = require('bitcore-lib');
-var Address = bitcore.Address;
-var Script = bitcore.Script;
-var AddressService = bitcorenode.services.Address;
-var Networks = bitcore.Networks;
-var encoding = require('../../../lib/services/address/encoding');
+var should = require('chai').should();
+var Encoding = require('../../../lib/services/address/encoding');
 
-var mockdb = {
-};
+describe('Address service encoding', function() {
 
-var mocknode = {
-  network: Networks.testnet,
-  datadir: 'testdir',
-  db: mockdb,
-  services: {
-    bitcoind: {
-      on: sinon.stub()
-    }
-  }
-};
+  var servicePrefix = new Buffer('0000', 'hex');
+  var encoding = new Encoding(servicePrefix);
+  var txid = '91b58f19b6eecba94ed0f6e463e8e334ec0bcda7880e2985c82a8f32e4d03add';
+  var address = '1EZBqbJSHFKSkVPNKzc5v26HA6nAHiTXq6';
+  var height = 1;
+  var addressSizeBuf = new Buffer(1);
+  var prefix0 = new Buffer('00', 'hex');
+  var prefix1 = new Buffer('01', 'hex');
+  var ts = Math.floor(new Date('2017-02-28').getTime() / 1000);
+  var tsBuf = new Buffer(4);
+  tsBuf.writeUInt32BE(ts);
+  addressSizeBuf.writeUInt8(address.length);
+  var addressIndexKeyBuf = Buffer.concat([
+    servicePrefix,
+    prefix0,
+    addressSizeBuf,
+    new Buffer(address),
+    new Buffer('00000001', 'hex'),
+    new Buffer(txid, 'hex'),
+    new Buffer('00000000', 'hex'),
+    new Buffer('00', 'hex'),
+    tsBuf
+  ]);
+  var outputIndex = 5;
+  var utxoKeyBuf = Buffer.concat([
+    servicePrefix,
+    prefix1,
+    addressSizeBuf,
+    new Buffer(address),
+    new Buffer(txid, 'hex'),
+    new Buffer('00000005', 'hex')]);
+  var txHex = '0100000001cc3ffe0638792c8b39328bb490caaefe2cf418f2ce0144956e0c22515f29724d010000006a473044022030ce9fa68d1a32abf0cd4adecf90fb998375b64fe887c6987278452b068ae74c022036a7d00d1c8af19e298e04f14294c807ebda51a20389ad751b4ff3c032cf8990012103acfcb348abb526526a9f63214639d79183871311c05b2eebc727adfdd016514fffffffff02f6ae7d04000000001976a9144455183e407ee4d3423858c8a3275918aedcd18e88aca99b9b08010000001976a9140beceae2c29bfde08d2b6d80b33067451c5887be88ac00000000';
+  var tx = new bitcore.Transaction(txHex);
+  var sats = tx.outputs[0].satoshis;
+  var satsBuf = new Buffer(8);
+  satsBuf.writeDoubleBE(sats);
+  var utxoValueBuf = Buffer.concat([new Buffer('00000001', 'hex'), satsBuf, tsBuf, tx.outputs[0]._scriptBuffer]);
 
-describe('Address Service Encoding', function() {
-
-  describe('#encodeSpentIndexSyncKey', function() {
-    it('will encode to 36 bytes (string)', function() {
-      var txidBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
-      var key = encoding.encodeSpentIndexSyncKey(txidBuffer, 12);
-      key.length.should.equal(36);
-    });
-    it('will be able to decode encoded value', function() {
-      var txid = '3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7';
-      var txidBuffer = new Buffer(txid, 'hex');
-      var key = encoding.encodeSpentIndexSyncKey(txidBuffer, 12);
-      var keyBuffer = new Buffer(key, 'binary');
-      keyBuffer.slice(0, 32).toString('hex').should.equal(txid);
-      var outputIndex = keyBuffer.readUInt32BE(32);
-      outputIndex.should.equal(12);
-    });
+  it('should encode address key' , function() {
+    encoding.encodeAddressIndexKey(address, height, txid, 0, 0, ts).should.deep.equal(addressIndexKeyBuf);
   });
 
-  describe('#_encodeInputKeyMap/#_decodeInputKeyMap roundtrip', function() {
-    var encoded;
-    var outputTxIdBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
-    it('encode key', function() {
-      encoded = encoding.encodeInputKeyMap(outputTxIdBuffer, 13);
-    });
-    it('decode key', function() {
-      var key = encoding.decodeInputKeyMap(encoded);
-      key.outputTxId.toString('hex').should.equal(outputTxIdBuffer.toString('hex'));
-      key.outputIndex.should.equal(13);
-    });
+  it('should decode address key', function() {
+    var addressIndexKey = encoding.decodeAddressIndexKey(addressIndexKeyBuf);
+    addressIndexKey.address.should.equal(address);
+    addressIndexKey.txid.should.equal(txid);
+    addressIndexKey.height.should.equal(height);
   });
 
-  describe('#_encodeInputValueMap/#_decodeInputValueMap roundtrip', function() {
-    var encoded;
-    var inputTxIdBuffer = new Buffer('3b6bc2939d1a70ce04bc4f619ee32608fbff5e565c1f9b02e4eaa97959c59ae7', 'hex');
-    it('encode key', function() {
-      encoded = encoding.encodeInputValueMap(inputTxIdBuffer, 7);
-    });
-    it('decode key', function() {
-      var key = encoding.decodeInputValueMap(encoded);
-      key.inputTxId.toString('hex').should.equal(inputTxIdBuffer.toString('hex'));
-      key.inputIndex.should.equal(7);
-    });
+  it('should encode utxo key', function() {
+    encoding.encodeUtxoIndexKey(address, txid, outputIndex).should.deep.equal(utxoKeyBuf);
   });
 
-
-  describe('#extractAddressInfoFromScript', function() {
-    it('pay-to-publickey', function() {
-      var pubkey = new bitcore.PublicKey('022df8750480ad5b26950b25c7ba79d3e37d75f640f8e5d9bcd5b150a0f85014da');
-      var script = Script.buildPublicKeyOut(pubkey);
-      var info = encoding.extractAddressInfoFromScript(script, Networks.livenet);
-      info.addressType.should.equal(Address.PayToPublicKeyHash);
-      info.hashBuffer.toString('hex').should.equal('9674af7395592ec5d91573aa8d6557de55f60147');
-    });
-    it('pay-to-publickeyhash', function() {
-      var script = Script('OP_DUP OP_HASH160 20 0x0000000000000000000000000000000000000000 OP_EQUALVERIFY OP_CHECKSIG');
-      var info = encoding.extractAddressInfoFromScript(script, Networks.livenet);
-      info.addressType.should.equal(Address.PayToPublicKeyHash);
-      info.hashBuffer.toString('hex').should.equal('0000000000000000000000000000000000000000');
-    });
-    it('pay-to-scripthash', function() {
-      var script = Script('OP_HASH160 20 0x0000000000000000000000000000000000000000 OP_EQUAL');
-      var info = encoding.extractAddressInfoFromScript(script, Networks.livenet);
-      info.addressType.should.equal(Address.PayToScriptHash);
-      info.hashBuffer.toString('hex').should.equal('0000000000000000000000000000000000000000');
-    });
-    it('non-address script type', function() {
-      var buf = new Buffer(40);
-      buf.fill(0);
-      var script = Script('OP_RETURN 40 0x' + buf.toString('hex'));
-      var info = encoding.extractAddressInfoFromScript(script, Networks.livenet);
-      info.should.equal(false);
-    });
+  it('should decode utxo key', function() {
+    var utxoKey = encoding.decodeUtxoIndexKey(utxoKeyBuf);
+    utxoKey.address.should.equal(address);
+    utxoKey.txid.should.equal(txid);
+    utxoKey.outputIndex.should.equal(outputIndex);
+  });
+  it('should encode utxo value', function() {
+    encoding.encodeUtxoIndexValue(
+      height,
+      tx.outputs[0].satoshis,
+      ts,
+      tx.outputs[0]._scriptBuffer).should.deep.equal(utxoValueBuf);
   });
 
+  it('should decode utxo value', function() {
+    var utxoValue = encoding.decodeUtxoIndexValue(utxoValueBuf);
+    utxoValue.height.should.equal(height);
+    utxoValue.satoshis.should.equal(sats);
+    utxoValue.script.should.deep.equal(tx.outputs[0]._scriptBuffer);
+    utxoValue.timestamp.should.equal(ts);
+  });
 });
+

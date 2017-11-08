@@ -2,17 +2,15 @@
 
 var should = require('chai').should();
 var sinon = require('sinon');
-var bitcore = require('bitcore-lib');
-var Networks = bitcore.Networks;
 var proxyquire = require('proxyquire');
 var util = require('util');
 var BaseService = require('../lib/service');
+var index = require('../lib');
+var log = index.log;
 
-describe('Bitcore Node', function() {
+describe('Node', function() {
 
-  var baseConfig = {
-    datadir: 'testdir'
-  };
+  var baseConfig = {};
 
   var Node;
 
@@ -20,30 +18,6 @@ describe('Bitcore Node', function() {
     Node = proxyquire('../lib/node', {});
     Node.prototype._loadConfiguration = sinon.spy();
     Node.prototype._initialize = sinon.spy();
-  });
-  after(function() {
-    var regtest = Networks.get('regtest');
-    if (regtest) {
-      Networks.remove(regtest);
-    }
-    // restore testnet
-    Networks.add({
-      name: 'testnet',
-      alias: 'testnet',
-      pubkeyhash: 0x6f,
-      privatekey: 0xef,
-      scripthash: 0xc4,
-      xpubkey: 0x043587cf,
-      xprivkey: 0x04358394,
-      networkMagic: 0x0b110907,
-      port: 18333,
-      dnsSeeds: [
-        'testnet-seed.bitcoin.petertodd.org',
-        'testnet-seed.bluematt.me',
-        'testnet-seed.alexykot.me',
-        'testnet-seed.bitcoin.schildbach.de'
-      ],
-    });
   });
 
   describe('@constructor', function() {
@@ -54,13 +28,13 @@ describe('Bitcore Node', function() {
     });
     it('will set properties', function() {
       var config = {
-        datadir: 'testdir',
+        network: 'testnet',
         services: [
           {
             name: 'test1',
             module: TestService
           }
-        ],
+        ]
       };
       var TestNode = proxyquire('../lib/node', {});
       TestNode.prototype.start = sinon.spy();
@@ -68,12 +42,16 @@ describe('Bitcore Node', function() {
       node._unloadedServices.length.should.equal(1);
       node._unloadedServices[0].name.should.equal('test1');
       node._unloadedServices[0].module.should.equal(TestService);
-      node.network.should.equal(Networks.defaultNetwork);
+      node.network.should.equal('testnet');
+      var node2 = TestNode(config);
+      node2._unloadedServices.length.should.equal(1);
+      node2._unloadedServices[0].name.should.equal('test1');
+      node2._unloadedServices[0].module.should.equal(TestService);
+      node2.network.should.equal('testnet');
     });
     it('will set network to testnet', function() {
       var config = {
         network: 'testnet',
-        datadir: 'testdir',
         services: [
           {
             name: 'test1',
@@ -84,12 +62,11 @@ describe('Bitcore Node', function() {
       var TestNode = proxyquire('../lib/node', {});
       TestNode.prototype.start = sinon.spy();
       var node = new TestNode(config);
-      node.network.should.equal(Networks.testnet);
+      node.network.should.equal('testnet');
     });
     it('will set network to regtest', function() {
       var config = {
         network: 'regtest',
-        datadir: 'testdir',
         services: [
           {
             name: 'test1',
@@ -100,9 +77,28 @@ describe('Bitcore Node', function() {
       var TestNode = proxyquire('../lib/node', {});
       TestNode.prototype.start = sinon.spy();
       var node = new TestNode(config);
-      var regtest = Networks.get('regtest');
-      should.exist(regtest);
-      node.network.should.equal(regtest);
+      node.network.should.equal('regtest');
+    });
+    it('will be able to disable log formatting', function() {
+      var config = {
+        network: 'regtest',
+        services: [
+          {
+            name: 'test1',
+            module: TestService
+          }
+        ],
+        formatLogs: false
+      };
+
+      var TestNode = proxyquire('../lib/node', {});
+      var node = new TestNode(config);
+      node.log.formatting.should.equal(false);
+
+      TestNode = proxyquire('../lib/node', {});
+      config.formatLogs = true;
+      var node2 = new TestNode(config);
+      node2.log.formatting.should.equal(true);
     });
   });
 
@@ -111,6 +107,11 @@ describe('Bitcore Node', function() {
       var node = new Node(baseConfig);
       var bus = node.openBus();
       bus.node.should.equal(node);
+    });
+    it('will use remoteAddress config option', function() {
+      var node = new Node(baseConfig);
+      var bus = node.openBus({remoteAddress: '127.0.0.1'});
+      bus.remoteAddress.should.equal('127.0.0.1');
     });
   });
 
@@ -132,6 +133,21 @@ describe('Bitcore Node', function() {
       var methods = node.getAllAPIMethods();
       methods.should.deep.equal(['db1', 'db2', 'mda1', 'mda2', 'mdb1', 'mdb2']);
     });
+    it('will handle service without getAPIMethods defined', function() {
+      var node = new Node(baseConfig);
+      node.services = {
+        db: {
+          getAPIMethods: sinon.stub().returns(['db1', 'db2']),
+        },
+        service1: {},
+        service2: {
+          getAPIMethods: sinon.stub().returns(['mdb1', 'mdb2'])
+        }
+      };
+
+      var methods = node.getAllAPIMethods();
+      methods.should.deep.equal(['db1', 'db2', 'mdb1', 'mdb2']);
+    });
   });
 
   describe('#getAllPublishEvents', function() {
@@ -151,9 +167,23 @@ describe('Bitcore Node', function() {
       var events = node.getAllPublishEvents();
       events.should.deep.equal(['db1', 'db2', 'mda1', 'mda2', 'mdb1', 'mdb2']);
     });
+    it('will handle service without getPublishEvents defined', function() {
+      var node = new Node(baseConfig);
+      node.services = {
+        db: {
+          getPublishEvents: sinon.stub().returns(['db1', 'db2']),
+        },
+        service1: {},
+        service2: {
+          getPublishEvents: sinon.stub().returns(['mdb1', 'mdb2'])
+        }
+      };
+      var events = node.getAllPublishEvents();
+      events.should.deep.equal(['db1', 'db2', 'mdb1', 'mdb2']);
+    });
   });
 
-  describe('#getServiceOrder', function() {
+  describe('#_getServiceOrder', function() {
     it('should return the services in the correct order', function() {
       var node = new Node(baseConfig);
       node._unloadedServices = [
@@ -182,7 +212,7 @@ describe('Bitcore Node', function() {
           }
         }
       ];
-      var order = node.getServiceOrder();
+      var order = node._getServiceOrder(node._unloadedServices);
       order[0].name.should.equal('daemon');
       order[1].name.should.equal('p2p');
       order[2].name.should.equal('db');
@@ -191,12 +221,20 @@ describe('Bitcore Node', function() {
   });
 
   describe('#_startService', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will instantiate an instance and load api methods', function() {
       var node = new Node(baseConfig);
       function TestService() {}
       util.inherits(TestService, BaseService);
       TestService.prototype.start = sinon.stub().callsArg(0);
-      TestService.prototype.getData = function() {};
+      var getData = sinon.stub();
+      TestService.prototype.getData = getData;
       TestService.prototype.getAPIMethods = function() {
         return [
           ['getData', this, this.getData, 1]
@@ -214,6 +252,35 @@ describe('Bitcore Node', function() {
         TestService.prototype.start.callCount.should.equal(1);
         should.exist(node.services.testservice);
         should.exist(node.getData);
+        node.getData();
+        getData.callCount.should.equal(1);
+      });
+    });
+    it('will handle config not being set', function() {
+      var node = new Node(baseConfig);
+      function TestService() {}
+      util.inherits(TestService, BaseService);
+      TestService.prototype.start = sinon.stub().callsArg(0);
+      var getData = sinon.stub();
+      TestService.prototype.getData = getData;
+      TestService.prototype.getAPIMethods = function() {
+        return [
+          ['getData', this, this.getData, 1]
+        ];
+      };
+      var service = {
+        name: 'testservice',
+        module: TestService,
+      };
+      node._startService(service, function(err) {
+        if (err) {
+          throw err;
+        }
+        TestService.prototype.start.callCount.should.equal(1);
+        should.exist(node.services.testservice);
+        should.exist(node.getData);
+        node.getData();
+        getData.callCount.should.equal(1);
       });
     });
     it('will give an error from start', function() {
@@ -233,6 +300,13 @@ describe('Bitcore Node', function() {
   });
 
   describe('#start', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will call start for each service', function(done) {
       var node = new Node(baseConfig);
 
@@ -256,7 +330,7 @@ describe('Bitcore Node', function() {
         ];
       };
 
-      node.getServiceOrder = sinon.stub().returns([
+      node._getServiceOrder = sinon.stub().returns([
         {
           name: 'test1',
           module: TestService,
@@ -299,7 +373,7 @@ describe('Bitcore Node', function() {
         ];
       };
 
-      node.getServiceOrder = sinon.stub().returns([
+      node._getServiceOrder = sinon.stub().returns([
         {
           name: 'test',
           module: TestService,
@@ -319,9 +393,39 @@ describe('Bitcore Node', function() {
       });
 
     });
+
+    it('will handle service with getAPIMethods undefined', function(done) {
+      var node = new Node(baseConfig);
+
+      function TestService() {}
+      util.inherits(TestService, BaseService);
+      TestService.prototype.start = sinon.stub().callsArg(0);
+      TestService.prototype.getData = function() {};
+
+      node._getServiceOrder = sinon.stub().returns([
+        {
+          name: 'test',
+          module: TestService,
+          config: {}
+        },
+      ]);
+
+      node.start(function() {
+        TestService.prototype.start.callCount.should.equal(1);
+        done();
+      });
+
+    });
   });
 
   describe('#stop', function() {
+    var sandbox = sinon.sandbox.create();
+    beforeEach(function() {
+      sandbox.stub(log, 'info');
+    });
+    afterEach(function() {
+      sandbox.restore();
+    });
     it('will call stop for each service', function(done) {
       var node = new Node(baseConfig);
       function TestService() {}
@@ -338,7 +442,7 @@ describe('Bitcore Node', function() {
       };
       node.test2 = {};
       node.test2.stop = sinon.stub().callsArg(0);
-      node.getServiceOrder = sinon.stub().returns([
+      node._getServiceOrder = sinon.stub().returns([
         {
           name: 'test1',
           module: TestService
