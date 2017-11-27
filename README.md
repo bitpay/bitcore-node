@@ -1,7 +1,7 @@
 Bitcore Node
 ============
 
-A Bitcoin blockchain indexing and query service. Intended to be used with as a Bitcoin full node or in conjunction with a Bitcoin full node.
+A Bitcoin blockchain indexing and query service. Intended to be used as a Bitcoin full node or in conjunction with a Bitcoin full node.
 
 ## Upgrading from previous versions of Bitcore Node
 
