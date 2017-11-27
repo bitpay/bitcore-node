@@ -1,0 +1,20 @@
+name: bitcore-node
+version: git
+summary: Extensible full node using the Bitcore build of Bitcoin
+description: |
+  A Bitcoin blockchain indexing and query service. Intended to be used with
+  as a Bitcoin full node or in conjunction with a Bitcoin full node.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+
+apps:
+  bitcore-node:
+    command: bitcore-node
+
+parts:
+  bitcore-node:
+    source: .
+    plugin: nodejs
+    node-engine: '8.2.0'
+    build-packages: [make, g++]
