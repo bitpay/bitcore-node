@@ -8,6 +8,7 @@ var Encoding  = require('../../../lib/services/address/encoding');
 var Readable = require('stream').Readable;
 var EventEmitter = require('events').EventEmitter;
 var bcoin = require('bcoin');
+var lodash = require('lodash');
 
 describe('Address Service', function() {
 
@@ -54,7 +55,7 @@ describe('Address Service', function() {
 
   describe('#getAddressHistory', function() {
 
-    it('should get the address history', function(done) {
+    it('should get the address history (null case)', function(done) {
 
       sandbox.stub(addressService, '_getAddressTxidHistory').callsArgWith(2, null, null);
       sandbox.stub(addressService, '_getAddressTxHistory').callsArgWith(1, null, []);
@@ -73,6 +74,104 @@ describe('Address Service', function() {
         done();
       });
     });
+
+    it('should get the sorted address history', function(done) {
+
+      var old_getAddressTxidHistory = addressService._getAddressTxidHistory;
+      addressService._getAddressTxidHistory = function(addr, options, cb) {
+        options.txIdList = [
+          {
+            txid: "b",
+            height: 10,
+          },
+          {
+            txid: "a",
+            height: 10,
+          },
+          {
+            txid: "d",
+            height: 101,
+          },
+          {
+            txid: "c",
+            height: 100,
+          },
+        ];
+        return cb();
+      };
+
+
+      var old_getAddressTxHistory = addressService._getAddressTxHistory;
+      addressService._getAddressTxHistory = function(options, cb) {
+        return cb(null, options.txIdList);
+      };
+
+      addressService.getAddressHistory(['a', 'b', 'c'], { from: 12, to: 14 }, function(err, res) {
+
+        if (err) {
+          return done(err);
+        }
+
+        expect(res.totalCount).equal(4);
+        expect(lodash.map(res.items,'txid')).to.be.deep.equal(['a','b','c','d']);
+
+        addressService._getAddressTxidHistory = old_getAddressTxHistory;
+        addressService._getAddressTxHistory = old_getAddressTxHistory;
+        done();
+      });
+    });
+
+    it('should remove duplicated items in history', function(done) {
+
+      var old_getAddressTxidHistory = addressService._getAddressTxidHistory;
+      addressService._getAddressTxidHistory = function(addr, options, cb) {
+        options.txIdList = [
+          {
+            txid: "b",
+            height: 10,
+          },
+          {
+            txid: "b",
+            height: 10,
+          },
+          {
+            txid: "d",
+            height: 101,
+          },
+          {
+            txid: "c",
+            height: 100,
+          },
+         {
+            txid: "d",
+            height: 101,
+          },
+        ];
+        return cb();
+      };
+
+
+      var old_getAddressTxHistory = addressService._getAddressTxHistory;
+      addressService._getAddressTxHistory = function(options, cb) {
+        return cb(null, options.txIdList);
+      };
+
+      addressService.getAddressHistory(['a', 'b', 'c'], { from: 12, to: 14 }, function(err, res) {
+
+        if (err) {
+          return done(err);
+        }
+
+        expect(res.totalCount).equal(3);
+        expect(lodash.map(res.items,'txid')).to.be.deep.equal(['b','c','d']);
+
+        addressService._getAddressTxidHistory = old_getAddressTxHistory;
+        addressService._getAddressTxHistory = old_getAddressTxHistory;
+        done();
+      });
+    });
+
+
 
   });
 
