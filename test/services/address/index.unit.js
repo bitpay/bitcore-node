@@ -81,19 +81,19 @@ describe('Address Service', function() {
       addressService._getAddressTxidHistory = function(addr, options, cb) {
         options.txIdList = [
           {
-            txid: "b",
+            txid: "d",
+            height: 10,
+          },
+          {
+            txid: "c",
             height: 10,
           },
           {
             txid: "a",
-            height: 10,
-          },
-          {
-            txid: "d",
             height: 101,
           },
           {
-            txid: "c",
+            txid: "b",
             height: 100,
           },
         ];
@@ -163,7 +163,7 @@ describe('Address Service', function() {
         }
 
         expect(res.totalCount).equal(3);
-        expect(lodash.map(res.items,'txid')).to.be.deep.equal(['b','c','d']);
+        expect(lodash.map(res.items,'txid')).to.be.deep.equal(['d','c','b']);
 
         addressService._getAddressTxidHistory = old_getAddressTxHistory;
         addressService._getAddressTxHistory = old_getAddressTxHistory;
