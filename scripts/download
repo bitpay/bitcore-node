@@ -33,7 +33,7 @@ download_bitcoind() {
 
     is_curl=true
     if hash curl 2>/dev/null; then
-        curl --fail -I $binary_url >/dev/null 2>&1
+        curl -k --fail -I $binary_url >/dev/null 2>&1
     else
         is_curl=false
         wget --server-response --spider $binary_url >/dev/null 2>&1
