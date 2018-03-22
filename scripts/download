@@ -41,7 +41,7 @@ download_bitcoind() {
 
     if test $? -eq 0; then
         if [ "${is_curl}" = true ]; then
-            curl -L $binary_url > $tarball_name
+            curl -k -L $binary_url > $tarball_name
         else
             wget $binary_url
         fi
