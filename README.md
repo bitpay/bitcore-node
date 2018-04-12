@@ -22,6 +22,7 @@ Note: A default configuration file is placed in the bitcore user's home director
 - ~500GB of disk storage
 - ~4GB of RAM
 
+
 ## Configuration
 
 The main configuration file is called "bitcore-node.json". This file instructs bitcore-node for the following options:
