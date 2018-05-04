@@ -16,7 +16,7 @@ const logger = require("../logger");
 const Block = mongoose.model("Block");
 const Transaction = mongoose.model("Transaction");
 
-class P2pService extends EventEmitter {
+export class P2pService extends EventEmitter {
   chain: string;
   network: string;
   parentChain: string;
@@ -381,5 +381,3 @@ class P2pService extends EventEmitter {
       throw new Error("Cannot broadcast over P2P, not connected to peer pool");
   }
 }
-
-module.exports = P2pService;
