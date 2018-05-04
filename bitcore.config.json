@@ -1,0 +1,63 @@
+{
+  "bitcoreNode": {
+    "pruneSpentScripts": true,
+    "chains": {
+      "BTC": {
+        "regtest": {
+          "chainSource": "p2p",
+          "trustedPeers": [
+            {
+              "host": "127.0.0.1",
+              "port": 30000
+            }
+          ],
+          "rpc": {
+            "host": "127.0.0.1",
+            "port": 30001,
+            "username": "bitpaytest",
+            "password": "local321"
+          }
+        },
+        "testnet": {
+          "chainSource": "p2p",
+          "trustedPeers": [
+            {
+              "host": "127.0.0.1",
+              "port": 20000
+            }
+          ],
+          "rpc": {
+            "host": "127.0.0.1",
+            "port": 30001
+          }
+        }
+      },
+      "ETH": {
+        "local": {
+          "chainSource": "web3",
+          "provider": {
+            "protocool": "http",
+            "host": "127.0.0.1",
+            "port": "8545"
+          }
+        },
+        "main": {
+          "chainSource": "web3",
+          "provider": {
+            "protocool": "wss",
+            "host": "mainnet.infura.io/ws"
+          }
+        }
+      },
+      "BAT": {
+        "main": {
+          "chainSource": "web3",
+          "provider": {
+            "protocool": "wss",
+            "host": "mainnet.infura.io/ws"
+          }
+        }
+      }
+    }
+  }
+}
