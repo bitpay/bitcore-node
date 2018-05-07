@@ -25,4 +25,6 @@ export type BitcoinTransactionType = {
   isCoinbase: () => boolean;
   outputs: BitcoinOutput[];
   inputs: BitcoinInput[];
+  toBuffer: () => Buffer;
+  nLockTime: number;
 };

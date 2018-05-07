@@ -11,7 +11,7 @@ export interface IWallet {
   pubKey: string;
   path: string;
 }
-export type IWalletQuery = { [key in keyof IWallet]?: any } &
+export type WalletQuery = { [key in keyof IWallet]?: any } &
   DocumentQuery<IWallet, Document>;
 
 type IWalletDoc = IWallet & Document;

@@ -1,9 +1,11 @@
 import { Schema, Query, Document, Model, model, DocumentQuery } from "mongoose";
-import { BitcoinBlockType } from "../types/Block";
-import { TransactionModel } from "./transaction";
 import { CoinModel } from "./coin";
+import { TransactionModel } from "./transaction";
 import { CallbackType } from "../types/Callback";
 import async = require("async");
+import { TransformOptions } from "../types/TransformOptions";
+import { BitcoinBlockType, BlockHeaderObj } from "../types/Block";
+import { ChainNetwork } from "../types/ChainNetwork";
 
 const logger = require("../logger");
 
@@ -26,17 +28,21 @@ interface IBlock {
   processed: boolean;
 }
 
-type BlockQuery = Partial<IBlock> & DocumentQuery<IBlock, Document>;
+type BlockQuery = Partial<IBlock> & Partial<DocumentQuery<IBlock, Document>>;
 type IBlockDoc = IBlock & Document;
-type AddBlockParams = {
+
+export type AddBlockParams = {
   block: BitcoinBlockType;
   parentChain: string;
   forkHeight: number;
 } & Partial<IBlock>;
 
-
-interface IBlockModel extends Model<IBlockDoc> {
+type IBlockModelDoc = IBlockDoc & Model<IBlockDoc>;
+interface IBlockModel extends IBlockModelDoc {
   addBlock: (params: AddBlockParams, callback: CallbackType) => any;
+  handleReorg: (params: BlockMethodParams, cb: CallbackType) => any;
+  getLocalTip: (params: BlockMethodParams) => IBlockModel;
+  getPoolInfo: (coinbase: string) => string;
 }
 
 let test: IBlockDoc;
@@ -65,6 +71,7 @@ BlockSchema.index({ chain: 1, network: 1, processed: 1, height: -1 });
 BlockSchema.index({ chain: 1, network: 1, timeNormalized: 1 });
 BlockSchema.index({ previousBlockHash: 1 });
 
+type BlockMethodParams = { header: BlockHeaderObj } & Partial<ChainNetwork>;
 BlockSchema.statics.addBlock = function(
   params: AddBlockParams,
   callback: CallbackType
@@ -77,10 +84,10 @@ BlockSchema.statics.addBlock = function(
   async.series(
     [
       function(cb) {
-        Block.handleReorg({ header, chain, network }, cb);
+        BlockModel.handleReorg({ header, chain, network }, cb);
       },
       function(cb) {
-        Block.findOne({ hash: header.prevHash, chain, network }, function(
+        BlockModel.findOne({ hash: header.prevHash, chain, network }, function(
           err: any,
           previousBlock: IBlockDoc
         ) {
@@ -95,7 +102,7 @@ BlockSchema.statics.addBlock = function(
             blockTimeNormalized = previousBlock.timeNormalized.getTime() + 1;
           }
           height = (previousBlock && previousBlock.height + 1) || 1;
-          Block.update(
+          BlockModel.update(
             { hash: header.hash, chain, network },
             {
               chain,
@@ -127,7 +134,7 @@ BlockSchema.statics.addBlock = function(
         });
       },
       async () => {
-        return Transaction.batchImport({
+        return TransactionModel.batchImport({
           txs: block.transactions,
           blockHash: header.hash,
           blockTime: new Date(blockTime),
@@ -144,7 +151,7 @@ BlockSchema.statics.addBlock = function(
       if (err) {
         return callback(err);
       }
-      Block.update(
+      BlockModel.update(
         { hash: header.hash, chain, network },
         { $set: { processed: true } },
         callback
@@ -153,30 +160,37 @@ BlockSchema.statics.addBlock = function(
   );
 };
 
-BlockSchema.statics.getPoolInfo = function(coinbase) {
+BlockSchema.statics.getPoolInfo = function(coinbase: string) {
   //TODO need to make this actually parse the coinbase input and map to miner strings
   // also should go somewhere else
   return "miningPool";
 };
 
-BlockSchema.statics.getLocalTip = function(params) {
+BlockSchema.statics.getLocalTip = function(params: ChainNetwork) {
   return new Promise(async (resolve, reject) => {
     const { chain, network } = params;
     try {
-      let bestBlock = await Block.findOne({ processed: true, chain, network })
+      let bestBlock = await BlockModel.findOne({
+        processed: true,
+        chain,
+        network
+      })
         .sort({ height: -1 })
         .exec();
-      bestBlock = bestBlock || { height: 0 };
-      resolve(bestBlock);
+      let foundBlock = bestBlock || { height: 0 };
+      resolve(foundBlock);
     } catch (e) {
       reject(e);
     }
   });
 };
 
-BlockSchema.statics.getLocatorHashes = function(params, callback) {
+BlockSchema.statics.getLocatorHashes = function(
+  params: ChainNetwork,
+  callback: CallbackType
+) {
   const { chain, network } = params;
-  Block.find({ processed: true, chain, network })
+  BlockModel.find({ processed: true, chain, network })
     .sort({ height: -1 })
     .limit(30)
     .exec(function(err, locatorBlocks) {
@@ -186,14 +200,17 @@ BlockSchema.statics.getLocatorHashes = function(params, callback) {
       if (locatorBlocks.length < 2) {
         return callback(null, [Array(65).join("0")]);
       }
-      locatorBlocks = locatorBlocks.map(block => block.hash);
-      callback(null, locatorBlocks);
+      let hashArr = locatorBlocks.map(block => block.hash);
+      callback(null, hashArr);
     });
 };
 
-BlockSchema.statics.handleReorg = async function(params, callback) {
+BlockSchema.statics.handleReorg = async function(
+  params: BlockMethodParams,
+  callback: CallbackType
+) {
   const { header, chain, network } = params;
-  let localTip = await Block.getLocalTip(params);
+  let localTip = await BlockModel.getLocalTip(params);
   if (header && localTip.hash === header.prevHash) {
     return callback();
   }
@@ -207,22 +224,25 @@ BlockSchema.statics.handleReorg = async function(params, callback) {
   async.series(
     [
       function(cb) {
-        Block.remove({ chain, network, height: { $gte: localTip.height } }, cb);
+        BlockModel.remove(
+          { chain, network, height: { $gte: localTip.height } },
+          cb
+        );
       },
       function(cb) {
-        Transaction.remove(
+        TransactionModel.remove(
           { chain, network, blockHeight: { $gte: localTip.height } },
           cb
         );
       },
       function(cb) {
-        Coin.remove(
+        CoinModel.remove(
           { chain, network, mintHeight: { $gte: localTip.height } },
           cb
         );
       },
       function(cb) {
-        Coin.update(
+        CoinModel.update(
           { chain, network, spentHeight: { $gte: localTip.height } },
           {
             $set: { spentTxid: null, spentHeight: -1 }
@@ -236,7 +256,10 @@ BlockSchema.statics.handleReorg = async function(params, callback) {
   );
 };
 
-BlockSchema.statics._apiTransform = function(block, options) {
+BlockSchema.statics._apiTransform = function(
+  block: IBlockModel,
+  options: TransformOptions
+) {
   let transform = {
     hash: block.hash,
     height: block.height,
@@ -254,7 +277,7 @@ BlockSchema.statics._apiTransform = function(block, options) {
     reward: block.reward,
     isMainChain: block.mainChain,
     transactionCount: block.transactionCount,
-    minedBy: Block.getPoolInfo(block.minedBy)
+    minedBy: BlockModel.getPoolInfo(block.minedBy)
   };
   if (options && options.object) {
     return transform;
@@ -262,4 +285,7 @@ BlockSchema.statics._apiTransform = function(block, options) {
   return JSON.stringify(transform);
 };
 
-var Block = (module.exports = mongoose.model("Block", BlockSchema));
+export let BlockModel: IBlockModel = model<IBlockDoc, IBlockModel>(
+  "Block",
+  BlockSchema
+);
