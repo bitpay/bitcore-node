@@ -7,6 +7,7 @@ import { partition } from "../utils/partition";
 import { WalletModel, IWalletModel, WalletQuery } from "./wallet";
 import { ObjectID } from "bson";
 import { TransformOptions } from "../types/TransformOptions";
+import { ChainNetwork } from "../types/ChainNetwork";
 const config = require("../config");
 const Chain = require("../chain");
 
@@ -33,14 +34,12 @@ type ITransactionModelDoc = ITransactionDoc & Model<ITransactionDoc>;
 type BatchImportMethodParams = {
   txs: Array<BitcoinTransactionType>;
   height: number;
-  network: string;
-  chain: string;
   blockTime: Date;
   blockHash: string;
   blockTimeNormalized: Date;
   parentChain: string;
   forkHeight: number;
-};
+} & ChainNetwork;
 
 type CoinWalletAggregate = ICoinModel & { wallets: ObjectID[] };
 

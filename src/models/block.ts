@@ -35,17 +35,17 @@ export type AddBlockParams = {
   block: BitcoinBlockType;
   parentChain: string;
   forkHeight: number;
-} & Partial<IBlock>;
+} & ChainNetwork &
+  Partial<IBlock>;
 
 type IBlockModelDoc = IBlockDoc & Model<IBlockDoc>;
+type BlockMethodParams = { header: BlockHeaderObj } & ChainNetwork;
 interface IBlockModel extends IBlockModelDoc {
   addBlock: (params: AddBlockParams, callback: CallbackType) => any;
   handleReorg: (params: BlockMethodParams, cb: CallbackType) => any;
   getLocalTip: (params: BlockMethodParams) => IBlockModel;
   getPoolInfo: (coinbase: string) => string;
 }
-
-let test: IBlockDoc;
 
 const BlockSchema = new Schema({
   chain: String,
@@ -71,7 +71,6 @@ BlockSchema.index({ chain: 1, network: 1, processed: 1, height: -1 });
 BlockSchema.index({ chain: 1, network: 1, timeNormalized: 1 });
 BlockSchema.index({ previousBlockHash: 1 });
 
-type BlockMethodParams = { header: BlockHeaderObj } & Partial<ChainNetwork>;
 BlockSchema.statics.addBlock = function(
   params: AddBlockParams,
   callback: CallbackType
