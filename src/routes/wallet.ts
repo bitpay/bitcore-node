@@ -1,13 +1,14 @@
-import { Request, Response, Router } from "express";
-import { CSP } from "../types/namespaces/ChainStateProvider";
-import ChainStateProvider from "../providers/chain-state";
-import { ChainNetwork } from "../types/ChainNetwork";
-import { IWalletModel } from "../models/wallet";
-import { RequestHandler } from "express-serve-static-core";
-import assert from "assert";
+import { Request, Response, Router } from 'express';
+import { CSP } from '../types/namespaces/ChainStateProvider';
+import { ChainNetwork } from '../types/ChainNetwork';
+import { IWalletModel } from '../models/wallet';
+import { RequestHandler } from 'express-serve-static-core';
+import assert from 'assert';
+import { ChainStateProvider } from "../providers/chain-state";
 const router = Router({ mergeParams: true });
-const secp256k1 = require("secp256k1");
-const bitcoreLib = require("bitcore-lib");
+const secp256k1 = require('secp256k1');
+const bitcoreLib = require('bitcore-lib');
+
 
 type VerificationPayload = {
   message: string;
@@ -27,13 +28,13 @@ type AuthenticatedRequest = {
 const verifyRequestSignature = (params: VerificationPayload): boolean => {
   const { message, pubKey, signature } = params;
   const pub = new bitcoreLib.HDPublicKey(pubKey)
-    .deriveChild("m/2")
+    .deriveChild('m/2')
     .publicKey.toBuffer();
   const messageHash = bitcoreLib.crypto.Hash.sha256sha256(Buffer.from(message));
-  if (typeof signature === "string") {
-    return secp256k1.verify(messageHash, Buffer.from(signature, "hex"), pub);
+  if (typeof signature === 'string') {
+    return secp256k1.verify(messageHash, Buffer.from(signature, 'hex'), pub);
   } else {
-    throw new Error("Signature must exist");
+    throw new Error('Signature must exist');
   }
 };
 
@@ -42,31 +43,32 @@ const authenticate: RequestHandler = async (
   res: Response,
   next: any
 ) => {
+  console.log(ChainStateProvider);
   const { chain, network, pubKey } = req.params as SignedApiRequest;
   const wallet = await ChainStateProvider.getWallet({ chain, network, pubKey });
   if (!wallet) {
-    return res.status(404).send(new Error("Wallet not found"));
+    return res.status(404).send(new Error('Wallet not found'));
   }
   Object.assign(req, { wallet });
   try {
     const validRequestSignature = verifyRequestSignature({
       message: [req.method, req.originalUrl, JSON.stringify(req.body)].join(
-        "|"
+        '|'
       ),
       pubKey: wallet.pubKey,
-      signature: req.headers["x-signature"]
+      signature: req.headers['x-signature']
     });
     if (!validRequestSignature) {
-      return res.status(401).send(new Error("Authentication failed"));
+      return res.status(401).send(new Error('Authentication failed'));
     }
     next();
   } catch (e) {
-    return res.status(401).send(new Error("Authentication failed"));
+    return res.status(401).send(new Error('Authentication failed'));
   }
 };
 
 // create wallet
-router.post("/", async function(req, res) {
+router.post('/', async function(req, res) {
   let { chain, network } = req.params;
   let { name, pubKey, path, singleAddress } = req.body;
   try {
@@ -76,7 +78,7 @@ router.post("/", async function(req, res) {
       pubKey
     });
     if (existingWallet) {
-      return res.status(200).send("Wallet already exists");
+      return res.status(200).send('Wallet already exists');
     }
     let result = await ChainStateProvider.createWallet({
       chain,
@@ -92,7 +94,7 @@ router.post("/", async function(req, res) {
   }
 });
 
-router.get("/:pubKey", authenticate, async function(
+router.get('/:pubKey', authenticate, async function(
   req: AuthenticatedRequest,
   res: Response
 ) {
@@ -104,7 +106,7 @@ router.get("/:pubKey", authenticate, async function(
   }
 });
 
-router.get("/:pubKey/addresses", authenticate, async function(req, res) {
+router.get('/:pubKey/addresses', authenticate, async function(req, res) {
   try {
     let { chain, network, pubKey } = req.params;
     let payload = {
@@ -121,7 +123,7 @@ router.get("/:pubKey/addresses", authenticate, async function(req, res) {
 
 // update wallet
 router.post(
-  "/:pubKey",
+  '/:pubKey',
   authenticate,
   async (req: AuthenticatedRequest, res) => {
     let { chain, network } = req.params;
@@ -142,7 +144,7 @@ router.post(
 );
 
 router.get(
-  "/:pubKey/transactions",
+  '/:pubKey/transactions',
   authenticate,
   async (req: AuthenticatedRequest, res) => {
     let { chain, network } = req.params;
@@ -161,7 +163,7 @@ router.get(
 );
 
 router.get(
-  "/:pubKey/balance",
+  '/:pubKey/balance',
   authenticate,
   async (req: AuthenticatedRequest, res) => {
     let { chain, network } = req.params;
@@ -179,7 +181,7 @@ router.get(
 );
 
 router.get(
-  "/:pubKey/utxos",
+  '/:pubKey/utxos',
   authenticate,
   async (req: AuthenticatedRequest, res) => {
     let { chain, network } = req.params;
@@ -199,5 +201,5 @@ router.get(
 
 module.exports = {
   router: router,
-  path: "/wallet"
+  path: '/wallet'
 };

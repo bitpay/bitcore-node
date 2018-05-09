@@ -1,14 +1,14 @@
-import { BTCStateProvider } from "./btc/btc";
-import { BCHStateProvider } from "./bch/bch";
-import { CSP } from "../../types/namespaces/ChainStateProvider";
-import { Chain } from "../../types/ChainNetwork";
+import { BTCStateProvider } from './btc/btc';
+import { BCHStateProvider } from './bch/bch';
+import { CSP } from '../../types/namespaces/ChainStateProvider';
+import { Chain } from '../../types/ChainNetwork';
 
 const providers: CSP.ChainStateProviders = {
   BTC: new BTCStateProvider(),
   BCH: new BCHStateProvider()
 };
 
-class ChainStateProvider implements CSP.ChainStateProvider {
+class ChainStateProxy implements CSP.ChainStateProvider {
   get({ chain }: Chain) {
     return providers[chain];
   }
@@ -73,5 +73,4 @@ class ChainStateProvider implements CSP.ChainStateProvider {
     return this.get(params).broadcastTransaction(params);
   }
 }
-
-export default new ChainStateProvider();
+export let ChainStateProvider = new ChainStateProxy();

@@ -1,7 +1,7 @@
 import { Request, Response, Router } from "express";
 import { CSP } from "../types/namespaces/ChainStateProvider";
+import { ChainStateProvider } from "../providers/chain-state";
 const router = Router({ mergeParams: true });
-import ChainStateProvider from "../providers/chain-state";
 
 router.get("/", function(req, res) {
   let { chain, network } = req.params;

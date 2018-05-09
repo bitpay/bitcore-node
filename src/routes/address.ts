@@ -1,8 +1,8 @@
-import express = require("express");
+import express = require('express');
 const router = express.Router({ mergeParams: true });
-import ChainStateProvider from "../providers/chain-state";
+import { ChainStateProvider } from '../providers/chain-state';
 
-router.get("/:address", function(req, res) {
+router.get('/:address', function(req, res) {
   let { address, chain, network } = req.params;
   let { unspent } = req.query;
   let payload = {
@@ -15,7 +15,7 @@ router.get("/:address", function(req, res) {
   ChainStateProvider.streamAddressUtxos(payload);
 });
 
-router.get("/:address/balance", async function(req, res) {
+router.get('/:address/balance', async function(req, res) {
   let { address, chain, network } = req.params;
   try {
     let result = await ChainStateProvider.getBalanceForAddress({
@@ -31,5 +31,5 @@ router.get("/:address/balance", async function(req, res) {
 
 module.exports = {
   router: router,
-  path: "/address"
+  path: '/address'
 };
