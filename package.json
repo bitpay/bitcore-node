@@ -5,8 +5,8 @@
     "node": ">=8.0.0"
   },
   "version": "8.0.1",
-  "author": "Micah Riggan",
-  "contributers": [
+  "author": "Justin Langston <nitsujlangston@gmail.com>",
+  "contributors": [
     "Justin Langston <nitsujlangston@gmail.com>",
     "Micah Riggan <micahriggan@gmail.com>"
   ],
