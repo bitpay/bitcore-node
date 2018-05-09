@@ -5,8 +5,10 @@ _Requirements_:
 - MongoDB Server >= v3.4
 
 # Running
+```
 npm install
 npm start
+```
 
 
 ## Config Example
