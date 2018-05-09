@@ -3,6 +3,12 @@ Bitcore Node
 _Requirements_:
 - Trusted P2P Peer
 - MongoDB Server >= v3.4
+
+# Running
+npm install
+npm start
+
+
 ## Config Example
 ./config.json
 
