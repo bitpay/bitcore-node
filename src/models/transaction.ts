@@ -16,10 +16,10 @@ export interface ITransaction {
   txid: string;
   chain: string;
   network: string;
-  blockHeight: number;
-  blockHash: string;
-  blockTime: Date;
-  blockTimeNormalized: Date;
+  blockHeight?: number;
+  blockHash?: string;
+  blockTime?: Date;
+  blockTimeNormalized?: Date;
   coinbase: boolean;
   fee: number;
   size: number;
@@ -35,11 +35,11 @@ type ITransactionModelDoc = ITransactionDoc & TransformableModel<ITransactionDoc
 type BatchImportMethodParams = {
   txs: Array<BitcoinTransactionType>;
   height: number;
-  blockTime: Date;
-  blockHash: string;
-  blockTimeNormalized: Date;
-  parentChain: string;
-  forkHeight: number;
+  blockTime?: Date;
+  blockHash?: string;
+  blockTimeNormalized?: Date;
+  parentChain?: string;
+  forkHeight?: number;
 } & ChainNetwork;
 
 type CoinWalletAggregate = ICoinModel & { wallets: ObjectID[] };
@@ -197,7 +197,7 @@ TransactionSchema.statics.getMintOps = async function(
     let { chain, height, network, txs, parentChain, forkHeight } = params;
     let mintOps = [];
     let parentChainCoins = [];
-    if (parentChain && height < forkHeight) {
+    if (parentChain && forkHeight && height < forkHeight) {
       parentChainCoins = await CoinModel.find({
         chain: parentChain,
         network,
@@ -297,7 +297,7 @@ TransactionSchema.statics.getSpendOps = function(
 ): Array<any> {
   let { chain, network, height, txs, parentChain, forkHeight } = params;
   let spendOps: any[] = [];
-  if (parentChain && height < forkHeight) {
+  if (parentChain && forkHeight && height < forkHeight) {
     return spendOps;
   }
   for (let tx of txs) {

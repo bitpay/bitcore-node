@@ -1,25 +1,25 @@
-import { BitcoinConnectionConfig } from "../types/BitcoinConfig";
-import { ChainNetwork } from "../types/ChainNetwork";
-import { EventEmitter } from "events";
-import { HostPort } from "../types/HostPort";
-import { Peer, BitcoreP2pPool } from "../types/Bitcore-P2P-Pool";
-import { CallbackType } from "../types/Callback";
-import { BitcoinBlockType } from "../types/Block";
-import { BitcoinTransactionType } from "../types/Transaction";
-import async = require("async");
-const cluster = require("cluster");
-const Chain = require("../chain");
+import { BitcoinConnectionConfig } from '../types/BitcoinConfig';
+import { ChainNetwork } from '../types/ChainNetwork';
+import { EventEmitter } from 'events';
+import { HostPort } from '../types/HostPort';
+import { Peer, BitcoreP2pPool } from '../types/Bitcore-P2P-Pool';
+import { CallbackType } from '../types/Callback';
+import { BitcoinBlockType } from '../types/Block';
+import { BitcoinTransactionType } from '../types/Transaction';
+import { BlockModel } from '../models/block';
+import { SupportedChain } from '../types/SupportedChain';
+import { TransactionModel } from "../models/transaction";
+import async = require('async');
+const cluster = require('cluster');
+const Chain = require('../chain');
 
-const mongoose = require("mongoose");
 
-const logger = require("../logger");
-const Block = mongoose.model("Block");
-const Transaction = mongoose.model("Transaction");
+const logger = require('../logger');
 
 export class P2pService extends EventEmitter {
-  chain: string;
+  chain: SupportedChain;
   network: string;
-  parentChain: string;
+  parentChain: SupportedChain;
   forkHeight: number;
   bitcoreLib: any;
   bitcoreP2p: any;
@@ -54,7 +54,7 @@ export class P2pService extends EventEmitter {
     this.blockQueue = async.queue(this.processBlock.bind(this), 1);
 
     if (!this.bitcoreLib.Networks.get(this.network)) {
-      throw new Error("Unknown network specified in config");
+      throw new Error('Unknown network specified in config');
     }
   }
 
@@ -70,7 +70,7 @@ export class P2pService extends EventEmitter {
   }
 
   connect() {
-    if (this.network === "regtest") {
+    if (this.network === 'regtest') {
       this.bitcoreLib.Networks.enableRegtest();
     }
     this.messages = new this.bitcoreP2p.Messages({
@@ -92,22 +92,22 @@ export class P2pService extends EventEmitter {
     });
 
     if (this.pool != null) {
-      this.pool.on("peerready", peer => {
+      this.pool.on('peerready', peer => {
         logger.info(`Connected to peer ${peer.host}`, {
           chain: this.chain,
           network: this.network
         });
-        this.emit("ready");
+        this.emit('ready');
       });
 
-      this.pool.on("peerdisconnect", peer => {
+      this.pool.on('peerdisconnect', peer => {
         logger.warn(`Not connected to peer ${peer.host}`, {
           chain: this.chain,
           network: this.network
         });
       });
 
-      this.pool.on("peertx", (peer, message) => {
+      this.pool.on('peertx', (peer, message) => {
         if (
           !this.invCache[this.bitcoreP2p.Inventory.TYPE.TX].includes(
             message.transaction.hash
@@ -118,12 +118,12 @@ export class P2pService extends EventEmitter {
           );
           if (this.invCache[this.bitcoreP2p.Inventory.TYPE.TX].length > 1000)
             this.invCache[this.bitcoreP2p.Inventory.TYPE.TX].shift();
-          this.emit("transaction", message.transaction);
+          this.emit('transaction', message.transaction);
           this.transactionQueue.push(message.transaction);
         }
       });
 
-      this.pool.on("peerblock", (peer, message) => {
+      this.pool.on('peerblock', (peer, message) => {
         if (
           !this.invCache[this.bitcoreP2p.Inventory.TYPE.BLOCK].includes(
             message.block.hash
@@ -136,23 +136,23 @@ export class P2pService extends EventEmitter {
             this.invCache[this.bitcoreP2p.Inventory.TYPE.BLOCK].shift();
           this.emit(message.block.hash, message.block);
           if (!this.syncing) {
-            this.emit("block", message.block);
+            this.emit('block', message.block);
             this.blockQueue.push(message.block);
           }
         }
       });
 
-      this.pool.on("peerheaders", (peer, message) => {
-        this.emit("headers", message.headers);
+      this.pool.on('peerheaders', (peer, message) => {
+        this.emit('headers', message.headers);
       });
 
-      this.pool.on("peerinv", (peer, message) => {
+      this.pool.on('peerinv', (peer, message) => {
         if (!this.syncing) {
           let filtered = message.inventory.filter((inv: any) => {
             let hash = this.bitcoreLib.encoding
               .BufferReader(inv.hash)
               .readReverse()
-              .toString("hex");
+              .toString('hex');
             return !this.invCache[inv.type].includes(hash);
           });
           if (filtered.length) {
@@ -161,10 +161,13 @@ export class P2pService extends EventEmitter {
         }
       });
 
-      this.once("ready", () => {
-        Block.handleReorg({ chain: this.chain, network: this.network }, () => {
-          this.sync();
-        });
+      this.once('ready', () => {
+        BlockModel.handleReorg(
+          { chain: this.chain, network: this.network },
+          () => {
+            this.sync();
+          }
+        );
       });
 
       this.stayConnected = setInterval(() => {
@@ -190,12 +193,12 @@ export class P2pService extends EventEmitter {
       return done();
     }
     this.syncing = true;
-    let bestBlock = await Block.getLocalTip({
+    let bestBlock = await BlockModel.getLocalTip({
       chain: this.chain,
       network: this.network
     });
     if (bestBlock.height === this.getPoolHeight()) {
-      logger.verbose("Already synced", {
+      logger.verbose('Already synced', {
         chain: this.chain,
         network: this.network,
         height: bestBlock.height
@@ -204,7 +207,7 @@ export class P2pService extends EventEmitter {
       return done();
     }
     if (this.parentChain && bestBlock.height < this.forkHeight) {
-      let parentBestBlock = await Block.getLocalTip({
+      let parentBestBlock = await BlockModel.getLocalTip({
         chain: this.parentChain,
         network: this.network
       });
@@ -232,7 +235,7 @@ export class P2pService extends EventEmitter {
           self.headersQueue,
           function(header, headerIndex, cb) {
             self.getBlock(header.hash, function(err: any, block: any) {
-              Block.addBlock(
+              BlockModel.addBlock(
                 {
                   block,
                   chain: self.chain,
@@ -272,7 +275,7 @@ export class P2pService extends EventEmitter {
           logger.error(err);
           self.sync();
         } else {
-          logger.info("Sync completed!!", {
+          logger.info('Sync completed!!', {
             chain: self.chain,
             network: self.network
           });
@@ -291,7 +294,7 @@ export class P2pService extends EventEmitter {
         0
       );
     }
-    throw "Pool cannot be undefined";
+    throw 'Pool cannot be undefined';
   }
 
   _getHeaders(candidateHashes: string[], callback: CallbackType) {
@@ -305,7 +308,7 @@ export class P2pService extends EventEmitter {
     let headersRetry = setInterval(() => {
       getHeaders();
     }, 5000);
-    this.once("headers", headers => {
+    this.once('headers', headers => {
       clearInterval(headersRetry);
       callback(null, headers);
     });
@@ -313,7 +316,7 @@ export class P2pService extends EventEmitter {
   }
 
   getHeaders(callback: CallbackType) {
-    Block.getLocatorHashes(
+    BlockModel.getLocatorHashes(
       { chain: this.chain, network: this.network },
       (err: any, locatorHashes: string[]) => {
         if (err) {
@@ -346,8 +349,14 @@ export class P2pService extends EventEmitter {
   }
 
   processBlock(block: BitcoinBlockType, callback: CallbackType) {
-    Block.addBlock(
-      { chain: this.chain, network: this.network, block },
+    BlockModel.addBlock(
+      {
+        chain: this.chain,
+        network: this.network,
+        parentChain: this.parentChain,
+        forkHeight: this.forkHeight,
+        block
+      },
       (err: any) => {
         if (err) {
           logger.error(err);
@@ -363,7 +372,7 @@ export class P2pService extends EventEmitter {
   }
 
   processTransaction(tx: BitcoinTransactionType) {
-    return Transaction.batchImport({
+    return TransactionModel.batchImport({
       txs: [tx],
       height: -1,
       network: this.network,
@@ -378,6 +387,6 @@ export class P2pService extends EventEmitter {
       this.pool.sendMessage(this.messages.Transaction(rawTx));
       return rawTx.txid;
     } else
-      throw new Error("Cannot broadcast over P2P, not connected to peer pool");
+      throw new Error('Cannot broadcast over P2P, not connected to peer pool');
   }
 }

@@ -1,14 +1,14 @@
-import { Schema, Query, Document, Model, model, DocumentQuery } from "mongoose";
-import { CoinModel } from "./coin";
-import { TransactionModel } from "./transaction";
-import { CallbackType } from "../types/Callback";
-import async = require("async");
-import { TransformOptions } from "../types/TransformOptions";
-import { BitcoinBlockType, BlockHeaderObj } from "../types/Block";
-import { ChainNetwork } from "../types/ChainNetwork";
-import { TransformableModel } from "../types/TransformableModel";
+import { Schema, Query, Document, Model, model, DocumentQuery } from 'mongoose';
+import { CoinModel } from './coin';
+import { TransactionModel } from './transaction';
+import { CallbackType } from '../types/Callback';
+import async = require('async');
+import { TransformOptions } from '../types/TransformOptions';
+import { BitcoinBlockType, BlockHeaderObj } from '../types/Block';
+import { ChainNetwork } from '../types/ChainNetwork';
+import { TransformableModel } from '../types/TransformableModel';
 
-const logger = require("../logger");
+const logger = require('../logger');
 
 export interface IBlock {
   chain: string;
@@ -41,12 +41,13 @@ export type AddBlockParams = {
   Partial<IBlock>;
 
 type IBlockModelDoc = IBlockDoc & TransformableModel<IBlockDoc>;
-type BlockMethodParams = { header: BlockHeaderObj } & ChainNetwork;
+type BlockMethodParams = { header?: BlockHeaderObj } & ChainNetwork;
 interface IBlockModel extends IBlockModelDoc {
   addBlock: (params: AddBlockParams, callback: CallbackType) => any;
   handleReorg: (params: BlockMethodParams, cb: CallbackType) => any;
   getLocalTip: (params: BlockMethodParams) => IBlockModel;
   getPoolInfo: (coinbase: string) => string;
+  getLocatorHashes: (params: ChainNetwork, callback: CallbackType) => any;
 }
 
 const BlockSchema = new Schema({
@@ -164,7 +165,7 @@ BlockSchema.statics.addBlock = function(
 BlockSchema.statics.getPoolInfo = function(coinbase: string) {
   //TODO need to make this actually parse the coinbase input and map to miner strings
   // also should go somewhere else
-  return "miningPool";
+  return 'miningPool';
 };
 
 BlockSchema.statics.getLocalTip = function(params: ChainNetwork) {
@@ -199,7 +200,7 @@ BlockSchema.statics.getLocatorHashes = function(
         return callback(err);
       }
       if (locatorBlocks.length < 2) {
-        return callback(null, [Array(65).join("0")]);
+        return callback(null, [Array(65).join('0')]);
       }
       let hashArr = locatorBlocks.map(block => block.hash);
       callback(null, hashArr);
@@ -283,7 +284,7 @@ BlockSchema.statics._apiTransform = function(
     /*
      *isMainChain: block.mainChain,
      */
-    transactionCount: block.transactionCount,
+    transactionCount: block.transactionCount
     /*
      *minedBy: BlockModel.getPoolInfo(block.minedBy)
      */
@@ -295,6 +296,6 @@ BlockSchema.statics._apiTransform = function(
 };
 
 export let BlockModel: IBlockModel = model<IBlockDoc, IBlockModel>(
-  "Block",
+  'Block',
   BlockSchema
 );
