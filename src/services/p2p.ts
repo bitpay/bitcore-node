@@ -221,12 +221,10 @@ export class P2pService extends EventEmitter {
     let blockCounter = 0;
     async.during(
       function(cb) {
-        logger.verbose(`Getting headers`);
         self.getHeaders(function(err: any, headers: any[]) {
           if (err) {
             logger.error(err);
           }
-          logger.verbose(`Received ${headers.length} headers`);
           self.headersQueue = headers;
           cb(err, headers.length > 0);
         });
@@ -236,7 +234,6 @@ export class P2pService extends EventEmitter {
         async.eachOfSeries(
           self.headersQueue,
           function(header, headerIndex, cb) {
-            logger.debug('Getting block, hash:', header.hash);
             self.getBlock(header.hash, function(
               err: any,
               block: BitcoinBlockType
@@ -345,6 +342,7 @@ export class P2pService extends EventEmitter {
   }
 
   getBlock(hash: string, callback: CallbackType) {
+    logger.debug('Getting block, hash:', hash);
     let getBlock = () => {
       if (this.pool !== undefined) {
         this.pool.sendMessage(this.messages.GetData.forBlock(hash));
@@ -354,6 +352,7 @@ export class P2pService extends EventEmitter {
       getBlock();
     }, 1000);
     this.once(hash, block => {
+      logger.debug('Received block, hash:', hash);
       clearInterval(getBlockRetry);
       callback && callback(null, block);
     });

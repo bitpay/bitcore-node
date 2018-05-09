@@ -17,6 +17,7 @@
   },
   "scripts": {
     "start": "tsc && node build/server.js",
+    "debug": "npm start -- --DEBUG true",
     "test": "mocha ./test/unit"
   },
   "keywords": [
