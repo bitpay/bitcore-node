@@ -8,7 +8,7 @@ const async = require("async");
 const logger = require("../logger");
 const config = require("../config");
 
-class WorkerService extends EventEmitter {
+export class WorkerService extends EventEmitter {
   workers = new Array<{worker: WorkerType, active: boolean}>();
 
   start(ready: CallbackType) {
@@ -59,4 +59,4 @@ class WorkerService extends EventEmitter {
 }
 
 
-module.exports = new WorkerService();
+export default  new WorkerService();

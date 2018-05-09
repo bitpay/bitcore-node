@@ -2,12 +2,12 @@ import mongoose = require("mongoose");
 import { CallbackType } from "../types/Callback";
 import { Response } from "express";
 import { Model, Query, Document } from "mongoose";
-import { TranformableModel } from "../types/TransformableModel";
+import { TransformableModel } from "../types/TransformableModel";
 const config = require("../config");
 const logger = require("../logger.js");
 require("../models");
 
-class StorageService {
+export class StorageService {
   start(ready: CallbackType, args: any) {
     let options = Object.assign({}, config, args);
     let { dbName, dbHost } = options;
@@ -39,7 +39,7 @@ class StorageService {
   stop() {}
 
   apiStreamingFind<T extends Document>(
-    model: TranformableModel<T>,
+    model: TransformableModel<T>,
     query: Query<T>,
     res: Response
   ) {
@@ -73,4 +73,4 @@ class StorageService {
   }
 }
 
-module.exports = new StorageService();
+export default new StorageService();

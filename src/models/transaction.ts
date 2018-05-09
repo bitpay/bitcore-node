@@ -8,6 +8,7 @@ import { WalletModel, IWalletModel, WalletQuery } from "./wallet";
 import { ObjectID } from "bson";
 import { TransformOptions } from "../types/TransformOptions";
 import { ChainNetwork } from "../types/ChainNetwork";
+import { TransformableModel } from "../types/TransformableModel";
 const config = require("../config");
 const Chain = require("../chain");
 
@@ -25,11 +26,11 @@ export interface ITransaction {
   locktime: number;
   wallets: ObjectID[];
 }
-export type TransactionQuery = Partial<ITransaction> &
+export type TransactionQuery = {[key in keyof ITransaction]?: any}&
   Partial<DocumentQuery<ITransaction, Document>>;
 
 type ITransactionDoc = ITransaction & Document;
-type ITransactionModelDoc = ITransactionDoc & Model<ITransactionDoc>;
+type ITransactionModelDoc = ITransactionDoc & TransformableModel<ITransactionDoc>;
 
 type BatchImportMethodParams = {
   txs: Array<BitcoinTransactionType>;
@@ -45,7 +46,6 @@ type CoinWalletAggregate = ICoinModel & { wallets: ObjectID[] };
 
 export interface ITransactionModel extends ITransactionModelDoc {
   batchImport: (params: BatchImportMethodParams) => Promise<any>;
-  _apiTransform: (tx: ITransactionModel, options: TransformOptions) => any;
   getTransactions: (params: { query: TransactionQuery }) => any;
   getMintOps: (params: BatchImportMethodParams) => Promise<any>;
   getSpendOps: (params: BatchImportMethodParams) => Array<any>;
@@ -212,8 +212,8 @@ TransactionSchema.statics.getMintOps = async function(
       for (let [index, output] of tx.outputs.entries()) {
         let parentChainCoin = parentChainCoins.find(
           (parentChainCoin: ICoinModel) =>
-            parentChainCoin.mintTxid === txid &&
-            parentChainCoin.mintIndex === index
+          parentChainCoin.mintTxid === txid &&
+          parentChainCoin.mintIndex === index
         );
         if (parentChainCoin) {
           continue;
@@ -383,4 +383,4 @@ TransactionSchema.statics._apiTransform = function(
 export let TransactionModel: ITransactionModel = model<
   ITransactionDoc,
   ITransactionModel
->("Transaction", TransactionSchema);
+  >("Transaction", TransactionSchema);

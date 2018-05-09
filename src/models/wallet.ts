@@ -1,12 +1,10 @@
 import { Schema, Query, Document, Model, model, DocumentQuery } from "mongoose";
 import { TransformOptions } from "../types/TransformOptions";
 import { WalletAddressModel } from "../models/walletAddress";
+import { ChainNetwork } from "../types/ChainNetwork";
 
-export interface IWallet {
-  _id: Schema.Types.ObjectId;
+export interface IWallet extends ChainNetwork {
   name: string;
-  chain: string;
-  network: string;
   singleAddress: boolean;
   pubKey: string;
   path: string;
@@ -14,9 +12,10 @@ export interface IWallet {
 export type WalletQuery = { [key in keyof IWallet]?: any } &
   DocumentQuery<IWallet, Document>;
 
-type IWalletDoc = IWallet & Document;
-type IWalletModelDoc = IWallet & Model<IWalletDoc>;
+export type IWalletDoc = IWallet & Document;
+export type IWalletModelDoc = IWallet & Model<IWalletDoc>;
 export interface IWalletModel extends IWalletModelDoc {
+  _id: Schema.Types.ObjectId
   updateCoins: (wallet: IWalletModelDoc) => any;
 }
 
@@ -46,7 +45,8 @@ WalletSchema.statics._apiTransform = function(
 };
 
 WalletSchema.statics.updateCoins = async function(wallet: IWalletModel) {
-  let addresses = await WalletAddressModel.find({ wallet: wallet._id });
+  let addressModels = await WalletAddressModel.find({ wallet: wallet._id });
+  let addresses = addressModels.map((model) => model.address);
   return WalletAddressModel.updateCoins({ wallet, addresses });
 };
 

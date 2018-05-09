@@ -6,10 +6,11 @@ import async = require("async");
 import { TransformOptions } from "../types/TransformOptions";
 import { BitcoinBlockType, BlockHeaderObj } from "../types/Block";
 import { ChainNetwork } from "../types/ChainNetwork";
+import { TransformableModel } from "../types/TransformableModel";
 
 const logger = require("../logger");
 
-interface IBlock {
+export interface IBlock {
   chain: string;
   network: string;
   height: number;
@@ -28,7 +29,8 @@ interface IBlock {
   processed: boolean;
 }
 
-type BlockQuery = Partial<IBlock> & Partial<DocumentQuery<IBlock, Document>>;
+export type BlockQuery = { [key in keyof IBlock]?: any } &
+  Partial<DocumentQuery<IBlock, Document>>;
 type IBlockDoc = IBlock & Document;
 
 export type AddBlockParams = {
@@ -38,7 +40,7 @@ export type AddBlockParams = {
 } & ChainNetwork &
   Partial<IBlock>;
 
-type IBlockModelDoc = IBlockDoc & Model<IBlockDoc>;
+type IBlockModelDoc = IBlockDoc & TransformableModel<IBlockDoc>;
 type BlockMethodParams = { header: BlockHeaderObj } & ChainNetwork;
 interface IBlockModel extends IBlockModelDoc {
   addBlock: (params: AddBlockParams, callback: CallbackType) => any;
@@ -269,14 +271,22 @@ BlockSchema.statics._apiTransform = function(
     timeNormalized: block.timeNormalized,
     nonce: block.nonce,
     bits: block.bits,
-    difficulty: block.difficulty,
-    chainWork: block.chainWork,
+    /*
+     *difficulty: block.difficulty,
+     */
+    /*
+     *chainWork: block.chainWork,
+     */
     previousBlockHash: block.previousBlockHash,
     nextBlockHash: block.nextBlockHash,
     reward: block.reward,
-    isMainChain: block.mainChain,
+    /*
+     *isMainChain: block.mainChain,
+     */
     transactionCount: block.transactionCount,
-    minedBy: BlockModel.getPoolInfo(block.minedBy)
+    /*
+     *minedBy: BlockModel.getPoolInfo(block.minedBy)
+     */
   };
   if (options && options.object) {
     return transform;

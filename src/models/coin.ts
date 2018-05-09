@@ -14,7 +14,7 @@ export interface ICoin {
   spentTxid: string;
   spentHeight: number;
 }
-export type CoinQuery = Partial<ICoin> &
+export type CoinQuery = {[key in keyof ICoin]?: any}  &
   Partial<DocumentQuery<ICoin, Document>>;
 
 type ICoinDoc = ICoin & Document;

@@ -19,9 +19,9 @@ export type IWalletAddressQuery = { [key in keyof IWalletAddress]?: any } &
 type IWalletAddressDoc = IWalletAddress & Document;
 type IWalletAddressDocModel = IWalletAddressDoc & Model<IWalletAddressDoc>;
 
-type UpdateCoinsParams = {
+export type UpdateCoinsParams = {
   wallet: IWalletModel;
-  addresses: IWalletAddress[];
+  addresses: string[];
 };
 
 interface IWalletAddressModel extends IWalletAddressDocModel{

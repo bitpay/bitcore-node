@@ -1,13 +1,13 @@
-import * as os from 'os';
-import parseArgv from './utils/parseArgv';
-import ConfigType from './types/Config';
-let program = parseArgv([], ['config']);
+import * as os from "os";
+import parseArgv from "./utils/parseArgv";
+import ConfigType from "./types/Config";
+let program = parseArgv([], ["config"]);
 
 function findConfig(): ConfigType | undefined {
   let foundConfig;
   const envConfigPath = process.env.BITCORE_CONFIG_PATH;
   const argConfigPath = program.config;
-  const configFileName = 'bitcore.config.json';
+  const configFileName = "bitcore.config.json";
   let bitcoreConfigPaths = [
     `${os.homedir()}/${configFileName}`,
     `../../../${configFileName}`,
@@ -21,7 +21,7 @@ function findConfig(): ConfigType | undefined {
   for (let path of bitcoreConfigPaths) {
     if (!foundConfig) {
       try {
-        const bitcoreConfig = require(path) as {bitcoreNode: ConfigType};
+        const bitcoreConfig = require(path) as { bitcoreNode: ConfigType };
         foundConfig = bitcoreConfig.bitcoreNode;
       } catch (e) {
         foundConfig = undefined;
@@ -53,8 +53,8 @@ const Config = function(): ConfigType {
     maxPoolSize: 20,
     pruneSpentScripts: true,
     port: 3000,
-    dbHost: process.env.DB_HOST || '127.0.0.1',
-    dbName: process.env.DB_NAME || 'bitcore',
+    dbHost: process.env.DB_HOST || "127.0.0.1",
+    dbName: process.env.DB_NAME || "bitcore",
     numWorkers: os.cpus().length,
     chains: {}
   };
@@ -62,21 +62,23 @@ const Config = function(): ConfigType {
   let foundConfig = findConfig();
   Object.assign(config, foundConfig, {});
   if (!Object.keys(config.chains).length) {
-    Object.assign(config.chains, {BTC : {
-      mainnet: {
-        chainSource: 'p2p',
-        trustedPeers: [{ host: '127.0.0.1', port: 8333 }],
-        rpc: {
-          host: '127.0.0.1',
-          port: 8332,
-          username: 'bitcoin',
-          password: 'bitcoin'
+    Object.assign(config.chains, {
+      BTC: {
+        mainnet: {
+          chainSource: "p2p",
+          trustedPeers: [{ host: "127.0.0.1", port: 8333 }],
+          rpc: {
+            host: "127.0.0.1",
+            port: 8332,
+            username: "bitcoin",
+            password: "bitcoin"
+          }
         }
       }
-    }});
+    });
   }
   config = setTrustedPeers(config);
   return config;
 };
 
-module.exports = Config();
+export default Config();
