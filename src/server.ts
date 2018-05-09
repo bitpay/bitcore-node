@@ -1,16 +1,17 @@
 import { P2pService } from './services/p2p';
 import StorageService from './services/storage';
 import WorkerService from './services/worker';
-import async from 'async';
 import logger from './logger';
 import config from './config';
+import { CallbackType } from './types/Callback';
 import cluster = require('cluster');
+const async = require('async');
 
 async.series(
   [
     StorageService.start.bind(StorageService),
     WorkerService.start.bind(WorkerService),
-    async () => {
+    async (cb: CallbackType) => {
       let p2pServices = [];
       for (let chain of Object.keys(config.chains)) {
         for (let network of Object.keys(config.chains[chain])) {
@@ -25,12 +26,13 @@ async.series(
           }
         }
       }
-      await Promise.all(p2pServices.map(p2pService => p2pService.start()));
+      await Promise.all(p2pServices.map(p2pService => p2pService.start()))
+        .then(cb);
     }
   ],
   function() {
     if (cluster.isWorker) {
-      const app = require('./lib/routes');
+      const app = require('./routes');
       const server = app.listen(config.port, function() {
         logger.info(`API server started on port ${config.port}`);
       });

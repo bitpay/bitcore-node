@@ -2,12 +2,12 @@ import { Schema, Query, Document, Model, model, DocumentQuery } from 'mongoose';
 import { CoinModel } from './coin';
 import { TransactionModel } from './transaction';
 import { CallbackType } from '../types/Callback';
-import async = require('async');
 import { TransformOptions } from '../types/TransformOptions';
 import { BitcoinBlockType, BlockHeaderObj } from '../types/Block';
 import { ChainNetwork } from '../types/ChainNetwork';
 import { TransformableModel } from '../types/TransformableModel';
 import logger from '../logger';
+const async = require('async');
 
 export interface IBlock {
   chain: string;
@@ -84,10 +84,10 @@ BlockSchema.statics.addBlock = function(
   let height: number;
   async.series(
     [
-      function(cb) {
+      function(cb: CallbackType) {
         BlockModel.handleReorg({ header, chain, network }, cb);
       },
-      function(cb) {
+      function(cb: CallbackType) {
         BlockModel.findOne({ hash: header.prevHash, chain, network }, function(
           err: any,
           previousBlock: IBlockDoc
@@ -140,7 +140,7 @@ BlockSchema.statics.addBlock = function(
           );
         });
       },
-      function(cb) {
+      function(cb: CallbackType) {
         TransactionModel.batchImport({
           txs: block.transactions,
           blockHash: header.hash,
@@ -154,7 +154,7 @@ BlockSchema.statics.addBlock = function(
         }).then(cb);
       }
     ],
-    function(err) {
+    function(err: any) {
       if (err) {
         return callback(err);
       }
@@ -230,25 +230,25 @@ BlockSchema.statics.handleReorg = async function(
   });
   async.series(
     [
-      function(cb) {
+      function(cb: CallbackType) {
         BlockModel.remove(
           { chain, network, height: { $gte: localTip.height } },
           cb
         );
       },
-      function(cb) {
+      function(cb: CallbackType) {
         TransactionModel.remove(
           { chain, network, blockHeight: { $gte: localTip.height } },
           cb
         );
       },
-      function(cb) {
+      function(cb: CallbackType) {
         CoinModel.remove(
           { chain, network, mintHeight: { $gte: localTip.height } },
           cb
         );
       },
-      function(cb) {
+      function(cb: CallbackType) {
         CoinModel.update(
           { chain, network, spentHeight: { $gte: localTip.height } },
           {
@@ -258,7 +258,7 @@ BlockSchema.statics.handleReorg = async function(
           cb
         );
       },
-      function(cb) {
+      function(cb: CallbackType) {
         logger.debug('Removed data from above blockHeight: ', localTip.height);
         cb();
       }

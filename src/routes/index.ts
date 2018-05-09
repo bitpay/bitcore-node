@@ -1,9 +1,9 @@
-import config from "../config";
-import { Request, Response } from "express";
+import config from '../config';
+import { Request, Response } from 'express';
 import express from 'express';
 
 const app = express();
-const bodyParser = require("body-parser");
+const bodyParser = require('body-parser');
 app.use(bodyParser.json());
 app.use(
   bodyParser.raw({
@@ -22,20 +22,20 @@ for (let chain of chains) {
 }
 
 function bootstrap() {
-  const fs = require("fs");
+  const fs = require('fs');
   const router = express.Router({
     mergeParams: true
   });
-  fs.readdirSync(__dirname + "/").forEach(function(file: string) {
-    if (file.match(/\.js$/) !== null && file !== "index.js") {
-      var route = require("./" + file);
+  fs.readdirSync(__dirname + '/').forEach(function(file: string) {
+    if (file.match(/\.js$/) !== null && file !== 'index.js') {
+      var route = require('./' + file);
       router.use(route.path, route.router);
     }
   });
 
   return router;
 }
-app.use("/api/:chain/:network", (req: Request, resp: Response, next: any) => {
+app.use('/api/:chain/:network', (req: Request, resp: Response, next: any) => {
   let { chain, network } = req.params;
   const hasChain = chains.includes(chain);
   const chainNetworks = networks[chain] || null;
@@ -57,6 +57,6 @@ app.use("/api/:chain/:network", (req: Request, resp: Response, next: any) => {
   next();
 });
 
-app.use("/api/:chain/:network", bootstrap());
+app.use('/api/:chain/:network', bootstrap());
 
-export default app;
+module.exports = app;

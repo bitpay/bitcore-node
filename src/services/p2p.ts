@@ -4,15 +4,15 @@ import { EventEmitter } from 'events';
 import { HostPort } from '../types/HostPort';
 import { Peer, BitcoreP2pPool } from '../types/Bitcore-P2P-Pool';
 import { CallbackType } from '../types/Callback';
-import { BitcoinBlockType, BlockHeader } from '../types/Block';
+import { BitcoinBlockType, BlockHeader, BlockHeaderObj } from '../types/Block';
 import { BitcoinTransactionType } from '../types/Transaction';
 import { BlockModel } from '../models/block';
 import { SupportedChain } from '../types/SupportedChain';
 import { TransactionModel } from '../models/transaction';
-import async from 'async';
 import logger from '../logger';
 const cluster = require('cluster');
 const Chain = require('../chain');
+const async = require('async');
 
 export class P2pService extends EventEmitter {
   chain: SupportedChain;
@@ -26,8 +26,8 @@ export class P2pService extends EventEmitter {
   headersQueue: any[];
   syncing: boolean;
   blockRates: any[];
-  transactionQueue: async.AsyncQueue<any>;
-  blockQueue: async.AsyncQueue<any>;
+  transactionQueue: any[];
+  blockQueue: any[];
   messages: any;
   pool: undefined | BitcoreP2pPool;
 
@@ -220,7 +220,7 @@ export class P2pService extends EventEmitter {
     );
     let blockCounter = 0;
     async.during(
-      function(cb) {
+      function(cb: CallbackType) {
         self.getHeaders(function(err: any, headers: any[]) {
           if (err) {
             logger.error(err);
@@ -229,11 +229,15 @@ export class P2pService extends EventEmitter {
           cb(err, headers.length > 0);
         });
       },
-      function(cb) {
+      function(cb: CallbackType) {
         let lastLog = 0;
         async.eachOfSeries(
           self.headersQueue,
-          function(header, headerIndex, cb) {
+          function(
+            header: BlockHeaderObj,
+            headerIndex: number,
+            cb: CallbackType
+          ) {
             self.getBlock(header.hash, function(
               err: any,
               block: BitcoinBlockType
@@ -269,14 +273,14 @@ export class P2pService extends EventEmitter {
               );
             });
           },
-          function(err) {
+          function(err: any) {
             cb(err);
           }
         );
       },
-      function(err) {
+      function(err: any) {
         if (err) {
-          logger.warn(err.toString());
+          logger.warn(err);
           self.sync();
         } else {
           logger.info('Sync completed!!', {
