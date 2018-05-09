@@ -1,12 +1,10 @@
 import { CallbackType } from "../types/Callback";
 import { WorkerType } from '../types/Worker';
+import async from 'async';
+import logger from '../logger';
+import config from '../config';
 const cluster = require("cluster");
-const util = require("util");
 const { EventEmitter } = require("events");
-const async = require("async");
-
-const logger = require("../logger");
-const config = require("../config");
 
 export class WorkerService extends EventEmitter {
   workers = new Array<{worker: WorkerType, active: boolean}>();

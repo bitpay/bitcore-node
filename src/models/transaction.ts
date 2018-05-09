@@ -9,6 +9,7 @@ import { ObjectID } from "bson";
 import { TransformOptions } from "../types/TransformOptions";
 import { ChainNetwork } from "../types/ChainNetwork";
 import { TransformableModel } from "../types/TransformableModel";
+import logger from "../logger";
 const config = require("../config");
 const Chain = require("../chain");
 
@@ -78,6 +79,7 @@ TransactionSchema.statics.batchImport = async function(
 ) {
   return new Promise(async resolve => {
     let mintOps = await TransactionModel.getMintOps(params);
+    logger.debug('Minting Coins', mintOps.length);
     if (mintOps.length) {
       mintOps = partition(mintOps, 100);
       mintOps = mintOps.map((mintBatch: Array<CoinQuery>) =>
@@ -87,6 +89,7 @@ TransactionSchema.statics.batchImport = async function(
     }
 
     let spendOps = TransactionModel.getSpendOps(params);
+    logger.debug('Spending Coins', spendOps.length);
     if (spendOps.length) {
       spendOps = partition(spendOps, 100);
       spendOps = spendOps.map((spendBatch: Array<CoinQuery>) =>
@@ -96,6 +99,7 @@ TransactionSchema.statics.batchImport = async function(
     }
 
     let txOps = await TransactionModel.addTransactions(params);
+    logger.debug('Writing Transactions', txOps.length);
     txOps = partition(txOps, 100);
     txOps = txOps.map((txBatch: Array<CoinQuery>) =>
       TransactionModel.collection.bulkWrite(txBatch, { ordered: false })

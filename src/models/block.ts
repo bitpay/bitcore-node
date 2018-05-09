@@ -7,8 +7,7 @@ import { TransformOptions } from '../types/TransformOptions';
 import { BitcoinBlockType, BlockHeaderObj } from '../types/Block';
 import { ChainNetwork } from '../types/ChainNetwork';
 import { TransformableModel } from '../types/TransformableModel';
-
-const logger = require('../logger');
+import logger from '../logger';
 
 export interface IBlock {
   chain: string;
@@ -94,6 +93,7 @@ BlockSchema.statics.addBlock = function(
           previousBlock: IBlockDoc
         ) {
           if (err) {
+            logger.error(err);
             return cb(err);
           }
           blockTimeNormalized = blockTime;
@@ -104,6 +104,7 @@ BlockSchema.statics.addBlock = function(
             blockTimeNormalized = previousBlock.timeNormalized.getTime() + 1;
           }
           height = (previousBlock && previousBlock.height + 1) || 1;
+          logger.debug('Setting blockheight', height);
           BlockModel.update(
             { hash: header.hash, chain, network },
             {
@@ -130,13 +131,17 @@ BlockSchema.statics.addBlock = function(
                 return cb();
               }
               previousBlock.nextBlockHash = header.hash;
+              logger.debug(
+                'Updating previous block.nextBlockHash ',
+                header.hash
+              );
               previousBlock.save(cb);
             }
           );
         });
       },
-      async () => {
-        return TransactionModel.batchImport({
+      function(cb) {
+        TransactionModel.batchImport({
           txs: block.transactions,
           blockHash: header.hash,
           blockTime: new Date(blockTime),
@@ -146,7 +151,7 @@ BlockSchema.statics.addBlock = function(
           network,
           parentChain,
           forkHeight
-        });
+        }).then(cb);
       }
     ],
     function(err) {
@@ -252,6 +257,10 @@ BlockSchema.statics.handleReorg = async function(
           { multi: true },
           cb
         );
+      },
+      function(cb) {
+        logger.debug('Removed data from above blockHeight: ', localTip.height);
+        cb();
       }
     ],
     callback

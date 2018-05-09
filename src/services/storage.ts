@@ -3,9 +3,9 @@ import { CallbackType } from "../types/Callback";
 import { Response } from "express";
 import { Model, Query, Document } from "mongoose";
 import { TransformableModel } from "../types/TransformableModel";
-const config = require("../config");
-const logger = require("../logger.js");
-require("../models");
+import logger from '../logger';
+import config from '../config';
+import "../models"
 
 export class StorageService {
   start(ready: CallbackType, args: any) {
@@ -16,7 +16,9 @@ export class StorageService {
       return mongoose.connect(connectUrl, {
         keepAlive: 1,
         poolSize: config.maxPoolSize,
-        nativeParser: true
+        /*
+         *nativeParser: true
+         */
       });
     };
     let attempted = 0;
@@ -43,7 +45,7 @@ export class StorageService {
     query: Query<T>,
     res: Response
   ) {
-    
+
     let cursor = model.find(query).cursor({
       transform: model._apiTransform
     });

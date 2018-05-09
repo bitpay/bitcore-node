@@ -1,11 +1,10 @@
-import { P2pService } from "./services/p2p";
-import StorageService from "./services/storage";
-import WorkerService from "./services/worker";
-const async = require("async");
-const cluster = require("cluster");
-
-const logger = require("./lib/logger");
-const config = require("./lib/config");
+import { P2pService } from './services/p2p';
+import StorageService from './services/storage';
+import WorkerService from './services/worker';
+import async from 'async';
+import logger from './logger';
+import config from './config';
+import cluster = require('cluster');
 
 async.series(
   [
@@ -17,7 +16,7 @@ async.series(
         for (let network of Object.keys(config.chains[chain])) {
           const chainConfig = config.chains[chain][network];
           const hasChainSource = chainConfig.chainSource !== undefined;
-          if (!hasChainSource || chainConfig.chainSource === "p2p") {
+          if (!hasChainSource || chainConfig.chainSource === 'p2p') {
             let p2pServiceConfig = Object.assign(
               config.chains[chain][network],
               { chain, network }
@@ -31,7 +30,7 @@ async.series(
   ],
   function() {
     if (cluster.isWorker) {
-      const app = require("./lib/routes");
+      const app = require('./lib/routes');
       const server = app.listen(config.port, function() {
         logger.info(`API server started on port ${config.port}`);
       });

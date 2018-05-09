@@ -4,17 +4,15 @@ import { EventEmitter } from 'events';
 import { HostPort } from '../types/HostPort';
 import { Peer, BitcoreP2pPool } from '../types/Bitcore-P2P-Pool';
 import { CallbackType } from '../types/Callback';
-import { BitcoinBlockType } from '../types/Block';
+import { BitcoinBlockType, BlockHeader } from '../types/Block';
 import { BitcoinTransactionType } from '../types/Transaction';
 import { BlockModel } from '../models/block';
 import { SupportedChain } from '../types/SupportedChain';
-import { TransactionModel } from "../models/transaction";
-import async = require('async');
+import { TransactionModel } from '../models/transaction';
+import async from 'async';
+import logger from '../logger';
 const cluster = require('cluster');
 const Chain = require('../chain');
-
-
-const logger = require('../logger');
 
 export class P2pService extends EventEmitter {
   chain: SupportedChain;
@@ -223,7 +221,11 @@ export class P2pService extends EventEmitter {
     let blockCounter = 0;
     async.during(
       function(cb) {
+        logger.verbose(`Getting headers`);
         self.getHeaders(function(err: any, headers: any[]) {
+          if (err) {
+            logger.error(err);
+          }
           logger.verbose(`Received ${headers.length} headers`);
           self.headersQueue = headers;
           cb(err, headers.length > 0);
@@ -234,7 +236,12 @@ export class P2pService extends EventEmitter {
         async.eachOfSeries(
           self.headersQueue,
           function(header, headerIndex, cb) {
-            self.getBlock(header.hash, function(err: any, block: any) {
+            logger.debug('Getting block, hash:', header.hash);
+            self.getBlock(header.hash, function(
+              err: any,
+              block: BitcoinBlockType
+            ) {
+              logger.debug('Block received', block.hash);
               BlockModel.addBlock(
                 {
                   block,
@@ -272,7 +279,7 @@ export class P2pService extends EventEmitter {
       },
       function(err) {
         if (err) {
-          logger.error(err);
+          logger.warn(err.toString());
           self.sync();
         } else {
           logger.info('Sync completed!!', {
@@ -320,9 +327,14 @@ export class P2pService extends EventEmitter {
       { chain: this.chain, network: this.network },
       (err: any, locatorHashes: string[]) => {
         if (err) {
+          logger.error(err);
           return callback(err);
         }
-        this._getHeaders(locatorHashes, (err, headers) => {
+        logger.debug(
+          `Getting headers with ${locatorHashes.length} locatorHashes`
+        );
+        this._getHeaders(locatorHashes, (err, headers: BlockHeader[]) => {
+          logger.debug(`Received ${headers.length} headers`);
           if (err) {
             return callback(err);
           }
