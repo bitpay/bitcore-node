@@ -1,5 +1,5 @@
 import { P2pService } from './services/p2p';
-import StorageService from './services/storage';
+import { Storage} from './services/storage';
 import WorkerService from './services/worker';
 import logger from './logger';
 import config from './config';
@@ -9,7 +9,7 @@ const async = require('async');
 
 async.series(
   [
-    StorageService.start.bind(StorageService),
+    Storage.start.bind(Storage),
     WorkerService.start.bind(WorkerService),
     async (cb: CallbackType) => {
       let p2pServices = [];

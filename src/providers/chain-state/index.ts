@@ -2,15 +2,16 @@ import { BTCStateProvider } from './btc/btc';
 import { BCHStateProvider } from './bch/bch';
 import { CSP } from '../../types/namespaces/ChainStateProvider';
 import { Chain } from '../../types/ChainNetwork';
+import logger from '../../logger';
 
-const providers: CSP.ChainStateProviders = {
+const services: CSP.ChainStateServices = {
   BTC: new BTCStateProvider(),
   BCH: new BCHStateProvider()
 };
 
 class ChainStateProxy implements CSP.ChainStateProvider {
   get({ chain }: Chain) {
-    return providers[chain];
+    return services[chain];
   }
 
   streamAddressUtxos(params: CSP.StreamAddressUtxosParams) {
@@ -46,6 +47,7 @@ class ChainStateProxy implements CSP.ChainStateProvider {
   }
 
   async getWallet(params: CSP.GetWalletParams) {
+    logger.debug('Calling getWallet with ', params);
     return this.get(params).getWallet(params);
   }
 
@@ -72,5 +74,9 @@ class ChainStateProxy implements CSP.ChainStateProvider {
   async broadcastTransaction(params: CSP.BroadcastTransactionParams) {
     return this.get(params).broadcastTransaction(params);
   }
+
+  registerService(currency: string, service: CSP.IChainStateService){
+    services[currency] = service;
+  };
 }
 export let ChainStateProvider = new ChainStateProxy();

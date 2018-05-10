@@ -41,8 +41,8 @@ export class StorageService {
   stop() {}
 
   apiStreamingFind<T extends Document>(
-    model: TransformableModel<T>,
-    query: Query<T>,
+    model: TransformableModel<any>,
+    query: any,
     res: Response
   ) {
 
@@ -75,4 +75,4 @@ export class StorageService {
   }
 }
 
-export default new StorageService();
+export let Storage = new StorageService();

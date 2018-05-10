@@ -17,7 +17,7 @@
   },
   "scripts": {
     "start": "npm run tsc && node build/server.js",
-    "debug": "npm start -- --DEBUG true",
+    "debug": "npm run tsc && node --inspect build/server.js --DEBUG true",
     "tsc": "./node_modules/.bin/tsc",
     "test": "mocha ./test/unit"
   },

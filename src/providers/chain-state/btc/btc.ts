@@ -1,21 +1,22 @@
-import { Response } from "express";
-import { CoinModel, CoinQuery } from "../../../models/coin";
-import { BlockModel, BlockQuery } from "../../../models/block";
-import { IWallet, IWalletModel } from "../../../models/wallet";
-import { WalletModel } from "../../../models/wallet";
-import { WalletAddressModel } from "../../../models/walletAddress";
-import { CSP } from "../../../types/namespaces/ChainStateProvider";
+import { Response } from 'express';
+import { CoinModel, CoinQuery } from '../../../models/coin';
+import { BlockModel, BlockQuery } from '../../../models/block';
+import { IWallet, IWalletModel } from '../../../models/wallet';
+import { WalletModel } from '../../../models/wallet';
+import { WalletAddressModel } from '../../../models/walletAddress';
+import { CSP } from '../../../types/namespaces/ChainStateProvider';
+import { Storage } from '../../../services/storage';
+import logger from '../../../logger';
 
 import {
   TransactionQuery,
   TransactionModel
-} from "../../../models/transaction";
+} from '../../../models/transaction';
 
-const config = require("../../../config");
-const JSONStream = require("JSONStream");
-const ListTransactionsStream = require("./transforms");
-const Storage = require("../../../services/storage");
-const RPC = require("../../../rpc");
+const config = require('../../../config');
+const JSONStream = require('JSONStream');
+const ListTransactionsStream = require('./transforms');
+const RPC = require('../../../rpc');
 
 type StreamWalletTransactionsArgs = {
   startBlock: number;
@@ -28,7 +29,7 @@ type StreamAddressUtxosArgs = {
   unspent: boolean;
 };
 
-type StreamWalletUtxoArgs = { includeSpent: "true" | undefined };
+type StreamWalletUtxoArgs = { includeSpent: 'true' | undefined };
 type StreamWalletUtxoParams = {
   wallet: IWalletModel;
   args: Partial<StreamWalletUtxoArgs>;
@@ -39,7 +40,7 @@ type GetBlockArgs = { limit: null | number };
 export class BTCStateProvider implements CSP.IChainStateService {
   chain: string;
   constructor(chain?: string) {
-    this.chain = chain || "BTC";
+    this.chain = chain || 'BTC';
     this.chain = this.chain.toUpperCase();
   }
 
@@ -51,8 +52,8 @@ export class BTCStateProvider implements CSP.IChainStateService {
 
   streamAddressUtxos(params: CSP.StreamAddressUtxosParams) {
     const { network, address, stream, args } = params;
-    if (typeof address !== "string" || !this.chain || !network) {
-      throw "Missing required param";
+    if (typeof address !== 'string' || !this.chain || !network) {
+      throw 'Missing required param';
     }
     let query: CoinQuery = {
       chain: this.chain,
@@ -69,20 +70,20 @@ export class BTCStateProvider implements CSP.IChainStateService {
   getBalanceForAddress(params: CSP.GetBalanceForAddressParams) {
     const { network, address } = params;
     let query = { chain: this.chain, network, address };
-    return CoinModel.getBalance({ query }).exec();
+    return CoinModel.getBalance({ query });
   }
 
   async getBalanceForWallet(params: CSP.GetBalanceForWalletParams) {
     const { walletId } = params;
     let query = { wallets: walletId };
-    return CoinModel.getBalance({ query }).exec();
+    return CoinModel.getBalance({ query });
   }
 
   async getBlocks(params: CSP.GetBlocksParams) {
     const { network, sinceBlock, args } = params;
     let { limit = undefined } = args || {};
     if (!this.chain || !network) {
-      throw "Missing required param";
+      throw 'Missing required param';
     }
     let query: BlockQuery = {
       chain: this.chain,
@@ -92,7 +93,7 @@ export class BTCStateProvider implements CSP.IChainStateService {
     if (sinceBlock) {
       let height = Number(sinceBlock);
       if (Number.isNaN(height) || height.toString(10) !== sinceBlock) {
-        throw "invalid block id provided";
+        throw 'invalid block id provided';
       }
       query.height = { $gt: height };
     }
@@ -101,7 +102,7 @@ export class BTCStateProvider implements CSP.IChainStateService {
       .limit(limit || 100)
       .exec();
     if (!blocks) {
-      throw "blocks not found";
+      throw 'blocks not found';
     }
     let transformedBlocks = blocks.map(block =>
       BlockModel._apiTransform(block, { object: true })
@@ -111,8 +112,8 @@ export class BTCStateProvider implements CSP.IChainStateService {
 
   async getBlock(params: CSP.GetBlockParams) {
     const { network, blockId } = params;
-    if (typeof blockId !== "string" || !this.chain || !network) {
-      throw "Missing required param";
+    if (typeof blockId !== 'string' || !this.chain || !network) {
+      throw 'Missing required param';
     }
     let query: BlockQuery = {
       chain: this.chain,
@@ -124,13 +125,13 @@ export class BTCStateProvider implements CSP.IChainStateService {
     } else {
       let height = parseInt(blockId, 10);
       if (Number.isNaN(height) || height.toString(10) !== blockId) {
-        throw "invalid block id provided";
+        throw 'invalid block id provided';
       }
       query.height = height;
     }
     let block = await BlockModel.findOne(query).exec();
     if (!block) {
-      throw "block not found";
+      throw 'block not found';
     }
     return BlockModel._apiTransform(block, { object: true });
   }
@@ -138,7 +139,7 @@ export class BTCStateProvider implements CSP.IChainStateService {
   streamTransactions(params: CSP.StreamTransactionsParams) {
     const { network, stream, args } = params;
     if (!this.chain || !network) {
-      throw "Missing chain or network";
+      throw 'Missing chain or network';
     }
     let query: TransactionQuery = {
       chain: this.chain,
@@ -157,8 +158,8 @@ export class BTCStateProvider implements CSP.IChainStateService {
 
   streamTransaction(params: CSP.StreamTransactionParams) {
     let { network, txId, stream } = params;
-    if (typeof txId !== "string" || !this.chain || !network || !stream) {
-      throw "Missing required param";
+    if (typeof txId !== 'string' || !this.chain || !network || !stream) {
+      throw 'Missing required param';
     }
     network = network.toLowerCase();
     let query = { chain: this.chain, network, txid: txId };
@@ -169,8 +170,8 @@ export class BTCStateProvider implements CSP.IChainStateService {
 
   async createWallet(params: CSP.CreateWalletParams) {
     const { network, name, pubKey, path } = params;
-    if (typeof name !== "string" || !network) {
-      throw "Missing required param";
+    if (typeof name !== 'string' || !network) {
+      throw 'Missing required param';
     }
     return WalletModel.create({
       chain: this.chain,
@@ -228,13 +229,14 @@ export class BTCStateProvider implements CSP.IChainStateService {
 
   async getWalletBalance(params: { wallet: IWalletModel }) {
     let query = { wallets: params.wallet._id };
-    return CoinModel.getBalance({ query }).exec();
+    return CoinModel.getBalance({ query });
   }
 
   streamWalletUtxos(params: StreamWalletUtxoParams) {
     const { wallet, args = {}, stream } = params;
+    logger.debug('Streaming wallet utxos', wallet, args);
     let query: CoinQuery = { wallets: wallet._id };
-    if (args.includeSpent !== "true") {
+    if (args.includeSpent !== 'true') {
       query.spentHeight = { $lt: 0 };
     }
     Storage.apiStreamingFind(CoinModel, query, stream);

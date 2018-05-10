@@ -21,3 +21,4 @@ dist
 src/vendor
 src/dist
 build/
+.vscode

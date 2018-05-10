@@ -3,8 +3,8 @@ import { CSP } from '../types/namespaces/ChainStateProvider';
 import { ChainNetwork } from '../types/ChainNetwork';
 import { IWalletModel } from '../models/wallet';
 import { RequestHandler } from 'express-serve-static-core';
-import assert from 'assert';
 import { ChainStateProvider } from "../providers/chain-state";
+import logger from '../logger';
 const router = Router({ mergeParams: true });
 const secp256k1 = require('secp256k1');
 const bitcoreLib = require('bitcore-lib');
@@ -43,8 +43,8 @@ const authenticate: RequestHandler = async (
   res: Response,
   next: any
 ) => {
-  console.log(ChainStateProvider);
   const { chain, network, pubKey } = req.params as SignedApiRequest;
+  logger.debug('Authenticating request with pubKey: ', pubKey);
   const wallet = await ChainStateProvider.getWallet({ chain, network, pubKey });
   if (!wallet) {
     return res.status(404).send(new Error('Wallet not found'));

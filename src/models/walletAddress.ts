@@ -4,6 +4,7 @@ import { TransformOptions } from "../types/TransformOptions";
 import { partition } from "../utils/partition";
 import {IWalletModel} from "./wallet";
 import {TransactionModel} from "./transaction";
+import { TransformableModel } from "../types/TransformableModel";
 
 
 interface IWalletAddress {
@@ -17,7 +18,7 @@ export type IWalletAddressQuery = { [key in keyof IWalletAddress]?: any } &
   DocumentQuery<IWalletAddress, Document>;
 
 type IWalletAddressDoc = IWalletAddress & Document;
-type IWalletAddressDocModel = IWalletAddressDoc & Model<IWalletAddressDoc>;
+type IWalletAddressDocModel = IWalletAddressDoc & TransformableModel<IWalletAddressDoc>;
 
 export type UpdateCoinsParams = {
   wallet: IWalletModel;

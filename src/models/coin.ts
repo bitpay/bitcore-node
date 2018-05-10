@@ -1,4 +1,5 @@
 import { Schema, Query, Document, Model, model, DocumentQuery } from "mongoose";
+import { TransformableModel } from "../types/TransformableModel";
 
 export interface ICoin {
   network: string;
@@ -18,9 +19,9 @@ export type CoinQuery = {[key in keyof ICoin]?: any}  &
   Partial<DocumentQuery<ICoin, Document>>;
 
 type ICoinDoc = ICoin & Document;
-type ICoinModelDoc = ICoinDoc & Model<ICoinDoc>;
+type ICoinModelDoc = ICoinDoc & TransformableModel<ICoinDoc>;
 export interface ICoinModel extends ICoinModelDoc {
-  getBalance: (params: { query: CoinQuery }) => any;
+  getBalance: (params: { query: CoinQuery }) => Promise<{balance: number}[]>;
 }
 const Coin = new Schema({
   network: String,
@@ -60,7 +61,7 @@ Coin.statics.getBalance = function(params: { query: CoinQuery }) {
       }
     },
     { $project: { _id: false } }
-  ]);
+  ]).exec();
 };
 
 Coin.statics._apiTransform = function(
