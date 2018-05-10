@@ -6,6 +6,7 @@ import { WalletModel } from '../../../models/wallet';
 import { WalletAddressModel } from '../../../models/walletAddress';
 import { CSP } from '../../../types/namespaces/ChainStateProvider';
 import { Storage } from '../../../services/storage';
+import { RPC } from '../../../rpc';
 import logger from '../../../logger';
 
 import {
@@ -16,7 +17,6 @@ import {
 const config = require('../../../config');
 const JSONStream = require('JSONStream');
 const ListTransactionsStream = require('./transforms');
-const RPC = require('../../../rpc');
 
 type StreamWalletTransactionsArgs = {
   startBlock: number;

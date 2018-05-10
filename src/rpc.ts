@@ -2,7 +2,7 @@ import request = require("request");
 
 type CallbackType = (err: any, data?: any) => any;
 
-export default class Rpc {
+export class RPC {
   constructor(
     private username: string,
     private password: string,
