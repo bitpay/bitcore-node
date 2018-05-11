@@ -1,7 +1,9 @@
-import request = require("request");
+import request = require('request');
 
+import { LoggifyClass } from './decorators/Loggify';
 type CallbackType = (err: any, data?: any) => any;
 
+@LoggifyClass
 export class RPC {
   constructor(
     private username: string,
@@ -13,12 +15,12 @@ export class RPC {
   public callMethod(method: string, params: any, callback: CallbackType) {
     request(
       {
-        method: "POST",
+        method: 'POST',
         url: `http://${this.username}:${this.password}@${this.host}:${
           this.port
         }`,
         body: {
-          jsonrpc: "1.0",
+          jsonrpc: '1.0',
           id: Date.now(),
           method: method,
           params: params
@@ -38,7 +40,7 @@ export class RPC {
   }
 
   getChainTip(callback: CallbackType) {
-    this.callMethod("getchaintips", [], function(err, result) {
+    this.callMethod('getchaintips', [], function(err, result) {
       if (err) {
         return callback(err);
       }
@@ -47,19 +49,19 @@ export class RPC {
   }
 
   getBestBlockHash(callback: CallbackType) {
-    this.callMethod("getbestblockhash", [], callback);
+    this.callMethod('getbestblockhash', [], callback);
   }
 
   getBlockHeight(callback: CallbackType) {
-    this.callMethod("getblockcount", [], callback);
+    this.callMethod('getblockcount', [], callback);
   }
 
   getBlock(hash: string, verbose: boolean, callback: CallbackType) {
-    this.callMethod("getblock", [hash, verbose], callback);
+    this.callMethod('getblock', [hash, verbose], callback);
   }
 
   getBlockHash(height: number, callback: CallbackType) {
-    this.callMethod("getblockhash", [height], callback);
+    this.callMethod('getblockhash', [height], callback);
   }
 
   getBlockByHeight(height: number, callback: CallbackType) {
@@ -74,7 +76,7 @@ export class RPC {
 
   getTransaction(txid: string, callback: CallbackType) {
     var self = this;
-    self.callMethod("getrawtransaction", [txid, true], function(err, result) {
+    self.callMethod('getrawtransaction', [txid, true], function(err, result) {
       if (err) {
         return callback(err);
       }
@@ -84,14 +86,14 @@ export class RPC {
 
   sendTransaction(rawTx: string, callback: CallbackType) {
     var self = this;
-    self.callMethod("sendrawtransaction", [rawTx], callback);
+    self.callMethod('sendrawtransaction', [rawTx], callback);
   }
 
   decodeScript(hex: string, callback: CallbackType) {
-    this.callMethod("decodescript", [hex], callback);
+    this.callMethod('decodescript', [hex], callback);
   }
 
   getWalletAddresses(account: string, callback: CallbackType) {
-    this.callMethod("getaddressesbyaccount", [account], callback);
+    this.callMethod('getaddressesbyaccount', [account], callback);
   }
 }

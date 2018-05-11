@@ -7,6 +7,7 @@ import { BitcoinBlockType, BlockHeaderObj } from '../types/Block';
 import { ChainNetwork } from '../types/ChainNetwork';
 import { TransformableModel } from '../types/TransformableModel';
 import logger from '../logger';
+import { LoggifyObject } from '../decorators/Loggify';
 const async = require('async');
 
 export interface IBlock {
@@ -304,6 +305,7 @@ BlockSchema.statics._apiTransform = function(
   return JSON.stringify(transform);
 };
 
+LoggifyObject(BlockSchema.statics, 'BlockSchema');
 export let BlockModel: IBlockModel = model<IBlockDoc, IBlockModel>(
   'Block',
   BlockSchema
