@@ -51,7 +51,7 @@ WalletSchema.statics.updateCoins = async function(wallet: IWalletModel) {
   return WalletAddressModel.updateCoins({ wallet, addresses });
 };
 
-LoggifyObject(WalletSchema.statics, 'TransactionSchema');
+LoggifyObject(WalletSchema.statics, 'WalletSchema');
 export let WalletModel: IWalletModel = model<IWalletDoc, IWalletModel>(
   "Wallet",
   WalletSchema

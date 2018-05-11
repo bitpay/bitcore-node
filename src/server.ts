@@ -1,5 +1,5 @@
 import { P2pService } from './services/p2p';
-import { Storage} from './services/storage';
+import { Storage } from './services/storage';
 import WorkerService from './services/worker';
 import logger from './logger';
 import config from './config';
@@ -26,8 +26,9 @@ async.series(
           }
         }
       }
-      await Promise.all(p2pServices.map(p2pService => p2pService.start()))
-        .then(cb);
+      await Promise.all(p2pServices.map(p2pService => p2pService.start())).then(
+        cb
+      );
     }
   ],
   function() {
