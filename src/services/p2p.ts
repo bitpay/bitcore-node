@@ -1,3 +1,4 @@
+import logger from '../logger';
 import { BitcoinConnectionConfig } from '../types/BitcoinConfig';
 import { ChainNetwork } from '../types/ChainNetwork';
 import { EventEmitter } from 'events';
@@ -9,7 +10,6 @@ import { BitcoinTransactionType } from '../types/Transaction';
 import { BlockModel } from '../models/block';
 import { SupportedChain } from '../types/SupportedChain';
 import { TransactionModel } from '../models/transaction';
-import logger from '../logger';
 import { LoggifyClass } from '../decorators/Loggify';
 const cluster = require('cluster');
 const Chain = require('../chain');
