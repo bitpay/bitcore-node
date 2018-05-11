@@ -14,7 +14,6 @@ export function LoggifyClass<T extends { new (...args: any[]): {} }>(
           `Loggifying ${aClass.name} with args:: ${JSON.stringify(args)}`
         );
         LoggifyObject(aClass, aClass.name, self);
-        logger.debug('Logging', LoggifiedClasses);
       }
     }
   };
