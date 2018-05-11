@@ -2,10 +2,12 @@ import { CallbackType } from '../types/Callback';
 import { WorkerType } from '../types/Worker';
 import logger from '../logger';
 import config from '../config';
+import { LoggifyClass } from "../decorators/Loggify";
 const cluster = require('cluster');
 const { EventEmitter } = require('events');
 const async = require('async');
 
+@LoggifyClass
 export class WorkerService extends EventEmitter {
   workers = new Array<{ worker: WorkerType; active: boolean }>();
 

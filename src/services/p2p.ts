@@ -10,10 +10,12 @@ import { BlockModel } from '../models/block';
 import { SupportedChain } from '../types/SupportedChain';
 import { TransactionModel } from '../models/transaction';
 import logger from '../logger';
+import { LoggifyClass } from '../decorators/Loggify';
 const cluster = require('cluster');
 const Chain = require('../chain');
 const async = require('async');
 
+@LoggifyClass
 export class P2pService extends EventEmitter {
   chain: SupportedChain;
   network: string;
@@ -243,34 +245,25 @@ export class P2pService extends EventEmitter {
               block: BitcoinBlockType
             ) {
               logger.debug('Block received', block.hash);
-              BlockModel.addBlock(
-                {
-                  block,
-                  chain: self.chain,
-                  network: self.network,
-                  parentChain: self.parentChain,
-                  forkHeight: self.forkHeight
-                },
-                function(err: any) {
-                  blockCounter++;
-                  if (Date.now() - lastLog > 100) {
-                    logger.info(
-                      `Sync progress ${(
-                        (bestBlock.height + blockCounter) /
-                        self.getPoolHeight() *
-                        100
-                      ).toFixed(3)}%`,
-                      {
-                        chain: self.chain,
-                        network: self.network,
-                        height: bestBlock.height + blockCounter
-                      }
-                    );
-                    lastLog = Date.now();
-                  }
-                  cb(err);
+              self.processBlock(block, function(err: any) {
+                blockCounter++;
+                if (Date.now() - lastLog > 100) {
+                  logger.info(
+                    `Sync progress ${(
+                      (bestBlock.height + blockCounter) /
+                      self.getPoolHeight() *
+                      100
+                    ).toFixed(3)}%`,
+                    {
+                      chain: self.chain,
+                      network: self.network,
+                      height: bestBlock.height + blockCounter
+                    }
+                  );
+                  lastLog = Date.now();
                 }
-              );
+                cb(err);
+              });
             });
           },
           function(err: any) {

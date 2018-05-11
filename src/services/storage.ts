@@ -5,8 +5,10 @@ import { Model, Query, Document } from "mongoose";
 import { TransformableModel } from "../types/TransformableModel";
 import logger from '../logger';
 import config from '../config';
+import { LoggifyClass } from "../decorators/Loggify";
 import "../models"
 
+@LoggifyClass
 export class StorageService {
   start(ready: CallbackType, args: any) {
     let options = Object.assign({}, config, args);
