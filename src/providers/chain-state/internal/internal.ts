@@ -236,7 +236,6 @@ export class InternalStateProvider implements CSP.IChainStateService {
 
   streamWalletUtxos(params: StreamWalletUtxoParams) {
     const { wallet, args = {}, stream } = params;
-    logger.debug('Streaming wallet utxos', wallet, args);
     let query: CoinQuery = { wallets: wallet._id };
     if (args.includeSpent !== 'true') {
       query.spentHeight = { $lt: 0 };

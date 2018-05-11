@@ -2,6 +2,7 @@ import { Schema, Query, Document, Model, model, DocumentQuery } from "mongoose";
 import { TransformOptions } from "../types/TransformOptions";
 import { WalletAddressModel } from "../models/walletAddress";
 import { ChainNetwork } from "../types/ChainNetwork";
+import { LoggifyObject } from "../decorators/Loggify";
 
 export interface IWallet extends ChainNetwork {
   name: string;
@@ -50,6 +51,7 @@ WalletSchema.statics.updateCoins = async function(wallet: IWalletModel) {
   return WalletAddressModel.updateCoins({ wallet, addresses });
 };
 
+LoggifyObject(WalletSchema.statics, 'TransactionSchema');
 export let WalletModel: IWalletModel = model<IWalletDoc, IWalletModel>(
   "Wallet",
   WalletSchema

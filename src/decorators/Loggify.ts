@@ -26,32 +26,20 @@ export function LoggifyMethod(className: string) {
     descriptor: TypedPropertyDescriptor<Function>
   ) {
     let prop = propertyKey;
-    descriptor.value = function(...methodargs: any[]) {
-      logger.debug(
-        `${className}::${prop}()::args::${JSON.stringify(methodargs)} `
-      );
-      let returnVal = target(...methodargs);
-      if (returnVal && <Promise<any>>returnVal.then) {
-        returnVal.then((data: any) => {
-          logger.debug(
-            `${className}::${prop}()::resolved::${JSON.stringify(data)}`
-          );
-          return data;
-        });
-      } else {
-        logger.debug(
-          `${className}::${prop}()::returned::${JSON.stringify(returnVal)}`
-        );
-      }
-      return returnVal;
-    };
+    if (descriptor.value != undefined) {
+      descriptor.value = LoggifyFunction(descriptor.value, className);
+    }
   };
 }
 
-export function LoggifyFunction(fn: Function, logPrefix?: string) {
+export function LoggifyFunction(fn: Function, logPrefix?: string, bind?: any) {
+  let copy = fn;
+  if (bind) {
+    copy = copy.bind(bind);
+  }
   return function(...methodargs: any[]) {
     logger.debug(`${logPrefix}::args::${JSON.stringify(methodargs)} `);
-    let returnVal = fn(...methodargs);
+    let returnVal = copy(...methodargs);
     if (returnVal && <Promise<any>>returnVal.then) {
       returnVal.then((data: any) => {
         logger.debug(`${logPrefix}::resolved::${JSON.stringify(data)}`);
@@ -64,7 +52,7 @@ export function LoggifyFunction(fn: Function, logPrefix?: string) {
   };
 }
 
-export function LoggifyObject(obj: any, logPrefix?: string, bind?: any) {
+export function LoggifyObject(obj: any, logPrefix: string = '', bind?: any) {
   for (let prop of Object.getOwnPropertyNames(obj)) {
     if (typeof obj[prop] === 'function') {
       let copy = obj[prop];
@@ -72,25 +60,7 @@ export function LoggifyObject(obj: any, logPrefix?: string, bind?: any) {
         copy = copy.bind(bind);
       }
       logger.debug(`Loggifying  ${logPrefix}::${prop}`);
-      obj[prop] = function(...methodargs: any[]) {
-        logger.debug(
-          `${logPrefix}::${prop}()::args::${JSON.stringify(methodargs)} `
-        );
-        let returnVal = copy(...methodargs);
-        if (returnVal && <Promise<any>>returnVal.then) {
-          returnVal.then((data: any) => {
-            logger.debug(
-              `${logPrefix}::${prop}()::resolved::${JSON.stringify(data)}`
-            );
-            return data;
-          });
-        } else {
-          logger.debug(
-            `${logPrefix}::${prop}()::returned::${JSON.stringify(returnVal)}`
-          );
-        }
-        return returnVal;
-      };
+      obj[prop] = LoggifyFunction(obj[prop], `${logPrefix}::${prop}`, bind);
     }
   }
   return obj;

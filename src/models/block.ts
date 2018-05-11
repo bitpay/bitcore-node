@@ -7,7 +7,7 @@ import { BitcoinBlockType, BlockHeaderObj } from '../types/Block';
 import { ChainNetwork } from '../types/ChainNetwork';
 import { TransformableModel } from '../types/TransformableModel';
 import logger from '../logger';
-import { LoggifyMethod, LoggifyFunction } from '../decorators/Loggify';
+import { LoggifyObject } from '../decorators/Loggify';
 const async = require('async');
 
 export interface IBlock {
@@ -74,7 +74,7 @@ BlockSchema.index({ chain: 1, network: 1, processed: 1, height: -1 });
 BlockSchema.index({ chain: 1, network: 1, timeNormalized: 1 });
 BlockSchema.index({ previousBlockHash: 1 });
 
-BlockSchema.statics.addBlock = LoggifyFunction(function(
+BlockSchema.statics.addBlock = function(
   params: AddBlockParams,
   callback: CallbackType
 ) {
@@ -166,7 +166,7 @@ BlockSchema.statics.addBlock = LoggifyFunction(function(
       );
     }
   );
-}, 'BlockSchema.addBlock');
+};
 
 BlockSchema.statics.getPoolInfo = function(coinbase: string) {
   //TODO need to make this actually parse the coinbase input and map to miner strings
@@ -305,6 +305,7 @@ BlockSchema.statics._apiTransform = function(
   return JSON.stringify(transform);
 };
 
+LoggifyObject(BlockSchema.statics, 'BlockSchema');
 export let BlockModel: IBlockModel = model<IBlockDoc, IBlockModel>(
   'Block',
   BlockSchema

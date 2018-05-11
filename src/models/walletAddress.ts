@@ -5,6 +5,7 @@ import { partition } from "../utils/partition";
 import {IWalletModel} from "./wallet";
 import {TransactionModel} from "./transaction";
 import { TransformableModel } from "../types/TransformableModel";
+import { LoggifyObject } from "../decorators/Loggify";
 
 
 interface IWalletAddress {
@@ -120,4 +121,6 @@ WalletAddressSchema.statics.updateCoins = async function(
     });
   });
 };
+
+LoggifyObject(WalletAddressSchema.statics, 'WalletAddressSchema');
 export let WalletAddressModel: IWalletAddressModel = model<IWalletAddressDoc, IWalletAddressModel>("WalletAddress", WalletAddressSchema);
