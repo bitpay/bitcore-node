@@ -83,7 +83,7 @@ WalletAddressSchema.statics.updateCoins = async function(
   return new Promise(async resolve => {
     await Promise.all(
       walletUpdateBatches.map(walletUpdateBatch => {
-        return this.bulkWrite(walletUpdateBatch, { ordered: false });
+        return WalletAddressModel.collection.bulkWrite(walletUpdateBatch, { ordered: false });
       })
     );
 

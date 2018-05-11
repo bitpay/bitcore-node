@@ -9,11 +9,12 @@ export function LoggifyClass<T extends { new (...args: any[]): {} }>(
       super(...args);
       var self = this;
       if (!LoggifiedClasses[aClass.name]) {
-        logger.debug(
-          `Loggifying  ${aClass.name} with args:: ${JSON.stringify(args)}`
-        );
-        LoggifyObject(aClass.prototype, aClass.name, self);
         LoggifiedClasses[aClass.name] = true;
+        logger.debug(
+          `Loggifying ${aClass.name} with args:: ${JSON.stringify(args)}`
+        );
+        LoggifyObject(aClass, aClass.name, self);
+        logger.debug('Logging', LoggifiedClasses);
       }
     }
   };
@@ -41,10 +42,15 @@ export function LoggifyFunction(fn: Function, logPrefix?: string, bind?: any) {
     logger.debug(`${logPrefix}::args::${JSON.stringify(methodargs)} `);
     let returnVal = copy(...methodargs);
     if (returnVal && <Promise<any>>returnVal.then) {
-      returnVal.then((data: any) => {
-        logger.debug(`${logPrefix}::resolved::${JSON.stringify(data)}`);
-        return data;
-      });
+      returnVal
+        .catch((err: any) => {
+          logger.error(`${logPrefix}::catch::${err}`);
+          throw err;
+        })
+        .then((data: any) => {
+          logger.debug(`${logPrefix}::resolved::${JSON.stringify(data)}`);
+          return data;
+        });
     } else {
       logger.debug(`${logPrefix}::returned::${JSON.stringify(returnVal)}`);
     }

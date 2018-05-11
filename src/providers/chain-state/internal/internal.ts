@@ -9,13 +9,13 @@ import { Storage } from '../../../services/storage';
 import { RPC } from '../../../rpc';
 import { LoggifyClass } from '../../../decorators/Loggify';
 import logger from '../../../logger';
+import config from '../../../config';
 
 import {
   TransactionQuery,
   TransactionModel
 } from '../../../models/transaction';
 
-const config = require('../../../config');
 const JSONStream = require('JSONStream');
 const ListTransactionsStream = require('./transforms');
 

@@ -53,7 +53,7 @@ CoinSchema.index({ wallets: 1, spentHeight: 1 }, { sparse: true });
 CoinSchema.statics.getBalance = function(params: { query: CoinQuery }) {
   let { query } = params;
   query = Object.assign(query, { spentHeight: { $lt: 0 } });
-  return this.aggregate([
+  return CoinModel.aggregate([
     { $match: query },
     {
       $group: {
