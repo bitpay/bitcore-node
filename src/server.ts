@@ -36,7 +36,9 @@ async.series(
     }
   ],
   function () {
-    if (cluster.isWorker || args.DEBUG) {
+    const shouldRunDebug = cluster.isMaster && args.DEBUG;
+    const shouldRunCluster = cluster.isWorker && !args.DEBUG;
+    if (shouldRunDebug || shouldRunCluster) {
       const server = app.listen(config.port, function () {
         logger.info(`API server started on port ${config.port}`);
       });
