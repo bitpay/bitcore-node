@@ -59,4 +59,4 @@ app.use('/api/:chain/:network', (req: Request, resp: Response, next: any) => {
 
 app.use('/api/:chain/:network', bootstrap());
 
-module.exports = app;
+export default app;

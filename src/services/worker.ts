@@ -58,4 +58,4 @@ export class WorkerService extends EventEmitter {
   }
 }
 
-export default new WorkerService();
+export let Worker = new WorkerService();

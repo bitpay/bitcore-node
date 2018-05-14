@@ -1,16 +1,20 @@
 import { P2pService } from './services/p2p';
 import { Storage } from './services/storage';
-import WorkerService from './services/worker';
+import { Worker } from './services/worker';
+import { CallbackType } from './types/Callback';
 import logger from './logger';
 import config from './config';
-import { CallbackType } from './types/Callback';
+
 import cluster = require('cluster');
+import app from './routes';
+import parseArgv from './utils/parseArgv';
 const async = require('async');
+let args = parseArgv([], ['DEBUG']);
 
 async.series(
   [
     Storage.start.bind(Storage),
-    WorkerService.start.bind(WorkerService),
+    Worker.start.bind(Worker),
     async (cb: CallbackType) => {
       let p2pServices = [];
       for (let chain of Object.keys(config.chains)) {
@@ -31,10 +35,9 @@ async.series(
       );
     }
   ],
-  function() {
-    if (cluster.isWorker) {
-      const app = require('./routes');
-      const server = app.listen(config.port, function() {
+  function () {
+    if (cluster.isWorker || args.DEBUG) {
+      const server = app.listen(config.port, function () {
         logger.info(`API server started on port ${config.port}`);
       });
       server.timeout = 600000;
