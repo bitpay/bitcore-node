@@ -31,7 +31,7 @@
     "async": "^2.5.0",
     "bcoin": "bitpay/bcoin#v1.0.0-beta.14+cash",
     "bitcoind-rpc": "^0.6.0",
-    "bitcore-lib": "5.0.0-beta.1",
+    "bitcore-lib": "0.15.0",
     "bitcore-p2p": "5.0.0-beta.1",
     "bn.js": "^4.11.8",
     "body-parser": "^1.13.3",
