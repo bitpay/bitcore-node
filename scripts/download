@@ -5,8 +5,9 @@ set -e
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 platform=`uname -a | awk '{print tolower($1)}'`
 arch=`uname -m`
-version="4.1.2"
-url="https://build.nav.community/v${version}"
+version="4.2.1"
+url="https://github.com/NAVCoin/navcoin-core/releases/download/${version}"
+checksumurl="https://raw.githubusercontent.com/NAVCoin/navcoin-sigs/master/v${version}.SHA256SUM.asc"
 tag="navcoin-4.1.2"
 
 if [ "${platform}" == "linux" ]; then
@@ -23,7 +24,7 @@ else
 fi
 
 binary_url="${url}/${tarball_name}"
-shasums_url="${url}/SHA256SUMS"
+shasums_url="${checksumurl}"
 
 download_bitcoind() {
 
