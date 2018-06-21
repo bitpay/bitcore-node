@@ -1,44 +1,33 @@
-Bitcore Node
+Bitcore Node (BCH)
 ============
 
-A Bitcoin blockchain indexing and query service. Intended to be used with as a Bitcoin full node or in conjunction with a Bitcoin full node.
 
-## Upgrading from previous versions of Bitcore Node
+## Prerequisites
 
-There is no upgrade path from previous versions of Bitcore Node due to the removal of the included Bitcoin Core software. By installing this version, you must resynchronize the indexes from scratch.
+- Bitcoin Cash Full node (local/remote).
+  - I used [bitcoin-abc-0.17.2](https://download.bitcoinabc.org/0.17.2/)
+- Node.js v8.2.0+
+- ~200 GB (only for the full blockchain `livenet`/`testnet`, for `regtest` you don't need much)
+- ~4GB of RAM
 
 ## Install
 
 ```bash
+git clone -b cash https://github.com/osagga/bitcore-node.git && cd bitcore-node
 npm install
 ./bin/bitcore-node start
 ```
 
-Note: A default configuration file is placed in the bitcore user's home directory (~/.bitcore/bitcore-node.json). Or, alternatively, you can copy the provided "bitcore-node.json.sample" file to the project's root directory as bitcore-node.json and edit it for your preferences. If you don't have a preferred block source (trusted peer), [Bcoin](https://github.com/bcoin-org/bcoin) will be started automatically and synchronized with the mainnet chain.
-
-## Prerequisites
-
-- Node.js v8.2.0+
-- ~500GB of disk storage
-- ~4GB of RAM
-
 ## Configuration
 
-The main configuration file is called "bitcore-node.json". This file instructs bitcore-node for the following options:
+Note: This Bitcore node will "attach" to a running full node (you need to set the ip of the full node, in the main configuration file is called `"bitcore-node.json`), so you need to have the Bitcoin Cash node running before starting this node. I would recommend using the same setting in `bitcoin.conf.sample` to setup the full Bitcoin-Cash node (at least the RPC settings since Bitcore uses the same RPC credentials by default.)
 
+The config file instructs bitcore-node for the following options:
 - location of database files (datadir)
 - tcp port for web services, if configured (port)
-- bitcoin network type (e.g. mainnet, testnet3, regtest), (network)
+- bitcoin-cash network type (e.g. `mainnet`, `testnet`, `regtest`), (network)
 - what services to include (services)
 - the services' configuration (servicesConfig)
-
-## Add-on Services
-
-There are several add-on services available to extend the functionality of Bitcore:
-
-- [Insight API](https://github.com/bitpay/insight-api)
-- [Insight UI](https://github.com/bitpay/insight-ui)
-- [Bitcore Wallet Service](https://github.com/bitpay/bitcore-wallet-service)
 
 ## Documentation
 
@@ -57,10 +46,6 @@ There are several add-on services available to extend the functionality of Bitco
 - [Node](docs/node.md) - Details on the node constructor
 - [Bus](docs/bus.md) - Overview of the event bus constructor
 - [Release Process](docs/release.md) - Information about verifying a release and the release process.
-
-## Contributing
-
-Please send pull requests for bug fixes, code optimization, and ideas for improvement. For more information on how to contribute, please refer to our [CONTRIBUTING](https://github.com/bitpay/bitcore/blob/master/CONTRIBUTING.md) file.
 
 ## License
 
