@@ -1,5 +1,5 @@
 {
-  "network": "testnet",
+  "network": "livenet",
   "port": 3001,
   "datadir": "/tmp",
   "services": [
@@ -13,21 +13,33 @@
     "timestamp",
     "fee",
     "insight-api",
+    "insight-ui",
     "web"
   ],
   "servicesConfig": {
     "insight-api": {
+      "cwdRequirePath": "insight-api",
       "routePrefix": "api",
       "disableRateLimiter": true,
       "enableCache": true
     },
+    "insight-ui": {
+      "cwdRequirePath": "insight-ui",
+      "routePrefix": "",
+      "apiPrefix": "api"
+    },
+    "p2p": {
+      "peers": [
+        { "ip": { "v4": "127.0.0.1" } }
+      ]
+    },
     "fee": {
       "rpc": {
-        "user": "local",
-        "pass": "local",
-        "host": "localhost",
+        "user": "bitcoin",
+        "pass": "local321",
+        "host": "127.0.0.1",
         "protocol": "http",
-        "port": 18332
+        "port": 8332
       }
     }
   }
