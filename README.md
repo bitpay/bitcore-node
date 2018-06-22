@@ -7,6 +7,8 @@ Bitcore Node (BCH)
 - Bitcoin Cash Full node (local/remote).
   - I used [bitcoin-abc-0.17.2](https://download.bitcoinabc.org/0.17.2/)
 - Node.js v8.2.0+
+- `build-essential` and `libzmq3-dev`
+  - You can use `sudo apt-get install build-essential libzmq3-dev`
 - ~200 GB (only for the full blockchain `livenet`/`testnet`, for `regtest` you don't need much)
 - ~4GB of RAM
 
