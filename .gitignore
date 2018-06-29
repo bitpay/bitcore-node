@@ -28,3 +28,4 @@ bin/SHA256SUMS.asc
 *.orig
 package-lock.json
 data/*
+.vscode/launch.json

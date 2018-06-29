@@ -31,7 +31,16 @@
     "p2p": {
       "peers": [
         { "ip": { "v4": "127.0.0.1" } }
-      ]
+      ],
+      "rpc":{
+          "host":"127.0.0.1",
+          "port":8332,
+          "pass":"local321",
+          "protocol":"http",
+          "user":"bitcoin"
+      }
+          
+      
     },
     "fee": {
       "rpc": {
