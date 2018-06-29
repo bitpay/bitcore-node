@@ -27,3 +27,4 @@ bin/SHA256SUMS.asc
 *.bak
 *.orig
 package-lock.json
+data/*

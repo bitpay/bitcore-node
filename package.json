@@ -29,16 +29,18 @@
   ],
   "dependencies": {
     "async": "^2.5.0",
-    "bn.js": "^4.11.8",
-    "bitcore-lib-cash": "osagga/bitcore-lib#cash",
-    "bcoin": "bitpay/bcoin#v1.0.0-beta.14+cash",
+    "bcoin": "github:osagga/bcoin#bcash-address-fix",
     "bitcoind-rpc": "^0.6.0",
+    "bitcore-lib-cash": "osagga/bitcore-lib#fix-cash-address-parsing",
     "bitcore-p2p": "osagga/bitcore-p2p#master",
+    "bn.js": "^4.11.8",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
     "commander": "^2.8.1",
     "errno": "^0.1.4",
     "express": "^4.13.3",
+    "insight-api": "osagga/insight-api#fixing-bch-address-format",
+    "insight-ui": "0.4.0",
     "leveldown": "^2.0.0",
     "levelup": "^2.0.0",
     "liftoff": "^2.2.0",
@@ -49,9 +51,7 @@
     "path-is-absolute": "^1.0.0",
     "socket.io": "^1.4.5",
     "socket.io-client": "^1.4.5",
-    "xxhash": "^0.2.4",
-    "insight-api": "osagga/insight-api#cash_v1",
-    "insight-ui": "0.4.0"
+    "xxhash": "^0.2.4"
   },
   "devDependencies": {
     "chai": "^3.5.0",
