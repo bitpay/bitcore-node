@@ -1,5 +1,5 @@
 {
-  "name": "bitcore-cash",
+  "name": "bitcore-node-cash",
   "description": "Full node with extended capabilities to support Bitcoin cash using Bitcore",
   "engines": {
     "node": ">=8.2.0"
