@@ -1,16 +1,23 @@
 {
-  "name": "bitcore-node",
-  "description": "Full node with extended capabilities using Bitcore and Bitcoin Core",
+  "name": "bitcore-node-cash",
+  "description": "Full node with extended capabilities to support Bitcoin cash using Bitcore",
   "engines": {
-    "node": ">=8.0.0"
+    "node": ">=8.2.0"
   },
   "author": "BitPay <dev@bitpay.com>",
-  "version": "5.0.0-beta.44",
+  "contributors": [
+    {
+      "name": "Omar Sagga",
+      "email": "osagga@outlook.com",
+      "url": "https://github.com/osagga"
+    }
+  ],
+  "version": "5.0.1-alpha",
   "main": "./index.js",
-  "repository": "git://github.com/bitpay/bitcore-node.git",
+  "repository": "git://github.com/osagga/bitcore-node.git",
   "homepage": "https://github.com/bitpay/bitcore-node",
   "bugs": {
-    "url": "https://github.com/bitpay/bitcore-node/issues"
+    "url": "https://github.com/osagga/bitcore-node/issues"
   },
   "bin": {
     "bitcore-node": "./bin/bitcore-node"
@@ -22,23 +29,27 @@
     "bitcoin",
     "bitcoind",
     "bcoin",
+    "bch",
+    "bch full node",
+    "bitcoin cash full node",
     "bitcoin full node",
     "bitcoin index",
-    "block explorer",
-    "wallet backend"
+    "block explorer"
   ],
   "dependencies": {
     "async": "^2.5.0",
-    "bcoin": "bitpay/bcoin#v1.0.0-beta.14+cash",
+    "bcoin": "github:osagga/bcoin#fix-bch-addresses",
     "bitcoind-rpc": "^0.6.0",
-    "bitcore-lib": "5.0.0-beta.1",
-    "bitcore-p2p": "5.0.0-beta.1",
+    "bitcore-lib-cash": "osagga/bitcore-lib#fix-cash-address-parsing",
+    "bitcore-p2p": "osagga/bitcore-p2p#master",
     "bn.js": "^4.11.8",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
     "commander": "^2.8.1",
     "errno": "^0.1.4",
     "express": "^4.13.3",
+    "insight-api": "osagga/insight-api#fixing-bch-address-format",
+    "insight-ui": "0.4.0",
     "leveldown": "^2.0.0",
     "levelup": "^2.0.0",
     "liftoff": "^2.2.0",

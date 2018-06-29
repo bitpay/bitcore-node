@@ -1,0 +1,22 @@
+server=1
+
+regtest=1
+# testnet=1
+
+whitelist=127.0.0.1
+
+rpcallowip=127.0.0.1
+rpcport=8332
+rpcuser=bitcoin
+rpcpassword=local321
+
+txindex=1
+addressindex=1
+timestampindex=1
+spentindex=1
+
+zmqpubrawtx=tcp://127.0.0.1:28332
+zmqpubrawtxlock=tcp://127.0.0.1:28332
+zmqpubhashblock=tcp://127.0.0.1:28332
+
+uacomment=bitcore
