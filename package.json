@@ -29,7 +29,7 @@
   ],
   "dependencies": {
     "async": "^2.5.0",
-    "bcoin": "github:osagga/bcoin#bcash-address-fix",
+    "bcoin": "github:osagga/bcoin#fix-bch-addresses",
     "bitcoind-rpc": "^0.6.0",
     "bitcore-lib-cash": "osagga/bitcore-lib#fix-cash-address-parsing",
     "bitcore-p2p": "osagga/bitcore-p2p#master",
