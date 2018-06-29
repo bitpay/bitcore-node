@@ -1,7 +1,7 @@
 Bitcore Node (BCH)
 ============
 
-
+## !! THIS IS STILL IN BETA, Please use with caution and check the open issues before using!!
 ## Prerequisites
 
 - Bitcoin Cash Full node (local/remote).
@@ -22,7 +22,7 @@ npm install
 
 ## Configuration
 
-Note: This Bitcore node will "attach" to a running full node (you need to set the ip of the full node, in the main configuration file is called `"bitcore-node.json`), so you need to have the Bitcoin Cash node running before starting this node. I would recommend using the same setting in `bitcoin.conf.sample` to setup the full Bitcoin-Cash node (at least the RPC settings since Bitcore uses the same RPC credentials by default.)
+This Bitcore node will "attach" to a running full node (you need to specify the ip of the full node in the main configuration file `"bitcore-node.json`), **you need to have the Bitcoin Cash node running before starting this node**. I would recommend using the same setting in `bitcoin.conf.sample` to setup the full Bitcoin-Cash node (at least the RPC settings since Bitcore uses the same RPC credentials by default.)
 
 The config file instructs bitcore-node for the following options:
 - location of database files (datadir)
@@ -30,6 +30,7 @@ The config file instructs bitcore-node for the following options:
 - bitcoin-cash network type (e.g. `mainnet`, `testnet`, `regtest`), (network)
 - what services to include (services)
 - the services' configuration (servicesConfig)
+- ip of the bitcoin cash peer, along with its RPC settings.
 
 ## Documentation
 

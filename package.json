@@ -1,16 +1,23 @@
 {
-  "name": "bitcore-node",
-  "description": "Full node with extended capabilities using Bitcore and Bitcoin Core",
+  "name": "bitcore-cash",
+  "description": "Full node with extended capabilities to support Bitcoin cash using Bitcore",
   "engines": {
-    "node": ">=8.0.0"
+    "node": ">=8.2.0"
   },
   "author": "BitPay <dev@bitpay.com>",
-  "version": "5.0.0-beta.44",
+  "contributors": [
+    {
+      "name": "Omar Sagga",
+      "email": "osagga@outlook.com",
+      "url": "https://github.com/osagga"
+    }
+  ],
+  "version": "5.0.1-alpha",
   "main": "./index.js",
-  "repository": "git://github.com/bitpay/bitcore-node.git",
+  "repository": "git://github.com/osagga/bitcore-node.git",
   "homepage": "https://github.com/bitpay/bitcore-node",
   "bugs": {
-    "url": "https://github.com/bitpay/bitcore-node/issues"
+    "url": "https://github.com/osagga/bitcore-node/issues"
   },
   "bin": {
     "bitcore-node": "./bin/bitcore-node"
@@ -22,10 +29,12 @@
     "bitcoin",
     "bitcoind",
     "bcoin",
+    "bch",
+    "bch full node",
+    "bitcoin cash full node",
     "bitcoin full node",
     "bitcoin index",
-    "block explorer",
-    "wallet backend"
+    "block explorer"
   ],
   "dependencies": {
     "async": "^2.5.0",
