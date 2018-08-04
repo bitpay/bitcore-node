@@ -89,6 +89,7 @@ export declare namespace CSP {
     updateWallet(params: UpdateWalletParams): Promise<IWalletModel>;
     getWalletBalance(params: GetWalletBalanceParams): Promise<{balance: number}[]>;
     streamAddressUtxos(params: StreamAddressUtxosParams): any;
+    streamTransactionRaw(params: StreamTransactionParams): any;
     streamTransactions(params: StreamTransactionsParams): any;
     streamTransaction(params: StreamTransactionParams): any;
     streamWalletAddresses(params: StreamWalletAddressesParams): any;

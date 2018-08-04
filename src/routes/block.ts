@@ -21,6 +21,25 @@ router.get("/", async function(req: Request, res: Response) {
   }
 });
 
+router.get("/latest", async function(req: Request, res: Response) {
+    let { chain, network, sinceBlock } = req.params;
+    try {
+      let payload = {
+        chain,
+        network,
+        sinceBlock,
+        args: { limit: 1 }
+      };
+      let block = await ChainStateProvider.getBlocks(payload);
+      if (!block) {
+        return res.status(404).send("block not found");
+      }
+      return res.json(block);
+    } catch (err) {
+      return res.status(500).send(err);
+    }
+  });
+
 router.get("/:blockId", async function(req: Request, res: Response) {
   let { blockId, chain, network } = req.params;
   try {
