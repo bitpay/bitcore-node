@@ -5,10 +5,10 @@ set -e
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 platform=`uname -a | awk '{print tolower($1)}'`
 arch=`uname -m`
-version="4.2.1"
+version="4.4.0"
 url="https://github.com/NAVCoin/navcoin-core/releases/download/${version}"
 checksumurl="https://raw.githubusercontent.com/NAVCoin/navcoin-sigs/master/v${version}.SHA256SUM.asc"
-tag="navcoin-4.1.2"
+tag="navcoin-4.4.0"
 
 if [ "${platform}" == "linux" ]; then
     if [ "${arch}" == "x86_64" ]; then
