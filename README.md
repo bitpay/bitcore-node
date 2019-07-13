@@ -8,7 +8,7 @@ A Navcoin full node for building applications and services with Node.js. A node 
 ```bashl
 su
 npm install n
-n 4.9.1
+n 6
 npm install --unsafe-perm -g git://github.com/Encrypt-S/bitcore-node.git
 exit
 bitcore-node create mynode
@@ -29,7 +29,7 @@ bitcore-node install bitcore-wallet-service
 ## Prerequisites
 
 - GNU/Linux x86_32/x86_64, or OSX 64bit
-- Node.js v4.9.1
+- Node.js v6
 - ZeroMQ *(libzmq3-dev for Ubuntu/Debian or zeromq on OSX)*
 - ~200GB of disk storage
 - ~8GB of RAM
