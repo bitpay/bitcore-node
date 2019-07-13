@@ -6,7 +6,7 @@ A Navcoin full node for building applications and services with Node.js. A node 
 ## Install
 
 ```bashl
-sudo npm install --unsafe-perm -g git://github.com/navcoindev/bitcore-node.git
+sudo npm install --unsafe-perm -g git://github.com/Encrypt-S/bitcore-node.git
 bitcore-node create mynode
 cd mynode
 bitcore-node start
