@@ -7,8 +7,11 @@ A Navcoin full node for building applications and services with Node.js. A node 
 
 ```bashl
 su
+curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+sudo apt-get install -y nodejs
 npm install n
 n 6
+sudo apt install libzmq3-dev
 npm install --unsafe-perm -g git://github.com/Encrypt-S/bitcore-node.git
 exit
 bitcore-node create mynode
