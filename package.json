@@ -28,11 +28,11 @@
     "wallet backend"
   ],
   "dependencies": {
-    "async": "^2.5.0",
+    "async": "^3.2.6",
     "bcoin": "bitpay/bcoin#v1.0.0-beta.14+cash",
     "bitcoind-rpc": "^0.6.0",
     "bitcore-lib": "5.0.0-beta.1",
-    "bitcore-p2p": "5.0.0-beta.1",
+    "bitcore-p2p": "10.10.7",
     "bn.js": "^4.11.8",
     "body-parser": "^1.13.3",
     "colors": "^1.1.2",
@@ -47,7 +47,7 @@
     "memwatch-next": "^0.3.0",
     "mkdirp": "0.5.0",
     "path-is-absolute": "^1.0.0",
-    "socket.io": "^1.4.5",
+    "socket.io": "^2.5.0",
     "socket.io-client": "^1.4.5",
     "xxhash": "^0.2.4"
   },
